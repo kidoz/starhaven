@@ -78,11 +78,22 @@ struct BlvFace {
     [[nodiscard]] float nz() const noexcept { return static_cast<float>(normal_z) / 65536.0f; }
 };
 
+// One entry of the array that follows the face texture names. Each references
+// a face; the shipped maps have far fewer of these than faces, so they are
+// per-face *extra* data rather than a parallel array.
+struct BlvFaceExtra {
+    std::uint16_t face_index = 0;   // always a valid index into `faces`
+    std::uint16_t unknown_14 = 0;   // usually non-zero; multiples of 128 are common
+    std::uint16_t unknown_16 = 0;   // usually non-zero
+    std::uint16_t unknown_1a = 0;   // sparse; non-zero on about 1 record in 6
+};
+
 // A parsed `.blv` indoor map.
 struct BlvMap {
     BlvHeader header;
     std::vector<BlvVertex> vertices;
     std::vector<BlvFace> faces;
+    std::vector<BlvFaceExtra> face_extras;
     std::vector<std::uint8_t> payload;  // the whole decompressed payload
 
     // How far into the payload this slice decodes. Everything after is the
@@ -113,6 +124,7 @@ struct BlvDecoration {
 // Returns the records in file order.
 [[nodiscard]] std::vector<BlvDecoration> find_decorations(const BlvMap& map);
 
+constexpr std::uint32_t kBlvFaceExtraSize = 36;
 constexpr std::uint32_t kBlvDecorationSize = 32;
 constexpr std::size_t kBlvDecorationNameSize = 0x16;
 

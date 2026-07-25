@@ -10,6 +10,7 @@
 #include <cstring>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include <zlib.h>
@@ -51,7 +52,8 @@ std::vector<std::uint8_t> make_payload(
     const std::vector<std::array<std::int16_t, 3>>& vertices,
     const std::vector<FaceSpec>& faces,
     const std::string& name = "Test Level",
-    const std::string& name2 = "test") {
+    const std::string& name2 = "test",
+    const std::vector<std::pair<std::uint16_t, std::uint16_t>>& extras = {}) {
     std::vector<std::uint8_t> p(kBlvHeaderSize, 0);
     put_u32(p, 0x00, 1);
     for (std::size_t i = 0; i < name.size(); ++i) p[0x04 + i] = static_cast<std::uint8_t>(name[i]);
@@ -105,6 +107,23 @@ std::vector<std::uint8_t> make_payload(
                             ? static_cast<std::uint8_t>(f.texture[i])
                             : std::uint8_t{0});
         }
+    }
+
+    // Face extras: a count, then 36-byte records naming a face. The u16 at
+    // +0x0e must be 0xffff, which is the invariant the parser checks.
+    push_u32(p, static_cast<std::uint32_t>(extras.size()));
+    for (const auto& [face_index, tag] : extras) {
+        const std::size_t base = p.size();
+        p.resize(base + kBlvFaceExtraSize, 0);
+        auto put_u16 = [&](std::size_t off, std::uint16_t v) {
+            p[base + off] = static_cast<std::uint8_t>(v & 0xFF);
+            p[base + off + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+        };
+        put_u16(0x0C, face_index);
+        put_u16(0x0E, 0xFFFF);
+        put_u16(0x14, tag);
+        put_u16(0x16, static_cast<std::uint16_t>(tag + 1));
+        put_u16(0x1A, static_cast<std::uint16_t>(tag + 2));
     }
     return p;
 }
@@ -393,4 +412,43 @@ TEST_CASE("decorations far outside the level are not accepted", "[blv]") {
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::None);
     REQUIRE(find_decorations(map).empty());
+}
+
+TEST_CASE("face extras are decoded after the texture names", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"},
+                                         {{0, 1, 2}, 0, "WallB"}};
+    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test",
+                                   {{1, 10}, {0, 20}}));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.face_extras.size() == 2);
+    REQUIRE(map.face_extras[0].face_index == 1);
+    REQUIRE(map.face_extras[0].unknown_14 == 10);
+    REQUIRE(map.face_extras[0].unknown_16 == 11);
+    REQUIRE(map.face_extras[0].unknown_1a == 12);
+    REQUIRE(map.face_extras[1].face_index == 0);
+    REQUIRE(map.decoded_bytes == map.payload.size());
+}
+
+TEST_CASE("a face extra naming a missing face is rejected", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test",
+                                   {{99, 0}}));
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::BadGeometry);
+}
+
+TEST_CASE("a face extra without its 0xffff marker is rejected", "[blv]") {
+    // The marker holds on all 35,485 records in the shipped maps, so a record
+    // lacking it means the array is being read at the wrong offset.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces, "Test Level", "test", {{0, 5}});
+    // Clear the marker of the first extra: it sits 4 bytes past the count.
+    const std::size_t marker = payload.size() - kBlvFaceExtraSize + 0x0E;
+    payload[marker] = 0;
+    payload[marker + 1] = 0;
+    auto entry = wrap(payload);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::BadGeometry);
 }

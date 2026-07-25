@@ -237,7 +237,55 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
     if (!r.ok()) {
         return BlvError::Truncated;
     }
-    out.decoded_bytes = names_end;
+    // --- face extras ---
+    //
+    // A count-prefixed array of 36-byte records, each naming a face. Two
+    // invariants hold on all 52 shipped maps and are enforced here: the face
+    // index is always in range, and the u16 at +0x0e is always 0xffff. The
+    // second is what makes a misaligned read impossible to miss.
+    if (!r.seek(static_cast<std::size_t>(names_end))) {
+        return BlvError::Truncated;
+    }
+    const std::uint32_t extra_count = r.read_u32_le();
+    if (!r.ok()) {
+        return BlvError::Truncated;
+    }
+    const std::uint64_t extras_start = names_end + 4;
+    const std::uint64_t extras_end =
+        extras_start + static_cast<std::uint64_t>(extra_count) * kBlvFaceExtraSize;
+    if (extras_end > p.size()) {
+        return BlvError::Truncated;
+    }
+
+    out.face_extras.reserve(extra_count);
+    for (std::uint32_t i = 0; i < extra_count; ++i) {
+        const std::uint64_t base =
+            extras_start + static_cast<std::uint64_t>(i) * kBlvFaceExtraSize;
+        if (!r.seek(static_cast<std::size_t>(base + 0x0C))) {
+            return BlvError::Truncated;
+        }
+        BlvFaceExtra e;
+        e.face_index = r.read_u16_le();
+        const std::uint16_t marker = r.read_u16_le();
+        if (e.face_index >= face_count || marker != 0xFFFFu) {
+            return BlvError::BadGeometry;
+        }
+        if (!r.seek(static_cast<std::size_t>(base + 0x14))) {
+            return BlvError::Truncated;
+        }
+        e.unknown_14 = r.read_u16_le();
+        e.unknown_16 = r.read_u16_le();
+        if (!r.seek(static_cast<std::size_t>(base + 0x1A))) {
+            return BlvError::Truncated;
+        }
+        e.unknown_1a = r.read_u16_le();
+        out.face_extras.push_back(e);
+    }
+    if (!r.ok()) {
+        return BlvError::Truncated;
+    }
+
+    out.decoded_bytes = extras_end;
     return BlvError::None;
 }
 

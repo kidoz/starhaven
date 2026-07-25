@@ -70,7 +70,7 @@ interoperability and compatibility with a legally purchased copy.
   building interiors, against 15 outdoor maps. Decodes the header, the vertex
   array, the 80-byte face records (16.16 plane, attributes, polygon size), the
   variable-length per-face index arrays (vertex ids and texture coordinates)
-  and the per-face texture names. Verified on all 52 maps: 114,833 vertices and
+  the per-face texture names and the face-extra array. Verified on all 52 maps: 114,833 vertices and
   89,091 faces, rendered in 3D by `walk_blv`. Placed **decorations** (torches,
   barrels, trees, and the party's start point) are located too — by scanning,
   since the sections that would give their offset are still undecoded.

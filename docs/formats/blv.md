@@ -7,8 +7,8 @@ claim is tagged `observed`, `inferred`, or `unknown`.
 ## Scope
 
 Covers the zlib wrapper, the fixed header, the vertex array, the face array,
-the per-face index arrays (vertex ids and texture coordinates) and the face
-texture names — everything needed to draw the level. Does **not** cover the rooms/sectors, BSP tree,
+the per-face index arrays (vertex ids and texture coordinates), the face
+texture names and the face-extra array — everything needed to draw the level. Does **not** cover the rooms/sectors, BSP tree,
 lights, doors or sprites that follow, which are 19–38% of each payload.
 
 ## Source provenance (non-expressive)
@@ -169,6 +169,29 @@ The parser rejects, deterministically and without reading out of bounds:
 - a face referencing a vertex the map does not have;
 - an index block that does not match the sum over the faces' vertex counts.
 
+## Face extras
+
+Immediately after the texture names: a `u32` count, then that many 36-byte
+records. Each names a face, and there are far fewer of them than faces
+(ratios of 0.14 to 0.93 across the shipped maps), so they are extra data
+attached to selected faces rather than a parallel array.
+
+| Offset | Size | Type | Field | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| +0x00 | 12 | — | unknown | unknown | zero in every observed record |
+| +0x0C | 2 | u16 | face_index | observed | always a valid face index |
+| +0x0E | 2 | u16 | marker | observed | **0xffff in all 35,485 records** |
+| +0x10 | 4 | — | unknown | unknown | |
+| +0x14 | 2 | u16 | unknown | unknown | usually non-zero; 128/256/384 common |
+| +0x16 | 2 | u16 | unknown | unknown | usually non-zero |
+| +0x18 | 2 | — | unknown | unknown | |
+| +0x1A | 2 | u16 | unknown | unknown | non-zero on ~1 record in 6 |
+| +0x1C | 20 | — | unknown | unknown | zero in all but 3 observed records |
+
+Both invariants — the face index being in range and the `0xffff` marker — hold
+across **all 52 maps and all 35,485 records**, and the parser enforces them.
+The marker is what makes a misaligned read impossible to miss. `observed`
+
 ## Decorations (located by scanning, not by offset)
 
 Somewhere in the tail sits an array of 32-byte decoration records — the placed
@@ -189,7 +212,7 @@ and every coordinate observed falls inside its own level's vertex extents.
 `observed`
 
 **The array's position cannot be computed.** The sections between the face
-texture names and this array are undecoded, and no count for it appears
+extras and this array are undecoded, and no count for it appears
 anywhere nearby — searching the whole payload before the array finds the count
 value at most a handful of times, never within 4 KB of it. The decoder
 therefore *scans*: it looks for a run of at least four consecutive records
@@ -203,9 +226,17 @@ is `unknown`. The API keeps this separate from `parse_blv` for that reason.
 
 ## Open questions (next slice)
 
-- The sections between the texture names and the decorations: rooms/sectors,
-  the BSP tree, lights and doors. Locating the decoration array by offset
-  rather than by scanning depends on these. `unknown`
+- The sections between the face extras and the decorations: rooms/sectors, the
+  BSP tree, lights and doors. Locating the decoration array by offset rather
+  than by scanning depends on these. `unknown`
+
+  Sliding-window stride detection over that region on `D03.blv` (the smallest,
+  15,158 bytes) segments it into four runs: a sparse near-all-zero block, then
+  a **stride-8** run, then a high-entropy run with no stride above noise
+  (plausibly a BSP or bit-packed structure), then a **stride-28** run ending at
+  the decorations. Neither a count-prefixed-sections model nor a linear model
+  over the header counts reproduces the region's exact length on all maps, so
+  at least one of those runs is sized by a count read from inside the region.
 - Whatever follows the decoration array — 32 KB on `d01.blv`, 70 KB on
   `CD1.blv`. `unknown`
 - The header fields at 0x00, 0x6C, 0x70 and 0x74. `unknown`
