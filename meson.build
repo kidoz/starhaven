@@ -39,6 +39,8 @@ starhaven_core_sources = files(
   'src/core/render/texture.cpp',
   'src/core/render/tile_set.cpp',
   'src/core/render/terrain_mesh.cpp',
+  'src/core/render/scene.cpp',
+  'src/core/assets/asset_cache.cpp',
   'src/core/audio/snd_archive.cpp',
   'src/core/audio/wav.cpp',
   'src/core/video/vid_archive.cpp',

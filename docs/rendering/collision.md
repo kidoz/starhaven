@@ -58,6 +58,18 @@ Player proportions, in MM6 world units (a terrain cell is 512 across):
 These are engine choices, chosen to feel right at MM6's scale. The original's
 values are unknown.
 
+## Where this lives
+
+`CollisionWorld` is engine code in `src/core/world/`. The player's proportions
+and the movement step are viewer policy, so they sit in `tools/walker_common.hpp`
+alongside the argument helpers — shared by both walkers without pretending they
+are engine behaviour.
+
+Rendering is shared too: `render::SceneRenderer` owns the transform, near-clip
+and projection sequence, and `assets::AssetCache` resolves texture and sprite
+names through the archives. Both walkers were carrying their own copy of each
+before that.
+
 ## Controls
 
 Mouse-look uses SDL's relative mouse mode, enabled only when there is a window

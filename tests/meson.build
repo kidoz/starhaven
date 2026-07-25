@@ -121,3 +121,9 @@ test('monster_list',
     dependencies : [starhaven_dep, catch2_main, zlib_dep]),
   workdir : meson.current_build_dir(),
 )
+
+test('scene',
+  executable('test_scene', 'test_scene.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

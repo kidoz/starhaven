@@ -117,8 +117,8 @@ interoperability and compatibility with a legally purchased copy.
   and can dump a video's audio track to a WAV.
 - `blv_info`, a CLI that decompresses one `.blv` indoor map and prints its
   geometry statistics.
-- `walk_blv`, a CLI that renders a `.blv` indoor level in 3D and lets you walk
-  through it.
+- `walk_blv`, a CLI that renders a `.blv` indoor level in 3D — walls, floors and
+  decorations such as torches — and lets you walk through it.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in
@@ -289,6 +289,8 @@ src/
     render/math3d.hpp         Vec3/Vec4/Mat4, perspective, look-at, rotations
     render/rasterizer.{hpp,cpp} software z-buffered triangle rasterizer
     render/terrain_mesh.{hpp,cpp} build indexed mesh + normals from OdmTerrain
+    render/scene.{hpp,cpp}    camera + scene renderer shared by both walkers
+    assets/asset_cache.{hpp,cpp} texture and sprite lookup, cached
     render/texture.{hpp,cpp}  sampled texture with repeat/clamp wrapping
     render/tile_set.{hpp,cpp} per-map set of resolved ground tile textures
     platform/paths.{hpp,cpp} portable install/data paths
@@ -303,6 +305,7 @@ tools/
   play_sound.cpp             list, play and dump the game's sound effects
   blv_info.cpp               print one .blv indoor map's geometry stats
   walk_blv.cpp               first-person 3D walker for indoor levels
+  walker_common.hpp          player proportions, movement step, CLI helpers
   ddm_info.cpp               decompress one .ddm/.dlv event file, print stats
 tests/                       hermetic Catch2 unit tests (synthetic fixtures)
 docs/
@@ -339,7 +342,8 @@ docs/
 24. ~~Decode actor placements from the event files.~~ ✓ (this slice)
 25. ~~Resolve actors to sprites via `DMONLIST.BIN` and draw them.~~ ✓ (this slice)
 26. ~~Verify the actor position field and map the record's fields.~~ ✓ (this slice)
-27. Actor statistics, monster palette variants, UI, music, and gameplay systems.
+27. ~~Share the scene, camera and asset code between the walkers; draw indoor decorations.~~ ✓ (this slice)
+28. Actor statistics, monster palette variants, UI, music, and gameplay systems.
 
 ## Contributing
 
