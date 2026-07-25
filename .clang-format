@@ -41,6 +41,10 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignTrailingComments: true
 
+# The tree writes `}  // namespace` with two spaces before a trailing comment,
+# which is the one place the existing style differs from LLVM's default.
+SpacesBeforeTrailingComments: 2
+
 SeparateDefinitionBlocks: Leave
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
