@@ -12,13 +12,16 @@
 
 #include "core/assets/asset_cache.hpp"
 #include "core/lod/game_lod_archive.hpp"
+#include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
 #include "core/world/blv_map.hpp"
 #include "core/world/collision.hpp"
+#include "core/world/sprite_frame_table.hpp"
 
 #include "walker_common.hpp"
 #include "walker_music.hpp"
+#include "walker_sprites.hpp"
 
 namespace {
 
@@ -136,6 +139,19 @@ int main(int argc, char** argv) {
     }
 
     const auto decorations = world::find_decorations(map);
+
+    // Torches and braziers are animations, not pictures; the frame table says
+    // which sprite each shows now (docs/formats/dsft.md).
+    world::SpriteFrameTable sprite_frames;
+    if (const auto install = platform::install_from_env()) {
+        lod::LodArchive icons;
+        std::span<const std::byte> raw;
+        if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None &&
+            icons.payload("DSFT.BIN", raw) == lod::LodArchive::PayloadError::None &&
+            world::SpriteFrameTable::parse(raw, sprite_frames) != world::SpriteFrameError::None) {
+            sprite_frames = world::SpriteFrameTable{};
+        }
+    }
 
     // The design table names the map and picks its music (docs/formats/text-tables.md).
     // The level's own header carries a name too, but it is often a placeholder
@@ -312,13 +328,16 @@ int main(int argc, char** argv) {
         }
 
         // Decorations: torches, braziers and barrels standing in the level.
+        const std::uint32_t ticks = tools::sprite_ticks(SDL_GetTicks());
         for (const auto& d : decorations) {
-            const render::Texture& tex = cache.sprite(d.name);
+            const tools::SpriteChoice pick = tools::choose_sprite(sprite_frames, d.name, ticks);
+            const render::Texture& tex = cache.sprite(pick.entry, pick.palette);
             if (tex.empty())
                 continue;
+            const float size = kSpriteScale * pick.scale;
             scene.draw_billboard(tools::to_render_space(d.x, d.y, d.z),
-                                 static_cast<float>(tex.width()) * kSpriteScale,
-                                 static_cast<float>(tex.height()) * kSpriteScale, tex);
+                                 static_cast<float>(tex.width()) * size,
+                                 static_cast<float>(tex.height()) * size, tex);
         }
 
         SDL_UpdateTexture(screen, nullptr, scene.framebuffer().color().data(), kWidth * 4);

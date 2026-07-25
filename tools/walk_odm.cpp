@@ -23,10 +23,12 @@
 #include "core/world/map_event.hpp"
 #include "core/world/monster_list.hpp"
 #include "core/world/odm_map.hpp"
+#include "core/world/sprite_frame_table.hpp"
 #include "core/world/tile_table.hpp"
 
 #include "walker_common.hpp"
 #include "walker_music.hpp"
+#include "walker_sprites.hpp"
 
 namespace {
 
@@ -243,10 +245,24 @@ int main(int argc, char** argv) {
         decorations.clear();
     }
 
+    // The sprite frame table turns an animation name into the frames to draw
+    // and the size to draw them at (docs/formats/dsft.md). Decorations and
+    // monsters both name animations rather than pictures.
+    world::SpriteFrameTable sprite_frames;
+    if (const auto install = platform::install_from_env()) {
+        lod::LodArchive icons;
+        std::span<const std::byte> raw;
+        if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None &&
+            icons.payload("DSFT.BIN", raw) == lod::LodArchive::PayloadError::None &&
+            world::SpriteFrameTable::parse(raw, sprite_frames) != world::SpriteFrameError::None) {
+            sprite_frames = world::SpriteFrameTable{};
+        }
+    }
+
     // Actors: the map's event file names the monsters standing on it, and the
-    // monster table turns each id into sprite base names.
+    // monster table turns each id into animation names.
     std::vector<world::MapActor> actors;
-    std::map<std::size_t, std::string> actor_sprite;
+    std::map<std::size_t, std::string> actor_animation;
     {
         std::string stem = map_name;
         if (const std::size_t dot = stem.rfind('.'); dot != std::string::npos) {
@@ -271,29 +287,34 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Monsters come in A/B/C triples and only the A variant's sprite ships;
+        // Does this animation have art in this install? The frame table names
+        // the entries, so ask it rather than guessing at a view digit.
+        auto drawable = [&](const std::string& animation) {
+            const auto frames = sprite_frames.group(animation);
+            if (frames.empty())
+                return cache.has_sprite(animation);
+            return cache.has_sprite(world::SpriteFrameTable::sprite_entry(frames.front(), 0));
+        };
+
+        // Monsters come in A/B/C triples and only the A variant's sprites ship;
         // B and C are presumably palette swaps, which is not decoded. Falling
-        // back to the group's A sprite draws them in the wrong colours rather
-        // than not at all. See docs/formats/dmonlist.md.
+        // back to the group's A animation draws them in the wrong colours
+        // rather than not at all. See docs/formats/dmonlist.md.
         for (std::size_t i = 0; i < actors.size(); ++i) {
             const std::size_t id = actors[i].monster_id;
             const auto* m = monsters.at(id);
             if (m == nullptr)
                 continue;
-            auto stand_of = [](const world::MonsterListEntry* e) {
-                const std::string& b = e->animation(world::MonsterAnimation::Stand);
-                return b.empty() ? std::string{} : b + "0";
-            };
-            std::string sprite = stand_of(m);
-            if (!sprite.empty() && !cache.has_sprite(sprite)) {
+            std::string animation = m->animation(world::MonsterAnimation::Stand);
+            if (!animation.empty() && !drawable(animation)) {
                 if (const auto* a = monsters.at(id - (id % 3)); a != nullptr) {
-                    const std::string alt = stand_of(a);
-                    if (!alt.empty() && cache.has_sprite(alt))
-                        sprite = alt;
+                    const std::string& alt = a->animation(world::MonsterAnimation::Stand);
+                    if (!alt.empty() && drawable(alt))
+                        animation = alt;
                 }
             }
-            if (!sprite.empty() && cache.has_sprite(sprite)) {
-                actor_sprite[i] = sprite;
+            if (!animation.empty() && drawable(animation)) {
+                actor_animation[i] = animation;
             }
         }
     }
@@ -325,7 +346,8 @@ int main(int argc, char** argv) {
         std::cout << " \"" << identity.display_name << "\"";
     std::cout << ": " << meshes.size() << " model meshes, " << collision.size()
               << " collision polygons, " << decorations.size() << " decorations, " << actors.size()
-              << " actors (" << actor_sprite.size() << " with sprites)\n";
+              << " actors (" << actor_animation.size() << " with sprites), "
+              << sprite_frames.group_count() << " animations\n";
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
@@ -453,23 +475,29 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Decorations, then actors: both are camera-facing billboards.
+        // Decorations, then actors: both are camera-facing billboards, and both
+        // pick their current picture out of the sprite frame table.
+        const std::uint32_t ticks = tools::sprite_ticks(SDL_GetTicks());
         for (const auto& d : decorations) {
-            const render::Texture& tex = cache.sprite(d.name);
+            const tools::SpriteChoice pick = tools::choose_sprite(sprite_frames, d.name, ticks);
+            const render::Texture& tex = cache.sprite(pick.entry, pick.palette);
             if (tex.empty())
                 continue;
+            const float size = kDecorationScale * pick.scale;
             scene.draw_billboard(tools::to_render_space(d.x, d.y, d.z),
-                                 static_cast<float>(tex.width()) * kDecorationScale,
-                                 static_cast<float>(tex.height()) * kDecorationScale, tex);
+                                 static_cast<float>(tex.width()) * size,
+                                 static_cast<float>(tex.height()) * size, tex);
         }
-        for (const auto& [index, name] : actor_sprite) {
-            const render::Texture& tex = cache.sprite(name);
+        for (const auto& [index, animation] : actor_animation) {
+            const tools::SpriteChoice pick = tools::choose_sprite(sprite_frames, animation, ticks);
+            const render::Texture& tex = cache.sprite(pick.entry, pick.palette);
             if (tex.empty())
                 continue;
             const auto& a = actors[index];
+            const float size = kActorScale * pick.scale;
             scene.draw_billboard(tools::to_render_space(a.x, a.y, a.z),
-                                 static_cast<float>(tex.width()) * kActorScale,
-                                 static_cast<float>(tex.height()) * kActorScale, tex);
+                                 static_cast<float>(tex.width()) * size,
+                                 static_cast<float>(tex.height()) * size, tex);
         }
 
         // Optional wireframe overlay of the model bounding boxes.
