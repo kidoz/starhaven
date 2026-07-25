@@ -49,11 +49,9 @@ int main(int argc, char** argv) {
     namespace world = starhaven::world;
 
     lod::GameLodArchive archive;
-    const lod::GameLodError open_err =
-        lod::GameLodArchive::open(resolve_games_lod(), archive);
+    const lod::GameLodError open_err = lod::GameLodArchive::open(resolve_games_lod(), archive);
     if (open_err != lod::GameLodError::None) {
-        std::cerr << "error: could not open Games.lod ("
-                  << static_cast<int>(open_err) << ")\n";
+        std::cerr << "error: could not open Games.lod (" << static_cast<int>(open_err) << ")\n";
         return 1;
     }
 
@@ -64,8 +62,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (pe != lod::GameLodArchive::PayloadError::None) {
-        std::cerr << "error: could not read map payload ("
-                  << static_cast<int>(pe) << ")\n";
+        std::cerr << "error: could not read map payload (" << static_cast<int>(pe) << ")\n";
         return 1;
     }
 
@@ -73,8 +70,7 @@ int main(int argc, char** argv) {
     world::OdmTerrain terrain;
     const world::OdmError parse_err = world::parse_odm_terrain(entry, map, terrain);
     if (parse_err != world::OdmError::None) {
-        std::cerr << "error: could not parse ODM ("
-                  << static_cast<int>(parse_err) << ")\n";
+        std::cerr << "error: could not parse ODM (" << static_cast<int>(parse_err) << ")\n";
         return 1;
     }
 
@@ -95,10 +91,9 @@ int main(int argc, char** argv) {
     std::cout << "  decompressed_payload=" << map.payload.size() << " bytes\n";
 
     // Terrain stats (non-expressive: only ranges and distinct counts).
-    const auto [hmin, hmax] = std::minmax_element(terrain.heightmap.begin(),
-                                                  terrain.heightmap.end());
-    const auto [tmin, tmax] = std::minmax_element(terrain.tilemap.begin(),
-                                                  terrain.tilemap.end());
+    const auto [hmin, hmax] =
+        std::minmax_element(terrain.heightmap.begin(), terrain.heightmap.end());
+    const auto [tmin, tmax] = std::minmax_element(terrain.tilemap.begin(), terrain.tilemap.end());
     auto distinct = [](const auto& grid) {
         // small grid values; count distinct with a tiny presence table
         std::array<bool, 256> seen{};
@@ -124,10 +119,9 @@ int main(int argc, char** argv) {
         for (std::size_t i = 0; i < show; ++i) {
             std::uint32_t vc = 0;
             world::model_vertex_count(map, i, vc);
-            std::cout << "    [" << i << "] " << models[i].name
-                      << "  verts=" << vc
-                      << "  pos=(" << models[i].pos_x << "," << models[i].pos_y
-                      << "," << models[i].pos_z << ")\n";
+            std::cout << "    [" << i << "] " << models[i].name << "  verts=" << vc << "  pos=("
+                      << models[i].pos_x << "," << models[i].pos_y << "," << models[i].pos_z
+                      << ")\n";
         }
         if (models.size() > show) {
             std::cout << "    ... (" << (models.size() - show) << " more)\n";
@@ -144,13 +138,15 @@ int main(int argc, char** argv) {
             facets += mesh.facets.size();
             for (const auto& f : mesh.facets) {
                 // Each n-gon triangulates into n-2 triangles.
-                if (f.vertex_count >= 3) tris += f.vertex_count - 2u;
-                if (!f.texture_name.empty()) textures.insert(f.texture_name);
+                if (f.vertex_count >= 3)
+                    tris += f.vertex_count - 2u;
+                if (!f.texture_name.empty())
+                    textures.insert(f.texture_name);
             }
         }
-        std::cout << "  meshes: " << meshes.size() << " models, " << verts
-                  << " vertices, " << facets << " facets (" << tris
-                  << " triangles), " << textures.size() << " distinct textures\n";
+        std::cout << "  meshes: " << meshes.size() << " models, " << verts << " vertices, "
+                  << facets << " facets (" << tris << " triangles), " << textures.size()
+                  << " distinct textures\n";
     } else {
         std::cout << "  meshes: geometry stream did not decode\n";
     }
@@ -158,9 +154,10 @@ int main(int argc, char** argv) {
     std::vector<world::OdmDecoration> decorations;
     if (world::extract_decorations(map, decorations) == world::OdmError::None) {
         std::set<std::string> kinds;
-        for (const auto& d : decorations) kinds.insert(d.name);
-        std::cout << "  decorations: " << decorations.size() << " placed, "
-                  << kinds.size() << " distinct sprites\n";
+        for (const auto& d : decorations)
+            kinds.insert(d.name);
+        std::cout << "  decorations: " << decorations.size() << " placed, " << kinds.size()
+                  << " distinct sprites\n";
     } else {
         std::cout << "  decorations: did not decode\n";
     }

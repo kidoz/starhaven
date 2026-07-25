@@ -190,8 +190,7 @@ private:
     // Bounds the tree so a malformed stream cannot allocate without limit.
     static constexpr std::size_t kMaxNodes = 1u << 20;
 
-    [[nodiscard]] bool build_node(BitReader& bits, const ByteTree& low,
-                                  const ByteTree& high) {
+    [[nodiscard]] bool build_node(BitReader& bits, const ByteTree& low, const ByteTree& high) {
         if (bits.at_end()) {
             return true;  // a truncated tree simply ends here
         }
@@ -235,10 +234,9 @@ private:
 // Block run lengths. Indices 0..58 count up; the last five jump to powers of
 // two so one descriptor can cover a large run of blocks.
 constexpr std::array<std::uint32_t, 64> kBlockRuns = {
-    1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,  13,  14,  15,   16,
-    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,  29,  30,  31,   32,
-    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,  45,  46,  47,   48,
-    49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 128, 256, 512, 1024, 2048,
+    1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,  17,  18,  19,   20,   21, 22,
+    23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,  39,  40,  41,   42,   43, 44,
+    45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 128, 256, 512, 1024, 2048,
 };
 
 enum class BlockType : std::uint8_t {
@@ -253,10 +251,10 @@ enum class BlockType : std::uint8_t {
 // The four per-video Huffman trees, held out of the header so callers do not
 // need the tree types.
 struct SmackerDecoder::Trees {
-    WordTree mmap;   // mono block bitmaps
-    WordTree mclr;   // mono block color pairs
-    WordTree full;   // full block pixels
-    WordTree type;   // block type descriptors
+    WordTree mmap;  // mono block bitmaps
+    WordTree mclr;  // mono block color pairs
+    WordTree full;  // full block pixels
+    WordTree type;  // block type descriptors
 
     void reset_caches() noexcept {
         mmap.reset_cache();
@@ -271,8 +269,7 @@ SmackerDecoder::~SmackerDecoder() = default;
 SmackerDecoder::SmackerDecoder(SmackerDecoder&&) noexcept = default;
 SmackerDecoder& SmackerDecoder::operator=(SmackerDecoder&&) noexcept = default;
 
-SmackerError SmackerDecoder::load(std::span<const std::byte> data,
-                                  SmackerDecoder& out) {
+SmackerError SmackerDecoder::load(std::span<const std::byte> data, SmackerDecoder& out) {
     out = SmackerDecoder{};
     if (data.size() < kSmackerHeaderSize) {
         return SmackerError::TooSmall;
@@ -304,13 +301,15 @@ SmackerError SmackerDecoder::parse_header() {
     header_.frame_count = r.read_u32_le();
     header_.frame_rate = static_cast<std::int32_t>(r.read_u32_le());
     header_.flags = r.read_u32_le();
-    for (auto& v : header_.audio_size) v = r.read_u32_le();
+    for (auto& v : header_.audio_size)
+        v = r.read_u32_le();
     header_.trees_size = r.read_u32_le();
     header_.mmap_size = r.read_u32_le();
     header_.mclr_size = r.read_u32_le();
     header_.full_size = r.read_u32_le();
     header_.type_size = r.read_u32_le();
-    for (auto& v : header_.audio_rate) v = r.read_u32_le();
+    for (auto& v : header_.audio_rate)
+        v = r.read_u32_le();
     // The trailing "dummy" u32 completes the 104-byte header.
     (void)r.read_u32_le();
     if (!r.ok()) {
@@ -320,9 +319,9 @@ SmackerError SmackerDecoder::parse_header() {
     // Reject implausible geometry rather than allocating on a corrupt header.
     constexpr std::uint32_t kMaxDimension = 4096;
     constexpr std::uint32_t kMaxFrames = 100000;
-    if (header_.width == 0 || header_.height == 0 ||
-        header_.width > kMaxDimension || header_.height > kMaxDimension ||
-        header_.frame_count == 0 || header_.frame_count > kMaxFrames) {
+    if (header_.width == 0 || header_.height == 0 || header_.width > kMaxDimension ||
+        header_.height > kMaxDimension || header_.frame_count == 0 ||
+        header_.frame_count > kMaxFrames) {
         return SmackerError::BadDimensions;
     }
 
@@ -351,8 +350,7 @@ SmackerError SmackerDecoder::parse_header() {
 
     // Frame sizes, then frame types, then the tree block, then the frames.
     const std::uint64_t sizes_bytes = static_cast<std::uint64_t>(table_frames_) * 4;
-    const std::uint64_t types_end =
-        kSmackerHeaderSize + sizes_bytes + table_frames_;
+    const std::uint64_t types_end = kSmackerHeaderSize + sizes_bytes + table_frames_;
     if (types_end > data_.size()) {
         return SmackerError::Truncated;
     }
@@ -386,8 +384,7 @@ SmackerError SmackerDecoder::parse_header() {
         if ((frame_sizes_[i] & 1u) != 0) {
             keyframes_.push_back(i);
         }
-        frame_offsets_[i + 1] =
-            frame_offsets_[i] + (frame_sizes_[i] & ~std::uint32_t{3});
+        frame_offsets_[i + 1] = frame_offsets_[i] + (frame_sizes_[i] & ~std::uint32_t{3});
     }
     if (frame_offsets_.back() > data_.size()) {
         return SmackerError::Truncated;
@@ -416,8 +413,7 @@ SmackerError SmackerDecoder::parse_header() {
     } else {
         info_.fps = 10.0;
     }
-    info_.has_audio = std::any_of(std::begin(header_.audio_size),
-                                  std::end(header_.audio_size),
+    info_.has_audio = std::any_of(std::begin(header_.audio_size), std::end(header_.audio_size),
                                   [](std::uint32_t s) { return s != 0; });
     last_decoded_ = kNoFrame;
     return SmackerError::None;
@@ -432,10 +428,9 @@ SmackerError SmackerDecoder::build_trees() {
         return SmackerError::Truncated;
     }
 
-    BitReader bits{std::span<const std::byte>{data_}.subspan(trees_offset_,
-                                                             header_.trees_size)};
-    if (!trees_->mmap.build(bits) || !trees_->mclr.build(bits) ||
-        !trees_->full.build(bits) || !trees_->type.build(bits)) {
+    BitReader bits{std::span<const std::byte>{data_}.subspan(trees_offset_, header_.trees_size)};
+    if (!trees_->mmap.build(bits) || !trees_->mclr.build(bits) || !trees_->full.build(bits) ||
+        !trees_->type.build(bits)) {
         return SmackerError::BadTrees;
     }
     return SmackerError::None;
@@ -445,8 +440,7 @@ bool SmackerDecoder::is_keyframe(std::uint32_t index) const noexcept {
     return index < frame_sizes_.size() && (frame_sizes_[index] & 1u) != 0;
 }
 
-SmackerError SmackerDecoder::decode_frame(std::uint32_t index,
-                                          std::span<const std::uint8_t>& out) {
+SmackerError SmackerDecoder::decode_frame(std::uint32_t index, std::span<const std::uint8_t>& out) {
     out = {};
     if (index >= header_.frame_count) {
         return SmackerError::NoSuchFrame;
@@ -544,7 +538,7 @@ SmackerError SmackerDecoder::decode_one(std::uint32_t index) {
             chunk |= static_cast<std::uint32_t>(frame[pos + b]) << (8 * b);
         }
         pos += 4;
-        chunk &= 0x00FFFFFFu;   // the top byte is not part of the length
+        chunk &= 0x00FFFFFFu;  // the top byte is not part of the length
         if (chunk > 4) {
             const std::size_t skip = chunk - 4;
             if (skip > frame.size() - pos) {
@@ -592,21 +586,21 @@ bool SmackerDecoder::decode_video(BitReader& bits) {
             const std::uint32_t x = (block % blocks_wide) * 4;
             const std::uint32_t y = (block / blocks_wide) * block_step;
             switch (type) {
-                case BlockType::Skip:
-                    break;  // keep the previous frame's pixels
-                case BlockType::Fill:
-                    fill_block(x, y, data);
-                    break;
-                case BlockType::Mono: {
-                    const std::uint16_t colors = trees_->mclr.decode(bits);
-                    const std::uint16_t bitmap = trees_->mmap.decode(bits);
-                    mono_block(x, y, static_cast<std::uint8_t>(colors & 0xFF),
-                               static_cast<std::uint8_t>(colors >> 8), bitmap);
-                    break;
-                }
-                case BlockType::Full:
-                    full_block(bits, x, y);
-                    break;
+            case BlockType::Skip:
+                break;  // keep the previous frame's pixels
+            case BlockType::Fill:
+                fill_block(x, y, data);
+                break;
+            case BlockType::Mono: {
+                const std::uint16_t colors = trees_->mclr.decode(bits);
+                const std::uint16_t bitmap = trees_->mmap.decode(bits);
+                mono_block(x, y, static_cast<std::uint8_t>(colors & 0xFF),
+                           static_cast<std::uint8_t>(colors >> 8), bitmap);
+                break;
+            }
+            case BlockType::Full:
+                full_block(bits, x, y);
+                break;
             }
         }
     }
@@ -633,8 +627,8 @@ void SmackerDecoder::fill_block(std::uint32_t x, std::uint32_t y, std::uint8_t c
     }
 }
 
-void SmackerDecoder::mono_block(std::uint32_t x, std::uint32_t y, std::uint8_t c0,
-                                std::uint8_t c1, std::uint16_t bitmap) {
+void SmackerDecoder::mono_block(std::uint32_t x, std::uint32_t y, std::uint8_t c0, std::uint8_t c1,
+                                std::uint16_t bitmap) {
     const std::uint32_t step = (info_.y_scale == YScale::None) ? 1u : 2u;
     for (std::uint32_t row = 0; row < 4; ++row) {
         for (std::uint32_t col = 0; col < 4; ++col) {
@@ -669,40 +663,40 @@ void SmackerDecoder::full_block(BitReader& bits, std::uint32_t x, std::uint32_t 
     };
 
     switch (mode) {
-        case 0:
-            // Four rows, two words each.
-            for (std::uint32_t row = 0; row < 4; ++row) {
-                const std::uint16_t right = trees_->full.decode(bits);
-                const std::uint16_t left = trees_->full.decode(bits);
-                put_row(row, left, right);
+    case 0:
+        // Four rows, two words each.
+        for (std::uint32_t row = 0; row < 4; ++row) {
+            const std::uint16_t right = trees_->full.decode(bits);
+            const std::uint16_t left = trees_->full.decode(bits);
+            put_row(row, left, right);
+        }
+        break;
+    case 1:
+        // One word per row pair: its low byte fills the left half of both
+        // rows, its high byte the right half.
+        for (std::uint32_t half = 0; half < 2; ++half) {
+            const std::uint16_t word = trees_->full.decode(bits);
+            const auto lo = static_cast<std::uint8_t>(word & 0xFF);
+            const auto hi = static_cast<std::uint8_t>(word >> 8);
+            for (std::uint32_t row = 0; row < 2; ++row) {
+                const std::uint32_t ty = y + (half * 2 + row) * step;
+                put_pixel(x + 0, ty, lo);
+                put_pixel(x + 1, ty, lo);
+                put_pixel(x + 2, ty, hi);
+                put_pixel(x + 3, ty, hi);
             }
-            break;
-        case 1:
-            // One word per row pair: its low byte fills the left half of both
-            // rows, its high byte the right half.
-            for (std::uint32_t half = 0; half < 2; ++half) {
-                const std::uint16_t word = trees_->full.decode(bits);
-                const auto lo = static_cast<std::uint8_t>(word & 0xFF);
-                const auto hi = static_cast<std::uint8_t>(word >> 8);
-                for (std::uint32_t row = 0; row < 2; ++row) {
-                    const std::uint32_t ty = y + (half * 2 + row) * step;
-                    put_pixel(x + 0, ty, lo);
-                    put_pixel(x + 1, ty, lo);
-                    put_pixel(x + 2, ty, hi);
-                    put_pixel(x + 3, ty, hi);
-                }
+        }
+        break;
+    default:
+        // Two words per row pair, repeated across both rows.
+        for (std::uint32_t half = 0; half < 2; ++half) {
+            const std::uint16_t right = trees_->full.decode(bits);
+            const std::uint16_t left = trees_->full.decode(bits);
+            for (std::uint32_t row = 0; row < 2; ++row) {
+                put_row(half * 2 + row, left, right);
             }
-            break;
-        default:
-            // Two words per row pair, repeated across both rows.
-            for (std::uint32_t half = 0; half < 2; ++half) {
-                const std::uint16_t right = trees_->full.decode(bits);
-                const std::uint16_t left = trees_->full.decode(bits);
-                for (std::uint32_t row = 0; row < 2; ++row) {
-                    put_row(half * 2 + row, left, right);
-                }
-            }
-            break;
+        }
+        break;
     }
 }
 
@@ -745,7 +739,8 @@ bool SmackerDecoder::audio_chunk(std::uint32_t index, std::size_t track,
     std::size_t pos = 0;
     const std::uint8_t type = frame_types_[index];
     if ((type & 1u) != 0) {
-        if (pos >= frame.size()) return false;
+        if (pos >= frame.size())
+            return false;
         const auto units = static_cast<std::size_t>(frame[pos++]);
         std::size_t bytes = units * 4;
         bytes = (bytes > 0) ? bytes - 1 : 0;
@@ -756,15 +751,17 @@ bool SmackerDecoder::audio_chunk(std::uint32_t index, std::size_t track,
         if ((type & (2u << t)) == 0) {
             continue;
         }
-        if (pos + 4 > frame.size()) return false;
+        if (pos + 4 > frame.size())
+            return false;
         std::uint32_t chunk = 0;
         for (int b = 0; b < 4; ++b) {
             chunk |= static_cast<std::uint32_t>(frame[pos + b]) << (8 * b);
         }
-        chunk &= 0x00FFFFFFu;   // the chunk length includes its own 4-byte field
+        chunk &= 0x00FFFFFFu;  // the chunk length includes its own 4-byte field
         pos += 4;
         const std::size_t payload = (chunk > 4) ? chunk - 4 : 0;
-        if (payload > frame.size() - pos) return false;
+        if (payload > frame.size() - pos)
+            return false;
         if (t == track) {
             out = frame.subspan(pos, payload);
             return payload > 0;
@@ -787,7 +784,7 @@ SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track
 
     std::span<const std::byte> chunk;
     if (!audio_chunk(index, track, chunk)) {
-        return SmackerError::None;   // this frame simply carries no audio
+        return SmackerError::None;  // this frame simply carries no audio
     }
 
     const std::uint8_t channels = info.stereo ? 2 : 1;
@@ -800,15 +797,14 @@ SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track
             const std::size_t count = chunk.size() / 2;
             out.samples.resize(count);
             for (std::size_t i = 0; i < count; ++i) {
-                out.samples[i] = static_cast<std::int16_t>(
-                    static_cast<std::uint16_t>(chunk[i*2]) |
-                    (static_cast<std::uint16_t>(chunk[i*2 + 1]) << 8));
+                out.samples[i] =
+                    static_cast<std::int16_t>(static_cast<std::uint16_t>(chunk[i * 2]) |
+                                              (static_cast<std::uint16_t>(chunk[i * 2 + 1]) << 8));
             }
         } else {
             out.samples.resize(chunk.size());
             for (std::size_t i = 0; i < chunk.size(); ++i) {
-                out.samples[i] = static_cast<std::int16_t>(
-                    (static_cast<int>(chunk[i]) - 128) << 8);
+                out.samples[i] = static_cast<std::int16_t>((static_cast<int>(chunk[i]) - 128) << 8);
             }
         }
         return SmackerError::None;
@@ -821,7 +817,7 @@ SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track
         return SmackerError::Truncated;
     }
     if (!bits.read_bit()) {
-        return SmackerError::None;   // the chunk declares itself empty
+        return SmackerError::None;  // the chunk declares itself empty
     }
     // The chunk restates its own layout; prefer it over the header, which is
     // only needed for the sample rate.
@@ -830,8 +826,7 @@ SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track
     out.channels = stereo ? 2 : 1;
 
     // One tree per byte per channel: two for 16-bit, doubled again for stereo.
-    const std::size_t tree_count =
-        static_cast<std::size_t>(is_16bit ? 2 : 1) * (stereo ? 2 : 1);
+    const std::size_t tree_count = static_cast<std::size_t>(is_16bit ? 2 : 1) * (stereo ? 2 : 1);
     std::array<ByteTree, 4> trees;
     for (std::size_t i = 0; i < tree_count; ++i) {
         if (!trees[i].build(bits, /*with_presence*/ false)) {
@@ -846,20 +841,17 @@ SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track
         for (std::size_t c = 0; c < channel_count; ++c) {
             const auto hi = static_cast<std::uint16_t>(bits.read_bits(8));
             const auto lo = static_cast<std::uint16_t>(bits.read_bits(8));
-            base[channel_count - 1 - c] =
-                static_cast<std::int16_t>((hi << 8) | lo);
+            base[channel_count - 1 - c] = static_cast<std::int16_t>((hi << 8) | lo);
         }
     } else {
         for (std::size_t c = 0; c < channel_count; ++c) {
             const auto v = static_cast<int>(bits.read_bits(8));
-            base[channel_count - 1 - c] =
-                static_cast<std::int16_t>((v - 128) << 8);
+            base[channel_count - 1 - c] = static_cast<std::int16_t>((v - 128) << 8);
         }
     }
 
     const std::size_t bytes_per_sample = is_16bit ? 2u : 1u;
-    const std::size_t total =
-        (unpacked / (bytes_per_sample * channel_count)) * channel_count;
+    const std::size_t total = (unpacked / (bytes_per_sample * channel_count)) * channel_count;
     out.samples.resize(total);
 
     std::size_t at = 0;
@@ -872,12 +864,11 @@ SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track
     while (at < total && !bits.at_end()) {
         for (std::size_t c = 0; c < channel_count && at < total; ++c) {
             if (is_16bit) {
-                const auto lo = static_cast<std::uint16_t>(trees[c*2].lookup(bits));
-                const auto hi = static_cast<std::uint16_t>(trees[c*2 + 1].lookup(bits));
+                const auto lo = static_cast<std::uint16_t>(trees[c * 2].lookup(bits));
+                const auto hi = static_cast<std::uint16_t>(trees[c * 2 + 1].lookup(bits));
                 const auto delta = static_cast<std::uint16_t>((hi << 8) | lo);
                 const auto prev = static_cast<std::uint16_t>(base[c]);
-                base[c] = static_cast<std::int16_t>(
-                    static_cast<std::uint16_t>(prev + delta));
+                base[c] = static_cast<std::int16_t>(static_cast<std::uint16_t>(prev + delta));
             } else {
                 const auto delta = static_cast<std::int8_t>(trees[c].lookup(bits));
                 const auto prev = static_cast<std::uint8_t>((base[c] >> 8) + 128);

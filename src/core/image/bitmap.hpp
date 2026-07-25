@@ -38,8 +38,7 @@ enum class BitmapError {
 // Decode a .LOD image entry's raw bytes into an RGBA bitmap. Handles both
 // uncompressed and zlib-compressed pixel data. Only the base mipmap (the first
 // width*height pixels) is decoded; mipmaps are ignored.
-[[nodiscard]] BitmapError decode_bitmap(std::span<const std::byte> entry,
-                                        Bitmap& out);
+[[nodiscard]] BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out);
 
 // The fixed sizes from the verified spec, exposed for tests and tools.
 constexpr std::uint32_t kHeaderSize = 48;

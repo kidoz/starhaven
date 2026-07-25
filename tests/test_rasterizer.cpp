@@ -17,7 +17,8 @@ int count_filled(const Framebuffer& fb, std::uint8_t bg) {
     int n = 0;
     auto c = fb.color();
     for (int i = 0; i < fb.width() * fb.height(); ++i) {
-        if (c[i * 4] != bg) ++n;
+        if (c[i * 4] != bg)
+            ++n;
     }
     return n;
 }
@@ -127,7 +128,8 @@ TEST_CASE("near-plane clipping keeps a fully-in-front triangle intact", "[raster
     REQUIRE(out.size() == 3);  // one triangle, 3 vertices
 }
 
-TEST_CASE("near-plane clipping splits a straddling triangle into a quad (6 verts)", "[rasterizer]") {
+TEST_CASE("near-plane clipping splits a straddling triangle into a quad (6 verts)",
+          "[rasterizer]") {
     // Two vertices in front (z=-5), one behind (z=-0.5).
     ViewVertex tri[3] = {{0, 0, -5, 1}, {1, 0, -5, 1}, {0, 1, -0.5f, 1}};
     std::vector<ViewVertex> out;
@@ -158,13 +160,13 @@ TEST_CASE("near-plane clipping interpolates texture coordinates", "[rasterizer]"
         const bool is_original = (v.u == 0.0f);
         const bool is_crossing = v.u == Catch::Approx(8.0 / 9.0).epsilon(1e-4);
         REQUIRE((is_original || is_crossing));
-        if (is_crossing) saw_interpolated = true;
+        if (is_crossing)
+            saw_interpolated = true;
     }
     REQUIRE(saw_interpolated);
 }
 
-TEST_CASE("drawing with an empty texture leaves the framebuffer untouched",
-          "[rasterizer]") {
+TEST_CASE("drawing with an empty texture leaves the framebuffer untouched", "[rasterizer]") {
     Framebuffer fb(8, 8);
     fb.clear({0, 0, 0, 255});
     const Texture empty;
@@ -175,8 +177,7 @@ TEST_CASE("drawing with an empty texture leaves the framebuffer untouched",
     REQUIRE(count_filled(fb, 0) == 0);
 }
 
-TEST_CASE("a textured triangle samples the texture through the vertex UVs",
-          "[rasterizer]") {
+TEST_CASE("a textured triangle samples the texture through the vertex UVs", "[rasterizer]") {
     Framebuffer fb(8, 4);
     fb.clear({0, 0, 0, 255});
     const Texture strip = make_strip_texture();
@@ -185,11 +186,14 @@ TEST_CASE("a textured triangle samples the texture through the vertex UVs",
     // across x. inv_w is left at its default of 1, so interpolation is affine
     // and the expected texel follows directly from the pixel's x position.
     ScreenVertex a{0, 0, 0.5f};
-    a.u = 0.0f; a.v = 0.5f;
+    a.u = 0.0f;
+    a.v = 0.5f;
     ScreenVertex b{8, 0, 0.5f};
-    b.u = 1.0f; b.v = 0.5f;
+    b.u = 1.0f;
+    b.v = 0.5f;
     ScreenVertex c{0, 4, 0.5f};
-    c.u = 0.0f; c.v = 0.5f;
+    c.u = 0.0f;
+    c.v = 0.5f;
     fb.draw_triangle_textured(a, b, c, strip, WrapMode::Clamp, false);
 
     // Pixel (1,0): centre x=1.5 of 8 -> u=0.1875 -> first quarter -> red.
@@ -198,8 +202,7 @@ TEST_CASE("a textured triangle samples the texture through the vertex UVs",
     REQUIRE(same(pixel_at(fb, 6, 0), Color{255, 255, 255, 255}));
 }
 
-TEST_CASE("texture interpolation is perspective-correct, not affine",
-          "[rasterizer]") {
+TEST_CASE("texture interpolation is perspective-correct, not affine", "[rasterizer]") {
     // This is the property that separates a usable 3D texture mapper from a
     // broken one. A quad receding from the camera has a much smaller w on its
     // far edge; interpolating u linearly in screen space (affine) makes the
@@ -218,10 +221,22 @@ TEST_CASE("texture interpolation is perspective-correct, not affine",
     fb.clear({0, 0, 0, 255});
     const Texture strip = make_strip_texture();
 
-    ScreenVertex tl{0, 0, 0.5f}; tl.u = 0.0f; tl.v = 0.5f; tl.inv_w = 1.0f;
-    ScreenVertex tr{8, 0, 0.5f}; tr.u = 1.0f; tr.v = 0.5f; tr.inv_w = 0.25f;
-    ScreenVertex br{8, 4, 0.5f}; br.u = 1.0f; br.v = 0.5f; br.inv_w = 0.25f;
-    ScreenVertex bl{0, 4, 0.5f}; bl.u = 0.0f; bl.v = 0.5f; bl.inv_w = 1.0f;
+    ScreenVertex tl{0, 0, 0.5f};
+    tl.u = 0.0f;
+    tl.v = 0.5f;
+    tl.inv_w = 1.0f;
+    ScreenVertex tr{8, 0, 0.5f};
+    tr.u = 1.0f;
+    tr.v = 0.5f;
+    tr.inv_w = 0.25f;
+    ScreenVertex br{8, 4, 0.5f};
+    br.u = 1.0f;
+    br.v = 0.5f;
+    br.inv_w = 0.25f;
+    ScreenVertex bl{0, 4, 0.5f};
+    bl.u = 0.0f;
+    bl.v = 0.5f;
+    bl.inv_w = 1.0f;
 
     fb.draw_triangle_textured(tl, tr, br, strip, WrapMode::Clamp, false);
     fb.draw_triangle_textured(tl, br, bl, strip, WrapMode::Clamp, false);
@@ -231,8 +246,7 @@ TEST_CASE("texture interpolation is perspective-correct, not affine",
     REQUIRE_FALSE(same(got, Color{0, 0, 255, 255}));  // what affine would give
 }
 
-TEST_CASE("a fully transparent texel writes neither color nor depth",
-          "[rasterizer]") {
+TEST_CASE("a fully transparent texel writes neither color nor depth", "[rasterizer]") {
     // MM6's foliage and fences are alpha-tested cutouts. A skipped texel must
     // leave the depth buffer alone, or geometry behind the cutout disappears.
     Framebuffer fb(8, 8);
@@ -241,13 +255,17 @@ TEST_CASE("a fully transparent texel writes neither color nor depth",
     const Texture solid = make_solid_texture(Color{0, 255, 0, 255});
 
     // Near, fully transparent.
-    ScreenVertex a{0, 0, 0.2f}; ScreenVertex b{8, 0, 0.2f}; ScreenVertex c{0, 8, 0.2f};
+    ScreenVertex a{0, 0, 0.2f};
+    ScreenVertex b{8, 0, 0.2f};
+    ScreenVertex c{0, 8, 0.2f};
     fb.draw_triangle_textured(a, b, c, clear_tex, WrapMode::Repeat, false);
     REQUIRE(count_filled(fb, 0) == 0);  // nothing drawn
 
     // Farther, opaque. It must still appear despite the nearer transparent
     // surface having covered the same pixels.
-    ScreenVertex d{0, 0, 0.8f}; ScreenVertex e{8, 0, 0.8f}; ScreenVertex f{0, 8, 0.8f};
+    ScreenVertex d{0, 0, 0.8f};
+    ScreenVertex e{8, 0, 0.8f};
+    ScreenVertex f{0, 8, 0.8f};
     fb.draw_triangle_textured(d, e, f, solid, WrapMode::Repeat, false);
     REQUIRE(same(pixel_at(fb, 1, 1), Color{0, 255, 0, 255}));
 }
@@ -258,9 +276,12 @@ TEST_CASE("the vertex color modulates the sampled texel", "[rasterizer]") {
     fb.clear({0, 0, 0, 255});
     const Texture white = make_solid_texture(Color{255, 255, 255, 255});
 
-    ScreenVertex a{0, 0, 0.5f}; a.r = a.g = a.b = 0.5f;
-    ScreenVertex b{8, 0, 0.5f}; b.r = b.g = b.b = 0.5f;
-    ScreenVertex c{0, 8, 0.5f}; c.r = c.g = c.b = 0.5f;
+    ScreenVertex a{0, 0, 0.5f};
+    a.r = a.g = a.b = 0.5f;
+    ScreenVertex b{8, 0, 0.5f};
+    b.r = b.g = b.b = 0.5f;
+    ScreenVertex c{0, 8, 0.5f};
+    c.r = c.g = c.b = 0.5f;
     fb.draw_triangle_textured(a, b, c, white, WrapMode::Repeat, false);
 
     const Color got = pixel_at(fb, 1, 1);

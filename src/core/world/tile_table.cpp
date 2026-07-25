@@ -18,8 +18,7 @@ constexpr std::size_t kNameSize = 16;
 
 }  // namespace
 
-TileTableError TileTable::parse(std::span<const std::byte> entry,
-                                TileTable& out) {
+TileTableError TileTable::parse(std::span<const std::byte> entry, TileTable& out) {
     out.entries_.clear();
     if (entry.size() <= kEntryHeaderSize) {
         return TileTableError::TooSmall;

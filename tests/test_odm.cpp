@@ -17,14 +17,12 @@ using namespace starhaven::world;
 
 namespace {
 
-bool zlib_compress(const std::vector<std::uint8_t>& src,
-                   std::vector<std::uint8_t>& dst) {
+bool zlib_compress(const std::vector<std::uint8_t>& src, std::vector<std::uint8_t>& dst) {
     uLongf bound = compressBound(static_cast<uLong>(src.size()));
     dst.resize(bound);
     uLongf len = bound;
     if (compress2(reinterpret_cast<Bytef*>(dst.data()), &len,
-                  reinterpret_cast<const Bytef*>(src.data()),
-                  static_cast<uLong>(src.size()),
+                  reinterpret_cast<const Bytef*>(src.data()), static_cast<uLong>(src.size()),
                   Z_DEFAULT_COMPRESSION) != Z_OK) {
         return false;
     }
@@ -33,7 +31,7 @@ bool zlib_compress(const std::vector<std::uint8_t>& src,
 }
 
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
     v[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
     v[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
@@ -41,12 +39,11 @@ void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
 void put_u16_le(std::vector<std::uint8_t>& v, std::size_t off, std::uint16_t x) {
     // Bounds-safe: small-payload fixtures write dim fields past their end.
     if (off + 1 < v.size()) {
-        v[off]     = static_cast<std::uint8_t>(x & 0xFF);
+        v[off] = static_cast<std::uint8_t>(x & 0xFF);
         v[off + 1] = static_cast<std::uint8_t>((x >> 8) & 0xFF);
     }
 }
-void put_fixed_string(std::vector<std::uint8_t>& v, std::size_t off,
-                      const std::string& s) {
+void put_fixed_string(std::vector<std::uint8_t>& v, std::size_t off, const std::string& s) {
     // Only write what fits in the payload; tests with deliberately small
     // payloads rely on this not writing out of bounds.
     for (std::size_t i = 0; i < 32 && off + i < v.size(); ++i) {
@@ -205,8 +202,7 @@ TEST_CASE("terrain extraction rejects a too-short payload", "[odm]") {
 // Build an ODM entry whose payload is large enough to hold `count` model
 // records after the terrain grids, with known name/position/bbox in model 0.
 std::vector<std::byte> make_odm_entry_with_models(std::uint32_t count) {
-    const std::size_t payload_size =
-        kModelCountOffset + 4 + count * kModelRecordSize + 8;
+    const std::size_t payload_size = kModelCountOffset + 4 + count * kModelRecordSize + 8;
     std::vector<std::uint8_t> payload(payload_size, 0);
     put_fixed_string(payload, 0x00, "blank");
     put_fixed_string(payload, 0x20, "default.odm");
@@ -232,8 +228,8 @@ std::vector<std::byte> make_odm_entry_with_models(std::uint32_t count) {
         put_i32(m0 + 0x70, 100);
         put_i32(m0 + 0x74, 200);
         put_i32(m0 + 0x78, 300);
-        put_i32(m0 + 0x7C, -50);   // min x
-        put_i32(m0 + 0x88, 50);    // max x
+        put_i32(m0 + 0x7C, -50);  // min x
+        put_i32(m0 + 0x88, 50);   // max x
     }
 
     std::vector<std::uint8_t> compressed;
@@ -294,8 +290,7 @@ TEST_CASE("payload too short for the model count is rejected", "[odm]") {
 // Build an ODM entry with one model that has `vcount` vertices (12 bytes each)
 // of known coordinates stamped into the geometry section.
 std::vector<std::byte> make_odm_entry_with_vertices(std::uint32_t vcount) {
-    const std::size_t geo_start =
-        kModelCountOffset + 4 + 1 * kModelRecordSize;
+    const std::size_t geo_start = kModelCountOffset + 4 + 1 * kModelRecordSize;
     const std::size_t payload_size = geo_start + vcount * kModelVertexSize + 8;
     std::vector<std::uint8_t> payload(payload_size, 0);
     put_fixed_string(payload, 0x00, "blank");
@@ -342,9 +337,15 @@ TEST_CASE("first model vertices are extracted with correct coordinates", "[odm]"
     std::vector<OdmModelVertex> verts;
     REQUIRE(extract_first_model_vertices(m, verts) == OdmError::None);
     REQUIRE(verts.size() == 3);
-    REQUIRE(verts[0].x == 0);  REQUIRE(verts[0].y == 1);  REQUIRE(verts[0].z == 2);
-    REQUIRE(verts[1].x == 10); REQUIRE(verts[1].y == 11); REQUIRE(verts[1].z == 12);
-    REQUIRE(verts[2].x == 20); REQUIRE(verts[2].y == 21); REQUIRE(verts[2].z == 22);
+    REQUIRE(verts[0].x == 0);
+    REQUIRE(verts[0].y == 1);
+    REQUIRE(verts[0].z == 2);
+    REQUIRE(verts[1].x == 10);
+    REQUIRE(verts[1].y == 11);
+    REQUIRE(verts[1].z == 12);
+    REQUIRE(verts[2].x == 20);
+    REQUIRE(verts[2].y == 21);
+    REQUIRE(verts[2].z == 22);
 }
 
 TEST_CASE("model with zero vertices is accepted", "[odm]") {
@@ -396,16 +397,13 @@ struct MeshSpec {
 // Every value is derived from the model/facet index so the test can assert on
 // exact numbers and prove that later models are reached at the right offsets.
 std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& specs) {
-    const std::size_t geo_start =
-        kModelCountOffset + 4 + specs.size() * kModelRecordSize;
+    const std::size_t geo_start = kModelCountOffset + 4 + specs.size() * kModelRecordSize;
 
     std::size_t geo_bytes = 0;
     for (const auto& s : specs) {
-        geo_bytes += s.vertex_count * kModelVertexSize +
-                     s.facet_count * kModelFacetSize +
+        geo_bytes += s.vertex_count * kModelVertexSize + s.facet_count * kModelFacetSize +
                      s.facet_count * kFacetOrderingEntrySize +
-                     s.bsp_node_count * kModelBspNodeSize +
-                     s.facet_count * kFacetTextureNameSize;
+                     s.bsp_node_count * kModelBspNodeSize + s.facet_count * kFacetTextureNameSize;
     }
     std::vector<std::uint8_t> payload(geo_start + geo_bytes, 0);
     put_fixed_string(payload, 0x00, "blank");
@@ -414,13 +412,13 @@ std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& s
     put_fixed_string(payload, 0x80, "grastyl");
 
     auto put_u32 = [&](std::size_t o, std::uint32_t v) {
-        payload[o]     = static_cast<std::uint8_t>(v & 0xFF);
+        payload[o] = static_cast<std::uint8_t>(v & 0xFF);
         payload[o + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
         payload[o + 2] = static_cast<std::uint8_t>((v >> 16) & 0xFF);
         payload[o + 3] = static_cast<std::uint8_t>((v >> 24) & 0xFF);
     };
     auto put_u16 = [&](std::size_t o, std::uint16_t v) {
-        payload[o]     = static_cast<std::uint8_t>(v & 0xFF);
+        payload[o] = static_cast<std::uint8_t>(v & 0xFF);
         payload[o + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
     };
     auto put_i32 = [&](std::size_t o, std::int32_t v) {
@@ -441,7 +439,7 @@ std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& s
         // Vertices: (mi*1000 + i, +1, +2).
         for (std::uint32_t i = 0; i < s.vertex_count; ++i) {
             const std::size_t o = cursor + i * kModelVertexSize;
-            put_i32(o,     static_cast<std::int32_t>(mi * 1000 + i));
+            put_i32(o, static_cast<std::int32_t>(mi * 1000 + i));
             put_i32(o + 4, static_cast<std::int32_t>(mi * 1000 + i + 1));
             put_i32(o + 8, static_cast<std::int32_t>(mi * 1000 + i + 2));
         }
@@ -450,16 +448,15 @@ std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& s
         const std::size_t facets_off = cursor;
         for (std::uint32_t f = 0; f < s.facet_count; ++f) {
             const std::size_t o = facets_off + f * kModelFacetSize;
-            put_i32(o,        0);        // normal x
-            put_i32(o + 0x04, 0);        // normal y
-            put_i32(o + 0x08, 65536);    // normal z = 1.0 in 16.16
+            put_i32(o, 0);             // normal x
+            put_i32(o + 0x04, 0);      // normal y
+            put_i32(o + 0x08, 65536);  // normal z = 1.0 in 16.16
             put_i32(o + 0x0C, -65536 * static_cast<std::int32_t>(f + 1));
-            put_u32(o + 0x1C, 0x100u + f);              // attributes
-            payload[o + 0x12E] = s.facet_vertices;      // polygon size
+            put_u32(o + 0x1C, 0x100u + f);          // attributes
+            payload[o + 0x12E] = s.facet_vertices;  // polygon size
             for (std::uint8_t k = 0; k < s.facet_vertices; ++k) {
                 // Cycle through the model's own vertices.
-                put_u16(o + 0x20 + k * 2u,
-                        static_cast<std::uint16_t>((f + k) % s.vertex_count));
+                put_u16(o + 0x20 + k * 2u, static_cast<std::uint16_t>((f + k) % s.vertex_count));
                 put_u16(o + 0x48 + k * 2u, static_cast<std::uint16_t>(10 * k));
                 put_u16(o + 0x70 + k * 2u, static_cast<std::uint16_t>(20 * k));
             }
@@ -492,8 +489,8 @@ std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& s
 // count, then 28-byte records, then a parallel array of 32-byte names.
 std::vector<std::byte> make_odm_entry_with_decorations(
     const std::vector<MeshSpec>& specs,
-    const std::vector<std::tuple<std::uint32_t, std::int32_t, std::int32_t,
-                                 std::int32_t, std::string>>& decos) {
+    const std::vector<
+        std::tuple<std::uint32_t, std::int32_t, std::int32_t, std::int32_t, std::string>>& decos) {
     auto entry = make_odm_entry_with_meshes(specs);
     // Recover the payload so the decorations can be appended to it.
     OdmMap m;
@@ -523,7 +520,10 @@ std::vector<std::byte> make_odm_entry_with_decorations(
         put(0x0C, static_cast<std::uint32_t>(z));
     }
     for (const auto& [kind, x, y, z, name] : decos) {
-        (void)kind; (void)x; (void)y; (void)z;
+        (void)kind;
+        (void)x;
+        (void)y;
+        (void)z;
         const std::size_t base = payload.size();
         payload.resize(base + kDecorationNameSize, 0);
         for (std::size_t i = 0; i < name.size() && i + 1 < kDecorationNameSize; ++i) {
@@ -581,7 +581,7 @@ TEST_CASE("later models are reached past the preceding geometry", "[odm]") {
 
     REQUIRE(meshes[1].vertices.size() == 5);
     REQUIRE(meshes[1].facets.size() == 2);
-    REQUIRE(meshes[1].vertices[0].x == 1000);   // model index encoded in the data
+    REQUIRE(meshes[1].vertices[0].x == 1000);  // model index encoded in the data
     REQUIRE(meshes[1].facets[0].vertex_count == 3);
     REQUIRE(meshes[1].facets[1].texture_name == "tex1x1");
 
@@ -621,16 +621,14 @@ TEST_CASE("a model with no facets is accepted", "[odm]") {
     REQUIRE(extract_model_meshes(m, meshes) == OdmError::None);
     REQUIRE(meshes[0].vertices.size() == 3);
     REQUIRE(meshes[0].facets.empty());
-    REQUIRE(meshes[1].facets.size() == 1);   // the next block still lines up
+    REQUIRE(meshes[1].facets.size() == 1);  // the next block still lines up
 }
 
-TEST_CASE("a facet claiming more vertices than the record holds is rejected",
-          "[odm]") {
+TEST_CASE("a facet claiming more vertices than the record holds is rejected", "[odm]") {
     auto entry = make_odm_entry_with_meshes({{4, 1, 0, 4}});
     OdmMap m;
     REQUIRE(parse_odm(entry, m) == OdmError::None);
-    const std::size_t facet0 =
-        kModelCountOffset + 4 + 1 * kModelRecordSize + 4 * kModelVertexSize;
+    const std::size_t facet0 = kModelCountOffset + 4 + 1 * kModelRecordSize + 4 * kModelVertexSize;
     m.payload[facet0 + 0x12E] = static_cast<std::uint8_t>(kFacetMaxVertices + 1);
     std::vector<OdmModelMesh> meshes;
     REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
@@ -640,9 +638,8 @@ TEST_CASE("a facet referencing a vertex the model lacks is rejected", "[odm]") {
     auto entry = make_odm_entry_with_meshes({{4, 1, 0, 4}});
     OdmMap m;
     REQUIRE(parse_odm(entry, m) == OdmError::None);
-    const std::size_t facet0 =
-        kModelCountOffset + 4 + 1 * kModelRecordSize + 4 * kModelVertexSize;
-    m.payload[facet0 + 0x20] = 99;   // vertex id 99, but the model has 4
+    const std::size_t facet0 = kModelCountOffset + 4 + 1 * kModelRecordSize + 4 * kModelVertexSize;
+    m.payload[facet0 + 0x20] = 99;  // vertex id 99, but the model has 4
     std::vector<OdmModelMesh> meshes;
     REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
 }
@@ -673,11 +670,10 @@ TEST_CASE("a hostile facet count cannot wrap the size arithmetic", "[odm]") {
 TEST_CASE("decorations decode after the model geometry", "[odm]") {
     // The array sits at a computable offset: right after the last model's
     // geometry, with its own count.
-    auto entry = make_odm_entry_with_decorations(
-        {{4, 2, 0, 4}, {5, 1, 0, 3}},
-        {{39, 3232, 9072, 320, "tree27"},
-         {40, -1000, 500, -64, "tree28"},
-         {2, 0, 0, 0, "Party Start"}});
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}, {5, 1, 0, 3}},
+                                                 {{39, 3232, 9072, 320, "tree27"},
+                                                  {40, -1000, 500, -64, "tree28"},
+                                                  {2, 0, 0, 0, "Party Start"}});
 
     OdmMap m;
     REQUIRE(parse_odm(entry, m) == OdmError::None);
@@ -689,26 +685,23 @@ TEST_CASE("decorations decode after the model geometry", "[odm]") {
     REQUIRE(decos[0].y == 9072);
     REQUIRE(decos[0].z == 320);
     REQUIRE(decos[0].name == "tree27");
-    REQUIRE(decos[1].x == -1000);      // negative coordinates survive
+    REQUIRE(decos[1].x == -1000);  // negative coordinates survive
     REQUIRE(decos[1].z == -64);
     REQUIRE(decos[2].name == "Party Start");
 }
 
 TEST_CASE("the geometry end is where the decorations begin", "[odm]") {
-    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}},
-                                                 {{1, 0, 0, 0, "tree27"}});
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}}, {{1, 0, 0, 0, "tree27"}});
     OdmMap m;
     REQUIRE(parse_odm(entry, m) == OdmError::None);
     std::uint64_t end = 0;
     REQUIRE(model_geometry_end(m, end) == OdmError::None);
     // count + one record + one name accounts for the rest of the payload.
-    REQUIRE(end + 4 + kDecorationRecordSize + kDecorationNameSize ==
-            m.payload.size());
+    REQUIRE(end + 4 + kDecorationRecordSize + kDecorationNameSize == m.payload.size());
 }
 
 TEST_CASE("a decoration array running past the payload is rejected", "[odm]") {
-    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}},
-                                                 {{1, 0, 0, 0, "tree27"}});
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}}, {{1, 0, 0, 0, "tree27"}});
     OdmMap m;
     REQUIRE(parse_odm(entry, m) == OdmError::None);
     std::uint64_t end = 0;

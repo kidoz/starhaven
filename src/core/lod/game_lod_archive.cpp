@@ -15,7 +15,7 @@ namespace {
 
 // Verified layout constants (see docs/formats/games-lod.md).
 constexpr std::uint32_t kHeaderSize = 256;
-constexpr std::uint32_t kRootEntryOffset = 256;       // LodEntry_MM6 right after header
+constexpr std::uint32_t kRootEntryOffset = 256;  // LodEntry_MM6 right after header
 constexpr std::uint32_t kRootEntrySize = 32;
 constexpr std::uint32_t kFileEntrySize = 32;
 constexpr std::uint32_t kEntryNameSize = 16;
@@ -54,8 +54,7 @@ constexpr std::uint32_t kEntryNumItemsOff = 0x1C;
 
 }  // namespace
 
-GameLodError GameLodArchive::open(const std::filesystem::path& path,
-                                  GameLodArchive& out) {
+GameLodError GameLodArchive::open(const std::filesystem::path& path, GameLodArchive& out) {
     std::vector<std::byte> data;
     if (GameLodError e = read_file(path, data); e != GameLodError::None) {
         return e;
@@ -63,8 +62,7 @@ GameLodError GameLodArchive::open(const std::filesystem::path& path,
     return GameLodArchive::parse(std::move(data), out);
 }
 
-GameLodError GameLodArchive::parse(std::vector<std::byte> data,
-                                   GameLodArchive& out) {
+GameLodError GameLodArchive::parse(std::vector<std::byte> data, GameLodArchive& out) {
     out = GameLodArchive{};
     out.data_ = std::move(data);
     return out.parse_impl();
@@ -81,8 +79,7 @@ GameLodError GameLodArchive::parse_impl() {
     if (!r.seek(kHdrSignatureOff)) {
         return GameLodError::TooSmall;
     }
-    if (r.read_u8() != 'L' || r.read_u8() != 'O' || r.read_u8() != 'D' ||
-        r.read_u8() != 0) {
+    if (r.read_u8() != 'L' || r.read_u8() != 'O' || r.read_u8() != 'D' || r.read_u8() != 0) {
         return GameLodError::BadSignature;
     }
 
@@ -95,8 +92,7 @@ GameLodError GameLodArchive::parse_impl() {
     }
     // Accept any version beginning with "Game" (e.g. "GameMMVI"). Case-sensitive
     // match; the real files use exactly this casing.
-    if (version_.size() < 4 ||
-        version_.compare(0, 4, "Game") != 0) {
+    if (version_.size() < 4 || version_.compare(0, 4, "Game") != 0) {
         return GameLodError::UnsupportedVersion;
     }
 
@@ -135,16 +131,14 @@ GameLodError GameLodArchive::parse_impl() {
     // Validate the root region: it must start after header+root and cover the
     // rest of the file. (Russian MM7 LODs are known to have a wrong dataSize;
     // we trust filesize like the reference reader does.)
-    if (root_data_offset_ < kHeaderSize + kRootEntrySize ||
-        root_data_offset_ > data_.size()) {
+    if (root_data_offset_ < kHeaderSize + kRootEntrySize || root_data_offset_ > data_.size()) {
         return GameLodError::BadRootOffset;
     }
     (void)root_data_size;  // not trusted; use filesize below
 
     // The file-entry table must fit within the root region.
-    const std::uint64_t table_end =
-        static_cast<std::uint64_t>(root_data_offset_) +
-        static_cast<std::uint64_t>(num_items_) * kFileEntrySize;
+    const std::uint64_t table_end = static_cast<std::uint64_t>(root_data_offset_) +
+                                    static_cast<std::uint64_t>(num_items_) * kFileEntrySize;
     if (table_end > data_.size()) {
         return GameLodError::TableTooLarge;
     }
@@ -152,9 +146,8 @@ GameLodError GameLodArchive::parse_impl() {
     entries_.clear();
     entries_.reserve(num_items_);
     for (std::uint16_t i = 0; i < num_items_; ++i) {
-        const std::uint64_t entry_off =
-            static_cast<std::uint64_t>(root_data_offset_) +
-            static_cast<std::uint64_t>(i) * kFileEntrySize;
+        const std::uint64_t entry_off = static_cast<std::uint64_t>(root_data_offset_) +
+                                        static_cast<std::uint64_t>(i) * kFileEntrySize;
         if (!r.seek(static_cast<std::size_t>(entry_off))) {
             return GameLodError::TableTooLarge;
         }
@@ -169,8 +162,7 @@ GameLodError GameLodArchive::parse_impl() {
         const std::uint32_t size = r.read_u32_le();
 
         // File offsets are relative to the root directory's data offset.
-        const std::uint64_t abs_off =
-            static_cast<std::uint64_t>(root_data_offset_) + rel_off;
+        const std::uint64_t abs_off = static_cast<std::uint64_t>(root_data_offset_) + rel_off;
         const std::uint64_t abs_end = abs_off + size;
         if (abs_off > data_.size() || abs_end > data_.size()) {
             return GameLodError::EntryOutOfRange;
@@ -186,9 +178,9 @@ std::optional<GameLodEntry> GameLodArchive::find(std::string_view name) const {
         if (e.name.size() != name.size()) {
             return false;
         }
-        return std::ranges::equal(
-            e.name, name,
-            [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+        return std::ranges::equal(e.name, name, [](unsigned char a, unsigned char b) {
+            return std::tolower(a) == std::tolower(b);
+        });
     };
     auto it = std::ranges::find_if(entries_, eq);
     if (it == entries_.end()) {
@@ -197,8 +189,8 @@ std::optional<GameLodEntry> GameLodArchive::find(std::string_view name) const {
     return *it;
 }
 
-GameLodArchive::PayloadError GameLodArchive::payload(
-    std::string_view name, std::span<const std::byte>& out) const {
+GameLodArchive::PayloadError GameLodArchive::payload(std::string_view name,
+                                                     std::span<const std::byte>& out) const {
     auto entry = find(name);
     if (!entry) {
         return PayloadError::NotFound;
@@ -206,8 +198,7 @@ GameLodArchive::PayloadError GameLodArchive::payload(
     if (entry->data_offset + entry->data_size > data_.size()) {
         return PayloadError::OutOfRange;
     }
-    out = std::span<const std::byte>(data_.data() + entry->data_offset,
-                                     entry->data_size);
+    out = std::span<const std::byte>(data_.data() + entry->data_offset, entry->data_size);
     return PayloadError::None;
 }
 

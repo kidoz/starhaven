@@ -48,22 +48,22 @@ void push_u32(std::vector<std::uint8_t>& v, std::uint32_t x) {
 }
 
 // Build a decompressed payload with the given vertices and faces.
-std::vector<std::uint8_t> make_payload(
-    const std::vector<std::array<std::int16_t, 3>>& vertices,
-    const std::vector<FaceSpec>& faces,
-    const std::string& name = "Test Level",
-    const std::string& name2 = "test",
-    const std::vector<std::pair<std::uint16_t, std::uint16_t>>& extras = {}) {
+std::vector<std::uint8_t>
+make_payload(const std::vector<std::array<std::int16_t, 3>>& vertices,
+             const std::vector<FaceSpec>& faces, const std::string& name = "Test Level",
+             const std::string& name2 = "test",
+             const std::vector<std::pair<std::uint16_t, std::uint16_t>>& extras = {}) {
     std::vector<std::uint8_t> p(kBlvHeaderSize, 0);
     put_u32(p, 0x00, 1);
-    for (std::size_t i = 0; i < name.size(); ++i) p[0x04 + i] = static_cast<std::uint8_t>(name[i]);
-    for (std::size_t i = 0; i < name2.size(); ++i) p[0x50 + i] = static_cast<std::uint8_t>(name2[i]);
+    for (std::size_t i = 0; i < name.size(); ++i)
+        p[0x04 + i] = static_cast<std::uint8_t>(name[i]);
+    for (std::size_t i = 0; i < name2.size(); ++i)
+        p[0x50 + i] = static_cast<std::uint8_t>(name2[i]);
 
     // The index block is six u16 arrays of (n + 1) entries per face.
     std::uint32_t index_bytes = 0;
     for (const auto& f : faces) {
-        index_bytes += static_cast<std::uint32_t>(
-            (f.ids.size() + 1) * 2 * kBlvFaceArrayCount);
+        index_bytes += static_cast<std::uint32_t>((f.ids.size() + 1) * 2 * kBlvFaceArrayCount);
     }
     put_u32(p, 0x68, index_bytes);
     put_u32(p, 0x6C, 111);
@@ -92,7 +92,8 @@ std::vector<std::uint8_t> make_payload(
     // Index arrays: six per face, the first being the vertex ids with a
     // closing copy of the first entry.
     for (const auto& f : faces) {
-        for (std::uint16_t id : f.ids) push_u16(p, id);
+        for (std::uint16_t id : f.ids)
+            push_u16(p, id);
         push_u16(p, f.ids.empty() ? 0 : f.ids.front());
         for (std::size_t a = 1; a < kBlvFaceArrayCount; ++a) {
             for (std::size_t k = 0; k < f.ids.size() + 1; ++k) {
@@ -103,9 +104,8 @@ std::vector<std::uint8_t> make_payload(
 
     for (const auto& f : faces) {
         for (std::size_t i = 0; i < kBlvTextureNameSize; ++i) {
-            p.push_back(i < f.texture.size()
-                            ? static_cast<std::uint8_t>(f.texture[i])
-                            : std::uint8_t{0});
+            p.push_back(i < f.texture.size() ? static_cast<std::uint8_t>(f.texture[i])
+                                             : std::uint8_t{0});
         }
     }
 
@@ -129,14 +129,12 @@ std::vector<std::uint8_t> make_payload(
 }
 
 // Wrap a payload: 8-byte header then a zlib stream.
-std::vector<std::byte> wrap(const std::vector<std::uint8_t>& payload,
-                            bool corrupt_checksum = false,
+std::vector<std::byte> wrap(const std::vector<std::uint8_t>& payload, bool corrupt_checksum = false,
                             std::uint32_t declared_override = 0) {
     uLongf bound = compressBound(static_cast<uLong>(payload.size()));
     std::vector<std::uint8_t> compressed(bound);
     uLongf len = bound;
-    REQUIRE(compress2(compressed.data(), &len, payload.data(),
-                      static_cast<uLong>(payload.size()),
+    REQUIRE(compress2(compressed.data(), &len, payload.data(), static_cast<uLong>(payload.size()),
                       Z_DEFAULT_COMPRESSION) == Z_OK);
     compressed.resize(len);
     if (corrupt_checksum) {
@@ -152,18 +150,17 @@ std::vector<std::byte> wrap(const std::vector<std::uint8_t>& payload,
         entry[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
     };
     put(0x00, static_cast<std::uint32_t>(compressed.size()));
-    put(0x04, declared_override != 0 ? declared_override
-                                     : static_cast<std::uint32_t>(payload.size()));
+    put(0x04,
+        declared_override != 0 ? declared_override : static_cast<std::uint32_t>(payload.size()));
     std::memcpy(&entry[kBlvWrapperSize], compressed.data(), compressed.size());
     return entry;
 }
 
 // Append decoration records to a payload: 32 bytes each, name then flags,
 // position and facing.
-void append_decorations(
-    std::vector<std::uint8_t>& p,
-    const std::vector<std::tuple<std::string, std::int16_t, std::int16_t,
-                                 std::int16_t, std::int16_t>>& decos) {
+void append_decorations(std::vector<std::uint8_t>& p,
+                        const std::vector<std::tuple<std::string, std::int16_t, std::int16_t,
+                                                     std::int16_t, std::int16_t>>& decos) {
     for (const auto& [name, x, y, z, angle] : decos) {
         const std::size_t base = p.size();
         p.resize(base + kBlvDecorationSize, 0);
@@ -329,8 +326,7 @@ TEST_CASE("an index block smaller than the faces need is rejected", "[blv]") {
     // they do not, the texture names that follow would be misaligned.
     const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
     auto payload = make_payload(kSquare, faces);
-    const std::uint32_t needed =
-        static_cast<std::uint32_t>((4 + 1) * 2 * kBlvFaceArrayCount);
+    const std::uint32_t needed = static_cast<std::uint32_t>((4 + 1) * 2 * kBlvFaceArrayCount);
     put_u32(payload, 0x68, needed - 12);
     auto entry = wrap(payload);
     BlvMap map;
@@ -342,8 +338,7 @@ TEST_CASE("an index block larger than the payload is rejected", "[blv]") {
     // bounds catch before any geometry is read.
     const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
     auto payload = make_payload(kSquare, faces);
-    const std::uint32_t needed =
-        static_cast<std::uint32_t>((4 + 1) * 2 * kBlvFaceArrayCount);
+    const std::uint32_t needed = static_cast<std::uint32_t>((4 + 1) * 2 * kBlvFaceArrayCount);
     put_u32(payload, 0x68, needed + 4096);
     auto entry = wrap(payload);
     BlvMap map;
@@ -366,11 +361,11 @@ TEST_CASE("decorations are found in the undecoded tail", "[blv]") {
     auto payload = make_payload(kSquare, faces);
     payload.resize(payload.size() + 200, 0x11);  // undecoded filler
     append_decorations(payload, {
-        {"Party Start", 100, 120, 0, 0},
-        {"Torch01", 40, 60, 0, 64},
-        {"Barrel", 200, 30, 0, 128},
-        {"tree09", 10, 250, 0, 250},
-    });
+                                    {"Party Start", 100, 120, 0, 0},
+                                    {"Torch01", 40, 60, 0, 64},
+                                    {"Barrel", 200, 30, 0, 128},
+                                    {"tree09", 10, 250, 0, 250},
+                                });
     auto entry = wrap(payload);
 
     BlvMap map;
@@ -402,11 +397,11 @@ TEST_CASE("decorations far outside the level are not accepted", "[blv]") {
     const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
     auto payload = make_payload(kSquare, faces);
     append_decorations(payload, {
-        {"Torch01", 30000, 30000, 30000, 0},
-        {"Torch01", 30000, 30000, 30000, 0},
-        {"Torch01", 30000, 30000, 30000, 0},
-        {"Torch01", 30000, 30000, 30000, 0},
-    });
+                                    {"Torch01", 30000, 30000, 30000, 0},
+                                    {"Torch01", 30000, 30000, 30000, 0},
+                                    {"Torch01", 30000, 30000, 30000, 0},
+                                    {"Torch01", 30000, 30000, 30000, 0},
+                                });
     auto entry = wrap(payload);
 
     BlvMap map;
@@ -415,10 +410,8 @@ TEST_CASE("decorations far outside the level are not accepted", "[blv]") {
 }
 
 TEST_CASE("face extras are decoded after the texture names", "[blv]") {
-    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"},
-                                         {{0, 1, 2}, 0, "WallB"}};
-    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test",
-                                   {{1, 10}, {0, 20}}));
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}, {{0, 1, 2}, 0, "WallB"}};
+    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test", {{1, 10}, {0, 20}}));
 
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::None);
@@ -433,8 +426,7 @@ TEST_CASE("face extras are decoded after the texture names", "[blv]") {
 
 TEST_CASE("a face extra naming a missing face is rejected", "[blv]") {
     const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
-    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test",
-                                   {{99, 0}}));
+    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test", {{99, 0}}));
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::BadGeometry);
 }

@@ -42,11 +42,9 @@ void Framebuffer::draw_triangle(const ScreenVertex& v0, const ScreenVertex& v1,
 
     // Bounding box clipped to the screen.
     const float minx = std::max(0.0f, std::min({v0.x, v1.x, v2.x}));
-    const float maxx = std::min(static_cast<float>(width_ - 1),
-                                std::max({v0.x, v1.x, v2.x}));
+    const float maxx = std::min(static_cast<float>(width_ - 1), std::max({v0.x, v1.x, v2.x}));
     const float miny = std::max(0.0f, std::min({v0.y, v1.y, v2.y}));
-    const float maxy = std::min(static_cast<float>(height_ - 1),
-                                std::max({v0.y, v1.y, v2.y}));
+    const float maxy = std::min(static_cast<float>(height_ - 1), std::max({v0.y, v1.y, v2.y}));
     if (maxx < minx || maxy < miny) {
         return;
     }
@@ -104,11 +102,9 @@ void Framebuffer::draw_triangle(const ScreenVertex& v0, const ScreenVertex& v1,
     }
 }
 
-void Framebuffer::draw_triangle_textured(const ScreenVertex& a,
-                                         const ScreenVertex& b,
-                                         const ScreenVertex& c,
-                                         const Texture& texture, WrapMode wrap,
-                                         bool cull_backfaces) {
+void Framebuffer::draw_triangle_textured(const ScreenVertex& a, const ScreenVertex& b,
+                                         const ScreenVertex& c, const Texture& texture,
+                                         WrapMode wrap, bool cull_backfaces) {
     if (texture.empty()) {
         return;  // nothing resolved for this surface yet
     }
@@ -136,11 +132,9 @@ void Framebuffer::draw_triangle_textured(const ScreenVertex& a,
     const ScreenVertex& v2 = *pv2;
 
     const float minx = std::max(0.0f, std::min({v0.x, v1.x, v2.x}));
-    const float maxx =
-        std::min(static_cast<float>(width_ - 1), std::max({v0.x, v1.x, v2.x}));
+    const float maxx = std::min(static_cast<float>(width_ - 1), std::max({v0.x, v1.x, v2.x}));
     const float miny = std::max(0.0f, std::min({v0.y, v1.y, v2.y}));
-    const float maxy =
-        std::min(static_cast<float>(height_ - 1), std::max({v0.y, v1.y, v2.y}));
+    const float maxy = std::min(static_cast<float>(height_ - 1), std::max({v0.y, v1.y, v2.y}));
     if (maxx < minx || maxy < miny) {
         return;
     }
@@ -218,8 +212,7 @@ void Framebuffer::draw_triangle_textured(const ScreenVertex& a,
     }
 }
 
-void Framebuffer::draw_line(const ScreenVertex& a, const ScreenVertex& b,
-                            Color color) {
+void Framebuffer::draw_line(const ScreenVertex& a, const ScreenVertex& b, Color color) {
     // Bresenham, z-tested against the existing depth so the line is occluded
     // by nearer terrain. We interpolate z linearly across the line.
     int x0 = static_cast<int>(std::round(a.x));
@@ -242,17 +235,26 @@ void Framebuffer::draw_line(const ScreenVertex& a, const ScreenVertex& b,
             const int idx = y0 * width_ + x0;
             // Draw the line on top of geometry (z <= stored), ignoring the
             // depth test so debug boxes remain visible even behind hills.
-            (void)z; (void)idx;
+            (void)z;
+            (void)idx;
             color_[idx * 4 + 0] = color.r;
             color_[idx * 4 + 1] = color.g;
             color_[idx * 4 + 2] = color.b;
             color_[idx * 4 + 3] = 255;
         }
-        if (x0 == x1 && y0 == y1) break;
-        if (++safety > 10000) break;  // guard against malformed input
+        if (x0 == x1 && y0 == y1)
+            break;
+        if (++safety > 10000)
+            break;  // guard against malformed input
         const int e2 = 2 * err;
-        if (e2 > -dy) { err -= dy; x0 += sx; }
-        if (e2 < dx)  { err += dx; y0 += sy; }
+        if (e2 > -dy) {
+            err -= dy;
+            x0 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y0 += sy;
+        }
     }
 }
 
@@ -263,7 +265,8 @@ void Framebuffer::draw_point(const ScreenVertex& p, Color color) {
         for (int dx = -1; dx <= 1; ++dx) {
             const int x = cx + dx;
             const int y = cy + dy;
-            if (x < 0 || x >= width_ || y < 0 || y >= height_) continue;
+            if (x < 0 || x >= width_ || y < 0 || y >= height_)
+                continue;
             const int idx = (y * width_ + x) * 4;
             color_[idx + 0] = color.r;
             color_[idx + 1] = color.g;
@@ -289,20 +292,14 @@ void emit_tri(std::vector<ViewVertex>& out, ViewVertex a, ViewVertex b, ViewVert
 // view space, before the projective divide, where texture coordinates are
 // still a linear function of position.
 ViewVertex lerp(const ViewVertex& a, const ViewVertex& b, float t) {
-    return {a.x + (b.x - a.x) * t,
-            a.y + (b.y - a.y) * t,
-            a.z + (b.z - a.z) * t,
-            a.r + (b.r - a.r) * t,
-            a.g + (b.g - a.g) * t,
-            a.b + (b.b - a.b) * t,
-            a.u + (b.u - a.u) * t,
-            a.v + (b.v - a.v) * t};
+    return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t,
+            a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t,
+            a.u + (b.u - a.u) * t, a.v + (b.v - a.v) * t};
 }
 
 }  // namespace
 
-void clip_near(const ViewVertex in[3], float near_z,
-               std::vector<ViewVertex>& out) {
+void clip_near(const ViewVertex in[3], float near_z, std::vector<ViewVertex>& out) {
     // near_z is the view-space z of the near plane (a negative value, e.g. -1).
     // A vertex is "in" if z <= near_z (farther than near, i.e. in front).
     // (View space: camera at origin looking down -Z, so visible z is negative

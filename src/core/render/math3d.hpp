@@ -31,16 +31,24 @@ struct Mat4 {
 };
 
 // --- Vec3 ops ---
-inline Vec3 operator+(Vec3 a, Vec3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
-inline Vec3 operator-(Vec3 a, Vec3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
-inline Vec3 operator*(Vec3 a, float s) { return {a.x * s, a.y * s, a.z * s}; }
-inline float dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-inline Vec3 cross(Vec3 a, Vec3 b) {
-    return {a.y * b.z - a.z * b.y,
-            a.z * b.x - a.x * b.z,
-            a.x * b.y - a.y * b.x};
+inline Vec3 operator+(Vec3 a, Vec3 b) {
+    return {a.x + b.x, a.y + b.y, a.z + b.z};
 }
-inline float length(Vec3 a) { return std::sqrt(dot(a, a)); }
+inline Vec3 operator-(Vec3 a, Vec3 b) {
+    return {a.x - b.x, a.y - b.y, a.z - b.z};
+}
+inline Vec3 operator*(Vec3 a, float s) {
+    return {a.x * s, a.y * s, a.z * s};
+}
+inline float dot(Vec3 a, Vec3 b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+inline Vec3 cross(Vec3 a, Vec3 b) {
+    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+}
+inline float length(Vec3 a) {
+    return std::sqrt(dot(a, a));
+}
 inline Vec3 normalize(Vec3 a) {
     const float len = length(a);
     return len > 0 ? Vec3{a.x / len, a.y / len, a.z / len} : a;
@@ -70,7 +78,9 @@ inline Mat4 mat4_perspective(float fov_y, float aspect, float near_p, float far_
 // Translation.
 inline Mat4 mat4_translate(Vec3 t) {
     Mat4 r = mat4_identity();
-    r(3, 0) = t.x; r(3, 1) = t.y; r(3, 2) = t.z;
+    r(3, 0) = t.x;
+    r(3, 1) = t.y;
+    r(3, 2) = t.z;
     return r;
 }
 
@@ -79,15 +89,19 @@ inline Mat4 mat4_translate(Vec3 t) {
 inline Mat4 mat4_rotation_y(float rad) {
     Mat4 r = mat4_identity();
     const float c = std::cos(rad), s = std::sin(rad);
-    r(0, 0) = c;  r(2, 0) = s;
-    r(0, 2) = -s; r(2, 2) = c;
+    r(0, 0) = c;
+    r(2, 0) = s;
+    r(0, 2) = -s;
+    r(2, 2) = c;
     return r;
 }
 inline Mat4 mat4_rotation_x(float rad) {
     Mat4 r = mat4_identity();
     const float c = std::cos(rad), s = std::sin(rad);
-    r(1, 1) = c;  r(2, 1) = -s;
-    r(1, 2) = s;  r(2, 2) = c;
+    r(1, 1) = c;
+    r(2, 1) = -s;
+    r(1, 2) = s;
+    r(2, 2) = c;
     return r;
 }
 
@@ -96,7 +110,8 @@ inline Mat4 operator*(const Mat4& a, const Mat4& b) {
     for (int c = 0; c < 4; ++c)
         for (int row = 0; row < 4; ++row) {
             float sum = 0;
-            for (int k = 0; k < 4; ++k) sum += a(k, row) * b(c, k);
+            for (int k = 0; k < 4; ++k)
+                sum += a(k, row) * b(c, k);
             r(c, row) = sum;
         }
     return r;
@@ -115,13 +130,19 @@ inline Vec4 operator*(const Mat4& m, Vec4 v) {
 // Build a view matrix for a camera at `eye` looking toward `target` with `up`.
 // Right-handed look-at (camera looks down -Z in view space).
 inline Mat4 mat4_look_at(Vec3 eye, Vec3 target, Vec3 up) {
-    const Vec3 f = normalize(target - eye);   // forward
-    const Vec3 s = normalize(cross(f, up));   // right
-    const Vec3 u = cross(s, f);               // true up
+    const Vec3 f = normalize(target - eye);  // forward
+    const Vec3 s = normalize(cross(f, up));  // right
+    const Vec3 u = cross(s, f);              // true up
     Mat4 r = mat4_identity();
-    r(0, 0) = s.x; r(0, 1) = u.x; r(0, 2) = -f.x;
-    r(1, 0) = s.y; r(1, 1) = u.y; r(1, 2) = -f.y;
-    r(2, 0) = s.z; r(2, 1) = u.z; r(2, 2) = -f.z;
+    r(0, 0) = s.x;
+    r(0, 1) = u.x;
+    r(0, 2) = -f.x;
+    r(1, 0) = s.y;
+    r(1, 1) = u.y;
+    r(1, 2) = -f.y;
+    r(2, 0) = s.z;
+    r(2, 1) = u.z;
+    r(2, 2) = -f.z;
     r(3, 0) = -dot(s, eye);
     r(3, 1) = -dot(u, eye);
     r(3, 2) = dot(f, eye);
@@ -132,7 +153,7 @@ inline Mat4 mat4_look_at(Vec3 eye, Vec3 target, Vec3 up) {
 // Forward points where the camera looks.
 inline Vec3 camera_forward(float yaw, float pitch) {
     const float cp = std::cos(pitch), sp = std::sin(pitch);
-    const float cy = std::cos(yaw),   sy = std::sin(yaw);
+    const float cy = std::cos(yaw), sy = std::sin(yaw);
     // yaw=0 looks down -Z; pitch>0 looks up.
     return {sy * cp, sp, -cp * cy};
 }
@@ -141,7 +162,9 @@ inline Vec3 camera_right(float yaw) {
 }
 
 constexpr float kPi = 3.14159265358979323846f;
-inline float radians(float deg) { return deg * kPi / 180.0f; }
+inline float radians(float deg) {
+    return deg * kPi / 180.0f;
+}
 
 }  // namespace starhaven::render
 

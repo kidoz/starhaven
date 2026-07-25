@@ -41,13 +41,11 @@ BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
         return BitmapError::BadDataSize;
     }
     // The 768-byte palette follows the pixel data.
-    if (static_cast<std::uint64_t>(kHeaderSize) + data_size + kPaletteSize >
-        entry.size()) {
+    if (static_cast<std::uint64_t>(kHeaderSize) + data_size + kPaletteSize > entry.size()) {
         return BitmapError::PaletteTruncated;
     }
 
-    const std::span<const std::byte> pixel_block =
-        entry.subspan(kHeaderSize, data_size);
+    const std::span<const std::byte> pixel_block = entry.subspan(kHeaderSize, data_size);
 
     // Obtain the decompressed palette indices for the base mipmap.
     std::vector<std::uint8_t> pixels;
@@ -57,8 +55,7 @@ BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
             return BitmapError::BadDataSize;
         }
         pixels.assign(reinterpret_cast<const std::uint8_t*>(pixel_block.data()),
-                      reinterpret_cast<const std::uint8_t*>(pixel_block.data()) +
-                          size);
+                      reinterpret_cast<const std::uint8_t*>(pixel_block.data()) + size);
     } else {
         if (!inflate_all(pixel_block, pixels)) {
             return BitmapError::InflateFailed;
@@ -69,8 +66,7 @@ BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
     }
 
     // Read the palette (256 RGB entries).
-    std::span<const std::byte> palette_span =
-        entry.subspan(kHeaderSize + data_size, kPaletteSize);
+    std::span<const std::byte> palette_span = entry.subspan(kHeaderSize + data_size, kPaletteSize);
     std::array<std::uint8_t, kPaletteSize> palette{};
     std::memcpy(palette.data(), palette_span.data(), kPaletteSize);
 

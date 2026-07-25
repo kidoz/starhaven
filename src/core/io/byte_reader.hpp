@@ -53,10 +53,10 @@ public:
 
     // Checked primitive readers. On failure they set last_error(), leave the
     // cursor unchanged, and return a zero value.
-    [[nodiscard]] std::uint8_t  read_u8() noexcept;
+    [[nodiscard]] std::uint8_t read_u8() noexcept;
     [[nodiscard]] std::uint16_t read_u16_le() noexcept;
     [[nodiscard]] std::uint32_t read_u32_le() noexcept;
-    [[nodiscard]] std::int32_t  read_i32_le() noexcept;
+    [[nodiscard]] std::int32_t read_i32_le() noexcept;
 
     // Read exactly n bytes into out. Returns false if out is smaller than n or
     // if the cursor would overflow.
@@ -65,8 +65,7 @@ public:
     // Read a fixed-width ASCII field (e.g. a magic or a name[N] slot) and copy
     // the bytes up to the first NUL or the field width into out. The trailing
     // NUL is not copied. Returns false if the field would overflow the buffer.
-    [[nodiscard]] bool read_fixed_string(std::size_t field_width,
-                                         std::string& out) noexcept;
+    [[nodiscard]] bool read_fixed_string(std::size_t field_width, std::string& out) noexcept;
 
 private:
     // Inspect a region without advancing; returns false on overflow.

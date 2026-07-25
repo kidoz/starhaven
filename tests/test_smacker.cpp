@@ -34,10 +34,10 @@ public:
     }
     // A byte tree holding one leaf: present, one leaf node, then a terminator.
     void single_byte_tree(std::uint8_t value) {
-        bit(true);        // present
-        bit(false);       // this node is a leaf
+        bit(true);   // present
+        bit(false);  // this node is a leaf
         bits(value, 8);
-        bit(false);       // terminator
+        bit(false);  // terminator
     }
     // A 16-bit tree holding one leaf, which therefore decodes to `value`
     // without consuming any bits from the frame stream.
@@ -48,8 +48,8 @@ public:
         for (int i = 0; i < 3; ++i) {
             bits(0, 16);  // the three cache slots start empty
         }
-        bit(false);   // the big tree is a single leaf
-        bit(false);   // terminator
+        bit(false);  // the big tree is a single leaf
+        bit(false);  // terminator
     }
     void absent_tree() { bit(false); }
 
@@ -57,10 +57,10 @@ public:
     // terminator. A single leaf decodes to `value` without consuming bits, so
     // every delta comes out the same and the samples form a ramp.
     void audio_tree(std::uint8_t value) {
-        bit(false);       // dummy where the presence bit would be
-        bit(false);       // a leaf
+        bit(false);  // dummy where the presence bit would be
+        bit(false);  // a leaf
         bits(value, 8);
-        bit(false);       // terminator
+        bit(false);  // terminator
     }
 
     [[nodiscard]] std::vector<std::byte> take() {
@@ -81,9 +81,9 @@ std::vector<std::byte> dpcm_chunk(std::uint32_t unpacked, bool stereo,
                                   const std::vector<std::uint8_t>& bases) {
     BitWriter w;
     w.bits(unpacked, 32);
-    w.bit(true);          // data present
+    w.bit(true);  // data present
     w.bit(stereo);
-    w.bit(false);         // 8-bit
+    w.bit(false);  // 8-bit
     for (std::uint8_t d : deltas) {
         w.audio_tree(d);
     }
@@ -95,15 +95,15 @@ std::vector<std::byte> dpcm_chunk(std::uint32_t unpacked, bool stereo,
 }
 
 struct FrameSpec {
-    std::uint8_t type = 0;                 // bit 0 = palette record present
-    std::vector<std::byte> payload;        // palette record and/or video data
+    std::uint8_t type = 0;           // bit 0 = palette record present
+    std::vector<std::byte> payload;  // palette record and/or video data
 };
 
 struct VideoSpec {
     const char* magic = "SMK2";
     std::uint32_t width = 8;
     std::uint32_t height = 8;
-    std::int32_t frame_rate = -10000;      // 10 fps
+    std::int32_t frame_rate = -10000;  // 10 fps
     std::uint32_t flags = 0;
     std::vector<std::byte> trees;
     std::vector<FrameSpec> frames;
@@ -122,8 +122,7 @@ void put_u32(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
 // frame, so a fixture with the ring flag must supply one extra FrameSpec.
 std::vector<std::byte> make_video(const VideoSpec& spec) {
     const std::size_t table_frames = spec.frames.size();
-    const std::size_t declared =
-        (spec.flags & 1u) != 0 ? table_frames - 1 : table_frames;
+    const std::size_t declared = (spec.flags & 1u) != 0 ? table_frames - 1 : table_frames;
 
     std::vector<std::byte> out(kSmackerHeaderSize, std::byte{0});
     for (int i = 0; i < 4; ++i) {
@@ -192,8 +191,7 @@ TEST_CASE("the bit reader consumes bits LSB-first", "[smacker]") {
     REQUIRE(r.at_end());
 }
 
-TEST_CASE("the bit reader reports an overrun instead of reading past the end",
-          "[smacker]") {
+TEST_CASE("the bit reader reports an overrun instead of reading past the end", "[smacker]") {
     const std::vector<std::byte> data{std::byte{0xFF}};
     BitReader r{data};
     REQUIRE(r.read_bits(8) == 0xFF);
@@ -348,8 +346,7 @@ TEST_CASE("a fill block paints its color across the picture", "[smacker]") {
     }
 }
 
-TEST_CASE("a palette record sets literal, skipped and copied entries",
-          "[smacker]") {
+TEST_CASE("a palette record sets literal, skipped and copied entries", "[smacker]") {
     // Opcodes: a literal RGB triple, a skip of one entry, then a copy.
     //
     // The copy opcode sources from the palette as it was *before* this record,
@@ -471,15 +468,16 @@ TEST_CASE("mono DPCM audio decodes to a ramp", "[smacker]") {
     std::vector<std::byte> payload;
     const auto total = static_cast<std::uint32_t>(chunk.size() + 4);
     for (int i = 0; i < 4; ++i) {
-        payload.push_back(static_cast<std::byte>((total >> (8*i)) & 0xFF));
+        payload.push_back(static_cast<std::byte>((total >> (8 * i)) & 0xFF));
     }
     payload.insert(payload.end(), chunk.begin(), chunk.end());
-    while (payload.size() % 4 != 0) payload.push_back(std::byte{0});
+    while (payload.size() % 4 != 0)
+        payload.push_back(std::byte{0});
 
     VideoSpec spec;
     spec.audio_size0 = 64;
-    spec.audio_rate0 = 0x80000000u | 0x40000000u | 22050u;   // mono, 8-bit
-    spec.frames.push_back({2, payload});   // type bit 1 = track 0 audio
+    spec.audio_rate0 = 0x80000000u | 0x40000000u | 22050u;  // mono, 8-bit
+    spec.frames.push_back({2, payload});                    // type bit 1 = track 0 audio
     auto data = make_video(spec);
 
     SmackerDecoder decoder;
@@ -503,10 +501,11 @@ TEST_CASE("stereo DPCM audio interleaves its channels", "[smacker]") {
     std::vector<std::byte> payload;
     const auto total = static_cast<std::uint32_t>(chunk.size() + 4);
     for (int i = 0; i < 4; ++i) {
-        payload.push_back(static_cast<std::byte>((total >> (8*i)) & 0xFF));
+        payload.push_back(static_cast<std::byte>((total >> (8 * i)) & 0xFF));
     }
     payload.insert(payload.end(), chunk.begin(), chunk.end());
-    while (payload.size() % 4 != 0) payload.push_back(std::byte{0});
+    while (payload.size() % 4 != 0)
+        payload.push_back(std::byte{0});
 
     VideoSpec spec;
     spec.audio_size0 = 64;
@@ -522,12 +521,12 @@ TEST_CASE("stereo DPCM audio interleaves its channels", "[smacker]") {
     // The declared length is in bytes: 8 bytes of 8-bit stereo is four frames,
     // so eight interleaved samples.
     REQUIRE(audio.samples.size() == 8);
-    REQUIRE(audio.samples[0] == 0);          // left base
-    REQUIRE(audio.samples[1] == 0);          // right base
-    REQUIRE(audio.samples[2] == 1 * 256);    // left + 1
-    REQUIRE(audio.samples[3] == 2 * 256);    // right + 2
-    REQUIRE(audio.samples[4] == 2 * 256);    // left + 1 again
-    REQUIRE(audio.samples[5] == 4 * 256);    // right + 2 again
+    REQUIRE(audio.samples[0] == 0);        // left base
+    REQUIRE(audio.samples[1] == 0);        // right base
+    REQUIRE(audio.samples[2] == 1 * 256);  // left + 1
+    REQUIRE(audio.samples[3] == 2 * 256);  // right + 2
+    REQUIRE(audio.samples[4] == 2 * 256);  // left + 1 again
+    REQUIRE(audio.samples[5] == 4 * 256);  // right + 2 again
     REQUIRE(audio.samples[6] == 3 * 256);
     REQUIRE(audio.samples[7] == 6 * 256);
 }

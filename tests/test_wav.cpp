@@ -16,27 +16,28 @@ using namespace starhaven::audio;
 namespace {
 
 void push_u32(std::vector<std::uint8_t>& v, std::uint32_t x) {
-    for (int i = 0; i < 4; ++i) v.push_back(static_cast<std::uint8_t>((x >> (8*i)) & 0xFF));
+    for (int i = 0; i < 4; ++i)
+        v.push_back(static_cast<std::uint8_t>((x >> (8 * i)) & 0xFF));
 }
 void push_u16(std::vector<std::uint8_t>& v, std::uint16_t x) {
-    for (int i = 0; i < 2; ++i) v.push_back(static_cast<std::uint8_t>((x >> (8*i)) & 0xFF));
+    for (int i = 0; i < 2; ++i)
+        v.push_back(static_cast<std::uint8_t>((x >> (8 * i)) & 0xFF));
 }
 void push_tag(std::vector<std::uint8_t>& v, const char* t) {
-    for (int i = 0; i < 4; ++i) v.push_back(static_cast<std::uint8_t>(t[i]));
+    for (int i = 0; i < 4; ++i)
+        v.push_back(static_cast<std::uint8_t>(t[i]));
 }
 
 // Assemble a RIFF/WAVE buffer from a format chunk body and sample data.
-std::vector<std::uint8_t> make_wav(std::uint16_t tag, std::uint16_t channels,
-                                   std::uint32_t rate, std::uint16_t block_align,
-                                   std::uint16_t bits,
-                                   const std::vector<std::uint8_t>& data,
-                                   bool with_fact = false,
+std::vector<std::uint8_t> make_wav(std::uint16_t tag, std::uint16_t channels, std::uint32_t rate,
+                                   std::uint16_t block_align, std::uint16_t bits,
+                                   const std::vector<std::uint8_t>& data, bool with_fact = false,
                                    std::uint32_t fact_frames = 0) {
     std::vector<std::uint8_t> fmt;
     push_u16(fmt, tag);
     push_u16(fmt, channels);
     push_u32(fmt, rate);
-    push_u32(fmt, rate * channels);   // byte rate; unused by the decoder
+    push_u32(fmt, rate * channels);  // byte rate; unused by the decoder
     push_u16(fmt, block_align);
     push_u16(fmt, bits);
 
@@ -95,10 +96,10 @@ TEST_CASE("IMA ADPCM reconstructs the documented step sequence", "[wav]") {
     // With step 7, nibble 4 adds step -> 7 and moves the index to 2;
     // with step 9, nibble 0 adds step/8 -> 8 and moves the index back to 1.
     std::vector<std::uint8_t> data;
-    push_u16(data, 0);        // predictor
-    data.push_back(0);        // step index
-    data.push_back(0);        // padding
-    data.push_back(0x04);     // nibbles 4 then 0
+    push_u16(data, 0);     // predictor
+    data.push_back(0);     // step index
+    data.push_back(0);     // padding
+    data.push_back(0x04);  // nibbles 4 then 0
     data.push_back(0x00);
     data.push_back(0x00);
     data.push_back(0x00);
@@ -106,7 +107,7 @@ TEST_CASE("IMA ADPCM reconstructs the documented step sequence", "[wav]") {
     auto buf = make_wav(kWaveFormatImaAdpcm, 1, 22050, /*block_align*/ 8, 4, data);
     WavAudio audio;
     REQUIRE(decode_wav(buf, audio) == WavError::None);
-    REQUIRE(audio.samples.size() == 9);   // the predictor plus eight nibbles
+    REQUIRE(audio.samples.size() == 9);  // the predictor plus eight nibbles
     REQUIRE(audio.samples[0] == 0);
     REQUIRE(audio.samples[1] == 7);
     REQUIRE(audio.samples[2] == 8);
@@ -117,7 +118,8 @@ TEST_CASE("the fact chunk trims ADPCM block padding", "[wav]") {
     push_u16(data, 0);
     data.push_back(0);
     data.push_back(0);
-    for (int i = 0; i < 4; ++i) data.push_back(0);
+    for (int i = 0; i < 4; ++i)
+        data.push_back(0);
 
     // The block yields nine frames; the fact chunk says only five are real.
     auto buf = make_wav(kWaveFormatImaAdpcm, 1, 22050, 8, 4, data,
@@ -132,11 +134,12 @@ TEST_CASE("a fact chunk longer than the data does not extend it", "[wav]") {
     push_u16(data, 0);
     data.push_back(0);
     data.push_back(0);
-    for (int i = 0; i < 4; ++i) data.push_back(0);
+    for (int i = 0; i < 4; ++i)
+        data.push_back(0);
     auto buf = make_wav(kWaveFormatImaAdpcm, 1, 22050, 8, 4, data, true, 9999);
     WavAudio audio;
     REQUIRE(decode_wav(buf, audio) == WavError::None);
-    REQUIRE(audio.samples.size() == 9);   // unchanged, not padded out
+    REQUIRE(audio.samples.size() == 9);  // unchanged, not padded out
 }
 
 TEST_CASE("a non-RIFF buffer is rejected", "[wav]") {
@@ -157,21 +160,27 @@ TEST_CASE("a chunk running past the buffer is rejected", "[wav]") {
 }
 
 TEST_CASE("an unknown format tag is reported, not guessed at", "[wav]") {
-    auto buf = make_wav(/*tag*/ 85, 1, 22050, 2, 16, {0, 0});   // MP3
+    auto buf = make_wav(/*tag*/ 85, 1, 22050, 2, 16, {0, 0});  // MP3
     WavAudio audio;
     REQUIRE(decode_wav(buf, audio) == WavError::UnsupportedFormat);
 }
 
 TEST_CASE("a wave without a data chunk is rejected", "[wav]") {
     std::vector<std::uint8_t> fmt;
-    push_u16(fmt, kWaveFormatPcm); push_u16(fmt, 1); push_u32(fmt, 22050);
-    push_u32(fmt, 44100); push_u16(fmt, 2); push_u16(fmt, 16);
+    push_u16(fmt, kWaveFormatPcm);
+    push_u16(fmt, 1);
+    push_u32(fmt, 22050);
+    push_u32(fmt, 44100);
+    push_u16(fmt, 2);
+    push_u16(fmt, 16);
     std::vector<std::uint8_t> body;
-    push_tag(body, "WAVE"); push_tag(body, "fmt ");
+    push_tag(body, "WAVE");
+    push_tag(body, "fmt ");
     push_u32(body, static_cast<std::uint32_t>(fmt.size()));
     body.insert(body.end(), fmt.begin(), fmt.end());
     std::vector<std::uint8_t> buf;
-    push_tag(buf, "RIFF"); push_u32(buf, static_cast<std::uint32_t>(body.size()));
+    push_tag(buf, "RIFF");
+    push_u32(buf, static_cast<std::uint32_t>(body.size()));
     buf.insert(buf.end(), body.begin(), body.end());
 
     WavAudio audio;
@@ -179,8 +188,7 @@ TEST_CASE("a wave without a data chunk is rejected", "[wav]") {
 }
 
 TEST_CASE("an ADPCM block size that cannot hold a header is rejected", "[wav]") {
-    auto buf = make_wav(kWaveFormatImaAdpcm, 1, 22050, /*block_align*/ 2, 4,
-                        {0, 0, 0, 0});
+    auto buf = make_wav(kWaveFormatImaAdpcm, 1, 22050, /*block_align*/ 2, 4, {0, 0, 0, 0});
     WavAudio audio;
     REQUIRE(decode_wav(buf, audio) == WavError::BadBlockAlign);
 }

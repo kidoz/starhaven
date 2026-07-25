@@ -21,8 +21,7 @@ bool same(Color a, Color b) {
 }
 
 Texture solid(int extent, Color c) {
-    std::vector<std::uint8_t> rgba(
-        static_cast<std::size_t>(extent) * extent * 4U);
+    std::vector<std::uint8_t> rgba(static_cast<std::size_t>(extent) * extent * 4U);
     for (std::size_t i = 0; i < rgba.size(); i += 4) {
         rgba[i + 0] = c.r;
         rgba[i + 1] = c.g;
@@ -36,8 +35,7 @@ Texture solid(int extent, Color c) {
 
 }  // namespace
 
-TEST_CASE("a default tile set is empty and every slot is unresolved",
-          "[tile_set]") {
+TEST_CASE("a default tile set is empty and every slot is unresolved", "[tile_set]") {
     const TileSet set;
     REQUIRE(set.empty());
     REQUIRE(set.size() == 0);
@@ -56,8 +54,7 @@ TEST_CASE("set installs a texture and reports occupancy", "[tile_set]") {
     REQUIRE(set.texture_for(91).empty());
 }
 
-TEST_CASE("set rejects an empty texture rather than registering a hole",
-          "[tile_set]") {
+TEST_CASE("set rejects an empty texture rather than registering a hole", "[tile_set]") {
     TileSet set;
     REQUIRE_FALSE(set.set(5, Texture{}));
     REQUIRE(set.empty());
@@ -84,8 +81,7 @@ TEST_CASE("the placeholder set fills every tile index", "[tile_set]") {
     }
 }
 
-TEST_CASE("placeholder tiles are opaque and carry a visible checker",
-          "[tile_set]") {
+TEST_CASE("placeholder tiles are opaque and carry a visible checker", "[tile_set]") {
     const TileSet set = TileSet::make_placeholder(8);
     const Texture& t = set.texture_for(90);  // the common grass base tile
 
@@ -103,8 +99,7 @@ TEST_CASE("placeholder tiles are opaque and carry a visible checker",
     REQUIRE(top_left.g == bottom_right.g);
 }
 
-TEST_CASE("distinct tile indices get distinguishable placeholder colors",
-          "[tile_set]") {
+TEST_CASE("distinct tile indices get distinguishable placeholder colors", "[tile_set]") {
     const TileSet set = TileSet::make_placeholder(4);
     // Grass (90) and water (>=180) are deliberately different families.
     const Color grass = set.texture_for(90).texel(0, 0, WrapMode::Clamp);

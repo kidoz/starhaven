@@ -19,27 +19,25 @@ using namespace starhaven::image;
 namespace {
 
 void put_u16_le(std::vector<std::byte>& v, std::size_t off, std::uint16_t x) {
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
 }
 void put_i16_le(std::vector<std::byte>& v, std::size_t off, std::int16_t x) {
     put_u16_le(v, off, static_cast<std::uint16_t>(x));
 }
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
     v[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
     v[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
 }
 
-bool zlib_compress(const std::vector<std::uint8_t>& src,
-                   std::vector<std::uint8_t>& dst) {
+bool zlib_compress(const std::vector<std::uint8_t>& src, std::vector<std::uint8_t>& dst) {
     uLongf bound = compressBound(static_cast<uLong>(src.size()));
     dst.resize(bound);
     uLongf len = bound;
     if (compress2(reinterpret_cast<Bytef*>(dst.data()), &len,
-                  reinterpret_cast<const Bytef*>(src.data()),
-                  static_cast<uLong>(src.size()),
+                  reinterpret_cast<const Bytef*>(src.data()), static_cast<uLong>(src.size()),
                   Z_DEFAULT_COMPRESSION) != Z_OK) {
         return false;
     }
@@ -77,8 +75,7 @@ std::vector<std::byte> make_simple_sprite(std::uint16_t palette_id = 2) {
     return v;
 }
 
-Palette make_palette_with_entry(std::uint8_t idx, std::uint8_t r,
-                                std::uint8_t g, std::uint8_t b) {
+Palette make_palette_with_entry(std::uint8_t idx, std::uint8_t r, std::uint8_t g, std::uint8_t b) {
     Palette p{};
     p.rgb[static_cast<std::size_t>(idx) * 3 + 0] = r;
     p.rgb[static_cast<std::size_t>(idx) * 3 + 1] = g;
@@ -158,8 +155,12 @@ TEST_CASE("zlib-compressed sprite pixel data is inflated", "[sprite]") {
     put_u16_le(v, 0x12, kHeight);
     put_u16_le(v, 0x14, 2);
     put_u32_le(v, 0x1C, /*decompressedSize*/ 4);
-    put_i16_le(v, 32 + 0, 1); put_i16_le(v, 34, 3); put_u32_le(v, 36, 0);
-    put_i16_le(v, 40, 0); put_i16_le(v, 42, 2); put_u32_le(v, 44, 2);
+    put_i16_le(v, 32 + 0, 1);
+    put_i16_le(v, 34, 3);
+    put_u32_le(v, 36, 0);
+    put_i16_le(v, 40, 0);
+    put_i16_le(v, 42, 2);
+    put_u32_le(v, 44, 2);
     std::memcpy(&v[32 + kHeight * 8], compressed.data(), compressed.size());
 
     Sprite s;
@@ -211,7 +212,9 @@ TEST_CASE("corrupt zlib pixel data is rejected", "[sprite]") {
     put_u16_le(v, 0x10, kWidth);
     put_u16_le(v, 0x12, kHeight);
     put_u32_le(v, 0x1C, 4);
-    put_i16_le(v, 32, 0); put_i16_le(v, 34, 4); put_u32_le(v, 36, 0);
+    put_i16_le(v, 32, 0);
+    put_i16_le(v, 34, 4);
+    put_u32_le(v, 36, 0);
     for (std::size_t i = 0; i < 16; ++i) {
         v[32 + kHeight * 8 + i] = static_cast<std::byte>(0xFF);
     }

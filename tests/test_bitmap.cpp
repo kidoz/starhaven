@@ -19,26 +19,23 @@ using namespace starhaven::image;
 namespace {
 
 void put_u16_le(std::vector<std::byte>& v, std::size_t off, std::uint16_t x) {
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
 }
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
     v[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
     v[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
 }
 
 // zlib-compress src into dst. Returns false on zlib error.
-bool zlib_compress(const std::vector<std::uint8_t>& src,
-                   std::vector<std::uint8_t>& dst) {
+bool zlib_compress(const std::vector<std::uint8_t>& src, std::vector<std::uint8_t>& dst) {
     uLongf bound = compressBound(static_cast<uLong>(src.size()));
     dst.resize(bound);
     uLongf len = bound;
-    if (compress2(reinterpret_cast<Bytef*>(dst.data()),
-                  &len,
-                  reinterpret_cast<const Bytef*>(src.data()),
-                  static_cast<uLong>(src.size()),
+    if (compress2(reinterpret_cast<Bytef*>(dst.data()), &len,
+                  reinterpret_cast<const Bytef*>(src.data()), static_cast<uLong>(src.size()),
                   Z_DEFAULT_COMPRESSION) != Z_OK) {
         return false;
     }
@@ -48,8 +45,7 @@ bool zlib_compress(const std::vector<std::uint8_t>& src,
 
 // Build an uncompressed 1x1 entry: palette index 5, palette entry 5 = (10,20,30).
 std::vector<std::byte> make_uncompressed_1x1(std::uint32_t flags = 0) {
-    std::vector<std::byte> v(kHeaderSize + /*pixels*/ 1 + kPaletteSize,
-                             std::byte{0});
+    std::vector<std::byte> v(kHeaderSize + /*pixels*/ 1 + kPaletteSize, std::byte{0});
     put_u32_le(v, 0x10, /*size*/ 1);
     put_u32_le(v, 0x14, /*dataSize*/ 1);
     put_u16_le(v, 0x18, /*width*/ 1);
@@ -77,10 +73,10 @@ TEST_CASE("uncompressed 1x1 decodes to one RGBA pixel", "[bitmap]") {
     REQUIRE(b.width == 1);
     REQUIRE(b.height == 1);
     REQUIRE(b.rgba.size() == 4);
-    REQUIRE(b.rgba[0] == 10);  // R
-    REQUIRE(b.rgba[1] == 20);  // G
-    REQUIRE(b.rgba[2] == 30);  // B
-    REQUIRE(b.rgba[3] == 255); // opaque
+    REQUIRE(b.rgba[0] == 10);   // R
+    REQUIRE(b.rgba[1] == 20);   // G
+    REQUIRE(b.rgba[2] == 30);   // B
+    REQUIRE(b.rgba[3] == 255);  // opaque
 }
 
 TEST_CASE("uncompressed 2x2 maps each index through the palette", "[bitmap]") {
@@ -131,8 +127,7 @@ TEST_CASE("zlib-compressed pixel data is inflated and decoded", "[bitmap]") {
     std::vector<std::uint8_t> compressed;
     REQUIRE(zlib_compress(pixels, compressed));
 
-    std::vector<std::byte> v(kHeaderSize + compressed.size() + kPaletteSize,
-                             std::byte{0});
+    std::vector<std::byte> v(kHeaderSize + compressed.size() + kPaletteSize, std::byte{0});
     put_u32_le(v, 0x10, 4);
     put_u32_le(v, 0x14, static_cast<std::uint32_t>(compressed.size()));
     put_u16_le(v, 0x18, 2);

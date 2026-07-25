@@ -22,10 +22,10 @@ namespace starhaven::tools {
 inline constexpr float kBodyRadius = 64.0f;
 inline constexpr float kBodyHeight = 320.0f;
 inline constexpr float kEyeHeight = 280.0f;
-inline constexpr float kStepHeight = 96.0f;   // stairs this tall are walked up
-inline constexpr float kGravity = -2400.0f;   // units per second squared
+inline constexpr float kStepHeight = 96.0f;  // stairs this tall are walked up
+inline constexpr float kGravity = -2400.0f;  // units per second squared
 inline constexpr float kMouseSensitivity = 0.0025f;
-inline constexpr float kLookSpeed = 1.5f;     // radians per second, arrow keys
+inline constexpr float kLookSpeed = 1.5f;  // radians per second, arrow keys
 
 // A capture taken on the first frame shows the camera before gravity has
 // settled it, which misrepresents where the player actually stands.
@@ -39,7 +39,7 @@ inline render::Vec3 to_render_space(int x, int y, int z) {
 // Where the player wants to go this frame, before collision.
 struct MoveInput {
     bool forward = false, back = false, left = false, right = false;
-    bool up = false, down = false;   // only used while flying
+    bool up = false, down = false;  // only used while flying
     float speed = 400.0f;
     float dt = 1.0f / 60.0f;
 };
@@ -50,22 +50,27 @@ struct MoveInput {
 // `ground_extra` lets the outdoor walker add its heightfield, which is not part
 // of the collision polygons.
 template <typename GroundFn>
-void step_player(render::Camera& camera, float& fall_speed, bool fly,
-                 const MoveInput& in, const world::CollisionWorld& collision,
-                 GroundFn ground_extra) {
+void step_player(render::Camera& camera, float& fall_speed, bool fly, const MoveInput& in,
+                 const world::CollisionWorld& collision, GroundFn ground_extra) {
     const render::Vec3 flat = camera.forward_flat();
     const render::Vec3 side = camera.right();
 
     render::Vec3 wish = camera.position;
     const float step = in.speed * in.dt;
-    if (in.forward) wish = wish + flat * step;
-    if (in.back) wish = wish - flat * step;
-    if (in.left) wish = wish - side * step;
-    if (in.right) wish = wish + side * step;
+    if (in.forward)
+        wish = wish + flat * step;
+    if (in.back)
+        wish = wish - flat * step;
+    if (in.left)
+        wish = wish - side * step;
+    if (in.right)
+        wish = wish + side * step;
 
     if (fly) {
-        if (in.down) wish.y -= step;
-        if (in.up) wish.y += step;
+        if (in.down)
+            wish.y -= step;
+        if (in.up)
+            wish.y += step;
         camera.position = wish;
         return;
     }
@@ -81,8 +86,7 @@ void step_player(render::Camera& camera, float& fall_speed, bool fly,
 
     float ground = ground_extra(feet.x, feet.z);
     float from_polygons = 0.0f;
-    if (collision.floor_below({feet.x, feet.y + kStepHeight, feet.z},
-                              from_polygons)) {
+    if (collision.floor_below({feet.x, feet.y + kStepHeight, feet.z}, from_polygons)) {
         ground = std::max(ground, from_polygons);
     }
     if (feet.y <= ground) {
@@ -99,9 +103,11 @@ inline int parse_floats(const std::string& text, float* out, int max_count) {
     while (n < max_count && pos <= text.size()) {
         const std::size_t comma = text.find(',', pos);
         const std::string field = text.substr(pos, comma - pos);
-        if (field.empty()) break;
+        if (field.empty())
+            break;
         out[n++] = std::strtof(field.c_str(), nullptr);
-        if (comma == std::string::npos) break;
+        if (comma == std::string::npos)
+            break;
         pos = comma + 1;
     }
     return n;

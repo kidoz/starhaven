@@ -27,11 +27,10 @@ struct MonsterSpec {
 std::vector<std::byte> make_entry(const std::vector<MonsterSpec>& monsters,
                                   bool corrupt_count = false) {
     std::vector<std::uint8_t> raw(4 + monsters.size() * kMonsterRecordSize, 0);
-    const auto count = static_cast<std::uint32_t>(
-        corrupt_count ? monsters.size() + 3 : monsters.size());
+    const auto count =
+        static_cast<std::uint32_t>(corrupt_count ? monsters.size() + 3 : monsters.size());
     for (int i = 0; i < 4; ++i) {
-        raw[static_cast<std::size_t>(i)] =
-            static_cast<std::uint8_t>((count >> (8*i)) & 0xFF);
+        raw[static_cast<std::size_t>(i)] = static_cast<std::uint8_t>((count >> (8 * i)) & 0xFF);
     }
     for (std::size_t i = 0; i < monsters.size(); ++i) {
         const std::size_t base = 4 + i * kMonsterRecordSize;
@@ -40,8 +39,7 @@ std::vector<std::byte> make_entry(const std::vector<MonsterSpec>& monsters,
             raw[base + kMonsterNameOffset + k] = static_cast<std::uint8_t>(m.name[k]);
         }
         for (std::size_t a = 0; a < m.animations.size() && a < kMonsterAnimationCount; ++a) {
-            const std::size_t at = base + kMonsterAnimationOffset +
-                                   a * kMonsterAnimationNameSize;
+            const std::size_t at = base + kMonsterAnimationOffset + a * kMonsterAnimationNameSize;
             const auto& s = m.animations[a];
             for (std::size_t k = 0; k < s.size() && k < kMonsterAnimationNameSize - 1; ++k) {
                 raw[at + k] = static_cast<std::uint8_t>(s[k]);
@@ -52,8 +50,8 @@ std::vector<std::byte> make_entry(const std::vector<MonsterSpec>& monsters,
     uLongf bound = compressBound(static_cast<uLong>(raw.size()));
     std::vector<std::uint8_t> packed(bound);
     uLongf len = bound;
-    REQUIRE(compress2(packed.data(), &len, raw.data(),
-                      static_cast<uLong>(raw.size()), Z_DEFAULT_COMPRESSION) == Z_OK);
+    REQUIRE(compress2(packed.data(), &len, raw.data(), static_cast<uLong>(raw.size()),
+                      Z_DEFAULT_COMPRESSION) == Z_OK);
     packed.resize(len);
 
     std::vector<std::byte> entry(48 + packed.size(), std::byte{0});
@@ -89,8 +87,7 @@ TEST_CASE("an id past the end resolves to nullptr, not garbage", "[monster_list]
     REQUIRE(list.at(9999) == nullptr);
 }
 
-TEST_CASE("a count disagreeing with the block length is rejected",
-          "[monster_list]") {
+TEST_CASE("a count disagreeing with the block length is rejected", "[monster_list]") {
     // The record size and count must account for the whole block; otherwise
     // every field would be read at the wrong offset.
     auto entry = make_entry({{"ArcherA", {"arc1sta"}}}, /*corrupt_count*/ true);

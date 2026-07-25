@@ -6,8 +6,7 @@
 
 namespace starhaven::render {
 
-bool Texture::create(int width, int height, std::vector<std::uint8_t> rgba,
-                     Texture& out) {
+bool Texture::create(int width, int height, std::vector<std::uint8_t> rgba, Texture& out) {
     out = Texture{};
     if (width <= 0 || height <= 0) {
         return false;
@@ -15,8 +14,8 @@ bool Texture::create(int width, int height, std::vector<std::uint8_t> rgba,
     // Compute the expected size in a width type that cannot overflow for any
     // int dimensions, so a hostile archive cannot wrap the product and pass a
     // short buffer as valid.
-    const std::size_t expected = static_cast<std::size_t>(width) *
-                                 static_cast<std::size_t>(height) * 4U;
+    const std::size_t expected =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4U;
     if (rgba.size() != expected) {
         return false;
     }
@@ -45,10 +44,9 @@ Color Texture::texel(int x, int y, WrapMode wrap) const noexcept {
         x = std::clamp(x, 0, width_ - 1);
         y = std::clamp(y, 0, height_ - 1);
     }
-    const std::size_t idx =
-        (static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) +
-         static_cast<std::size_t>(x)) *
-        4U;
+    const std::size_t idx = (static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) +
+                             static_cast<std::size_t>(x)) *
+                            4U;
     return Color{rgba_[idx], rgba_[idx + 1], rgba_[idx + 2], rgba_[idx + 3]};
 }
 
@@ -79,10 +77,9 @@ Color Texture::sample(float u, float v, WrapMode wrap) const noexcept {
     x = std::clamp(x, 0, width_ - 1);
     y = std::clamp(y, 0, height_ - 1);
 
-    const std::size_t idx =
-        (static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) +
-         static_cast<std::size_t>(x)) *
-        4U;
+    const std::size_t idx = (static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) +
+                             static_cast<std::size_t>(x)) *
+                            4U;
     return Color{rgba_[idx], rgba_[idx + 1], rgba_[idx + 2], rgba_[idx + 3]};
 }
 

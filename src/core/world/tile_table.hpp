@@ -21,9 +21,9 @@ struct TileTableEntry {
 
 enum class TileTableError {
     None,
-    TooSmall,        // fewer bytes than the 48-byte entry header needs
-    NotCompressed,   // the inner zlib stream is missing or malformed
-    BadCount,        // record count disagrees with the decompressed length
+    TooSmall,       // fewer bytes than the 48-byte entry header needs
+    NotCompressed,  // the inner zlib stream is missing or malformed
+    BadCount,       // record count disagrees with the decompressed length
 };
 
 // The global tile table, indexed directly by an ODM tilemap byte.
@@ -36,13 +36,10 @@ public:
     TileTable() = default;
 
     // `entry` is the raw stored bytes of the archive's DTILE.BIN entry.
-    [[nodiscard]] static TileTableError parse(std::span<const std::byte> entry,
-                                              TileTable& out);
+    [[nodiscard]] static TileTableError parse(std::span<const std::byte> entry, TileTable& out);
 
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
-    [[nodiscard]] const std::vector<TileTableEntry>& entries() const noexcept {
-        return entries_;
-    }
+    [[nodiscard]] const std::vector<TileTableEntry>& entries() const noexcept { return entries_; }
 
     // Resolve a tilemap byte. The lookup is a direct index (docs/formats/
     // dtile.md); returns nullptr when the table is shorter than the index,

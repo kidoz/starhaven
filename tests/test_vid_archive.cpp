@@ -127,8 +127,7 @@ TEST_CASE("an offset outside the file is rejected", "[vid]") {
     REQUIRE(VidArchive::parse(std::move(into_dir), archive) == VidError::BadOffset);
 }
 
-TEST_CASE("descending offsets are rejected rather than yielding huge sizes",
-          "[vid]") {
+TEST_CASE("descending offsets are rejected rather than yielding huge sizes", "[vid]") {
     // Sizes are derived from the next entry's offset, so out-of-order offsets
     // would otherwise underflow into an enormous size.
     auto data = make_archive({16, 16});

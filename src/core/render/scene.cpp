@@ -9,8 +9,7 @@ namespace starhaven::render {
 void SceneRenderer::begin(const Camera& camera, Color clear_color) {
     camera_ = camera;
     view_ = camera.view();
-    projection_ = camera.projection(static_cast<float>(width_) /
-                                    static_cast<float>(height_));
+    projection_ = camera.projection(static_cast<float>(width_) / static_cast<float>(height_));
     view_projection_ = projection_ * view_;
     billboard_right_ = camera.right();
 
@@ -18,8 +17,8 @@ void SceneRenderer::begin(const Camera& camera, Color clear_color) {
     framebuffer_.clear_depth(1.0f);
 }
 
-bool SceneRenderer::project(const Mat4& transform, Vec3 point, float r, float g,
-                            float b, Vec2 uv, ScreenVertex& out) const {
+bool SceneRenderer::project(const Mat4& transform, Vec3 point, float r, float g, float b, Vec2 uv,
+                            ScreenVertex& out) const {
     const Vec4 clip = transform * Vec4{point.x, point.y, point.z, 1.0f};
     if (clip.w <= 0.0001f) {
         return false;  // behind or through the camera
@@ -43,9 +42,8 @@ bool SceneRenderer::project_point(Vec3 world, ScreenVertex& out) const {
     return project(view_projection_, world, 1.0f, 1.0f, 1.0f, {0.0f, 0.0f}, out);
 }
 
-void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world,
-                                  std::span<const Vec2, 3> uv, float shade,
-                                  const Texture& texture, WrapMode wrap,
+void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world, std::span<const Vec2, 3> uv,
+                                  float shade, const Texture& texture, WrapMode wrap,
                                   bool cull_backfaces) {
     // Clip in view space, where u and v are still linear, then project. Doing
     // it the other way round would interpolate texture coordinates across the
@@ -65,8 +63,7 @@ void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world,
             const ViewVertex& v = clipped[t + k];
             // `clipped` is already in view space, so only the projection may be
             // applied here; using the combined matrix would transform twice.
-            if (!project(projection_, {v.x, v.y, v.z}, v.r, v.g, v.b,
-                         {v.u, v.v}, screen[k])) {
+            if (!project(projection_, {v.x, v.y, v.z}, v.r, v.g, v.b, {v.u, v.v}, screen[k])) {
                 ok = false;
                 break;
             }
@@ -75,17 +72,16 @@ void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world,
             continue;
         }
         if (texture.empty()) {
-            framebuffer_.draw_triangle(screen[0], screen[1], screen[2],
-                                       cull_backfaces);
+            framebuffer_.draw_triangle(screen[0], screen[1], screen[2], cull_backfaces);
         } else {
-            framebuffer_.draw_triangle_textured(screen[0], screen[1], screen[2],
-                                                texture, wrap, cull_backfaces);
+            framebuffer_.draw_triangle_textured(screen[0], screen[1], screen[2], texture, wrap,
+                                                cull_backfaces);
         }
     }
 }
 
-void SceneRenderer::draw_billboard(Vec3 base, float width, float height,
-                                   const Texture& texture, float shade) {
+void SceneRenderer::draw_billboard(Vec3 base, float width, float height, const Texture& texture,
+                                   float shade) {
     if (texture.empty() || width <= 0.0f || height <= 0.0f) {
         return;
     }

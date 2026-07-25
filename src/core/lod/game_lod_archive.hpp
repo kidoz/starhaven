@@ -45,10 +45,8 @@ class GameLodArchive {
 public:
     GameLodArchive() = default;
 
-    [[nodiscard]] static GameLodError open(const std::filesystem::path& path,
-                                           GameLodArchive& out);
-    [[nodiscard]] static GameLodError parse(std::vector<std::byte> data,
-                                            GameLodArchive& out);
+    [[nodiscard]] static GameLodError open(const std::filesystem::path& path, GameLodArchive& out);
+    [[nodiscard]] static GameLodError parse(std::vector<std::byte> data, GameLodArchive& out);
 
     [[nodiscard]] const std::string& version() const noexcept { return version_; }
     [[nodiscard]] const std::string& description() const noexcept { return description_; }

@@ -37,18 +37,18 @@ void ensure_size(std::vector<std::byte>& v, std::size_t needed) {
 
 void put_u16_le(std::vector<std::byte>& v, std::size_t off, std::uint16_t x) {
     ensure_size(v, off + 2);
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
 }
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
     ensure_size(v, off + 4);
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
     v[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
     v[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
 }
-void put_string(std::vector<std::byte>& v, std::size_t off,
-                std::size_t width, const std::string& s) {
+void put_string(std::vector<std::byte>& v, std::size_t off, std::size_t width,
+                const std::string& s) {
     ensure_size(v, off + width);
     std::fill(v.begin() + off, v.begin() + off + width, std::byte{0});
     const std::size_t n = std::min(s.size(), width);
@@ -64,7 +64,7 @@ void write_header(std::vector<std::byte>& buf, std::uint16_t count) {
     const std::size_t dir_end = kHeaderSize + static_cast<std::size_t>(count) * kEntrySize;
     buf.assign(dir_end, std::byte{0});
     put_string(buf, 0, 4, "LOD\0");
-    put_string(buf, 4, 4, "MMVI");      // version string starts at offset 4
+    put_string(buf, 4, 4, "MMVI");  // version string starts at offset 4
     put_string(buf, kLodTypeOffset, 8, "bitmaps");
     put_u32_le(buf, kArchiveStartOffset, kHeaderSize);
     put_u16_le(buf, kCountOffset, count);
@@ -72,9 +72,8 @@ void write_header(std::vector<std::byte>& buf, std::uint16_t count) {
 
 // Write one directory entry at the given absolute offset. addr is relative to
 // archive_start; unpacked is 0 for an uncompressed entry.
-void write_entry(std::vector<std::byte>& buf, std::size_t entry_off,
-                 const std::string& name, std::uint32_t addr,
-                 std::uint32_t size_field, std::uint32_t unpacked) {
+void write_entry(std::vector<std::byte>& buf, std::size_t entry_off, const std::string& name,
+                 std::uint32_t addr, std::uint32_t size_field, std::uint32_t unpacked) {
     put_string(buf, entry_off, 16, name);
     put_u32_le(buf, entry_off + 16, addr);
     put_u32_le(buf, entry_off + 20, size_field);
@@ -97,8 +96,7 @@ std::vector<std::byte> make_single_entry_archive() {
 
     // Append the payload bytes.
     const std::string payload = "world";
-    buf.insert(buf.end(),
-               reinterpret_cast<const std::byte*>(payload.data()),
+    buf.insert(buf.end(), reinterpret_cast<const std::byte*>(payload.data()),
                reinterpret_cast<const std::byte*>(payload.data()) + payload.size());
     return buf;
 }
@@ -163,8 +161,9 @@ TEST_CASE("size_field is the authoritative stored size", "[lod]") {
     // Directory for 2 entries occupies archive_start..archive_start+64. Put the
     // payloads right after it: entry "first" at relative addr 64, size 8;
     // entry "second" at relative addr 72, size 4.
-    write_entry(buf, kHeaderSize,              "first",  /*addr=*/64, /*size_field=*/8, /*unpacked=*/0);
-    write_entry(buf, kHeaderSize + kEntrySize, "second", /*addr=*/72, /*size_field=*/4, /*unpacked=*/0);
+    write_entry(buf, kHeaderSize, "first", /*addr=*/64, /*size_field=*/8, /*unpacked=*/0);
+    write_entry(buf, kHeaderSize + kEntrySize, "second", /*addr=*/72, /*size_field=*/4,
+                /*unpacked=*/0);
     // Append enough payload bytes to cover both (8 + 4 = 12).
     buf.insert(buf.end(), 12, std::byte{0});
 

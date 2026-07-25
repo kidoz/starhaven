@@ -68,9 +68,8 @@ std::uint16_t ByteReader::read_u16_le() noexcept {
         return 0;
     }
     pos_ += 2;
-    return static_cast<std::uint16_t>(
-        static_cast<std::uint16_t>(span[0]) |
-        (static_cast<std::uint16_t>(span[1]) << 8));
+    return static_cast<std::uint16_t>(static_cast<std::uint16_t>(span[0]) |
+                                      (static_cast<std::uint16_t>(span[1]) << 8));
 }
 
 std::uint32_t ByteReader::read_u32_le() noexcept {
@@ -80,8 +79,7 @@ std::uint32_t ByteReader::read_u32_le() noexcept {
         return 0;
     }
     pos_ += 4;
-    return static_cast<std::uint32_t>(span[0]) |
-           (static_cast<std::uint32_t>(span[1]) << 8) |
+    return static_cast<std::uint32_t>(span[0]) | (static_cast<std::uint32_t>(span[1]) << 8) |
            (static_cast<std::uint32_t>(span[2]) << 16) |
            (static_cast<std::uint32_t>(span[3]) << 24);
 }
@@ -93,8 +91,7 @@ std::int32_t ByteReader::read_i32_le() noexcept {
 bool ByteReader::read_bytes(std::span<std::byte> out) noexcept {
     std::span<const std::byte> span;
     if (!peek(out.size(), span)) {
-        error_ = (out.size() > data_.size()) ? ReadError::CountTooLarge
-                                             : ReadError::OutOfBounds;
+        error_ = (out.size() > data_.size()) ? ReadError::CountTooLarge : ReadError::OutOfBounds;
         return false;
     }
     if (!out.empty()) {
@@ -107,8 +104,7 @@ bool ByteReader::read_bytes(std::span<std::byte> out) noexcept {
 bool ByteReader::read_fixed_string(std::size_t field_width, std::string& out) noexcept {
     std::span<const std::byte> span;
     if (!peek(field_width, span)) {
-        error_ = (field_width > data_.size()) ? ReadError::CountTooLarge
-                                              : ReadError::OutOfBounds;
+        error_ = (field_width > data_.size()) ? ReadError::CountTooLarge : ReadError::OutOfBounds;
         return false;
     }
     out.clear();

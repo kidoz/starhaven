@@ -16,16 +16,26 @@ namespace {
     const float ax = std::fabs(n.x);
     const float ay = std::fabs(n.y);
     const float az = std::fabs(n.z);
-    if (ax >= ay && ax >= az) return 0;
+    if (ax >= ay && ax >= az)
+        return 0;
     return (ay >= az) ? 1 : 2;
 }
 
 // Drop the dominant axis, leaving a 2D point the winding test can use.
 void project(Vec3 p, int axis, float& u, float& v) {
     switch (axis) {
-        case 0: u = p.y; v = p.z; break;
-        case 1: u = p.x; v = p.z; break;
-        default: u = p.x; v = p.y; break;
+    case 0:
+        u = p.y;
+        v = p.z;
+        break;
+    case 1:
+        u = p.x;
+        v = p.z;
+        break;
+    default:
+        u = p.x;
+        v = p.y;
+        break;
     }
 }
 
@@ -67,8 +77,7 @@ void CollisionWorld::add_polygon(std::span<const Vec3> vertices, Vec3 normal) {
     if (vertices.size() < 3) {
         return;
     }
-    const float len = std::sqrt(normal.x*normal.x + normal.y*normal.y +
-                                normal.z*normal.z);
+    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
     if (!(len > 1e-6f)) {
         return;  // a degenerate normal cannot define a plane
     }
@@ -78,7 +87,7 @@ void CollisionWorld::add_polygon(std::span<const Vec3> vertices, Vec3 normal) {
     poly.normal = {normal.x / len, normal.y / len, normal.z / len};
     // Anchor the plane on the first vertex.
     const Vec3 a = poly.vertices.front();
-    poly.distance = -(poly.normal.x*a.x + poly.normal.y*a.y + poly.normal.z*a.z);
+    poly.distance = -(poly.normal.x * a.x + poly.normal.y * a.y + poly.normal.z * a.z);
     polygons_.push_back(std::move(poly));
 }
 
@@ -96,8 +105,7 @@ bool CollisionWorld::floor_below(Vec3 from, float& out_y) const {
         if (std::fabs(denom) < 1e-6f) {
             continue;
         }
-        const float y = -(poly.normal.x * from.x + poly.normal.z * from.z +
-                          poly.distance) / denom;
+        const float y = -(poly.normal.x * from.x + poly.normal.z * from.z + poly.distance) / denom;
         // A small tolerance keeps the surface the player is already standing
         // on from being rejected by rounding.
         if (y > from.y + 1.0f) {
@@ -133,8 +141,8 @@ Vec3 CollisionWorld::slide(Vec3 from, Vec3 to, float radius, float height) const
             }
             for (const float dy : samples) {
                 const Vec3 probe{pos.x, pos.y + dy, pos.z};
-                const float d = poly.normal.x*probe.x + poly.normal.y*probe.y +
-                                poly.normal.z*probe.z + poly.distance;
+                const float d = poly.normal.x * probe.x + poly.normal.y * probe.y +
+                                poly.normal.z * probe.z + poly.distance;
                 if (d >= radius) {
                     continue;  // still clear of this wall
                 }
@@ -143,16 +151,14 @@ Vec3 CollisionWorld::slide(Vec3 from, Vec3 to, float radius, float height) const
                 // what stops a fast step from tunnelling clean through, since
                 // `d` alone cannot tell "just short of" from "already past".
                 const Vec3 start{from.x, from.y + dy, from.z};
-                const float d_from = poly.normal.x*start.x +
-                                     poly.normal.y*start.y +
-                                     poly.normal.z*start.z + poly.distance;
+                const float d_from = poly.normal.x * start.x + poly.normal.y * start.y +
+                                     poly.normal.z * start.z + poly.distance;
                 if (d_from < 0.0f) {
                     continue;
                 }
                 // The nearest point on the plane must be within the polygon,
                 // otherwise the wall does not extend to where the player is.
-                const Vec3 nearest{probe.x - poly.normal.x * d,
-                                   probe.y - poly.normal.y * d,
+                const Vec3 nearest{probe.x - poly.normal.x * d, probe.y - poly.normal.y * d,
                                    probe.z - poly.normal.z * d};
                 if (!point_in_polygon(poly, nearest)) {
                     continue;

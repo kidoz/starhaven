@@ -15,22 +15,20 @@ const render::Texture kEmpty{};
 }  // namespace
 
 void AssetCache::open(const std::filesystem::path& data_dir) {
-    bitmaps_open_ = lod::LodArchive::open(data_dir / "BITMAPS.LOD",
-                                          bitmap_archive_) == lod::LodError::None;
-    sprites_open_ = lod::LodArchive::open(data_dir / "SPRITES.LOD",
-                                          sprite_archive_) == lod::LodError::None;
+    bitmaps_open_ =
+        lod::LodArchive::open(data_dir / "BITMAPS.LOD", bitmap_archive_) == lod::LodError::None;
+    sprites_open_ =
+        lod::LodArchive::open(data_dir / "SPRITES.LOD", sprite_archive_) == lod::LodError::None;
 }
 
 std::size_t AssetCache::bitmap_count() const noexcept {
-    return static_cast<std::size_t>(
-        std::count_if(bitmaps_.begin(), bitmaps_.end(),
-                      [](const auto& kv) { return !kv.second.empty(); }));
+    return static_cast<std::size_t>(std::count_if(
+        bitmaps_.begin(), bitmaps_.end(), [](const auto& kv) { return !kv.second.empty(); }));
 }
 
 std::size_t AssetCache::sprite_count() const noexcept {
-    return static_cast<std::size_t>(
-        std::count_if(sprites_.begin(), sprites_.end(),
-                      [](const auto& kv) { return !kv.second.empty(); }));
+    return static_cast<std::size_t>(std::count_if(
+        sprites_.begin(), sprites_.end(), [](const auto& kv) { return !kv.second.empty(); }));
 }
 
 const render::Texture& AssetCache::bitmap(const std::string& name) {
@@ -43,8 +41,7 @@ const render::Texture& AssetCache::bitmap(const std::string& name) {
         bitmap_archive_.payload(name, raw) == lod::LodArchive::PayloadError::None) {
         image::Bitmap bmp;
         if (image::decode_bitmap(raw, bmp) == image::BitmapError::None) {
-            (void)render::Texture::create(bmp.width, bmp.height,
-                                          std::move(bmp.rgba), texture);
+            (void)render::Texture::create(bmp.width, bmp.height, std::move(bmp.rgba), texture);
         }
     }
     // Cache failures too, so a name that never resolves is probed once.
@@ -75,15 +72,13 @@ const render::Texture& AssetCache::sprite(const std::string& name) {
             // Sprites share palettes held in BITMAPS.LOD; decode each once.
             image::Palette palette;
             bool have_palette = false;
-            if (const auto cached = palettes_.find(header.palette_id);
-                cached != palettes_.end()) {
+            if (const auto cached = palettes_.find(header.palette_id); cached != palettes_.end()) {
                 palette = cached->second;
                 have_palette = true;
             } else if (bitmaps_open_) {
                 std::span<const std::byte> pal_bytes;
-                if (bitmap_archive_.payload(
-                        image::palette_entry_name(header.palette_id), pal_bytes) ==
-                        lod::LodArchive::PayloadError::None &&
+                if (bitmap_archive_.payload(image::palette_entry_name(header.palette_id),
+                                            pal_bytes) == lod::LodArchive::PayloadError::None &&
                     // Palette entries are a 48-byte zero-image header followed
                     // by 768 RGB bytes.
                     image::extract_palette(pal_bytes, /*data_offset=*/48, palette) ==
@@ -94,8 +89,7 @@ const render::Texture& AssetCache::sprite(const std::string& name) {
             }
             if (have_palette) {
                 image::Sprite decoded;
-                if (image::decode_sprite(raw, palette, decoded) ==
-                    image::SpriteError::None) {
+                if (image::decode_sprite(raw, palette, decoded) == image::SpriteError::None) {
                     (void)render::Texture::create(decoded.width, decoded.height,
                                                   std::move(decoded.rgba), texture);
                 }

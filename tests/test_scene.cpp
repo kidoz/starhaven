@@ -20,19 +20,19 @@ TEST_CASE("a default camera looks down -Z", "[scene]") {
 
 TEST_CASE("forward_flat drops the vertical component", "[scene]") {
     Camera c;
-    c.pitch = 1.0f;              // looking well upward
+    c.pitch = 1.0f;  // looking well upward
     const Vec3 flat = c.forward_flat();
     REQUIRE(std::abs(flat.y) < 1e-5f);
     // Still unit length in the horizontal plane, so walking speed is unaffected
     // by where the camera is looking.
-    REQUIRE(std::abs(std::sqrt(flat.x*flat.x + flat.z*flat.z) - 1.0f) < 1e-5f);
+    REQUIRE(std::abs(std::sqrt(flat.x * flat.x + flat.z * flat.z) - 1.0f) < 1e-5f);
 }
 
 TEST_CASE("yaw turns the camera in the horizontal plane", "[scene]") {
     Camera c;
     c.yaw = radians(90.0f);
     const Vec3 f = c.forward();
-    REQUIRE(f.x > 0.99f);        // yaw 90 degrees faces +X
+    REQUIRE(f.x > 0.99f);  // yaw 90 degrees faces +X
     REQUIRE(std::abs(f.z) < 1e-5f);
 }
 
@@ -81,7 +81,10 @@ TEST_CASE("an untextured triangle still fills pixels", "[scene]") {
     const auto px = scene.framebuffer().color();
     bool any = false;
     for (std::size_t i = 0; i < px.size(); i += 4) {
-        if (px[i] != 0) { any = true; break; }
+        if (px[i] != 0) {
+            any = true;
+            break;
+        }
     }
     REQUIRE(any);
 }

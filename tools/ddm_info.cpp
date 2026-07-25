@@ -18,8 +18,7 @@ void print_usage(const char* argv0) {
               << "non-expressive statistics. The internal event-table layout is\n"
               << "not yet decoded.\n"
               << "\n"
-              << "Set " << starhaven::platform::kInstallEnvVar
-              << " to the install directory.\n";
+              << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
 }
 
 std::filesystem::path resolve_games_lod() {
@@ -59,15 +58,15 @@ int main(int argc, char** argv) {
     world::MapEventFile ev;
     const world::MapEventError e = world::parse_map_event(entry, ev);
     if (e != world::MapEventError::None) {
-        std::cerr << "error: could not parse event file ("
-                  << static_cast<int>(e) << ")\n";
+        std::cerr << "error: could not parse event file (" << static_cast<int>(e) << ")\n";
         return 1;
     }
 
     // Non-expressive stats only: sizes and how much of the payload is populated.
     std::size_t nonzero = 0;
     for (auto b : ev.payload) {
-        if (b != 0) ++nonzero;
+        if (b != 0)
+            ++nonzero;
     }
     std::cout << "event-file=" << name << "\n";
     std::cout << "  stored=" << entry.size() << " bytes\n";
@@ -81,8 +80,8 @@ int main(int argc, char** argv) {
     std::cout << "  event_records: " << records.size() << "\n";
     const std::size_t show = std::min<std::size_t>(records.size(), 8);
     for (std::size_t i = 0; i < show; ++i) {
-        std::cout << "    [" << i << "] type=" << records[i].type
-                  << "  name=\"" << records[i].name << "\"\n";
+        std::cout << "    [" << i << "] type=" << records[i].type << "  name=\"" << records[i].name
+                  << "\"\n";
     }
     if (records.size() > show) {
         std::cout << "    ... (" << (records.size() - show) << " more)\n";
@@ -91,9 +90,8 @@ int main(int argc, char** argv) {
     std::cout << "  actors: " << actors.size() << "\n";
     for (std::size_t i = 0; i < actors.size() && i < 3; ++i) {
         std::cout << "    [" << i << "] " << actors[i].name << " (monster "
-                  << static_cast<int>(actors[i].monster_id) << ") at ("
-                  << actors[i].x << "," << actors[i].y << "," << actors[i].z
-                  << ")\n";
+                  << static_cast<int>(actors[i].monster_id) << ") at (" << actors[i].x << ","
+                  << actors[i].y << "," << actors[i].z << ")\n";
     }
 
     return 0;

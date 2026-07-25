@@ -22,7 +22,7 @@ constexpr std::uint32_t kIndexBlockBytesOff = 0x68;
 // The two name fields run up to the field that follows them. Their exact
 // declared widths are not established; reading to the next field's offset is
 // safe because the remainder is NUL in every observed map.
-constexpr std::size_t kNameWidth = kName2Off - kNameOff;          // 76
+constexpr std::size_t kNameWidth = kName2Off - kNameOff;              // 76
 constexpr std::size_t kName2Width = kIndexBlockBytesOff - kName2Off;  // 24
 
 // Which of a face's six index arrays hold what. Array 0 is the vertex ids and
@@ -60,8 +60,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
         // Retry as raw deflate, but only accept the result if it is exactly as
         // long as the wrapper declares — otherwise a genuinely truncated
         // stream would slip through as a short map.
-        if (declared == 0 || !inflate_raw(stream, out.payload) ||
-            out.payload.size() != declared) {
+        if (declared == 0 || !inflate_raw(stream, out.payload) || out.payload.size() != declared) {
             return BlvError::InflateFailed;
         }
     }
@@ -72,8 +71,8 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
         return BlvError::HeaderTooSmall;
     }
 
-    const std::span<const std::byte> p{
-        reinterpret_cast<const std::byte*>(out.payload.data()), out.payload.size()};
+    const std::span<const std::byte> p{reinterpret_cast<const std::byte*>(out.payload.data()),
+                                       out.payload.size()};
     io::ByteReader r{p};
 
     // --- header ---
@@ -113,8 +112,8 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
 
     out.vertices.reserve(vertex_count);
     for (std::uint32_t i = 0; i < vertex_count; ++i) {
-        if (!r.seek(static_cast<std::size_t>(
-                vertices_start + static_cast<std::uint64_t>(i) * kBlvVertexSize))) {
+        if (!r.seek(static_cast<std::size_t>(vertices_start +
+                                             static_cast<std::uint64_t>(i) * kBlvVertexSize))) {
             return BlvError::Truncated;
         }
         BlvVertex v;
@@ -136,8 +135,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
     const std::uint64_t faces_start = vertices_end + 4;
     const std::uint64_t faces_end =
         faces_start + static_cast<std::uint64_t>(face_count) * kBlvFaceSize;
-    const std::uint64_t index_end =
-        faces_end + out.header.index_block_bytes;
+    const std::uint64_t index_end = faces_end + out.header.index_block_bytes;
     const std::uint64_t names_end =
         index_end + static_cast<std::uint64_t>(face_count) * kBlvTextureNameSize;
     if (names_end > p.size()) {
@@ -153,8 +151,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
     std::uint64_t index_cursor = faces_end;
 
     for (std::uint32_t i = 0; i < face_count; ++i) {
-        const std::uint64_t base =
-            faces_start + static_cast<std::uint64_t>(i) * kBlvFaceSize;
+        const std::uint64_t base = faces_start + static_cast<std::uint64_t>(i) * kBlvFaceSize;
         BlvFace f;
 
         if (!r.seek(static_cast<std::size_t>(base + kFacePlaneOff))) {
@@ -184,9 +181,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
         }
 
         // The face's six arrays sit side by side, each `entries` wide.
-        const auto array_at = [&](std::size_t which) {
-            return index_cursor + which * entries * 2;
-        };
+        const auto array_at = [&](std::size_t which) { return index_cursor + which * entries * 2; };
 
         if (!r.seek(static_cast<std::size_t>(array_at(kArrayVertexIds)))) {
             return BlvError::Truncated;
@@ -217,8 +212,8 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
 
         index_cursor += group_bytes;
 
-        if (!r.seek(static_cast<std::size_t>(
-                index_end + static_cast<std::uint64_t>(i) * kBlvTextureNameSize))) {
+        if (!r.seek(static_cast<std::size_t>(index_end + static_cast<std::uint64_t>(i) *
+                                                             kBlvTextureNameSize))) {
             return BlvError::Truncated;
         }
         if (!r.read_fixed_string(kBlvTextureNameSize, f.texture_name)) {
@@ -259,8 +254,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
 
     out.face_extras.reserve(extra_count);
     for (std::uint32_t i = 0; i < extra_count; ++i) {
-        const std::uint64_t base =
-            extras_start + static_cast<std::uint64_t>(i) * kBlvFaceExtraSize;
+        const std::uint64_t base = extras_start + static_cast<std::uint64_t>(i) * kBlvFaceExtraSize;
         if (!r.seek(static_cast<std::size_t>(base + 0x0C))) {
             return BlvError::Truncated;
         }
@@ -328,9 +322,8 @@ struct Extent {
     return e;
 }
 
-[[nodiscard]] bool read_decoration(const std::vector<std::uint8_t>& p,
-                                   std::size_t off, const Extent& extent,
-                                   BlvDecoration& out) {
+[[nodiscard]] bool read_decoration(const std::vector<std::uint8_t>& p, std::size_t off,
+                                   const Extent& extent, BlvDecoration& out) {
     if (off + kBlvDecorationSize > p.size()) {
         return false;
     }
@@ -339,8 +332,10 @@ struct Extent {
     std::string name;
     for (std::size_t i = 0; i < kBlvDecorationNameSize; ++i) {
         const std::uint8_t c = p[off + i];
-        if (c == 0) break;
-        if (c < 32 || c >= 127) return false;
+        if (c == 0)
+            break;
+        if (c < 32 || c >= 127)
+            return false;
         name.push_back(static_cast<char>(c));
     }
     if (name.empty() || name.size() == kBlvDecorationNameSize) {
@@ -348,12 +343,9 @@ struct Extent {
     }
 
     const auto u16_at = [&](std::size_t o) {
-        return static_cast<std::uint16_t>(p[off + o] |
-                                          (p[off + o + 1] << 8));
+        return static_cast<std::uint16_t>(p[off + o] | (p[off + o + 1] << 8));
     };
-    const auto i16_at = [&](std::size_t o) {
-        return static_cast<std::int16_t>(u16_at(o));
-    };
+    const auto i16_at = [&](std::size_t o) { return static_cast<std::int16_t>(u16_at(o)); };
 
     const std::uint16_t flags = u16_at(kDecoFlagsOff);
     if (flags > 1) {
@@ -362,8 +354,7 @@ struct Extent {
     const std::int16_t c[3] = {i16_at(kDecoPosOff), i16_at(kDecoPosOff + 2),
                                i16_at(kDecoPosOff + 4)};
     for (int i = 0; i < 3; ++i) {
-        if (c[i] < extent.lo[i] - kExtentMargin ||
-            c[i] > extent.hi[i] + kExtentMargin) {
+        if (c[i] < extent.lo[i] - kExtentMargin || c[i] > extent.hi[i] + kExtentMargin) {
             return false;
         }
     }
@@ -393,8 +384,7 @@ std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
         bool run = true;
         for (std::size_t k = 0; k < kMinRun; ++k) {
             BlvDecoration probe;
-            if (!read_decoration(map.payload, off + k * kBlvDecorationSize,
-                                 extent, probe)) {
+            if (!read_decoration(map.payload, off + k * kBlvDecorationSize, extent, probe)) {
                 run = false;
                 break;
             }
@@ -410,11 +400,9 @@ std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
 
     // Extend backwards to the true first record, then read forwards.
     std::size_t start = anchor;
-    while (start >= kBlvDecorationSize &&
-           start - kBlvDecorationSize >= map.decoded_bytes) {
+    while (start >= kBlvDecorationSize && start - kBlvDecorationSize >= map.decoded_bytes) {
         BlvDecoration probe;
-        if (!read_decoration(map.payload, start - kBlvDecorationSize, extent,
-                             probe)) {
+        if (!read_decoration(map.payload, start - kBlvDecorationSize, extent, probe)) {
             break;
         }
         start -= kBlvDecorationSize;

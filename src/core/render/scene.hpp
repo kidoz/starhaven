@@ -16,8 +16,8 @@ namespace starhaven::render {
 // frame needs. Movement lives in the walkers, which own the collision rules.
 struct Camera {
     Vec3 position{0, 0, 0};
-    float yaw = 0.0f;     // radians; 0 looks down -Z
-    float pitch = 0.0f;   // radians; positive looks up
+    float yaw = 0.0f;    // radians; 0 looks down -Z
+    float pitch = 0.0f;  // radians; positive looks up
 
     // Clamped so the camera cannot roll past vertical.
     static constexpr float kMaxPitch = 1.4f;
@@ -36,8 +36,7 @@ struct Camera {
     // Static in effect: the projection depends on the viewport, not on where
     // the camera is, but it lives here so a frame asks one object for both.
     [[nodiscard]] static Mat4 projection(float aspect, float fov_degrees = 60.0f,
-                                         float near_plane = 1.0f,
-                                         float far_plane = 20000.0f) {
+                                         float near_plane = 1.0f, float far_plane = 20000.0f) {
         return mat4_perspective(radians(fov_degrees), aspect, near_plane, far_plane);
     }
 };
@@ -60,15 +59,14 @@ public:
     //
     // Drawing with an empty texture falls back to a flat fill, which is what
     // untextured geometry needs in order to still read as solid.
-    void draw_triangle(std::span<const Vec3, 3> world,
-                       std::span<const Vec2, 3> uv, float shade,
+    void draw_triangle(std::span<const Vec3, 3> world, std::span<const Vec2, 3> uv, float shade,
                        const Texture& texture, WrapMode wrap, bool cull_backfaces);
 
     // Rasterize a camera-facing quad standing on `base`, `width` wide and
     // `height` tall. Fully transparent texels are skipped by the rasterizer,
     // which is what gives sprites their cut-out silhouette.
-    void draw_billboard(Vec3 base, float width, float height,
-                        const Texture& texture, float shade = 1.0f);
+    void draw_billboard(Vec3 base, float width, float height, const Texture& texture,
+                        float shade = 1.0f);
 
     // Project a world point for overlay drawing (lines, points). Returns false
     // when the point is behind the camera.
@@ -80,8 +78,8 @@ public:
     [[nodiscard]] int height() const noexcept { return height_; }
 
 private:
-    [[nodiscard]] bool project(const Mat4& transform, Vec3 point, float r, float g,
-                               float b, Vec2 uv, ScreenVertex& out) const;
+    [[nodiscard]] bool project(const Mat4& transform, Vec3 point, float r, float g, float b,
+                               Vec2 uv, ScreenVertex& out) const;
 
     int width_;
     int height_;

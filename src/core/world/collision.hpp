@@ -42,8 +42,8 @@ public:
     // Move a vertical cylinder from `from` to `to`, pushing out of any wall it
     // would end up inside. The push is along the wall normal, so movement into
     // a wall at an angle slides along it rather than stopping dead.
-    [[nodiscard]] render::Vec3 slide(render::Vec3 from, render::Vec3 to,
-                                     float radius, float height) const;
+    [[nodiscard]] render::Vec3 slide(render::Vec3 from, render::Vec3 to, float radius,
+                                     float height) const;
 
 private:
     std::vector<CollisionPolygon> polygons_;
@@ -51,8 +51,7 @@ private:
 
 // True if `point` lies inside `polygon` when both are projected onto the plane
 // that the polygon's normal is most perpendicular to. Exposed for tests.
-[[nodiscard]] bool point_in_polygon(const CollisionPolygon& polygon,
-                                    render::Vec3 point);
+[[nodiscard]] bool point_in_polygon(const CollisionPolygon& polygon, render::Vec3 point);
 
 // A surface this close to horizontal counts as floor; anything steeper is wall.
 inline constexpr float kFloorNormalY = 0.5f;

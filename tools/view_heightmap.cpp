@@ -23,8 +23,7 @@ void print_usage(const char* argv0) {
               << "image in an SDL3 window. Higher elevations are brighter.\n"
               << "Press ESC or close the window to quit.\n"
               << "\n"
-              << "Set " << starhaven::platform::kInstallEnvVar
-              << " to the install directory.\n";
+              << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
 }
 
 std::filesystem::path resolve_games_lod() {
@@ -67,11 +66,9 @@ int main(int argc, char** argv) {
     namespace world = starhaven::world;
 
     lod::GameLodArchive archive;
-    const lod::GameLodError open_err =
-        lod::GameLodArchive::open(resolve_games_lod(), archive);
+    const lod::GameLodError open_err = lod::GameLodArchive::open(resolve_games_lod(), archive);
     if (open_err != lod::GameLodError::None) {
-        std::cerr << "error: could not open Games.lod ("
-                  << static_cast<int>(open_err) << ")\n";
+        std::cerr << "error: could not open Games.lod (" << static_cast<int>(open_err) << ")\n";
         return 1;
     }
     std::span<const std::byte> entry;
@@ -88,8 +85,8 @@ int main(int argc, char** argv) {
     }
 
     // Build a grayscale RGBA image from the heightmap. Brighter = higher.
-    const auto [hmin, hmax] = std::minmax_element(terrain.heightmap.begin(),
-                                                  terrain.heightmap.end());
+    const auto [hmin, hmax] =
+        std::minmax_element(terrain.heightmap.begin(), terrain.heightmap.end());
     const int lo = *hmin;
     const int span = std::max(1, *hmax - lo);
     const int dim = world::OdmTerrain::kGridDim;
@@ -105,8 +102,8 @@ int main(int argc, char** argv) {
             px[3] = 255;
         }
     }
-    std::cout << "rendering heightmap for " << map_name << " (" << dim << "x"
-              << dim << ", height range " << lo << ".." << *hmax << ")\n";
+    std::cout << "rendering heightmap for " << map_name << " (" << dim << "x" << dim
+              << ", height range " << lo << ".." << *hmax << ")\n";
 
     // SDL3 returns true on success, unlike SDL2's 0-on-success convention.
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -116,11 +113,10 @@ int main(int argc, char** argv) {
     const std::string title = "StarHaven — heightmap — " + map_name;
     // SDL3 drops the x/y arguments and SDL_WINDOW_SHOWN; nullptr picks the
     // default render backend.
-    SDL_Window* window =
-        SDL_CreateWindow(title.c_str(), dim * scale, dim * scale, 0);
+    SDL_Window* window = SDL_CreateWindow(title.c_str(), dim * scale, dim * scale, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    SDL_Texture* texture = SDL_CreateTexture(
-        renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, dim, dim);
+    SDL_Texture* texture =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, dim, dim);
     SDL_UpdateTexture(texture, nullptr, rgba.data(), dim * 4);
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
@@ -136,8 +132,7 @@ int main(int argc, char** argv) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         // SDL3 renders at subpixel precision, so rects are float-valued.
-        SDL_FRect dst{0.0f, 0.0f, static_cast<float>(dim * scale),
-                      static_cast<float>(dim * scale)};
+        SDL_FRect dst{0.0f, 0.0f, static_cast<float>(dim * scale), static_cast<float>(dim * scale)};
         SDL_RenderTexture(renderer, texture, nullptr, &dst);
         SDL_RenderPresent(renderer);
     }

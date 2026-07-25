@@ -30,10 +30,10 @@ bool same(Color a, Color b) {
 //   blue  white
 Texture make_quad_texture() {
     const std::vector<std::uint8_t> rgba{
-        255, 0, 0,   255,  // (0,0) red
-        0,   255, 0, 255,  // (1,0) green
-        0,   0, 255, 255,  // (0,1) blue
-        255, 255, 255, 255 // (1,1) white
+        255, 0,   0,   255,  // (0,0) red
+        0,   255, 0,   255,  // (1,0) green
+        0,   0,   255, 255,  // (0,1) blue
+        255, 255, 255, 255   // (1,1) white
     };
     Texture t;
     REQUIRE(Texture::create(2, 2, rgba, t));
@@ -50,8 +50,7 @@ TEST_CASE("create rejects non-positive dimensions", "[texture]") {
     REQUIRE(t.empty());
 }
 
-TEST_CASE("create rejects a buffer whose size does not match the dimensions",
-          "[texture]") {
+TEST_CASE("create rejects a buffer whose size does not match the dimensions", "[texture]") {
     Texture t;
     // 2x2 RGBA needs exactly 16 bytes. A truncated archive entry must not
     // produce a sampler that reads past the end.
@@ -69,8 +68,7 @@ TEST_CASE("create accepts an exactly-sized buffer", "[texture]") {
     REQUIRE(t.pixels().size() == 48);
 }
 
-TEST_CASE("a failed create leaves the output empty rather than stale",
-          "[texture]") {
+TEST_CASE("a failed create leaves the output empty rather than stale", "[texture]") {
     Texture t = make_quad_texture();
     REQUIRE_FALSE(t.empty());
     // Reusing the same object for a bad load must not leave the old pixels
@@ -93,8 +91,8 @@ TEST_CASE("sample maps v=0 to the top row", "[texture]") {
 TEST_CASE("sample with Repeat tiles the texture", "[texture]") {
     const Texture t = make_quad_texture();
     // u past the right edge wraps to the same texel one period back.
-    REQUIRE(same(t.sample(1.25f, 0.25f, WrapMode::Repeat),
-                 t.sample(0.25f, 0.25f, WrapMode::Repeat)));
+    REQUIRE(
+        same(t.sample(1.25f, 0.25f, WrapMode::Repeat), t.sample(0.25f, 0.25f, WrapMode::Repeat)));
     REQUIRE(same(t.sample(4.75f, 0.25f, WrapMode::Repeat), kGreen));
     // Negative u must wrap forward, not clamp: -0.25 lands in the right half.
     REQUIRE(same(t.sample(-0.25f, 0.25f, WrapMode::Repeat), kGreen));

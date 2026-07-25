@@ -22,10 +22,10 @@ struct OdmTilesetDef {
 //   name[32], file_name[32], version[31]+pad, reserved[32], ground_name[32],
 //   tilesets[4] (each: i16 group, i16 offset).
 struct OdmHeader {
-    std::string name;          // offset 0x00, e.g. "blank"
-    std::string file_name;     // offset 0x20, e.g. "default.odm"
-    std::string version;       // offset 0x40, e.g. "MM6 Outdoor v1.11"
-    std::string ground_name;   // offset 0x80, e.g. "grastyl" (ground tileset)
+    std::string name;                         // offset 0x00, e.g. "blank"
+    std::string file_name;                    // offset 0x20, e.g. "default.odm"
+    std::string version;                      // offset 0x40, e.g. "MM6 Outdoor v1.11"
+    std::string ground_name;                  // offset 0x80, e.g. "grastyl" (ground tileset)
     std::array<OdmTilesetDef, 4> tilesets{};  // offset 0xA0 (4 tileset defs)
 
     // Backwards-compatible access to the tileset u16 fields as a flat array
@@ -33,7 +33,7 @@ struct OdmHeader {
     [[nodiscard]] std::array<std::uint16_t, 8> dim_fields() const noexcept {
         std::array<std::uint16_t, 8> out{};
         for (std::size_t i = 0; i < 4; ++i) {
-            out[i * 2]     = static_cast<std::uint16_t>(tilesets[i].group);
+            out[i * 2] = static_cast<std::uint16_t>(tilesets[i].group);
             out[i * 2 + 1] = static_cast<std::uint16_t>(tilesets[i].offset);
         }
         return out;
@@ -85,8 +85,8 @@ struct OdmTerrain {
 [[nodiscard]] OdmError extract_terrain(const OdmMap& map, OdmTerrain& out);
 
 // Convenience: parse a raw .odm entry and extract its terrain in one call.
-[[nodiscard]] OdmError parse_odm_terrain(std::span<const std::byte> entry,
-                                         OdmMap& map_out, OdmTerrain& terrain_out);
+[[nodiscard]] OdmError parse_odm_terrain(std::span<const std::byte> entry, OdmMap& map_out,
+                                         OdmTerrain& terrain_out);
 
 // --- Placed models (see docs/formats/odm-models.md) -----------------------
 
@@ -96,19 +96,18 @@ struct OdmTerrain {
 struct OdmModel {
     std::string name;
     std::string name2;
-    std::int32_t pos_x = 0, pos_y = 0, pos_z = 0;       // world position
-    std::int32_t min_x = 0, min_y = 0, min_z = 0;       // bounding box min
-    std::int32_t max_x = 0, max_y = 0, max_z = 0;       // bounding box max
+    std::int32_t pos_x = 0, pos_y = 0, pos_z = 0;  // world position
+    std::int32_t min_x = 0, min_y = 0, min_z = 0;  // bounding box min
+    std::int32_t max_x = 0, max_y = 0, max_z = 0;  // bounding box max
 };
 
 // Extract the model array (placed props/buildings) from an OdmMap's payload.
 // The model count lives at offset 0xC0B0; each model is a 188-byte record.
-[[nodiscard]] OdmError extract_models(const OdmMap& map,
-                                      std::vector<OdmModel>& out);
+[[nodiscard]] OdmError extract_models(const OdmMap& map, std::vector<OdmModel>& out);
 
 // Constants for the model section (see docs/formats/odm-models.md).
 constexpr std::uint32_t kModelCountOffset = 0xC0B0;  // = 0xB0 + 3*0x4000
-constexpr std::uint32_t kModelRecordSize = 188;       // 0xBC
+constexpr std::uint32_t kModelRecordSize = 188;      // 0xBC
 
 // --- Model mesh vertices (see docs/formats/odm-model-mesh.md) -------------
 
@@ -127,8 +126,8 @@ struct OdmModelVertex {
 // 0xC0B4 + model_count*188, and the first model's vertices (vertex_count × 12
 // bytes) are stored there. Walking subsequent models' vertices requires
 // decoding the variable-length facet stream in between (a later slice).
-[[nodiscard]] OdmError extract_first_model_vertices(
-    const OdmMap& map, std::vector<OdmModelVertex>& out);
+[[nodiscard]] OdmError extract_first_model_vertices(const OdmMap& map,
+                                                    std::vector<OdmModelVertex>& out);
 
 constexpr std::uint32_t kModelVertexSize = 12;  // 3 × i32
 
@@ -184,24 +183,22 @@ struct OdmModelMesh {
 // texture names back to back, and the next model starts immediately after.
 // Walking it is therefore all-or-nothing — a truncated or inconsistent stream
 // is rejected rather than partially decoded.
-[[nodiscard]] OdmError extract_model_meshes(const OdmMap& map,
-                                            std::vector<OdmModelMesh>& out);
+[[nodiscard]] OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out);
 
 // --- Decorations (see docs/formats/odm-decorations.md) ---------------------
 
 // One placed decoration: a sprite standing in the world (tree, barrel, sign).
 struct OdmDecoration {
-    std::uint32_t kind = 0;   // type id; maps one-to-one onto `name`
-    std::int32_t x = 0, y = 0, z = 0;   // world position, MM6 axes
-    std::string name;         // a SPRITES.LOD entry name
+    std::uint32_t kind = 0;            // type id; maps one-to-one onto `name`
+    std::int32_t x = 0, y = 0, z = 0;  // world position, MM6 axes
+    std::string name;                  // a SPRITES.LOD entry name
 };
 
 // Extract the decoration array, which follows the model geometry stream.
 //
 // Unlike the indoor maps, this is fully deterministic: the geometry stream's
 // end is computable, and the count sits right there.
-[[nodiscard]] OdmError extract_decorations(const OdmMap& map,
-                                           std::vector<OdmDecoration>& out);
+[[nodiscard]] OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out);
 
 // Byte offset one past the model geometry stream: where the decorations begin.
 [[nodiscard]] OdmError model_geometry_end(const OdmMap& map, std::uint64_t& out);
@@ -210,10 +207,10 @@ constexpr std::uint32_t kDecorationRecordSize = 28;  // kind + 3 x i32 + padding
 constexpr std::uint32_t kDecorationNameSize = 32;
 
 // Sizes of the per-model geometry arrays (see docs/formats/odm-model-facets.md).
-constexpr std::uint32_t kModelFacetSize = 308;         // 0x134
-constexpr std::uint32_t kFacetOrderingEntrySize = 2;   // u16 per facet
-constexpr std::uint32_t kModelBspNodeSize = 8;         // per BSP node
-constexpr std::uint32_t kFacetTextureNameSize = 10;    // char[10] per facet
+constexpr std::uint32_t kModelFacetSize = 308;        // 0x134
+constexpr std::uint32_t kFacetOrderingEntrySize = 2;  // u16 per facet
+constexpr std::uint32_t kModelBspNodeSize = 8;        // per BSP node
+constexpr std::uint32_t kFacetTextureNameSize = 10;   // char[10] per facet
 
 // Fixed sizes from the verified spec, exposed for tests and tools.
 constexpr std::uint32_t kWrapperSize = 8;

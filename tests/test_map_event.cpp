@@ -17,14 +17,12 @@ using namespace starhaven::world;
 
 namespace {
 
-bool zlib_compress(const std::vector<std::uint8_t>& src,
-                   std::vector<std::uint8_t>& dst) {
+bool zlib_compress(const std::vector<std::uint8_t>& src, std::vector<std::uint8_t>& dst) {
     uLongf bound = compressBound(static_cast<uLong>(src.size()));
     dst.resize(bound);
     uLongf len = bound;
     if (compress2(reinterpret_cast<Bytef*>(dst.data()), &len,
-                  reinterpret_cast<const Bytef*>(src.data()),
-                  static_cast<uLong>(src.size()),
+                  reinterpret_cast<const Bytef*>(src.data()), static_cast<uLong>(src.size()),
                   Z_DEFAULT_COMPRESSION) != Z_OK) {
         return false;
     }
@@ -33,7 +31,7 @@ bool zlib_compress(const std::vector<std::uint8_t>& src,
 }
 
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
     v[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
     v[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
@@ -53,7 +51,8 @@ std::vector<std::byte> make_event_entry(const std::vector<std::uint8_t>& payload
 
 TEST_CASE("valid event payload decompresses to the original bytes", "[map_event]") {
     std::vector<std::uint8_t> payload(100, 0);
-    payload[10] = 0xAB; payload[11] = 0xCD;
+    payload[10] = 0xAB;
+    payload[11] = 0xCD;
     auto entry = make_event_entry(payload);
     MapEventFile f;
     REQUIRE(parse_map_event(entry, f) == MapEventError::None);
@@ -93,9 +92,10 @@ TEST_CASE("decompressed size of zero is accepted (unknown)", "[map_event]") {
 
 // Build a decompressed payload large enough for `populated` records at the
 // event-table offset, stamping type/name into each.
-std::vector<std::byte> make_event_entry_with_table(
-    const std::vector<std::pair<std::int32_t, std::string>>& records) {
-    std::vector<std::uint8_t> payload(kEventTableOffset + records.size() * kEventRecordSize + 16, 0);
+std::vector<std::byte>
+make_event_entry_with_table(const std::vector<std::pair<std::int32_t, std::string>>& records) {
+    std::vector<std::uint8_t> payload(kEventTableOffset + records.size() * kEventRecordSize + 16,
+                                      0);
     for (std::size_t i = 0; i < records.size(); ++i) {
         const std::size_t rec = kEventTableOffset + i * kEventRecordSize;
         const auto [type, name] = records[i];
@@ -116,9 +116,12 @@ TEST_CASE("populated event records are enumerated with type and name", "[map_eve
     REQUIRE(parse_map_event(entry, f) == MapEventError::None);
     auto recs = enumerate_event_table(f);
     REQUIRE(recs.size() == 3);
-    REQUIRE(recs[0].type == 20); REQUIRE(recs[0].name == "Peasant");
-    REQUIRE(recs[1].type == 0);  REQUIRE(recs[1].name == "Guard");   // populated via name
-    REQUIRE(recs[2].type == 7);  REQUIRE(recs[2].name == "Merchant");
+    REQUIRE(recs[0].type == 20);
+    REQUIRE(recs[0].name == "Peasant");
+    REQUIRE(recs[1].type == 0);
+    REQUIRE(recs[1].name == "Guard");  // populated via name
+    REQUIRE(recs[2].type == 7);
+    REQUIRE(recs[2].name == "Merchant");
 }
 
 TEST_CASE("empty event table yields no records", "[map_event]") {
@@ -157,12 +160,10 @@ namespace {
 
 // Build an event payload whose actor table holds the given entries.
 std::vector<std::byte> make_event_entry_with_actors(
-    const std::vector<std::tuple<std::string, std::int16_t, std::int16_t,
-                                 std::int16_t>>& actors,
+    const std::vector<std::tuple<std::string, std::int16_t, std::int16_t, std::int16_t>>& actors,
     bool trailing_garbage = false) {
     const std::size_t count = actors.size() + (trailing_garbage ? 1 : 0);
-    std::vector<std::uint8_t> payload(
-        kEventTableOffset + (count + 1) * kEventRecordSize, 0);
+    std::vector<std::uint8_t> payload(kEventTableOffset + (count + 1) * kEventRecordSize, 0);
 
     auto put_i16 = [&](std::size_t off, std::int16_t v) {
         const auto u = static_cast<std::uint16_t>(v);
@@ -174,8 +175,7 @@ std::vector<std::byte> make_event_entry_with_actors(
         const auto& [name, x, y, z] = actors[i];
         const std::size_t base = kEventTableOffset + i * kEventRecordSize;
         for (std::size_t k = 0; k < name.size() && k < 31; ++k) {
-            payload[base + kEventRecordNameOffset + k] =
-                static_cast<std::uint8_t>(name[k]);
+            payload[base + kEventRecordNameOffset + k] = static_cast<std::uint8_t>(name[k]);
         }
         put_i16(base + kActorPositionOffset, x);
         put_i16(base + kActorPositionOffset + 2, y);
@@ -218,7 +218,7 @@ TEST_CASE("actors decode with their names and positions", "[map_event]") {
     REQUIRE(actors[0].x == 10896);
     REQUIRE(actors[0].y == 15872);
     REQUIRE(actors[0].z == 160);
-    REQUIRE(actors[1].x == -13632);   // negative coordinates survive
+    REQUIRE(actors[1].x == -13632);  // negative coordinates survive
     REQUIRE(actors[2].name == "Goblin");
     REQUIRE(actors[2].z == -64);
 }

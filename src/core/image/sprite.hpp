@@ -24,13 +24,13 @@ struct Sprite {
 // Outcome of decoding. Callers convert these into user-facing text.
 enum class SpriteError {
     None,
-    TooSmall,             // fewer than 32 bytes for the header
-    BadDimensions,        // width or height is zero
-    LineTableTruncated,   // 32 + height*8 exceeds the buffer
-    BadDataSize,          // dataSize inconsistent with total size
-    PixelDataTruncated,   // the pixel region is shorter than dataSize
-    InflateFailed,        // zlib failure or wrong decompressed length
-    LineOutOfBounds,      // a line's offset + span exceeds the pixel buffer
+    TooSmall,            // fewer than 32 bytes for the header
+    BadDimensions,       // width or height is zero
+    LineTableTruncated,  // 32 + height*8 exceeds the buffer
+    BadDataSize,         // dataSize inconsistent with total size
+    PixelDataTruncated,  // the pixel region is shorter than dataSize
+    InflateFailed,       // zlib failure or wrong decompressed length
+    LineOutOfBounds,     // a line's offset + span exceeds the pixel buffer
 };
 
 // Header and line-table constants from the verified spec, exposed for tests.
@@ -48,8 +48,7 @@ struct SpriteLine {
 // palette indices are mapped through `palette`. The caller is responsible for
 // loading the correct `palXXX` palette (see palette_entry_name / the sprite's
 // palette_id).
-[[nodiscard]] SpriteError decode_sprite(std::span<const std::byte> entry,
-                                        const Palette& palette,
+[[nodiscard]] SpriteError decode_sprite(std::span<const std::byte> entry, const Palette& palette,
                                         Sprite& out);
 
 // Read just the header + line table without applying a palette. Useful for
@@ -64,8 +63,7 @@ struct SpriteHeader {
     std::uint32_t decompressed_size = 0;
     std::vector<SpriteLine> lines;
 };
-[[nodiscard]] SpriteError read_sprite_header(std::span<const std::byte> entry,
-                                             SpriteHeader& out);
+[[nodiscard]] SpriteError read_sprite_header(std::span<const std::byte> entry, SpriteHeader& out);
 
 }  // namespace starhaven::image
 

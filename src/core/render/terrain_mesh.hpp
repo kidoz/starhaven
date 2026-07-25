@@ -14,7 +14,7 @@ namespace starhaven::render {
 // centered on the origin so the camera starts over the map middle.
 struct TerrainMesh {
     std::vector<Vec3> vertices;
-    std::vector<Vec3> normals;  // per-vertex, normalized
+    std::vector<Vec3> normals;           // per-vertex, normalized
     std::vector<std::uint32_t> indices;  // triangles: 3 indices each
 
     // Per-vertex texture coordinates in *cell* units: the vertex at grid
@@ -59,7 +59,9 @@ struct TerrainScale {
                                              TerrainScale scale = {});
 
 // An RGB color (float 0..1) for per-vertex / per-cell coloring.
-struct Vec3Color { float r = 0, g = 0, b = 0; };
+struct Vec3Color {
+    float r = 0, g = 0, b = 0;
+};
 
 // A stable color for a tile-type index. Common base tiles get a fixed natural
 // palette (grass green, water blue, dirt brown, road tan); all other indices
@@ -69,8 +71,7 @@ struct Vec3Color { float r = 0, g = 0, b = 0; };
 
 // Build a per-vertex color array (dim*dim, row-major) from a tilemap: each
 // vertex takes the color of its cell's tile type. Length matches mesh.vertices.
-[[nodiscard]] std::vector<Vec3Color>
-build_terrain_colors(const world::OdmTerrain& terrain);
+[[nodiscard]] std::vector<Vec3Color> build_terrain_colors(const world::OdmTerrain& terrain);
 
 }  // namespace starhaven::render
 

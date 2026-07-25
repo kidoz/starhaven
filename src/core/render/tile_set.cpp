@@ -39,15 +39,13 @@ TileSet TileSet::make_placeholder(int tile_px) {
         const auto index = static_cast<std::uint8_t>(i);
         const Vec3Color base = tile_type_color(index);
 
-        std::vector<std::uint8_t> rgba(
-            static_cast<std::size_t>(extent) * extent * 4U);
+        std::vector<std::uint8_t> rgba(static_cast<std::size_t>(extent) * extent * 4U);
         for (int y = 0; y < extent; ++y) {
             for (int x = 0; x < extent; ++x) {
                 // Two-tone checker: the darker square makes UV errors visible.
                 const bool dark = ((x < half) != (y < half));
                 const float k = dark ? 0.72f : 1.0f;
-                const std::size_t p =
-                    (static_cast<std::size_t>(y) * extent + x) * 4U;
+                const std::size_t p = (static_cast<std::size_t>(y) * extent + x) * 4U;
                 rgba[p + 0] = to_byte(base.r * k);
                 rgba[p + 1] = to_byte(base.g * k);
                 rgba[p + 2] = to_byte(base.b * k);

@@ -9,8 +9,7 @@ namespace starhaven::image::detail {
 namespace {
 
 // Shared inflate loop. `window_bits` selects the header mode.
-[[nodiscard]] bool inflate_with(std::span<const std::byte> src,
-                                std::vector<std::uint8_t>& dst,
+[[nodiscard]] bool inflate_with(std::span<const std::byte> src, std::vector<std::uint8_t>& dst,
                                 int window_bits) {
     dst.clear();
 
@@ -50,14 +49,12 @@ namespace {
 
 }  // namespace
 
-bool inflate_all(std::span<const std::byte> src,
-                 std::vector<std::uint8_t>& dst) {
+bool inflate_all(std::span<const std::byte> src, std::vector<std::uint8_t>& dst) {
     // windowBits = 15 + 32 asks zlib to auto-detect zlib or gzip headers.
     return inflate_with(src, dst, 15 + 32);
 }
 
-bool inflate_raw(std::span<const std::byte> src,
-                 std::vector<std::uint8_t>& dst) {
+bool inflate_raw(std::span<const std::byte> src, std::vector<std::uint8_t>& dst) {
     // Raw deflate has no header to skip past and no checksum to verify, so
     // drop the stream's own 2-byte zlib header first.
     dst.clear();

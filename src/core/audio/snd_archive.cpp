@@ -19,8 +19,7 @@ namespace {
 constexpr std::uint32_t kMaxEntries = 1u << 20;
 
 [[nodiscard]] bool iequals(std::string_view a, std::string_view b) noexcept {
-    return a.size() == b.size() &&
-           std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
                return std::tolower(static_cast<unsigned char>(x)) ==
                       std::tolower(static_cast<unsigned char>(y));
            });
@@ -28,8 +27,7 @@ constexpr std::uint32_t kMaxEntries = 1u << 20;
 
 }  // namespace
 
-SndError SndArchive::read_directory(std::span<const std::byte> header,
-                                    std::uint64_t file_size,
+SndError SndArchive::read_directory(std::span<const std::byte> header, std::uint64_t file_size,
                                     std::vector<SndEntry>& out) {
     out.clear();
     if (header.size() < 4) {
@@ -41,8 +39,7 @@ SndError SndArchive::read_directory(std::span<const std::byte> header,
     if (count == 0 || count > kMaxEntries) {
         return SndError::BadCount;
     }
-    const std::uint64_t dir_end =
-        4 + static_cast<std::uint64_t>(count) * kSndEntrySize;
+    const std::uint64_t dir_end = 4 + static_cast<std::uint64_t>(count) * kSndEntrySize;
     if (dir_end > file_size || dir_end > header.size()) {
         return SndError::BadCount;
     }
@@ -101,8 +98,7 @@ SndError SndArchive::open(const std::filesystem::path& path, SndArchive& out) {
     if (count == 0 || count > kMaxEntries) {
         return SndError::BadCount;
     }
-    const std::uint64_t dir_end =
-        4 + static_cast<std::uint64_t>(count) * kSndEntrySize;
+    const std::uint64_t dir_end = 4 + static_cast<std::uint64_t>(count) * kSndEntrySize;
     if (dir_end > file_size) {
         return SndError::BadCount;
     }
@@ -115,8 +111,7 @@ SndError SndArchive::open(const std::filesystem::path& path, SndArchive& out) {
     }
 
     std::vector<SndEntry> entries;
-    if (const SndError e = read_directory(header, file_size, entries);
-        e != SndError::None) {
+    if (const SndError e = read_directory(header, file_size, entries); e != SndError::None) {
         return e;
     }
 
@@ -131,8 +126,7 @@ SndError SndArchive::open(const std::filesystem::path& path, SndArchive& out) {
 SndError SndArchive::parse(std::vector<std::byte> data, SndArchive& out) {
     out = SndArchive{};
     std::vector<SndEntry> entries;
-    if (const SndError e = read_directory(data, data.size(), entries);
-        e != SndError::None) {
+    if (const SndError e = read_directory(data, data.size(), entries); e != SndError::None) {
         return e;
     }
     out.memory_ = std::move(data);
@@ -163,8 +157,8 @@ SndError SndArchive::read(std::size_t index, std::vector<std::uint8_t>& out) {
         if (e.offset + e.packed_size > memory_.size()) {
             return SndError::BadOffset;
         }
-        std::copy_n(memory_.begin() + static_cast<std::ptrdiff_t>(e.offset),
-                    e.packed_size, stored.begin());
+        std::copy_n(memory_.begin() + static_cast<std::ptrdiff_t>(e.offset), e.packed_size,
+                    stored.begin());
     } else {
         if (!file_.is_open()) {
             return SndError::Io;

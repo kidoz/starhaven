@@ -16,8 +16,7 @@ constexpr std::size_t kEntryHeaderSize = 48;
 
 }  // namespace
 
-MonsterListError MonsterList::parse(std::span<const std::byte> entry,
-                                    MonsterList& out) {
+MonsterListError MonsterList::parse(std::span<const std::byte> entry, MonsterList& out) {
     out.entries_.clear();
     if (entry.size() <= kEntryHeaderSize) {
         return MonsterListError::TooSmall;
@@ -47,13 +46,11 @@ MonsterListError MonsterList::parse(std::span<const std::byte> entry,
     for (std::uint32_t i = 0; i < count; ++i) {
         const std::size_t base = 4 + static_cast<std::size_t>(i) * kMonsterRecordSize;
         MonsterListEntry e;
-        if (!r.seek(base + kMonsterNameOffset) ||
-            !r.read_fixed_string(kMonsterNameSize, e.name)) {
+        if (!r.seek(base + kMonsterNameOffset) || !r.read_fixed_string(kMonsterNameSize, e.name)) {
             return MonsterListError::BadCount;
         }
         for (std::size_t a = 0; a < kMonsterAnimationCount; ++a) {
-            if (!r.seek(base + kMonsterAnimationOffset +
-                        a * kMonsterAnimationNameSize) ||
+            if (!r.seek(base + kMonsterAnimationOffset + a * kMonsterAnimationNameSize) ||
                 !r.read_fixed_string(kMonsterAnimationNameSize, e.animations[a])) {
                 return MonsterListError::BadCount;
             }

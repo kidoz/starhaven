@@ -63,8 +63,7 @@ bool load_palette(std::uint16_t palette_id, starhaven::image::Palette& out) {
     const std::string pal_name = img::palette_entry_name(palette_id);
     fs::path bitmaps = resolve_archive("data/BITMAPS.LOD");
     if (!fs::exists(bitmaps)) {
-        std::cerr << "error: cannot locate data/BITMAPS.LOD for palette "
-                  << pal_name << "\n";
+        std::cerr << "error: cannot locate data/BITMAPS.LOD for palette " << pal_name << "\n";
         return false;
     }
 
@@ -78,8 +77,7 @@ bool load_palette(std::uint16_t palette_id, starhaven::image::Palette& out) {
         return false;
     }
     // Palette entries are 48-byte zero-image headers followed by 768 RGB bytes.
-    return img::extract_palette(bytes, /*data_offset=*/48, out) ==
-           img::PaletteError::None;
+    return img::extract_palette(bytes, /*data_offset=*/48, out) == img::PaletteError::None;
 }
 
 }  // namespace
@@ -115,8 +113,7 @@ int main(int argc, char** argv) {
     namespace img = starhaven::image;
 
     lod::LodArchive archive;
-    const lod::LodError open_err =
-        lod::LodArchive::open(resolve_archive(archive_arg), archive);
+    const lod::LodError open_err = lod::LodArchive::open(resolve_archive(archive_arg), archive);
     if (open_err != lod::LodError::None) {
         std::cerr << "error: could not open archive (" << static_cast<int>(open_err) << ")\n";
         return 1;
@@ -134,7 +131,8 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (payload_err != lod::LodArchive::PayloadError::None) {
-        std::cerr << "error: could not read entry payload (" << static_cast<int>(payload_err) << ")\n";
+        std::cerr << "error: could not read entry payload (" << static_cast<int>(payload_err)
+                  << ")\n";
         return 1;
     }
 
@@ -149,8 +147,7 @@ int main(int argc, char** argv) {
         }
         return s;
     }();
-    const bool likely_sprite =
-        archive_lower.find("sprite") != std::string::npos;
+    const bool likely_sprite = archive_lower.find("sprite") != std::string::npos;
 
     if (likely_sprite) {
         img::SpriteHeader sh;
@@ -160,11 +157,9 @@ int main(int argc, char** argv) {
                 return 1;
             }
             img::Sprite sprite;
-            const img::SpriteError se =
-                img::decode_sprite(entry_bytes, palette, sprite);
+            const img::SpriteError se = img::decode_sprite(entry_bytes, palette, sprite);
             if (se != img::SpriteError::None) {
-                std::cerr << "error: could not decode sprite ("
-                          << static_cast<int>(se) << ")\n";
+                std::cerr << "error: could not decode sprite (" << static_cast<int>(se) << ")\n";
                 return 1;
             }
             image.width = sprite.width;
@@ -187,10 +182,9 @@ int main(int argc, char** argv) {
         image.rgba = std::move(bitmap.rgba);
     }
 
-    std::cout << "decoded " << entry_name << ": " << image.width << "x"
-              << image.height
-              << (image.is_sprite ? " (sprite)" : " (bitmap)")
-              << " (showing at x" << scale << ")\n";
+    std::cout << "decoded " << entry_name << ": " << image.width << "x" << image.height
+              << (image.is_sprite ? " (sprite)" : " (bitmap)") << " (showing at x" << scale
+              << ")\n";
 
     // SDL3 returns true on success, unlike SDL2's 0-on-success convention.
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -224,9 +218,8 @@ int main(int argc, char** argv) {
 
     // The image is top-to-bottom RGBA; SDL expects the same row order. Nearest
     // scaling keeps the pixel-art look crisp when upscaling.
-    SDL_Texture* texture = SDL_CreateTexture(
-        renderer, SDL_PIXELFORMAT_ABGR8888,
-        SDL_TEXTUREACCESS_STATIC, image.width, image.height);
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
+                                             SDL_TEXTUREACCESS_STATIC, image.width, image.height);
     if (!texture) {
         std::cerr << "error: SDL_CreateTexture: " << SDL_GetError() << "\n";
         SDL_DestroyRenderer(renderer);
@@ -234,8 +227,7 @@ int main(int argc, char** argv) {
         SDL_Quit();
         return 1;
     }
-    SDL_UpdateTexture(texture, nullptr, image.rgba.data(),
-                      static_cast<int>(image.width) * 4);
+    SDL_UpdateTexture(texture, nullptr, image.rgba.data(), static_cast<int>(image.width) * 4);
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
     bool running = true;
@@ -244,8 +236,7 @@ int main(int argc, char** argv) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
-            } else if (event.type == SDL_EVENT_KEY_DOWN &&
-                       event.key.key == SDLK_ESCAPE) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 running = false;
             }
         }
@@ -254,8 +245,7 @@ int main(int argc, char** argv) {
         SDL_RenderClear(renderer);
         // Destination rect honors the integer --scale factor; source is whole.
         // SDL3 renders at subpixel precision, so rects are float-valued.
-        SDL_FRect dst{0.0f, 0.0f,
-                      static_cast<float>(image.width) * static_cast<float>(scale),
+        SDL_FRect dst{0.0f, 0.0f, static_cast<float>(image.width) * static_cast<float>(scale),
                       static_cast<float>(image.height) * static_cast<float>(scale)};
         SDL_RenderTexture(renderer, texture, nullptr, &dst);
         SDL_RenderPresent(renderer);

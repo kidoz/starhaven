@@ -22,8 +22,8 @@ void add_floor(CollisionWorld& w, float y, float size = 100.0f) {
 
 // A vertical wall in the z = `at` plane, facing -z, spanning x/y.
 void add_wall(CollisionWorld& w, float at, float size = 100.0f) {
-    const std::array<Vec3, 4> quad = {Vec3{-size, 0, at}, Vec3{size, 0, at},
-                                      Vec3{size, size, at}, Vec3{-size, size, at}};
+    const std::array<Vec3, 4> quad = {Vec3{-size, 0, at}, Vec3{size, 0, at}, Vec3{size, size, at},
+                                      Vec3{-size, size, at}};
     w.add_polygon(quad, {0, 0, -1});
 }
 
@@ -34,7 +34,7 @@ TEST_CASE("a degenerate polygon is ignored", "[collision]") {
     const std::array<Vec3, 2> line = {Vec3{0, 0, 0}, Vec3{1, 0, 0}};
     w.add_polygon(line, {0, 1, 0});
     const std::array<Vec3, 3> tri = {Vec3{0, 0, 0}, Vec3{1, 0, 0}, Vec3{0, 0, 1}};
-    w.add_polygon(tri, {0, 0, 0});   // zero-length normal
+    w.add_polygon(tri, {0, 0, 0});  // zero-length normal
     REQUIRE(w.size() == 0);
 }
 
@@ -89,9 +89,9 @@ TEST_CASE("walking into a wall stops at the wall", "[collision]") {
     add_wall(w, 100.0f);
 
     const Vec3 from{0, 0, 0};
-    const Vec3 to{0, 0, 120};   // straight through the wall
+    const Vec3 to{0, 0, 120};  // straight through the wall
     const Vec3 out = w.slide(from, to, /*radius*/ 20.0f, /*height*/ 60.0f);
-    REQUIRE(out.z <= 80.0f + 0.01f);   // pushed back to radius from the plane
+    REQUIRE(out.z <= 80.0f + 0.01f);  // pushed back to radius from the plane
     REQUIRE(out.z >= 80.0f - 0.01f);
 }
 
@@ -102,8 +102,8 @@ TEST_CASE("moving at an angle slides along the wall", "[collision]") {
     add_wall(w, 100.0f);
 
     const Vec3 out = w.slide({0, 0, 0}, {50, 0, 120}, 20.0f, 60.0f);
-    REQUIRE(out.x == 50.0f);            // sideways motion kept
-    REQUIRE(out.z <= 80.0f + 0.01f);    // forward motion clamped
+    REQUIRE(out.x == 50.0f);          // sideways motion kept
+    REQUIRE(out.z <= 80.0f + 0.01f);  // forward motion clamped
 }
 
 TEST_CASE("a wall the player is clear of does not push", "[collision]") {
@@ -114,12 +114,11 @@ TEST_CASE("a wall the player is clear of does not push", "[collision]") {
     REQUIRE(out.z == to.z);
 }
 
-TEST_CASE("a wall that does not extend to the player does not push",
-          "[collision]") {
+TEST_CASE("a wall that does not extend to the player does not push", "[collision]") {
     // The plane is infinite but the polygon is not; a wall off to one side
     // must not block movement.
     CollisionWorld w;
-    add_wall(w, 100.0f, 10.0f);          // only spans x in [-10, 10]
+    add_wall(w, 100.0f, 10.0f);  // only spans x in [-10, 10]
     const Vec3 to{500, 0, 120};
     const Vec3 out = w.slide({500, 0, 0}, to, 20.0f, 60.0f);
     REQUIRE(out.z == to.z);

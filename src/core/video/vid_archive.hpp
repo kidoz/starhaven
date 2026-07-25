@@ -46,13 +46,11 @@ public:
     VidArchive() = default;
 
     // Open a file and read its directory.
-    [[nodiscard]] static VidError open(const std::filesystem::path& path,
-                                       VidArchive& out);
+    [[nodiscard]] static VidError open(const std::filesystem::path& path, VidArchive& out);
 
     // Parse a directory from an in-memory buffer (used by tests with synthetic
     // fixtures). The buffer is copied, so `read` works without a file.
-    [[nodiscard]] static VidError parse(std::vector<std::byte> data,
-                                        VidArchive& out);
+    [[nodiscard]] static VidError parse(std::vector<std::byte> data, VidArchive& out);
 
     [[nodiscard]] const std::vector<VidEntry>& entries() const noexcept { return entries_; }
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }

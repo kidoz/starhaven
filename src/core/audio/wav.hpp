@@ -38,8 +38,7 @@ struct WavAudio {
 // Handles the two encodings MM6's sound archive uses: plain PCM (tag 1) and
 // IMA/DVI ADPCM (tag 17). ADPCM is a published standard, not a format specific
 // to this game.
-[[nodiscard]] WavError decode_wav(std::span<const std::uint8_t> data,
-                                  WavAudio& out);
+[[nodiscard]] WavError decode_wav(std::span<const std::uint8_t> data, WavAudio& out);
 
 // Format tags, exposed for tests and tools.
 constexpr std::uint16_t kWaveFormatPcm = 1;

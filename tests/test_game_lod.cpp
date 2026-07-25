@@ -23,18 +23,18 @@ void ensure_size(std::vector<std::byte>& v, std::size_t needed) {
 }
 void put_u16_le(std::vector<std::byte>& v, std::size_t off, std::uint16_t x) {
     ensure_size(v, off + 2);
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
 }
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
     ensure_size(v, off + 4);
-    v[off]     = static_cast<std::byte>(x & 0xFF);
+    v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
     v[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
     v[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
 }
-void put_string(std::vector<std::byte>& v, std::size_t off,
-                std::size_t width, const std::string& s) {
+void put_string(std::vector<std::byte>& v, std::size_t off, std::size_t width,
+                const std::string& s) {
     if (v.size() < off + width) {
         v.resize(off + width, std::byte{0});
     }
@@ -56,8 +56,8 @@ void write_header(std::vector<std::byte>& buf, std::uint16_t count,
     put_string(buf, 0x00, 4, "LOD\0");
     put_string(buf, 0x04, 8, "GameMMVI");
     put_string(buf, 0x54, 80, "Maps for MMVI");
-    put_u32_le(buf, 0xA8, 0);            // unk_0
-    put_u32_le(buf, 0xAC, 1);            // numDirectories
+    put_u32_le(buf, 0xA8, 0);  // unk_0
+    put_u32_le(buf, 0xAC, 1);  // numDirectories
     // Root entry at 256.
     put_string(buf, kRootEntryOffset, 4, "maps");
     put_u32_le(buf, kRootEntryOffset + 0x10, root_data_offset);
@@ -66,9 +66,8 @@ void write_header(std::vector<std::byte>& buf, std::uint16_t count,
 }
 
 // Write one file entry at the given absolute offset within the table.
-void write_file_entry(std::vector<std::byte>& buf, std::size_t entry_off,
-                      const std::string& name, std::uint32_t rel_off,
-                      std::uint32_t size) {
+void write_file_entry(std::vector<std::byte>& buf, std::size_t entry_off, const std::string& name,
+                      std::uint32_t rel_off, std::uint32_t size) {
     ensure_size(buf, entry_off + kFileEntrySize);  // materialize the full record
     put_string(buf, entry_off, 16, name);
     put_u32_le(buf, entry_off + 0x10, rel_off);
@@ -80,7 +79,7 @@ void write_file_entry(std::vector<std::byte>& buf, std::size_t entry_off,
 // A minimal Games.lod: one entry "d01.blv" with a 4-byte payload.
 std::vector<std::byte> make_single_entry_archive() {
     constexpr std::uint16_t kCount = 1;
-    constexpr std::uint32_t kRootDataOff = kHeaderSize + 32 + kCount * kFileEntrySize; // 320
+    constexpr std::uint32_t kRootDataOff = kHeaderSize + 32 + kCount * kFileEntrySize;  // 320
     std::vector<std::byte> buf;
     write_header(buf, kCount, kRootDataOff);
 
@@ -94,8 +93,7 @@ std::vector<std::byte> make_single_entry_archive() {
         buf.resize(payload_off, std::byte{0});
     }
     const std::string payload = "MAP1";
-    buf.insert(buf.end(),
-               reinterpret_cast<const std::byte*>(payload.data()),
+    buf.insert(buf.end(), reinterpret_cast<const std::byte*>(payload.data()),
                reinterpret_cast<const std::byte*>(payload.data()) + payload.size());
     return buf;
 }

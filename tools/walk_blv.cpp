@@ -49,8 +49,7 @@ void print_usage(const char* argv0) {
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
               << "  --fly               disable gravity and wall collision\n"
               << "\n"
-              << "Set " << platform::kInstallEnvVar
-              << " to the install directory.\n";
+              << "Set " << platform::kInstallEnvVar << " to the install directory.\n";
 }
 
 }  // namespace
@@ -97,22 +96,18 @@ int main(int argc, char** argv) {
     }
 
     lod::GameLodArchive archive;
-    if (lod::GameLodArchive::open(tools::resolve_games_lod(), archive) !=
-        lod::GameLodError::None) {
+    if (lod::GameLodArchive::open(tools::resolve_games_lod(), archive) != lod::GameLodError::None) {
         std::cerr << "error: could not open Games.lod\n";
         return 1;
     }
     std::span<const std::byte> entry;
-    if (archive.payload(map_name, entry) !=
-        lod::GameLodArchive::PayloadError::None) {
+    if (archive.payload(map_name, entry) != lod::GameLodArchive::PayloadError::None) {
         std::cerr << "error: map not found: " << map_name << "\n";
         return 1;
     }
     world::BlvMap map;
-    if (const world::BlvError e = world::parse_blv(entry, map);
-        e != world::BlvError::None) {
-        std::cerr << "error: could not parse BLV (code " << static_cast<int>(e)
-                  << ")\n";
+    if (const world::BlvError e = world::parse_blv(entry, map); e != world::BlvError::None) {
+        std::cerr << "error: could not parse BLV (code " << static_cast<int>(e) << ")\n";
         return 1;
     }
 
@@ -126,7 +121,8 @@ int main(int argc, char** argv) {
     {
         std::vector<render::Vec3> corners;
         for (const auto& f : map.faces) {
-            if (f.invisible() || f.vertex_count < 3) continue;
+            if (f.invisible() || f.vertex_count < 3)
+                continue;
             corners.clear();
             for (std::size_t k = 0; k < f.vertex_count; ++k) {
                 const auto& v = map.vertices[f.vertex_ids[k]];
@@ -137,10 +133,9 @@ int main(int argc, char** argv) {
     }
 
     const auto decorations = world::find_decorations(map);
-    std::cout << map_name << ": \"" << map.header.name << "\"  "
-              << map.vertices.size() << " vertices, " << map.faces.size()
-              << " faces, " << collision.size() << " collision polygons, "
-              << decorations.size() << " decorations\n";
+    std::cout << map_name << ": \"" << map.header.name << "\"  " << map.vertices.size()
+              << " vertices, " << map.faces.size() << " faces, " << collision.size()
+              << " collision polygons, " << decorations.size() << " decorations\n";
 
     // Without a start position, prefer the level's own "Party Start" marker:
     // that is where the game itself puts the party.
@@ -161,27 +156,37 @@ int main(int argc, char** argv) {
         const world::BlvFace* best = nullptr;
         long best_area = -1;
         for (const auto& f : map.faces) {
-            if (f.invisible() || f.vertex_count < 3 || f.nz() < 0.9f) continue;
+            if (f.invisible() || f.vertex_count < 3 || f.nz() < 0.9f)
+                continue;
             int minx = 0, maxx = 0, miny = 0, maxy = 0;
             for (std::size_t k = 0; k < f.vertex_count; ++k) {
                 const auto& v = map.vertices[f.vertex_ids[k]];
-                if (k == 0) { minx = maxx = v.x; miny = maxy = v.y; }
-                minx = std::min<int>(minx, v.x); maxx = std::max<int>(maxx, v.x);
-                miny = std::min<int>(miny, v.y); maxy = std::max<int>(maxy, v.y);
+                if (k == 0) {
+                    minx = maxx = v.x;
+                    miny = maxy = v.y;
+                }
+                minx = std::min<int>(minx, v.x);
+                maxx = std::max<int>(maxx, v.x);
+                miny = std::min<int>(miny, v.y);
+                maxy = std::max<int>(maxy, v.y);
             }
             const long area = static_cast<long>(maxx - minx) * (maxy - miny);
-            if (area > best_area) { best_area = area; best = &f; }
+            if (area > best_area) {
+                best_area = area;
+                best = &f;
+            }
         }
         if (best != nullptr) {
             long sx = 0, sy = 0, sz = 0;
             for (std::size_t k = 0; k < best->vertex_count; ++k) {
                 const auto& v = map.vertices[best->vertex_ids[k]];
-                sx += v.x; sy += v.y; sz += v.z;
+                sx += v.x;
+                sy += v.y;
+                sz += v.z;
             }
             const int n = best->vertex_count;
-            camera.position = tools::to_render_space(static_cast<int>(sx / n),
-                                                     static_cast<int>(sy / n),
-                                                     static_cast<int>(sz / n));
+            camera.position = tools::to_render_space(
+                static_cast<int>(sx / n), static_cast<int>(sy / n), static_cast<int>(sz / n));
             camera.position.y += tools::kEyeHeight;
         }
     }
@@ -193,9 +198,8 @@ int main(int argc, char** argv) {
     const std::string title = "StarHaven - indoor - " + map_name;
     SDL_Window* window = SDL_CreateWindow(title.c_str(), kWidth, kHeight, 0);
     SDL_Renderer* sdl_renderer = SDL_CreateRenderer(window, nullptr);
-    SDL_Texture* screen = SDL_CreateTexture(
-        sdl_renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING,
-        kWidth, kHeight);
+    SDL_Texture* screen = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ABGR8888,
+                                            SDL_TEXTUREACCESS_STREAMING, kWidth, kHeight);
 
     const bool mouse_look = screenshot.empty();
     if (mouse_look) {
@@ -215,8 +219,7 @@ int main(int argc, char** argv) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
-            } else if (event.type == SDL_EVENT_KEY_DOWN &&
-                       event.key.key == SDLK_ESCAPE) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 running = false;
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
                 camera.yaw += event.motion.xrel * tools::kMouseSensitivity;
@@ -238,30 +241,32 @@ int main(int argc, char** argv) {
         tools::step_player(camera, fall_speed, fly, in, collision,
                            [](float, float) { return -1.0e9f; });
 
-        if (keys[SDL_SCANCODE_LEFT]) camera.yaw -= tools::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_RIGHT]) camera.yaw += tools::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_UP]) camera.pitch += tools::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_DOWN]) camera.pitch -= tools::kLookSpeed * in.dt;
-        camera.pitch = std::clamp(camera.pitch, -render::Camera::kMaxPitch,
-                                  render::Camera::kMaxPitch);
+        if (keys[SDL_SCANCODE_LEFT])
+            camera.yaw -= tools::kLookSpeed * in.dt;
+        if (keys[SDL_SCANCODE_RIGHT])
+            camera.yaw += tools::kLookSpeed * in.dt;
+        if (keys[SDL_SCANCODE_UP])
+            camera.pitch += tools::kLookSpeed * in.dt;
+        if (keys[SDL_SCANCODE_DOWN])
+            camera.pitch -= tools::kLookSpeed * in.dt;
+        camera.pitch =
+            std::clamp(camera.pitch, -render::Camera::kMaxPitch, render::Camera::kMaxPitch);
 
-        scene.begin(camera, {0, 0, 0, 255});   // indoors: no sky
+        scene.begin(camera, {0, 0, 0, 255});  // indoors: no sky
 
         for (const auto& f : map.faces) {
             // Attribute bit 0 marks portals the original engine never drew;
             // drawing them would wall off every room.
-            if (f.invisible() || f.vertex_count < 3) continue;
+            if (f.invisible() || f.vertex_count < 3)
+                continue;
 
-            const render::Vec3 n =
-                render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
+            const render::Vec3 n = render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
             float lambert = std::abs(render::dot(n, lamp));
             lambert = std::clamp(lambert, 0.0f, 1.0f) * 0.7f + 0.3f;
 
             const render::Texture& tex = cache.bitmap(f.texture_name);
-            const float inv_w = tex.width() > 0
-                ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
-            const float inv_h = tex.height() > 0
-                ? 1.0f / static_cast<float>(tex.height()) : 0.0f;
+            const float inv_w = tex.width() > 0 ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
+            const float inv_h = tex.height() > 0 ? 1.0f / static_cast<float>(tex.height()) : 0.0f;
 
             for (std::size_t k = 1; k + 1 < f.vertex_count; ++k) {
                 const std::size_t idx[3] = {0, k, k + 1};
@@ -269,31 +274,27 @@ int main(int argc, char** argv) {
                 std::array<render::Vec2, 3> uv{};
                 for (int c = 0; c < 3; ++c) {
                     const auto& v = map.vertices[f.vertex_ids[idx[c]]];
-                    w[static_cast<std::size_t>(c)] =
-                        tools::to_render_space(v.x, v.y, v.z);
-                    uv[static_cast<std::size_t>(c)] = {
-                        static_cast<float>(f.u[idx[c]]) * inv_w,
-                        static_cast<float>(f.v[idx[c]]) * inv_h};
+                    w[static_cast<std::size_t>(c)] = tools::to_render_space(v.x, v.y, v.z);
+                    uv[static_cast<std::size_t>(c)] = {static_cast<float>(f.u[idx[c]]) * inv_w,
+                                                       static_cast<float>(f.v[idx[c]]) * inv_h};
                 }
                 // Faces are one-sided in the data, but the axis swap mirrors
                 // screen winding, so let the z-buffer sort them out.
-                scene.draw_triangle(w, uv, lambert, tex, render::WrapMode::Repeat,
-                                    false);
+                scene.draw_triangle(w, uv, lambert, tex, render::WrapMode::Repeat, false);
             }
         }
 
         // Decorations: torches, braziers and barrels standing in the level.
         for (const auto& d : decorations) {
             const render::Texture& tex = cache.sprite(d.name);
-            if (tex.empty()) continue;
+            if (tex.empty())
+                continue;
             scene.draw_billboard(tools::to_render_space(d.x, d.y, d.z),
                                  static_cast<float>(tex.width()) * kSpriteScale,
-                                 static_cast<float>(tex.height()) * kSpriteScale,
-                                 tex);
+                                 static_cast<float>(tex.height()) * kSpriteScale, tex);
         }
 
-        SDL_UpdateTexture(screen, nullptr, scene.framebuffer().color().data(),
-                          kWidth * 4);
+        SDL_UpdateTexture(screen, nullptr, scene.framebuffer().color().data(), kWidth * 4);
         SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
         SDL_RenderClear(sdl_renderer);
         SDL_RenderTexture(sdl_renderer, screen, nullptr, nullptr);

@@ -11,13 +11,13 @@ namespace {
 // IMA/DVI ADPCM reconstruction tables. These are the published constants of
 // the IMA standard, not anything specific to this game.
 constexpr std::array<int, 89> kStepTable = {
-    7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41,
-    45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209,
-    230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876,
-    963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749,
-    3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630,
-    9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623,
-    27086, 29794, 32767,
+    7,     8,     9,     10,    11,    12,    13,    14,    16,    17,    19,    21,    23,
+    25,    28,    31,    34,    37,    41,    45,    50,    55,    60,    66,    73,    80,
+    88,    97,    107,   118,   130,   143,   157,   173,   190,   209,   230,   253,   279,
+    307,   337,   371,   408,   449,   494,   544,   598,   658,   724,   796,   876,   963,
+    1060,  1166,  1282,  1411,  1552,  1707,  1878,  2066,  2272,  2499,  2749,  3024,  3327,
+    3660,  4026,  4428,  4871,  5358,  5894,  6484,  7132,  7845,  8630,  9493,  10442, 11487,
+    12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767,
 };
 
 constexpr std::array<int, 16> kIndexTable = {
@@ -36,9 +36,12 @@ struct AdpcmState {
     // The magnitude is built from the nibble's three low bits, with the usual
     // step/8 rounding term.
     int diff = step >> 3;
-    if ((nibble & 1) != 0) diff += step >> 2;
-    if ((nibble & 2) != 0) diff += step >> 1;
-    if ((nibble & 4) != 0) diff += step;
+    if ((nibble & 1) != 0)
+        diff += step >> 2;
+    if ((nibble & 2) != 0)
+        diff += step >> 1;
+    if ((nibble & 4) != 0)
+        diff += step;
     if ((nibble & 8) != 0) {
         s.predictor -= diff;
     } else {
@@ -51,8 +54,7 @@ struct AdpcmState {
 }
 
 [[nodiscard]] std::uint32_t u32_at(std::span<const std::uint8_t> d, std::size_t o) {
-    return static_cast<std::uint32_t>(d[o]) |
-           (static_cast<std::uint32_t>(d[o + 1]) << 8) |
+    return static_cast<std::uint32_t>(d[o]) | (static_cast<std::uint32_t>(d[o + 1]) << 8) |
            (static_cast<std::uint32_t>(d[o + 2]) << 16) |
            (static_cast<std::uint32_t>(d[o + 3]) << 24);
 }
@@ -67,8 +69,7 @@ WavError decode_wav(std::span<const std::uint8_t> data, WavAudio& out) {
     out = WavAudio{};
 
     constexpr std::size_t kRiffHeader = 12;
-    if (data.size() < kRiffHeader ||
-        std::memcmp(data.data(), "RIFF", 4) != 0 ||
+    if (data.size() < kRiffHeader || std::memcmp(data.data(), "RIFF", 4) != 0 ||
         std::memcmp(data.data() + 8, "WAVE", 4) != 0) {
         return WavError::NotWave;
     }
@@ -174,8 +175,7 @@ WavError decode_wav(std::span<const std::uint8_t> data, WavAudio& out) {
         const std::size_t groups = (avail - header_bytes) / group_bytes;
         for (std::size_t g = 0; g < groups; ++g) {
             for (std::uint16_t c = 0; c < channels; ++c) {
-                const std::size_t o =
-                    base + header_bytes + (g * channels + c) * std::size_t{4};
+                const std::size_t o = base + header_bytes + (g * channels + c) * std::size_t{4};
                 for (std::size_t k = 0; k < 4; ++k) {
                     const std::uint8_t byte = payload[o + k];
                     // Two samples per byte; interleaving is restored below.
@@ -189,19 +189,18 @@ WavError decode_wav(std::span<const std::uint8_t> data, WavAudio& out) {
     // For stereo the loop above emits eight samples of one channel before the
     // other's; re-interleave so callers see L,R,L,R.
     if (channels == 2) {
-        const std::size_t per_block_samples =
-            1 + (nibble_bytes / group_bytes) * std::size_t{8};
+        const std::size_t per_block_samples = 1 + (nibble_bytes / group_bytes) * std::size_t{8};
         std::vector<std::int16_t> fixed;
         fixed.reserve(out.samples.size());
         const std::size_t block_samples = per_block_samples * 2;
-        for (std::size_t b = 0; b + block_samples <= out.samples.size();
-             b += block_samples) {
+        for (std::size_t b = 0; b + block_samples <= out.samples.size(); b += block_samples) {
             for (std::size_t i = 0; i < per_block_samples; ++i) {
                 // Channel 0's run starts after the two leading predictors.
                 const std::size_t left = (i == 0) ? b : b + 2 + (i - 1);
                 const std::size_t right =
                     (i == 0) ? b + 1 : b + 2 + (per_block_samples - 1) + (i - 1);
-                if (right >= out.samples.size()) break;
+                if (right >= out.samples.size())
+                    break;
                 fixed.push_back(out.samples[left]);
                 fixed.push_back(out.samples[right]);
             }
@@ -212,8 +211,7 @@ WavError decode_wav(std::span<const std::uint8_t> data, WavAudio& out) {
     // Trim the block padding. Across MM6's 1,526 sounds the decoded length
     // always lands within seven frames above this figure, never below it.
     if (have_fact) {
-        const std::size_t exact =
-            static_cast<std::size_t>(fact_frames) * channels;
+        const std::size_t exact = static_cast<std::size_t>(fact_frames) * channels;
         if (exact <= out.samples.size()) {
             out.samples.resize(exact);
         }

@@ -35,8 +35,8 @@ public:
     // Returns false and leaves `out` empty on any mismatch. Texture data comes
     // from parsed archive entries, so a malformed or truncated entry must fail
     // here rather than produce an object whose sampler reads out of bounds.
-    [[nodiscard]] static bool create(int width, int height,
-                                     std::vector<std::uint8_t> rgba, Texture& out);
+    [[nodiscard]] static bool create(int width, int height, std::vector<std::uint8_t> rgba,
+                                     Texture& out);
 
     [[nodiscard]] int width() const noexcept { return width_; }
     [[nodiscard]] int height() const noexcept { return height_; }

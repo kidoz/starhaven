@@ -28,8 +28,7 @@ enum class PaletteError {
 // tail of any image entry whose palette follows its pixel data. The palette is
 // read from offset `header + dataSize`.
 [[nodiscard]] PaletteError extract_palette(std::span<const std::byte> entry,
-                                            std::uint32_t data_offset,
-                                            Palette& out);
+                                           std::uint32_t data_offset, Palette& out);
 
 // Build the palette-only `palXXX` entry name from a numeric palette id, e.g.
 // paletteId 2 -> "pal002". Used to look up a sprite's shared palette.

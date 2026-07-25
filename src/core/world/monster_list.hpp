@@ -22,13 +22,12 @@ enum class MonsterAnimation : std::uint8_t {
     Count,
 };
 
-constexpr std::size_t kMonsterAnimationCount =
-    static_cast<std::size_t>(MonsterAnimation::Count);
+constexpr std::size_t kMonsterAnimationCount = static_cast<std::size_t>(MonsterAnimation::Count);
 
 // One row of the global monster table (`DMONLIST.BIN`).
 // See docs/formats/dmonlist.md.
 struct MonsterListEntry {
-    std::string name;   // e.g. "ArcherA", "PeasantF1B"
+    std::string name;  // e.g. "ArcherA", "PeasantF1B"
 
     // Sprite base names, one per animation. A base name is completed with a
     // view-direction digit: "PFEMSTA" plus 0..4 selects the SPRITES.LOD entry.
@@ -52,13 +51,10 @@ public:
     MonsterList() = default;
 
     // `entry` is the raw stored bytes of the archive's DMONLIST.BIN entry.
-    [[nodiscard]] static MonsterListError parse(std::span<const std::byte> entry,
-                                                MonsterList& out);
+    [[nodiscard]] static MonsterListError parse(std::span<const std::byte> entry, MonsterList& out);
 
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
-    [[nodiscard]] const std::vector<MonsterListEntry>& entries() const noexcept {
-        return entries_;
-    }
+    [[nodiscard]] const std::vector<MonsterListEntry>& entries() const noexcept { return entries_; }
 
     // Resolve a monster id; nullptr when the table is shorter than the id,
     // which malformed or truncated data can produce.

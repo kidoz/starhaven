@@ -13,11 +13,11 @@ namespace starhaven::lod {
 // The resource-archive variants distinguishable from the header. Only the MM6
 // standard format is parsed today; other variants are reported explicitly.
 enum class LodKind {
-    Bitmaps,   // lod_type "bitmaps" — BMP/PCX images and palettes
-    Sprites,   // lod_type "sprites"
-    Icons,     // lod_type "icons"
-    Game,      // lod_type "game" — Games.lod live-game-data (NOT yet supported)
-    Unknown,   // any other lod_type
+    Bitmaps,  // lod_type "bitmaps" — BMP/PCX images and palettes
+    Sprites,  // lod_type "sprites"
+    Icons,    // lod_type "icons"
+    Game,     // lod_type "game" — Games.lod live-game-data (NOT yet supported)
+    Unknown,  // any other lod_type
 };
 
 // Outcome of parsing an archive. Callers convert these into user-facing text;
@@ -54,7 +54,7 @@ struct LodEntry {
     std::uint64_t data_offset = 0;  // absolute file offset of the stored bytes
     std::uint32_t stored_size = 0;  // bytes occupied in the file
     std::uint32_t unpacked_size = 0;
-    bool uncompressed = true;       // unpacked_size == 0
+    bool uncompressed = true;  // unpacked_size == 0
 };
 
 // Parsed view of a standard MM6 `.LOD` archive. Holds an in-memory copy of the
@@ -65,12 +65,10 @@ public:
     LodArchive() = default;
 
     // Parse a file from disk. Returns the error (None on success).
-    [[nodiscard]] static LodError open(const std::filesystem::path& path,
-                                       LodArchive& out);
+    [[nodiscard]] static LodError open(const std::filesystem::path& path, LodArchive& out);
 
     // Parse an in-memory buffer (used by tests with synthetic fixtures).
-    [[nodiscard]] static LodError parse(std::vector<std::byte> data,
-                                        LodArchive& out);
+    [[nodiscard]] static LodError parse(std::vector<std::byte> data, LodArchive& out);
 
     [[nodiscard]] LodKind kind() const noexcept { return kind_; }
     [[nodiscard]] const std::string& version() const noexcept { return version_; }

@@ -47,12 +47,10 @@ class SndArchive {
 public:
     SndArchive() = default;
 
-    [[nodiscard]] static SndError open(const std::filesystem::path& path,
-                                       SndArchive& out);
+    [[nodiscard]] static SndError open(const std::filesystem::path& path, SndArchive& out);
 
     // Parse a directory from memory (used by tests with synthetic fixtures).
-    [[nodiscard]] static SndError parse(std::vector<std::byte> data,
-                                        SndArchive& out);
+    [[nodiscard]] static SndError parse(std::vector<std::byte> data, SndArchive& out);
 
     [[nodiscard]] const std::vector<SndEntry>& entries() const noexcept { return entries_; }
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }

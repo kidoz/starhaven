@@ -112,11 +112,9 @@ namespace {
 constexpr std::uint32_t kHeightmapOff = 0xB0;
 constexpr std::uint32_t kTilemapOff = 0x40B0;  // kHeightmapOff + 16384
 
-[[nodiscard]] OdmError copy_grid(const std::vector<std::uint8_t>& payload,
-                                 std::uint32_t offset,
+[[nodiscard]] OdmError copy_grid(const std::vector<std::uint8_t>& payload, std::uint32_t offset,
                                  std::array<std::uint8_t, OdmTerrain::kGridBytes>& out) {
-    const std::uint64_t end =
-        static_cast<std::uint64_t>(offset) + OdmTerrain::kGridBytes;
+    const std::uint64_t end = static_cast<std::uint64_t>(offset) + OdmTerrain::kGridBytes;
     if (payload.size() < end) {
         return OdmError::HeaderTooSmall;  // payload too short for this grid
     }
@@ -128,15 +126,14 @@ constexpr std::uint32_t kTilemapOff = 0x40B0;  // kHeightmapOff + 16384
 
 OdmError extract_terrain(const OdmMap& map, OdmTerrain& out) {
     out = OdmTerrain{};
-    if (OdmError e = copy_grid(map.payload, kHeightmapOff, out.heightmap);
-        e != OdmError::None) {
+    if (OdmError e = copy_grid(map.payload, kHeightmapOff, out.heightmap); e != OdmError::None) {
         return e;
     }
     return copy_grid(map.payload, kTilemapOff, out.tilemap);
 }
 
-OdmError parse_odm_terrain(std::span<const std::byte> entry,
-                           OdmMap& map_out, OdmTerrain& terrain_out) {
+OdmError parse_odm_terrain(std::span<const std::byte> entry, OdmMap& map_out,
+                           OdmTerrain& terrain_out) {
     if (OdmError e = parse_odm(entry, map_out); e != OdmError::None) {
         return e;
     }
@@ -153,15 +150,14 @@ OdmError extract_models(const OdmMap& map, std::vector<OdmModel>& out) {
         return OdmError::HeaderTooSmall;
     }
 
-    io::ByteReader r{std::span<const std::byte>{
-        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
     r.seek(kModelCountOffset);
     const std::uint32_t count = r.read_u32_le();
 
     // The whole model array must fit.
-    const std::uint64_t array_end =
-        static_cast<std::uint64_t>(kModelCountOffset) + 4 +
-        static_cast<std::uint64_t>(count) * kModelRecordSize;
+    const std::uint64_t array_end = static_cast<std::uint64_t>(kModelCountOffset) + 4 +
+                                    static_cast<std::uint64_t>(count) * kModelRecordSize;
     if (array_end > p.size()) {
         return OdmError::HeaderTooSmall;
     }
@@ -197,8 +193,7 @@ OdmError extract_models(const OdmMap& map, std::vector<OdmModel>& out) {
 
 // --- Model mesh vertices ---------------------------------------------------
 
-bool model_vertex_count(const OdmMap& map, std::size_t model_index,
-                        std::uint32_t& out) {
+bool model_vertex_count(const OdmMap& map, std::size_t model_index, std::uint32_t& out) {
     out = 0;
     if (map.payload.size() < kModelCountOffset + 4) {
         return false;
@@ -222,8 +217,7 @@ bool model_vertex_count(const OdmMap& map, std::size_t model_index,
     return true;
 }
 
-OdmError extract_first_model_vertices(const OdmMap& map,
-                                      std::vector<OdmModelVertex>& out) {
+OdmError extract_first_model_vertices(const OdmMap& map, std::vector<OdmModelVertex>& out) {
     out.clear();
 
     std::vector<OdmModel> models;
@@ -241,10 +235,9 @@ OdmError extract_first_model_vertices(const OdmMap& map,
 
     // Geometry section starts right after the model array.
     const std::uint64_t geo_start =
-        kModelCountOffset + 4 +
-        static_cast<std::uint64_t>(models.size()) * kModelRecordSize;
-    const std::uint64_t verts_end = geo_start +
-        static_cast<std::uint64_t>(vcount) * kModelVertexSize;
+        kModelCountOffset + 4 + static_cast<std::uint64_t>(models.size()) * kModelRecordSize;
+    const std::uint64_t verts_end =
+        geo_start + static_cast<std::uint64_t>(vcount) * kModelVertexSize;
     if (verts_end > map.payload.size()) {
         return OdmError::HeaderTooSmall;
     }
@@ -268,24 +261,26 @@ OdmError extract_first_model_vertices(const OdmMap& map,
 namespace {
 
 // Field offsets within a 308-byte facet record (docs/formats/odm-model-facets.md).
-constexpr std::uint32_t kFacetPlaneOff = 0x00;      // 4 x i32, 16.16 fixed point
-constexpr std::uint32_t kFacetAttributesOff = 0x1C;  // u32 bit flags
-constexpr std::uint32_t kFacetVertexIdsOff = 0x20;   // u16[20]
-constexpr std::uint32_t kFacetUOff = 0x48;           // i16[20]
-constexpr std::uint32_t kFacetVOff = 0x70;           // i16[20]
+constexpr std::uint32_t kFacetPlaneOff = 0x00;         // 4 x i32, 16.16 fixed point
+constexpr std::uint32_t kFacetAttributesOff = 0x1C;    // u32 bit flags
+constexpr std::uint32_t kFacetVertexIdsOff = 0x20;     // u16[20]
+constexpr std::uint32_t kFacetUOff = 0x48;             // i16[20]
+constexpr std::uint32_t kFacetVOff = 0x70;             // i16[20]
 constexpr std::uint32_t kFacetVertexCountOff = 0x12E;  // u8
 
 // Read a model record's three geometry counts. Returns false if the record
 // does not fit in the payload.
 [[nodiscard]] bool read_model_counts(io::ByteReader& r, std::uint64_t record_off,
-                                     std::uint32_t& vertex_count,
-                                     std::uint32_t& facet_count,
+                                     std::uint32_t& vertex_count, std::uint32_t& facet_count,
                                      std::uint32_t& bsp_node_count) {
-    if (!r.seek(static_cast<std::size_t>(record_off + 0x44))) return false;
+    if (!r.seek(static_cast<std::size_t>(record_off + 0x44)))
+        return false;
     vertex_count = r.read_u32_le();
-    if (!r.seek(static_cast<std::size_t>(record_off + 0x4C))) return false;
+    if (!r.seek(static_cast<std::size_t>(record_off + 0x4C)))
+        return false;
     facet_count = r.read_u32_le();
-    if (!r.seek(static_cast<std::size_t>(record_off + 0x5C))) return false;
+    if (!r.seek(static_cast<std::size_t>(record_off + 0x5C)))
+        return false;
     bsp_node_count = r.read_u32_le();
     return r.ok();
 }
@@ -300,16 +295,15 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
         return OdmError::HeaderTooSmall;
     }
 
-    io::ByteReader r{std::span<const std::byte>{
-        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
     if (!r.seek(kModelCountOffset)) {
         return OdmError::HeaderTooSmall;
     }
     const std::uint32_t model_count = r.read_u32_le();
 
-    const std::uint64_t array_end =
-        static_cast<std::uint64_t>(kModelCountOffset) + 4 +
-        static_cast<std::uint64_t>(model_count) * kModelRecordSize;
+    const std::uint64_t array_end = static_cast<std::uint64_t>(kModelCountOffset) + 4 +
+                                    static_cast<std::uint64_t>(model_count) * kModelRecordSize;
     if (array_end > p.size()) {
         return OdmError::HeaderTooSmall;
     }
@@ -325,8 +319,7 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
         std::uint32_t vertex_count = 0;
         std::uint32_t facet_count = 0;
         std::uint32_t bsp_node_count = 0;
-        if (!read_model_counts(r, record_off, vertex_count, facet_count,
-                               bsp_node_count)) {
+        if (!read_model_counts(r, record_off, vertex_count, facet_count, bsp_node_count)) {
             return OdmError::HeaderTooSmall;
         }
 
@@ -356,8 +349,8 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
         OdmModelMesh mesh;
         mesh.vertices.reserve(vertex_count);
         for (std::uint32_t vi = 0; vi < vertex_count; ++vi) {
-            if (!r.seek(static_cast<std::size_t>(
-                    verts_off + static_cast<std::uint64_t>(vi) * kModelVertexSize))) {
+            if (!r.seek(static_cast<std::size_t>(verts_off + static_cast<std::uint64_t>(vi) *
+                                                                 kModelVertexSize))) {
                 return OdmError::HeaderTooSmall;
             }
             OdmModelVertex v;
@@ -369,8 +362,8 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
 
         mesh.facets.reserve(facet_count);
         for (std::uint32_t fi = 0; fi < facet_count; ++fi) {
-            const std::uint64_t base = facets_off +
-                static_cast<std::uint64_t>(fi) * kModelFacetSize;
+            const std::uint64_t base =
+                facets_off + static_cast<std::uint64_t>(fi) * kModelFacetSize;
             OdmModelFacet f;
 
             if (!r.seek(static_cast<std::size_t>(base + kFacetPlaneOff))) {
@@ -423,8 +416,8 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
                 }
             }
 
-            if (!r.seek(static_cast<std::size_t>(
-                    names_off + static_cast<std::uint64_t>(fi) * kFacetTextureNameSize))) {
+            if (!r.seek(static_cast<std::size_t>(names_off + static_cast<std::uint64_t>(fi) *
+                                                                 kFacetTextureNameSize))) {
                 return OdmError::HeaderTooSmall;
             }
             // The field is reused memory: many entries carry stale bytes after
@@ -454,16 +447,15 @@ OdmError model_geometry_end(const OdmMap& map, std::uint64_t& out) {
     if (p.size() < kModelCountOffset + 4) {
         return OdmError::HeaderTooSmall;
     }
-    io::ByteReader r{std::span<const std::byte>{
-        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
     if (!r.seek(kModelCountOffset)) {
         return OdmError::HeaderTooSmall;
     }
     const std::uint32_t model_count = r.read_u32_le();
 
-    std::uint64_t cursor =
-        static_cast<std::uint64_t>(kModelCountOffset) + 4 +
-        static_cast<std::uint64_t>(model_count) * kModelRecordSize;
+    std::uint64_t cursor = static_cast<std::uint64_t>(kModelCountOffset) + 4 +
+                           static_cast<std::uint64_t>(model_count) * kModelRecordSize;
     if (cursor > p.size()) {
         return OdmError::HeaderTooSmall;
     }
@@ -503,8 +495,8 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
     if (start + 4 > p.size()) {
         return OdmError::HeaderTooSmall;
     }
-    io::ByteReader r{std::span<const std::byte>{
-        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
     if (!r.seek(static_cast<std::size_t>(start))) {
         return OdmError::HeaderTooSmall;
     }
@@ -515,10 +507,8 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
 
     // A record array and a parallel name array, both `count` long.
     const std::uint64_t records = start + 4;
-    const std::uint64_t names =
-        records + static_cast<std::uint64_t>(count) * kDecorationRecordSize;
-    const std::uint64_t end =
-        names + static_cast<std::uint64_t>(count) * kDecorationNameSize;
+    const std::uint64_t names = records + static_cast<std::uint64_t>(count) * kDecorationRecordSize;
+    const std::uint64_t end = names + static_cast<std::uint64_t>(count) * kDecorationNameSize;
     if (end > p.size()) {
         return OdmError::HeaderTooSmall;
     }
@@ -526,8 +516,8 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
     out.reserve(count);
     for (std::uint32_t i = 0; i < count; ++i) {
         OdmDecoration d;
-        if (!r.seek(static_cast<std::size_t>(
-                records + static_cast<std::uint64_t>(i) * kDecorationRecordSize))) {
+        if (!r.seek(static_cast<std::size_t>(records + static_cast<std::uint64_t>(i) *
+                                                           kDecorationRecordSize))) {
             return OdmError::HeaderTooSmall;
         }
         d.kind = r.read_u32_le();
@@ -535,8 +525,8 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
         d.y = r.read_i32_le();
         d.z = r.read_i32_le();
 
-        if (!r.seek(static_cast<std::size_t>(
-                names + static_cast<std::uint64_t>(i) * kDecorationNameSize))) {
+        if (!r.seek(static_cast<std::size_t>(names + static_cast<std::uint64_t>(i) *
+                                                         kDecorationNameSize))) {
             return OdmError::HeaderTooSmall;
         }
         if (!r.read_fixed_string(kDecorationNameSize, d.name)) {

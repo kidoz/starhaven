@@ -34,8 +34,7 @@ enum class SmackerError {
 // `overrun`, so a malformed stream terminates decoding instead of looping.
 class BitReader {
 public:
-    BitReader(std::span<const std::byte> data) noexcept
-        : data_(data), max_bits_(data.size() * 8) {}
+    BitReader(std::span<const std::byte> data) noexcept : data_(data), max_bits_(data.size() * 8) {}
 
     [[nodiscard]] bool read_bit() noexcept;
     [[nodiscard]] std::uint32_t read_bits(int count) noexcept;
@@ -63,12 +62,12 @@ enum class YScale {
 // Static properties of a loaded video.
 struct SmackerInfo {
     std::uint32_t width = 0;
-    std::uint32_t height = 0;   // output height, after any vertical scaling
+    std::uint32_t height = 0;       // output height, after any vertical scaling
     std::uint32_t frame_count = 0;  // playable frames, excluding any ring frame
     double fps = 0.0;
-    bool version4 = false;      // "SMK4" rather than "SMK2"
-    bool has_audio = false;     // audio tracks are present but not decoded
-    bool ring_frame = false;    // a trailing frame exists for seamless looping
+    bool version4 = false;    // "SMK4" rather than "SMK2"
+    bool has_audio = false;   // audio tracks are present but not decoded
+    bool ring_frame = false;  // a trailing frame exists for seamless looping
     YScale y_scale = YScale::None;
 };
 
@@ -77,8 +76,8 @@ struct SmackerAudioInfo {
     bool present = false;
     bool stereo = false;
     bool is_16bit = false;
-    bool compressed = false;   // DPCM rather than raw PCM
-    bool bink_audio = false;   // a different codec; not decoded here
+    bool compressed = false;  // DPCM rather than raw PCM
+    bool bink_audio = false;  // a different codec; not decoded here
     std::uint32_t sample_rate = 0;
 };
 
@@ -109,8 +108,7 @@ public:
 
     // Load a whole `.smk` file. The bytes are copied, so `data` need not
     // outlive the decoder.
-    [[nodiscard]] static SmackerError load(std::span<const std::byte> data,
-                                           SmackerDecoder& out);
+    [[nodiscard]] static SmackerError load(std::span<const std::byte> data, SmackerDecoder& out);
 
     [[nodiscard]] const SmackerInfo& info() const noexcept { return info_; }
 
@@ -170,8 +168,8 @@ private:
     void decode_palette(std::span<const std::byte> data);
 
     void fill_block(std::uint32_t x, std::uint32_t y, std::uint8_t color);
-    void mono_block(std::uint32_t x, std::uint32_t y, std::uint8_t c0,
-                    std::uint8_t c1, std::uint16_t bitmap);
+    void mono_block(std::uint32_t x, std::uint32_t y, std::uint8_t c0, std::uint8_t c1,
+                    std::uint16_t bitmap);
     void full_block(BitReader& bits, std::uint32_t x, std::uint32_t y);
     void put_pixel(std::uint32_t x, std::uint32_t y, std::uint8_t color);
 
@@ -179,12 +177,12 @@ private:
     SmackerInfo info_{};
     std::vector<std::byte> data_;
 
-    std::vector<std::uint32_t> frame_sizes_;   // as stored, flag bits included
+    std::vector<std::uint32_t> frame_sizes_;  // as stored, flag bits included
     std::vector<std::uint8_t> frame_types_;
     std::vector<std::uint64_t> frame_offsets_;  // frame_count + 1 entries
     std::vector<std::uint32_t> keyframes_;
 
-    std::vector<std::uint8_t> palette_;      // 256 * 3
+    std::vector<std::uint8_t> palette_;       // 256 * 3
     std::vector<std::uint8_t> frame_buffer_;  // width * height, palette indices
     std::vector<std::uint8_t> rgba_;          // width * height * 4
 

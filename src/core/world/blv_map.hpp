@@ -29,9 +29,9 @@ enum class BlvError {
 // The fixed header at the start of the decompressed payload.
 // See docs/formats/blv.md.
 struct BlvHeader {
-    std::uint32_t kind = 0;      // 1 on most levels, 6 on some; meaning unknown
-    std::string name;            // e.g. "Dwarf Hold", "No Name Level"
-    std::string name2;           // e.g. "war1a", "test"
+    std::uint32_t kind = 0;  // 1 on most levels, 6 on some; meaning unknown
+    std::string name;        // e.g. "Dwarf Hold", "No Name Level"
+    std::string name2;       // e.g. "war1a", "test"
 
     // Total bytes of the per-face index-array block. This is a self-check: it
     // must equal sum(vertex_count + 1) * 2 * 6 over all faces.
@@ -82,10 +82,10 @@ struct BlvFace {
 // a face; the shipped maps have far fewer of these than faces, so they are
 // per-face *extra* data rather than a parallel array.
 struct BlvFaceExtra {
-    std::uint16_t face_index = 0;   // always a valid index into `faces`
-    std::uint16_t unknown_14 = 0;   // usually non-zero; multiples of 128 are common
-    std::uint16_t unknown_16 = 0;   // usually non-zero
-    std::uint16_t unknown_1a = 0;   // sparse; non-zero on about 1 record in 6
+    std::uint16_t face_index = 0;  // always a valid index into `faces`
+    std::uint16_t unknown_14 = 0;  // usually non-zero; multiples of 128 are common
+    std::uint16_t unknown_16 = 0;  // usually non-zero
+    std::uint16_t unknown_1a = 0;  // sparse; non-zero on about 1 record in 6
 };
 
 // A parsed `.blv` indoor map.
@@ -105,9 +105,9 @@ struct BlvMap {
 // marker such as the party's start point.
 struct BlvDecoration {
     std::string name;
-    std::uint16_t flags = 0;   // 0 or 1; meaning unknown
+    std::uint16_t flags = 0;  // 0 or 1; meaning unknown
     std::int16_t x = 0, y = 0, z = 0;
-    std::int16_t angle = 0;    // facing; units unconfirmed
+    std::int16_t angle = 0;  // facing; units unconfirmed
 };
 
 // Locate a map's decoration array.
@@ -139,11 +139,11 @@ constexpr std::size_t kBlvDecorationNameSize = 0x16;
 // Layout constants (see docs/formats/blv.md).
 constexpr std::uint32_t kBlvWrapperSize = 8;
 constexpr std::uint32_t kBlvVertexCountOffset = 0x88;
-constexpr std::uint32_t kBlvVertexSize = 6;         // 3 x i16
-constexpr std::uint32_t kBlvFaceSize = 80;          // 0x50
-constexpr std::uint32_t kBlvFaceArrayCount = 6;     // index arrays per face
+constexpr std::uint32_t kBlvVertexSize = 6;      // 3 x i16
+constexpr std::uint32_t kBlvFaceSize = 80;       // 0x50
+constexpr std::uint32_t kBlvFaceArrayCount = 6;  // index arrays per face
 constexpr std::uint32_t kBlvTextureNameSize = 10;
-constexpr std::uint32_t kBlvHeaderSize = 0x8C;      // through the vertex count
+constexpr std::uint32_t kBlvHeaderSize = 0x8C;  // through the vertex count
 
 }  // namespace starhaven::world
 

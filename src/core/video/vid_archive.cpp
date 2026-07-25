@@ -20,15 +20,13 @@ constexpr std::uint32_t kMaxEntries = 65536;
 }
 
 [[nodiscard]] bool iequals(std::string_view a, std::string_view b) noexcept {
-    return a.size() == b.size() &&
-           std::equal(a.begin(), a.end(), b.begin(),
-                      [](char x, char y) { return lower(x) == lower(y); });
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(),
+                                              [](char x, char y) { return lower(x) == lower(y); });
 }
 
 }  // namespace
 
-VidError VidArchive::read_directory(std::span<const std::byte> header,
-                                    std::uint64_t file_size,
+VidError VidArchive::read_directory(std::span<const std::byte> header, std::uint64_t file_size,
                                     std::vector<VidEntry>& out) {
     out.clear();
 
@@ -42,8 +40,7 @@ VidError VidArchive::read_directory(std::span<const std::byte> header,
     }
 
     // The directory must fit in the file, and so must the data it points at.
-    const std::uint64_t dir_end =
-        4 + static_cast<std::uint64_t>(count) * kVidEntrySize;
+    const std::uint64_t dir_end = 4 + static_cast<std::uint64_t>(count) * kVidEntrySize;
     if (dir_end > file_size || dir_end > header.size()) {
         return VidError::BadCount;
     }
@@ -71,8 +68,7 @@ VidError VidArchive::read_directory(std::span<const std::byte> header,
     // Sizes come from the gap to the next entry; the last runs to the file end.
     // Ascending offsets are what makes that derivation sound, so require them.
     for (std::size_t i = 0; i < out.size(); ++i) {
-        const std::uint64_t end =
-            (i + 1 < out.size()) ? out[i + 1].offset : file_size;
+        const std::uint64_t end = (i + 1 < out.size()) ? out[i + 1].offset : file_size;
         if (end < out[i].offset) {
             return VidError::BadOffset;
         }
@@ -112,8 +108,7 @@ VidError VidArchive::open(const std::filesystem::path& path, VidArchive& out) {
     if (count == 0 || count > kMaxEntries) {
         return VidError::BadCount;
     }
-    const std::uint64_t dir_end =
-        4 + static_cast<std::uint64_t>(count) * kVidEntrySize;
+    const std::uint64_t dir_end = 4 + static_cast<std::uint64_t>(count) * kVidEntrySize;
     if (dir_end > file_size) {
         return VidError::BadCount;
     }
@@ -126,8 +121,7 @@ VidError VidArchive::open(const std::filesystem::path& path, VidArchive& out) {
     }
 
     std::vector<VidEntry> entries;
-    if (const VidError e = read_directory(header, file_size, entries);
-        e != VidError::None) {
+    if (const VidError e = read_directory(header, file_size, entries); e != VidError::None) {
         return e;
     }
 
@@ -143,8 +137,7 @@ VidError VidArchive::parse(std::vector<std::byte> data, VidArchive& out) {
     out = VidArchive{};
 
     std::vector<VidEntry> entries;
-    if (const VidError e = read_directory(data, data.size(), entries);
-        e != VidError::None) {
+    if (const VidError e = read_directory(data, data.size(), entries); e != VidError::None) {
         return e;
     }
     out.memory_ = std::move(data);
@@ -186,8 +179,7 @@ bool VidArchive::read(std::size_t index, std::vector<std::byte>& out) {
     out.resize(size);
     file_.clear();  // a previous read may have hit EOF
     file_.seekg(static_cast<std::streamoff>(e.offset), std::ios::beg);
-    if (!file_.read(reinterpret_cast<char*>(out.data()),
-                    static_cast<std::streamsize>(size))) {
+    if (!file_.read(reinterpret_cast<char*>(out.data()), static_cast<std::streamsize>(size))) {
         out.clear();
         return false;
     }

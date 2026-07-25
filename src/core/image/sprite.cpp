@@ -22,8 +22,7 @@ constexpr std::uint32_t kDecompressedOff = 0x1C;
 
 }  // namespace
 
-SpriteError read_sprite_header(std::span<const std::byte> entry,
-                               SpriteHeader& out) {
+SpriteError read_sprite_header(std::span<const std::byte> entry, SpriteHeader& out) {
     out = SpriteHeader{};
 
     if (entry.size() < kSpriteHeaderSize) {
@@ -47,9 +46,8 @@ SpriteError read_sprite_header(std::span<const std::byte> entry,
     }
 
     // The line table must fit, and the total size must be consistent.
-    const std::uint64_t line_table_end =
-        static_cast<std::uint64_t>(kSpriteHeaderSize) +
-        static_cast<std::uint64_t>(out.height) * kSpriteLineSize;
+    const std::uint64_t line_table_end = static_cast<std::uint64_t>(kSpriteHeaderSize) +
+                                         static_cast<std::uint64_t>(out.height) * kSpriteLineSize;
     if (line_table_end > entry.size()) {
         return SpriteError::LineTableTruncated;
     }
@@ -59,9 +57,8 @@ SpriteError read_sprite_header(std::span<const std::byte> entry,
 
     out.lines.reserve(out.height);
     for (std::uint16_t y = 0; y < out.height; ++y) {
-        const std::uint64_t off =
-            static_cast<std::uint64_t>(kSpriteHeaderSize) +
-            static_cast<std::uint64_t>(y) * kSpriteLineSize;
+        const std::uint64_t off = static_cast<std::uint64_t>(kSpriteHeaderSize) +
+                                  static_cast<std::uint64_t>(y) * kSpriteLineSize;
         r.seek(static_cast<std::size_t>(off));
         SpriteLine line;
         // Line record: begin(i16), end(i16), offset(u32) = 8 bytes total.
@@ -74,8 +71,7 @@ SpriteError read_sprite_header(std::span<const std::byte> entry,
     return SpriteError::None;
 }
 
-SpriteError decode_sprite(std::span<const std::byte> entry,
-                          const Palette& palette, Sprite& out) {
+SpriteError decode_sprite(std::span<const std::byte> entry, const Palette& palette, Sprite& out) {
     out = Sprite{};
 
     SpriteHeader h;
@@ -84,9 +80,8 @@ SpriteError decode_sprite(std::span<const std::byte> entry,
     }
 
     // Read the pixel region and obtain decompressed indices.
-    const std::uint64_t pixel_start =
-        static_cast<std::uint64_t>(kSpriteHeaderSize) +
-        static_cast<std::uint64_t>(h.height) * kSpriteLineSize;
+    const std::uint64_t pixel_start = static_cast<std::uint64_t>(kSpriteHeaderSize) +
+                                      static_cast<std::uint64_t>(h.height) * kSpriteLineSize;
     if (pixel_start + h.data_size > entry.size()) {
         return SpriteError::PixelDataTruncated;
     }
@@ -100,8 +95,7 @@ SpriteError decode_sprite(std::span<const std::byte> entry,
             // Allow only if all lines are empty.
         }
         pixels.assign(reinterpret_cast<const std::uint8_t*>(pixel_block.data()),
-                      reinterpret_cast<const std::uint8_t*>(pixel_block.data()) +
-                          h.data_size);
+                      reinterpret_cast<const std::uint8_t*>(pixel_block.data()) + h.data_size);
     } else {
         if (!inflate_all(pixel_block, pixels)) {
             return SpriteError::InflateFailed;
@@ -132,14 +126,12 @@ SpriteError decode_sprite(std::span<const std::byte> entry,
             return SpriteError::LineOutOfBounds;
         }
         for (std::int32_t x = line.begin; x < line.end; ++x) {
-            const std::uint8_t idx =
-                pixels[line.offset + static_cast<std::size_t>(x - line.begin)];
+            const std::uint8_t idx = pixels[line.offset + static_cast<std::size_t>(x - line.begin)];
             if (idx == 0) {
                 continue;  // transparent
             }
             const std::size_t p = static_cast<std::size_t>(idx) * 3;
-            std::uint8_t* px =
-                &out.rgba[(static_cast<std::size_t>(y) * h.width + x) * 4];
+            std::uint8_t* px = &out.rgba[(static_cast<std::size_t>(y) * h.width + x) * 4];
             px[0] = palette.rgb[p + 0];
             px[1] = palette.rgb[p + 1];
             px[2] = palette.rgb[p + 2];

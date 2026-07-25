@@ -11,13 +11,12 @@ constexpr std::uint32_t kPaletteSize = 768;  // 256 * 3
 
 }  // namespace
 
-PaletteError extract_palette(std::span<const std::byte> entry,
-                             std::uint32_t data_offset, Palette& out) {
+PaletteError extract_palette(std::span<const std::byte> entry, std::uint32_t data_offset,
+                             Palette& out) {
     out = Palette{};
 
     const std::uint64_t palette_start = data_offset;
-    const std::uint64_t palette_end =
-        static_cast<std::uint64_t>(palette_start) + kPaletteSize;
+    const std::uint64_t palette_end = static_cast<std::uint64_t>(palette_start) + kPaletteSize;
     if (entry.size() < 48) {
         return PaletteError::TooSmall;
     }

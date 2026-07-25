@@ -27,8 +27,7 @@ TEST_CASE("terrain mesh vertex/triangle counts", "[terrain_mesh]") {
     constexpr int dim = world::OdmTerrain::kGridDim;  // 128
     REQUIRE(mesh.vertices.size() == static_cast<std::size_t>(dim) * dim);
     REQUIRE(mesh.normals.size() == mesh.vertices.size());
-    REQUIRE(mesh.indices.size() ==
-            static_cast<std::size_t>(dim - 1) * (dim - 1) * 6);
+    REQUIRE(mesh.indices.size() == static_cast<std::size_t>(dim - 1) * (dim - 1) * 6);
 }
 
 TEST_CASE("flat terrain has upward normals", "[terrain_mesh]") {
@@ -74,8 +73,8 @@ TEST_CASE("a height step produces a tilted normal", "[terrain_mesh]") {
     const int x = dim / 2 - 1;
     const int y = dim / 2;
     const Vec3& n = mesh.normals[y * dim + x];
-    REQUIRE(n.x < -0.01f);   // clearly negative, leaning away from the ridge
-    REQUIRE(n.y > 0.0f);     // still pointing up
+    REQUIRE(n.x < -0.01f);  // clearly negative, leaning away from the ridge
+    REQUIRE(n.y > 0.0f);    // still pointing up
 }
 
 // --- terrain coloring tests ------------------------------------------------
@@ -128,8 +127,7 @@ TEST_CASE("the default scale spans the full 2^16 MM6 world", "[terrain_mesh]") {
     REQUIRE(max_x - min_x == Approx(static_cast<float>(dim - 1) * 512.0f));
 }
 
-TEST_CASE("triangles wind CW from above so screen-space culling keeps them",
-          "[terrain_mesh]") {
+TEST_CASE("triangles wind CW from above so screen-space culling keeps them", "[terrain_mesh]") {
     // Regression guard. Projection flips Y when mapping NDC to screen rows,
     // and that flip reverses orientation. Emitting world-space CCW here makes
     // every top face arrive at the rasterizer with negative screen area, so
@@ -169,17 +167,14 @@ TEST_CASE("each cell spans exactly one uv unit so Repeat lays one tile per cell"
     auto mesh = build_terrain_mesh(flat_terrain(), {});
     constexpr int dim = world::OdmTerrain::kGridDim;
 
-    const auto at = [&](int x, int y) {
-        return mesh.uvs[static_cast<std::size_t>(y) * dim + x];
-    };
+    const auto at = [&](int x, int y) { return mesh.uvs[static_cast<std::size_t>(y) * dim + x]; };
     for (int cell : {0, 1, 57, dim - 2}) {
         REQUIRE(at(cell + 1, 0).u - at(cell, 0).u == Approx(1.0f));
         REQUIRE(at(0, cell + 1).v - at(0, cell).v == Approx(1.0f));
     }
 }
 
-TEST_CASE("mesh carries one tile id per triangle, two per cell",
-          "[terrain_mesh]") {
+TEST_CASE("mesh carries one tile id per triangle, two per cell", "[terrain_mesh]") {
     world::OdmTerrain t = flat_terrain();
     constexpr int dim = world::OdmTerrain::kGridDim;
     // Give cell (0,0) and cell (3,2) distinctive tile indices.
@@ -191,8 +186,7 @@ TEST_CASE("mesh carries one tile id per triangle, two per cell",
 
     // Cells are emitted row-major, two triangles each.
     const auto cell_tri = [&](int x, int y) {
-        return static_cast<std::size_t>(y) * (dim - 1) * 2 +
-               static_cast<std::size_t>(x) * 2;
+        return static_cast<std::size_t>(y) * (dim - 1) * 2 + static_cast<std::size_t>(x) * 2;
     };
     REQUIRE(mesh.tile_ids[cell_tri(0, 0)] == 90);
     REQUIRE(mesh.tile_ids[cell_tri(0, 0) + 1] == 90);  // both triangles agree
@@ -210,6 +204,6 @@ TEST_CASE("build_terrain_colors yields one color per vertex", "[terrain_mesh]") 
     t.tilemap[dim * dim - 1] = 200;
     auto colors = build_terrain_colors(t);
     REQUIRE(colors.size() == static_cast<std::size_t>(dim) * dim);
-    REQUIRE(colors[0].g > colors[0].b);              // grass
+    REQUIRE(colors[0].g > colors[0].b);                                  // grass
     REQUIRE(colors[colors.size() - 1].b > colors[colors.size() - 1].g);  // water
 }

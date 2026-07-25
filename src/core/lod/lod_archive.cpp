@@ -12,10 +12,10 @@ namespace starhaven::lod {
 namespace {
 
 // Verified layout constants (see docs/formats/lod.md).
-constexpr std::uint32_t kHeaderSize = 288;        // 0x120
+constexpr std::uint32_t kHeaderSize = 288;  // 0x120
 constexpr std::uint32_t kVersionOffset = 4;
 constexpr std::uint32_t kVersionSize = 80;
-constexpr std::uint32_t kLodTypeOffset = 0x100;   // 256
+constexpr std::uint32_t kLodTypeOffset = 0x100;  // 256
 constexpr std::uint32_t kLodTypeSize = 16;
 constexpr std::uint32_t kArchiveStartOffset = 0x110;  // 272
 constexpr std::uint32_t kCountOffset = 0x11C;         // 284
@@ -38,20 +38,21 @@ constexpr std::uint32_t kVersionCodeHeroes3Max = 0xFFFF;
     std::ranges::transform(lod_type, std::back_inserter(lower),
                            [](unsigned char c) { return std::tolower(c); });
 
-    auto starts_with = [&lower](const char* prefix) {
-        return lower.rfind(prefix, 0) == 0;
-    };
-    if (starts_with("bitmaps")) return LodKind::Bitmaps;
-    if (starts_with("sprites")) return LodKind::Sprites;
-    if (starts_with("icons"))   return LodKind::Icons;
-    if (starts_with("game"))    return LodKind::Game;
+    auto starts_with = [&lower](const char* prefix) { return lower.rfind(prefix, 0) == 0; };
+    if (starts_with("bitmaps"))
+        return LodKind::Bitmaps;
+    if (starts_with("sprites"))
+        return LodKind::Sprites;
+    if (starts_with("icons"))
+        return LodKind::Icons;
+    if (starts_with("game"))
+        return LodKind::Game;
     return LodKind::Unknown;
 }
 
 // Read the whole file into memory. MM6 archives are tens of megabytes, which is
 // acceptable for a loader/browser; a streaming variant can come later.
-[[nodiscard]] LodError read_file(const std::filesystem::path& path,
-                                 std::vector<std::byte>& out) {
+[[nodiscard]] LodError read_file(const std::filesystem::path& path, std::vector<std::byte>& out) {
     std::ifstream f(path, std::ios::binary);
     if (!f) {
         return LodError::Io;
@@ -95,8 +96,7 @@ LodError LodArchive::parse_impl() {
     io::ByteReader r{std::span<const std::byte>{data_}};
 
     // Magic "LOD\0".
-    if (r.read_u8() != 'L' || r.read_u8() != 'O' || r.read_u8() != 'D' ||
-        r.read_u8() != 0) {
+    if (r.read_u8() != 'L' || r.read_u8() != 'O' || r.read_u8() != 'D' || r.read_u8() != 0) {
         return LodError::BadMagic;
     }
 
@@ -153,10 +153,8 @@ LodError LodArchive::parse_impl() {
     if (archive_start_ < kHeaderSize || archive_start_ > data_.size()) {
         return LodError::BadArchiveStart;
     }
-    const std::uint64_t dir_bytes =
-        static_cast<std::uint64_t>(count_) * kEntrySize;
-    const std::uint64_t dir_end =
-        static_cast<std::uint64_t>(archive_start_) + dir_bytes;
+    const std::uint64_t dir_bytes = static_cast<std::uint64_t>(count_) * kEntrySize;
+    const std::uint64_t dir_end = static_cast<std::uint64_t>(archive_start_) + dir_bytes;
     if (dir_end > data_.size()) {
         return LodError::CountTooLarge;
     }
@@ -165,7 +163,7 @@ LodError LodArchive::parse_impl() {
     // bitmaps/icons; size_field is a fallback for sprites).
     struct Raw {
         std::string name;
-        std::uint32_t addr;         // relative to archive_start
+        std::uint32_t addr;  // relative to archive_start
         std::uint32_t size_field;
         std::uint32_t unpacked;
     };
@@ -174,8 +172,7 @@ LodError LodArchive::parse_impl() {
 
     for (std::uint16_t i = 0; i < count_; ++i) {
         const std::uint64_t entry_off =
-            static_cast<std::uint64_t>(archive_start_) +
-            static_cast<std::uint64_t>(i) * kEntrySize;
+            static_cast<std::uint64_t>(archive_start_) + static_cast<std::uint64_t>(i) * kEntrySize;
         if (!r.seek(static_cast<std::size_t>(entry_off))) {
             return LodError::CountTooLarge;
         }
@@ -201,8 +198,7 @@ LodError LodArchive::parse_impl() {
     entries_.clear();
     entries_.reserve(raws.size());
     for (const auto& cur : raws) {
-        const std::uint64_t abs_addr =
-            static_cast<std::uint64_t>(archive_start_) + cur.addr;
+        const std::uint64_t abs_addr = static_cast<std::uint64_t>(archive_start_) + cur.addr;
         if (abs_addr > data_.size()) {
             return LodError::EntryOffsetOutOfRange;
         }
@@ -229,9 +225,9 @@ std::optional<LodEntry> LodArchive::find(std::string_view name) const {
         if (e.name.size() != name.size()) {
             return false;
         }
-        return std::ranges::equal(
-            e.name, name,
-            [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+        return std::ranges::equal(e.name, name, [](unsigned char a, unsigned char b) {
+            return std::tolower(a) == std::tolower(b);
+        });
     };
     auto it = std::ranges::find_if(entries_, eq);
     if (it == entries_.end()) {
@@ -253,8 +249,7 @@ LodArchive::PayloadError LodArchive::payload(std::string_view name,
     if (entry->data_offset + entry->stored_size > data_.size()) {
         return PayloadError::OutOfRange;
     }
-    out = std::span<const std::byte>(data_.data() + entry->data_offset,
-                                     entry->stored_size);
+    out = std::span<const std::byte>(data_.data() + entry->data_offset, entry->stored_size);
     return PayloadError::None;
 }
 

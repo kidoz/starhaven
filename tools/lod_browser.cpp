@@ -14,25 +14,31 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage:\n"
-              << "  " << argv0 << " <list|info|extract> <archive.lod> [name]\n"
-              << "\n"
-              << "  list    <archive>          enumerate every entry (name, stored size, compressed?)\n"
-              << "  info    <archive> [name]   show archive header, or one entry's details\n"
-              << "  extract <archive> <name>   write one entry's raw stored bytes to <name>.out\n"
-              << "\n"
-              << "The archive is read from your own legal game install. Set "
-              << starhaven::platform::kInstallEnvVar << " to the install directory,\n"
-              << "or pass the full archive path directly.\n";
+    std::cerr
+        << "Usage:\n"
+        << "  " << argv0 << " <list|info|extract> <archive.lod> [name]\n"
+        << "\n"
+        << "  list    <archive>          enumerate every entry (name, stored size, compressed?)\n"
+        << "  info    <archive> [name]   show archive header, or one entry's details\n"
+        << "  extract <archive> <name>   write one entry's raw stored bytes to <name>.out\n"
+        << "\n"
+        << "The archive is read from your own legal game install. Set "
+        << starhaven::platform::kInstallEnvVar << " to the install directory,\n"
+        << "or pass the full archive path directly.\n";
 }
 
 const char* kind_name(starhaven::lod::LodKind k) {
     switch (k) {
-        case starhaven::lod::LodKind::Bitmaps: return "bitmaps";
-        case starhaven::lod::LodKind::Sprites:  return "sprites";
-        case starhaven::lod::LodKind::Icons:    return "icons";
-        case starhaven::lod::LodKind::Game:     return "game";
-        default:                              return "unknown";
+    case starhaven::lod::LodKind::Bitmaps:
+        return "bitmaps";
+    case starhaven::lod::LodKind::Sprites:
+        return "sprites";
+    case starhaven::lod::LodKind::Icons:
+        return "icons";
+    case starhaven::lod::LodKind::Game:
+        return "game";
+    default:
+        return "unknown";
     }
 }
 
@@ -58,8 +64,7 @@ int do_list_game(const std::filesystem::path& resolved) {
         std::cerr << "error: could not open Games.lod (" << static_cast<int>(e) << ")\n";
         return 1;
     }
-    std::cout << "kind=games version=" << a.version()
-              << " root=" << a.root_name()
+    std::cout << "kind=games version=" << a.version() << " root=" << a.root_name()
               << " entries=" << a.entries().size() << "\n";
     for (const auto& entry : a.entries()) {
         std::cout << "  " << entry.name << "  size=" << entry.data_size << "\n";
@@ -76,10 +81,9 @@ int do_info_game(const std::filesystem::path& resolved, const std::string* name)
         return 1;
     }
     if (name == nullptr) {
-        std::cout << "kind=games version=" << a.version()
-                  << " description=\"" << a.description() << "\""
-                  << " root=" << a.root_name()
-                  << " root_data_offset=" << a.root_data_offset()
+        std::cout << "kind=games version=" << a.version() << " description=\"" << a.description()
+                  << "\""
+                  << " root=" << a.root_name() << " root_data_offset=" << a.root_data_offset()
                   << " count=" << a.num_items() << "\n";
         return 0;
     }
@@ -88,8 +92,7 @@ int do_info_game(const std::filesystem::path& resolved, const std::string* name)
         std::cerr << "error: entry not found: " << *name << "\n";
         return 1;
     }
-    std::cout << "name=" << entry->name
-              << " data_offset=" << entry->data_offset
+    std::cout << "name=" << entry->name << " data_offset=" << entry->data_offset
               << " size=" << entry->data_size << "\n";
     return 0;
 }
@@ -162,16 +165,12 @@ int do_list(const std::string& archive_arg) {
         return 1;
     }
     const auto& entries = a.entries();
-    std::cout << "kind=" << kind_name(a.kind())
-              << " version=" << a.version()
-              << " lod_type=" << a.lod_type()
-              << " entries=" << entries.size() << "\n";
+    std::cout << "kind=" << kind_name(a.kind()) << " version=" << a.version()
+              << " lod_type=" << a.lod_type() << " entries=" << entries.size() << "\n";
     for (const auto& entry : entries) {
-        std::cout << "  " << entry.name
-                  << "  stored=" << entry.stored_size
+        std::cout << "  " << entry.name << "  stored=" << entry.stored_size
                   << "  unpacked=" << entry.unpacked_size
-                  << (entry.uncompressed ? "  [uncompressed]" : "  [compressed]")
-                  << "\n";
+                  << (entry.uncompressed ? "  [uncompressed]" : "  [compressed]") << "\n";
     }
     return 0;
 }
@@ -189,10 +188,8 @@ int do_info(const std::string& archive_arg, const std::string* name) {
         return 1;
     }
     if (name == nullptr) {
-        std::cout << "kind=" << kind_name(a.kind())
-                  << " version=" << a.version()
-                  << " lod_type=" << a.lod_type()
-                  << " archive_start=" << a.archive_start()
+        std::cout << "kind=" << kind_name(a.kind()) << " version=" << a.version()
+                  << " lod_type=" << a.lod_type() << " archive_start=" << a.archive_start()
                   << " count=" << a.count() << "\n";
         return 0;
     }
@@ -201,10 +198,8 @@ int do_info(const std::string& archive_arg, const std::string* name) {
         std::cerr << "error: entry not found: " << *name << "\n";
         return 1;
     }
-    std::cout << "name=" << entry->name
-              << " data_offset=" << entry->data_offset
-              << " stored_size=" << entry->stored_size
-              << " unpacked_size=" << entry->unpacked_size
+    std::cout << "name=" << entry->name << " data_offset=" << entry->data_offset
+              << " stored_size=" << entry->stored_size << " unpacked_size=" << entry->unpacked_size
               << (entry->uncompressed ? " uncompressed" : " compressed") << "\n";
     return 0;
 }
