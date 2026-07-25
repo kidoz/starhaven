@@ -111,5 +111,20 @@ The decoder rejects, deterministically and without reading out of bounds:
 - The `DDECLIST` fields at +0x42/+0x44/+0x48. `unknown`
 - Where the missing sprites live. `unknown`
 - The correct world scale for a decoration sprite. `unknown`
-- The ~100 KB that follows the decoration array in every outdoor payload.
+- The ~110 KB that follows the decoration array in every outdoor payload.
   `unknown`
+
+  Two models are ruled out rather than untried. A **joint stride search** —
+  requiring one sequence of count-prefixed sections to advance all 15 maps from
+  their own start to their own end, over strides 1..256 to depth 10 — finds
+  **nothing**. A **linear model** of the span over the decoration and model
+  counts has no integer solution.
+
+  The reason both fail is visible in the spans themselves: they run 102,888 to
+  116,610 bytes, a spread of 13.3%, across maps whose geometry differs roughly
+  tenfold. **About 103 KB is present regardless of map size and at most 13.7 KB
+  varies**, so the region is dominated by fixed-size structures and cannot be
+  described by count-driven sections at all. `observed`
+
+  The header's three 128×128 grids show the format is willing to store large
+  fixed tables, which is the obvious thing to test next.
