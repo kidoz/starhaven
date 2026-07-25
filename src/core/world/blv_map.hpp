@@ -86,6 +86,11 @@ struct BlvFaceExtra {
     std::uint16_t unknown_14 = 0;  // usually non-zero; multiples of 128 are common
     std::uint16_t unknown_16 = 0;  // usually non-zero
     std::uint16_t unknown_1a = 0;  // sparse; non-zero on about 1 record in 6
+
+    // A 10-byte name, parallel to the extras exactly as face texture names are
+    // parallel to faces. Almost always empty: 12,184 of the 12,198 slots across
+    // the shipped maps carry nothing.
+    std::string name;
 };
 
 // A parsed `.blv` indoor map.
@@ -125,6 +130,7 @@ struct BlvDecoration {
 [[nodiscard]] std::vector<BlvDecoration> find_decorations(const BlvMap& map);
 
 constexpr std::uint32_t kBlvFaceExtraSize = 36;
+constexpr std::uint32_t kBlvFaceExtraNameSize = 10;
 constexpr std::uint32_t kBlvDecorationSize = 32;
 constexpr std::size_t kBlvDecorationNameSize = 0x16;
 

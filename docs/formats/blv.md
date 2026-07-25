@@ -192,6 +192,20 @@ Both invariants — the face index being in range and the `0xffff` marker — ho
 across **all 52 maps and all 35,485 records**, and the parser enforces them.
 The marker is what makes a misaligned read impossible to miss. `observed`
 
+## Face-extra names
+
+The face-extra array is followed by one **10-byte name per extra**, the same
+arrangement faces and their texture names use. `observed`
+
+Almost all are empty: of the 12,198 slots across the shipped maps, 12,184 hold
+nothing, 14 hold printable text (`ca25a_x$`, `li22b_s$`, `no25b_s`,
+`no33c_c`), and **none holds garbage**. That zero-garbage result over 12,198
+slots is what identifies the section — a wrong size or offset would produce
+random bytes almost everywhere.
+
+The names' meaning is `unknown`; their form resembles the game's asset naming
+but they resolve to no archive entry tried so far.
+
 ## Decorations (located by scanning, not by offset)
 
 Somewhere in the tail sits an array of 32-byte decoration records — the placed
@@ -230,13 +244,24 @@ is `unknown`. The API keeps this separate from `parse_blv` for that reason.
   BSP tree, lights and doors. Locating the decoration array by offset rather
   than by scanning depends on these. `unknown`
 
-  Sliding-window stride detection over that region on `D03.blv` (the smallest,
-  15,158 bytes) segments it into four runs: a sparse near-all-zero block, then
-  a **stride-8** run, then a high-entropy run with no stride above noise
+  Sliding-window stride detection over that region on `D03.blv` segments it
+  into a **stride-8** run, a high-entropy run with no stride above noise
   (plausibly a BSP or bit-packed structure), then a **stride-28** run ending at
-  the decorations. Neither a count-prefixed-sections model nor a linear model
-  over the header counts reproduces the region's exact length on all maps, so
-  at least one of those runs is sized by a count read from inside the region.
+  the decorations.
+
+  Three models have now been ruled out rather than merely untried:
+
+  1. **Count-prefixed sections.** Searched exhaustively as stride sequences,
+     jointly across ten maps — every map must advance by the same sequence and
+     land exactly on its own decoration array — to a depth of eight. **No
+     sequence closes**, on ten maps or even on one. So at least one section is
+     not `u32 count` followed by `count × stride`.
+  2. **A linear model** over the header counts, vertex and face counts: fitted
+     exactly on 49 maps, no solution.
+  3. **A leading zero block as empty sections.** This was what defeated the
+     first search attempt, and it turned out not to be a section at all: it is
+     the face-extra name array, now decoded. Finding it moved the boundary
+     forward but did not make the count-prefixed model work for what follows.
 - Whatever follows the decoration array — 32 KB on `d01.blv`, 70 KB on
   `CD1.blv`. `unknown`
 - The header fields at 0x00, 0x6C, 0x70 and 0x74. `unknown`

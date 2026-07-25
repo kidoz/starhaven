@@ -248,7 +248,10 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
     const std::uint64_t extras_start = names_end + 4;
     const std::uint64_t extras_end =
         extras_start + static_cast<std::uint64_t>(extra_count) * kBlvFaceExtraSize;
-    if (extras_end > p.size()) {
+    // Each extra is followed by a 10-byte name, the same arrangement faces use.
+    const std::uint64_t extra_names_end =
+        extras_end + static_cast<std::uint64_t>(extra_count) * kBlvFaceExtraNameSize;
+    if (extra_names_end > p.size()) {
         return BlvError::Truncated;
     }
 
@@ -273,13 +276,21 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
             return BlvError::Truncated;
         }
         e.unknown_1a = r.read_u16_le();
-        out.face_extras.push_back(e);
+
+        if (!r.seek(static_cast<std::size_t>(extras_end + static_cast<std::uint64_t>(i) *
+                                                              kBlvFaceExtraNameSize))) {
+            return BlvError::Truncated;
+        }
+        if (!r.read_fixed_string(kBlvFaceExtraNameSize, e.name)) {
+            return BlvError::Truncated;
+        }
+        out.face_extras.push_back(std::move(e));
     }
     if (!r.ok()) {
         return BlvError::Truncated;
     }
 
-    out.decoded_bytes = extras_end;
+    out.decoded_bytes = extra_names_end;
     return BlvError::None;
 }
 

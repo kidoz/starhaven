@@ -125,6 +125,15 @@ make_payload(const std::vector<std::array<std::int16_t, 3>>& vertices,
         put_u16(0x16, static_cast<std::uint16_t>(tag + 1));
         put_u16(0x1A, static_cast<std::uint16_t>(tag + 2));
     }
+    // One 10-byte name per extra, as faces have.
+    for (std::size_t i = 0; i < extras.size(); ++i) {
+        const std::string nm = (i == 0) ? std::string("extraA") : std::string();
+        const std::size_t base = p.size();
+        p.resize(base + kBlvFaceExtraNameSize, 0);
+        for (std::size_t k = 0; k < nm.size() && k + 1 < kBlvFaceExtraNameSize; ++k) {
+            p[base + k] = static_cast<std::uint8_t>(nm[k]);
+        }
+    }
     return p;
 }
 
@@ -436,11 +445,34 @@ TEST_CASE("a face extra without its 0xffff marker is rejected", "[blv]") {
     // lacking it means the array is being read at the wrong offset.
     const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
     auto payload = make_payload(kSquare, faces, "Test Level", "test", {{0, 5}});
-    // Clear the marker of the first extra: it sits 4 bytes past the count.
-    const std::size_t marker = payload.size() - kBlvFaceExtraSize + 0x0E;
+    // Clear the marker of the first extra. The extras are followed by their
+    // own name array, so count back past that too.
+    const std::size_t marker = payload.size() - kBlvFaceExtraNameSize - kBlvFaceExtraSize + 0x0E;
     payload[marker] = 0;
     payload[marker + 1] = 0;
     auto entry = wrap(payload);
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::BadGeometry);
+}
+
+TEST_CASE("face extras carry a parallel name array", "[blv]") {
+    // The names sit after the whole extra array, not interleaved with it, and
+    // are empty far more often than not.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}, {{0, 1, 2}, 0, "WallB"}};
+    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test", {{1, 10}, {0, 20}}));
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.face_extras.size() == 2);
+    REQUIRE(map.face_extras[0].name == "extraA");
+    REQUIRE(map.face_extras[1].name.empty());
+    REQUIRE(map.decoded_bytes == map.payload.size());
+}
+
+TEST_CASE("a truncated face-extra name array is rejected", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces, "Test Level", "test", {{0, 5}});
+    payload.resize(payload.size() - 4);  // clip the last name
+    auto entry = wrap(payload);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::Truncated);
 }

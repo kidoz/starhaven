@@ -81,7 +81,7 @@ interoperability and compatibility with a legally purchased copy.
   building interiors, against 15 outdoor maps. Decodes the header, the vertex
   array, the 80-byte face records (16.16 plane, attributes, polygon size), the
   variable-length per-face index arrays (vertex ids and texture coordinates)
-  the per-face texture names and the face-extra array. Verified on all 52 maps: 114,833 vertices and
+  the per-face texture names, and the face-extra array with its parallel names. Verified on all 52 maps: 114,833 vertices and
   89,091 faces, rendered in 3D by `walk_blv`. Placed **decorations** (torches,
   barrels, trees, and the party's start point) are located too — by scanning,
   since the sections that would give their offset are still undecoded.
@@ -356,7 +356,8 @@ docs/
 26. ~~Verify the actor position field and map the record's fields.~~ ✓ (this slice)
 27. ~~Share the scene, camera and asset code between the walkers; draw indoor decorations.~~ ✓ (this slice)
 28. ~~Play the installation's MP3 music.~~ ✓ (this slice)
-29. UI and gameplay systems.
+29. ~~Decode the BLV face-extra name array.~~ ✓ (this slice)
+30. UI and gameplay systems.
 
 ## Contributing
 
