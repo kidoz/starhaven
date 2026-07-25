@@ -11,7 +11,9 @@
 
 #include <SDL3/SDL.h>
 
+#include "core/image/bitmap.hpp"
 #include "core/lod/game_lod_archive.hpp"
+#include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/render/math3d.hpp"
 #include "core/render/rasterizer.hpp"
@@ -19,6 +21,7 @@
 #include "core/render/texture.hpp"
 #include "core/render/tile_set.hpp"
 #include "core/world/odm_map.hpp"
+#include "core/world/tile_table.hpp"
 
 namespace {
 
@@ -53,6 +56,68 @@ std::filesystem::path resolve_games_lod() {
 
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
+
+// Populate `out` with the ground textures this map's tilemap actually
+// references. Returns the number of distinct tiles resolved, or -1 if the
+// archives could not be opened.
+//
+// Only the indices present in the tilemap are decoded: the global table has
+// 882 records, of which a single map typically uses fewer than a hundred.
+int load_ground_tiles(const openmm6::world::OdmTerrain& terrain,
+                      openmm6::render::TileSet& out) {
+    namespace lod = openmm6::lod;
+    namespace img = openmm6::image;
+    namespace world = openmm6::world;
+
+    const auto install = openmm6::platform::install_from_env();
+    if (!install) return -1;
+    const std::filesystem::path data = *install / "data";
+
+    lod::LodArchive icons;
+    lod::LodArchive bitmaps;
+    if (lod::LodArchive::open(data / "icons.lod", icons) != lod::LodError::None ||
+        lod::LodArchive::open(data / "BITMAPS.LOD", bitmaps) != lod::LodError::None) {
+        return -1;
+    }
+
+    std::span<const std::byte> dtile;
+    if (icons.payload("DTILE.BIN", dtile) != lod::LodArchive::PayloadError::None) {
+        return -1;
+    }
+    world::TileTable table;
+    if (world::TileTable::parse(dtile, table) != world::TileTableError::None) {
+        return -1;
+    }
+
+    // Distinct indices only; the tilemap is 16384 cells over ~90 tiles.
+    std::array<bool, 256> used{};
+    for (std::uint8_t t : terrain.tilemap) used[t] = true;
+
+    int resolved = 0;
+    for (int i = 0; i < 256; ++i) {
+        if (!used[static_cast<std::size_t>(i)]) continue;
+        const auto* rec = table.at(static_cast<std::uint8_t>(i));
+        // An empty name is a reserved slot, not an error: the shipped table
+        // has more rows than art. Leaving the slot empty makes the rasterizer
+        // skip those triangles rather than draw garbage.
+        if (rec == nullptr || rec->name.empty()) continue;
+
+        std::span<const std::byte> raw;
+        if (bitmaps.payload(rec->name, raw) != lod::LodArchive::PayloadError::None) {
+            continue;
+        }
+        img::Bitmap bmp;
+        if (img::decode_bitmap(raw, bmp) != img::BitmapError::None) continue;
+
+        openmm6::render::Texture tex;
+        if (!openmm6::render::Texture::create(bmp.width, bmp.height,
+                                              std::move(bmp.rgba), tex)) {
+            continue;
+        }
+        if (out.set(static_cast<std::uint8_t>(i), std::move(tex))) ++resolved;
+    }
+    return resolved;
+}
 
 // Transform one world-space vertex through view+projection, then to a screen
 // vertex. Returns false if the vertex is behind the near plane (caller should
@@ -112,11 +177,18 @@ int main(int argc, char** argv) {
 
     const render::TerrainMesh mesh = render::build_terrain_mesh(terrain, {});
 
-    // Generated stand-in ground textures, not MM6 art: the tile-index to
-    // ground-bitmap mapping is still unresolved (docs/rendering/
-    // terrain-coloring.md). Swapping this one line for the real loader is all
-    // that stands between this view and actual game textures.
-    const render::TileSet tiles = render::TileSet::make_placeholder();
+    // Real ground textures, resolved through the chain documented in
+    // docs/formats/dtile.md: tilemap byte -> DTILE.BIN record -> record.name
+    // -> BITMAPS.LOD entry. Falls back to generated placeholders if the
+    // archives are missing, so the viewer still runs on a partial install.
+    render::TileSet tiles;
+    const int loaded = load_ground_tiles(terrain, tiles);
+    if (loaded <= 0) {
+        std::cerr << "note: no ground tiles resolved; using placeholders\n";
+        tiles = render::TileSet::make_placeholder();
+    } else {
+        std::cout << "loaded " << loaded << " ground tile textures\n";
+    }
 
     std::vector<world::OdmModel> models;
     if (world::extract_models(map, models) != world::OdmError::None) {
