@@ -42,6 +42,7 @@ starhaven_core_sources = files(
   'src/core/world/map_event.cpp',
   'src/core/world/tile_table.cpp',
   'src/core/world/monster_list.cpp',
+  'src/core/world/sprite_frame_table.cpp',
   'src/core/world/blv_map.cpp',
   'src/core/world/collision.cpp',
   'src/core/render/rasterizer.cpp',
@@ -154,6 +155,12 @@ executable('ddm_info', 'tools/ddm_info.cpp',
 
 # Data-table inspector: reads the tab-separated design tables in icons.lod.
 executable('data_info', 'tools/data_info.cpp',
+  dependencies : starhaven_dep,
+  install : true,
+)
+
+# Sprite-frame-table inspector: reads DSFT.BIN and verifies its joins.
+executable('sft_info', 'tools/sft_info.cpp',
   dependencies : starhaven_dep,
   install : true,
 )
