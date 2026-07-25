@@ -53,6 +53,16 @@ public:
     }
     void absent_tree() { bit(false); }
 
+    // An audio tree: no presence bit, a dummy in its place, one leaf, then a
+    // terminator. A single leaf decodes to `value` without consuming bits, so
+    // every delta comes out the same and the samples form a ramp.
+    void audio_tree(std::uint8_t value) {
+        bit(false);       // dummy where the presence bit would be
+        bit(false);       // a leaf
+        bits(value, 8);
+        bit(false);       // terminator
+    }
+
     [[nodiscard]] std::vector<std::byte> take() {
         while (bytes_.size() % 4 != 0) {
             bytes_.push_back(std::byte{0});
@@ -64,6 +74,25 @@ private:
     std::vector<std::byte> bytes_;
     std::size_t bit_count_ = 0;
 };
+
+// A compressed audio chunk: unpacked length, flags, trees, bases, deltas.
+std::vector<std::byte> dpcm_chunk(std::uint32_t unpacked, bool stereo,
+                                  const std::vector<std::uint8_t>& deltas,
+                                  const std::vector<std::uint8_t>& bases) {
+    BitWriter w;
+    w.bits(unpacked, 32);
+    w.bit(true);          // data present
+    w.bit(stereo);
+    w.bit(false);         // 8-bit
+    for (std::uint8_t d : deltas) {
+        w.audio_tree(d);
+    }
+    // Bases are written right channel first.
+    for (auto it = bases.rbegin(); it != bases.rend(); ++it) {
+        w.bits(*it, 8);
+    }
+    return w.take();
+}
 
 struct FrameSpec {
     std::uint8_t type = 0;                 // bit 0 = palette record present
@@ -79,6 +108,7 @@ struct VideoSpec {
     std::vector<std::byte> trees;
     std::vector<FrameSpec> frames;
     std::uint32_t audio_size0 = 0;
+    std::uint32_t audio_rate0 = 0;
 };
 
 void put_u32(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
@@ -105,6 +135,7 @@ std::vector<std::byte> make_video(const VideoSpec& spec) {
     put_u32(out, 0x10, static_cast<std::uint32_t>(spec.frame_rate));
     put_u32(out, 0x14, spec.flags);
     put_u32(out, 0x18, spec.audio_size0);
+    put_u32(out, 0x48, spec.audio_rate0);
     put_u32(out, 0x34, static_cast<std::uint32_t>(spec.trees.size()));
     put_u32(out, 0x38, 0);  // mmap size
     put_u32(out, 0x3C, 0);  // mclr size
@@ -407,4 +438,124 @@ TEST_CASE("a truncated frame table is rejected", "[smacker]") {
 
     SmackerDecoder decoder;
     REQUIRE(SmackerDecoder::load(data, decoder) == SmackerError::Truncated);
+}
+
+TEST_CASE("audio track flags are read from the rate word", "[smacker]") {
+    VideoSpec spec;
+    spec.audio_size0 = 4096;
+    // compressed | present | 16-bit | stereo, rate 22050.
+    spec.audio_rate0 = 0x80000000u | 0x40000000u | 0x20000000u | 0x10000000u | 22050u;
+    spec.frames.push_back({0, std::vector<std::byte>(4, std::byte{0})});
+    auto data = make_video(spec);
+
+    SmackerDecoder decoder;
+    REQUIRE(SmackerDecoder::load(data, decoder) == SmackerError::None);
+    const auto info = decoder.audio_info(0);
+    REQUIRE(info.present);
+    REQUIRE(info.compressed);
+    REQUIRE(info.is_16bit);
+    REQUIRE(info.stereo);
+    REQUIRE_FALSE(info.bink_audio);
+    REQUIRE(info.sample_rate == 22050);
+
+    // A track with no declared size is absent whatever the flags say.
+    REQUIRE_FALSE(decoder.audio_info(1).present);
+    REQUIRE_FALSE(decoder.audio_info(99).present);
+}
+
+TEST_CASE("mono DPCM audio decodes to a ramp", "[smacker]") {
+    // One tree holding delta +4: each sample is the previous plus four, in
+    // 8-bit space, widened to 16-bit output.
+    auto chunk = dpcm_chunk(/*unpacked*/ 6, /*stereo*/ false, {4}, {128});
+
+    std::vector<std::byte> payload;
+    const auto total = static_cast<std::uint32_t>(chunk.size() + 4);
+    for (int i = 0; i < 4; ++i) {
+        payload.push_back(static_cast<std::byte>((total >> (8*i)) & 0xFF));
+    }
+    payload.insert(payload.end(), chunk.begin(), chunk.end());
+    while (payload.size() % 4 != 0) payload.push_back(std::byte{0});
+
+    VideoSpec spec;
+    spec.audio_size0 = 64;
+    spec.audio_rate0 = 0x80000000u | 0x40000000u | 22050u;   // mono, 8-bit
+    spec.frames.push_back({2, payload});   // type bit 1 = track 0 audio
+    auto data = make_video(spec);
+
+    SmackerDecoder decoder;
+    REQUIRE(SmackerDecoder::load(data, decoder) == SmackerError::None);
+    SmackerAudioFrame audio;
+    REQUIRE(decoder.decode_audio(0, 0, audio) == SmackerError::None);
+    REQUIRE(audio.channels == 1);
+    REQUIRE(audio.sample_rate == 22050);
+    REQUIRE(audio.samples.size() == 6);
+    // Base 128 is mid-scale, i.e. zero; then +4 per sample, scaled by 256.
+    REQUIRE(audio.samples[0] == 0);
+    REQUIRE(audio.samples[1] == 4 * 256);
+    REQUIRE(audio.samples[2] == 8 * 256);
+    REQUIRE(audio.samples[5] == 20 * 256);
+}
+
+TEST_CASE("stereo DPCM audio interleaves its channels", "[smacker]") {
+    // Two trees: the left channel steps by +1, the right by +2.
+    auto chunk = dpcm_chunk(/*unpacked*/ 8, /*stereo*/ true, {1, 2}, {128, 128});
+
+    std::vector<std::byte> payload;
+    const auto total = static_cast<std::uint32_t>(chunk.size() + 4);
+    for (int i = 0; i < 4; ++i) {
+        payload.push_back(static_cast<std::byte>((total >> (8*i)) & 0xFF));
+    }
+    payload.insert(payload.end(), chunk.begin(), chunk.end());
+    while (payload.size() % 4 != 0) payload.push_back(std::byte{0});
+
+    VideoSpec spec;
+    spec.audio_size0 = 64;
+    spec.audio_rate0 = 0x80000000u | 0x40000000u | 0x10000000u | 22050u;
+    spec.frames.push_back({2, payload});
+    auto data = make_video(spec);
+
+    SmackerDecoder decoder;
+    REQUIRE(SmackerDecoder::load(data, decoder) == SmackerError::None);
+    SmackerAudioFrame audio;
+    REQUIRE(decoder.decode_audio(0, 0, audio) == SmackerError::None);
+    REQUIRE(audio.channels == 2);
+    // The declared length is in bytes: 8 bytes of 8-bit stereo is four frames,
+    // so eight interleaved samples.
+    REQUIRE(audio.samples.size() == 8);
+    REQUIRE(audio.samples[0] == 0);          // left base
+    REQUIRE(audio.samples[1] == 0);          // right base
+    REQUIRE(audio.samples[2] == 1 * 256);    // left + 1
+    REQUIRE(audio.samples[3] == 2 * 256);    // right + 2
+    REQUIRE(audio.samples[4] == 2 * 256);    // left + 1 again
+    REQUIRE(audio.samples[5] == 4 * 256);    // right + 2 again
+    REQUIRE(audio.samples[6] == 3 * 256);
+    REQUIRE(audio.samples[7] == 6 * 256);
+}
+
+TEST_CASE("a frame without audio yields no samples", "[smacker]") {
+    VideoSpec spec;
+    spec.audio_size0 = 64;
+    spec.audio_rate0 = 0x80000000u | 0x40000000u | 22050u;
+    spec.frames.push_back({0, std::vector<std::byte>(4, std::byte{0})});
+    auto data = make_video(spec);
+
+    SmackerDecoder decoder;
+    REQUIRE(SmackerDecoder::load(data, decoder) == SmackerError::None);
+    SmackerAudioFrame audio;
+    REQUIRE(decoder.decode_audio(0, 0, audio) == SmackerError::None);
+    REQUIRE(audio.samples.empty());
+}
+
+TEST_CASE("a Bink-audio track is reported, not guessed at", "[smacker]") {
+    VideoSpec spec;
+    spec.audio_size0 = 64;
+    spec.audio_rate0 = 0x80000000u | 0x40000000u | 0x08000000u | 22050u;
+    spec.frames.push_back({0, std::vector<std::byte>(4, std::byte{0})});
+    auto data = make_video(spec);
+
+    SmackerDecoder decoder;
+    REQUIRE(SmackerDecoder::load(data, decoder) == SmackerError::None);
+    REQUIRE(decoder.audio_info(0).bink_audio);
+    SmackerAudioFrame audio;
+    REQUIRE(decoder.decode_audio(0, 0, audio) == SmackerError::NoAudio);
 }

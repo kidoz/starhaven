@@ -27,6 +27,8 @@ void print_usage(const char* argv0) {
               << "  --frame N          decode a single frame and stop\n"
               << "  --screenshot FILE  write the decoded frame to a PPM and exit\n"
               << "  --scale N          integer window scale (default 2)\n"
+              << "  --mute             do not open an audio device\n"
+              << "  --dump-audio FILE  decode the whole audio track to a WAV\n"
               << "\n"
               << "Controls: SPACE pauses, ESC quits.\n"
               << "\n"
@@ -75,6 +77,8 @@ int main(int argc, char** argv) {
     bool list = false;
     long single_frame = -1;
     int scale = 2;
+    bool mute = false;
+    std::string dump_audio;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -86,6 +90,10 @@ int main(int argc, char** argv) {
             archive_override = argv[++i];
         } else if (a == "--frame" && i + 1 < argc) {
             single_frame = std::strtol(argv[++i], nullptr, 10);
+        } else if (a == "--dump-audio" && i + 1 < argc) {
+            dump_audio = argv[++i];
+        } else if (a == "--mute") {
+            mute = true;
         } else if (a == "--scale" && i + 1 < argc) {
             scale = std::max(1, static_cast<int>(std::strtol(argv[++i], nullptr, 10)));
         } else if (want.empty()) {
@@ -164,7 +172,61 @@ int main(int argc, char** argv) {
     std::cout << want << ": " << info.width << "x" << info.height << ", "
               << info.frame_count << " frames, " << info.fps << " fps"
               << (info.version4 ? ", SMK4" : ", SMK2")
-              << (info.has_audio ? ", has audio (not decoded)" : "") << "\n";
+              << "\n";
+    const video::SmackerAudioInfo track0 = decoder.audio_info(0);
+    if (track0.present) {
+        std::cout << "  audio: " << track0.sample_rate << " Hz, "
+                  << (track0.stereo ? "stereo" : "mono") << ", "
+                  << (track0.is_16bit ? "16-bit" : "8-bit") << ", "
+                  << (track0.compressed ? "DPCM" : "raw")
+                  << (track0.bink_audio ? " (Bink audio: not decoded)" : "")
+                  << "\n";
+    }
+
+    // Decoding the whole track to a WAV makes the audio path checkable
+    // without a sound device, and gives something to listen to elsewhere.
+    if (!dump_audio.empty()) {
+        const video::SmackerAudioInfo track = decoder.audio_info(0);
+        if (!track.present || track.bink_audio) {
+            std::cerr << "error: no decodable audio on track 0\n";
+            return 1;
+        }
+        std::vector<std::int16_t> all;
+        for (std::uint32_t i = 0; i < info.frame_count; ++i) {
+            video::SmackerAudioFrame chunk;
+            if (decoder.decode_audio(i, 0, chunk) != video::SmackerError::None) {
+                continue;
+            }
+            all.insert(all.end(), chunk.samples.begin(), chunk.samples.end());
+        }
+        std::ofstream out(dump_audio, std::ios::binary);
+        if (!out) {
+            std::cerr << "error: could not write " << dump_audio << "\n";
+            return 1;
+        }
+        const std::uint16_t channels = track.stereo ? 2 : 1;
+        const std::uint32_t rate = track.sample_rate;
+        const std::uint32_t data_bytes =
+            static_cast<std::uint32_t>(all.size() * sizeof(std::int16_t));
+        auto u32 = [&](std::uint32_t v) {
+            out.put(static_cast<char>(v & 0xFF));
+            out.put(static_cast<char>((v >> 8) & 0xFF));
+            out.put(static_cast<char>((v >> 16) & 0xFF));
+            out.put(static_cast<char>((v >> 24) & 0xFF));
+        };
+        auto u16 = [&](std::uint16_t v) {
+            out.put(static_cast<char>(v & 0xFF));
+            out.put(static_cast<char>((v >> 8) & 0xFF));
+        };
+        out.write("RIFF", 4); u32(36 + data_bytes); out.write("WAVE", 4);
+        out.write("fmt ", 4); u32(16); u16(1); u16(channels); u32(rate);
+        u32(rate * channels * 2); u16(static_cast<std::uint16_t>(channels * 2)); u16(16);
+        out.write("data", 4); u32(data_bytes);
+        out.write(reinterpret_cast<const char*>(all.data()), data_bytes);
+        std::cout << "wrote " << dump_audio << ": " << all.size() / channels
+                  << " frames, " << rate << " Hz, " << channels << " ch\n";
+        return 0;
+    }
 
     // Single-frame mode needs no window at all.
     if (!screenshot.empty() || single_frame >= 0) {
@@ -184,7 +246,8 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    const bool want_audio = !mute && track0.present && !track0.bink_audio;
+    if (!SDL_Init(SDL_INIT_VIDEO | (want_audio ? SDL_INIT_AUDIO : 0))) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
         return 1;
     }
@@ -196,6 +259,37 @@ int main(int argc, char** argv) {
     SDL_Texture* texture = SDL_CreateTexture(
         renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING,
         static_cast<int>(info.width), static_cast<int>(info.height));
+
+    // One stream fed frame by frame: Smacker interleaves a slice of audio with
+    // every picture, so playback stays in step without a separate clock.
+    SDL_AudioStream* audio = nullptr;
+    if (want_audio) {
+        const SDL_AudioSpec spec{SDL_AUDIO_S16LE,
+                                 track0.stereo ? 2 : 1,
+                                 static_cast<int>(track0.sample_rate)};
+        audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                                          &spec, nullptr, nullptr);
+        if (audio != nullptr) {
+            SDL_ResumeAudioStreamDevice(audio);
+        } else {
+            std::cerr << "note: could not open an audio device: "
+                      << SDL_GetError() << "\n";
+        }
+    }
+
+    // Queue a frame's audio, if any.
+    auto push_audio = [&](std::uint32_t frame) {
+        if (audio == nullptr) return;
+        video::SmackerAudioFrame chunk;
+        if (decoder.decode_audio(frame, 0, chunk) != video::SmackerError::None) {
+            return;
+        }
+        if (chunk.samples.empty()) return;
+        SDL_PutAudioStreamData(
+            audio, chunk.samples.data(),
+            static_cast<int>(chunk.samples.size() * sizeof(std::int16_t)));
+    };
+    push_audio(0);
 
     const double frame_ms = (info.fps > 0.0) ? 1000.0 / info.fps : 100.0;
     std::uint64_t started = SDL_GetTicks();
@@ -236,6 +330,7 @@ int main(int argc, char** argv) {
                 SDL_UpdateTexture(texture, nullptr, rgba.data(),
                                   static_cast<int>(info.width) * 4);
             }
+            push_audio(shown);
         }
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -245,6 +340,9 @@ int main(int argc, char** argv) {
         SDL_Delay(5);
     }
 
+    if (audio != nullptr) {
+        SDL_DestroyAudioStream(audio);
+    }
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

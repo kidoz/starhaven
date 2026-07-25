@@ -14,9 +14,10 @@ videos. The observations below are ours; the layout is public knowledge.
 
 ## Scope
 
-Covers the header, frame tables, palette records, and the block-coded video
-stream — everything needed to render frames. Audio track payloads are located
-and skipped, not decoded: StarHaven has no audio output yet.
+Covers the header, frame tables, palette records, the block-coded video stream,
+and the DPCM audio tracks — everything MM6 uses. The Bink-audio variant some
+Smacker files carry is detected and reported, not decoded; **no MM6 track uses
+it**.
 
 ## Source provenance (non-expressive)
 
@@ -42,7 +43,7 @@ and skipped, not decoded: StarHaven has no audio output yet.
 | 0x3C | 4 | u32 | mclr_size | observed | |
 | 0x40 | 4 | u32 | full_size | observed | |
 | 0x44 | 4 | u32 | type_size | observed | |
-| 0x48 | 28 | u32[7] | audio_rate | observed | sample rate + flags per track |
+| 0x48 | 28 | u32[7] | audio_rate | observed | sample rate + flags per track; see below |
 | 0x64 | 4 | u32 | dummy | unknown | |
 
 ### Frame rate
@@ -82,6 +83,67 @@ error in this format; MM6's `Bank` is 460×344, not 460×688.
 
 Bits 1 and 2 are `inferred` from public documentation: no MM6 video sets
 either, so the vertical-scaling paths are exercised only by synthetic tests.
+
+### Audio track flags
+
+Each `audio_rate` word packs flags above a 24-bit sample rate:
+
+| Bit | Meaning | Status |
+| --- | --- | --- |
+| 31 | compressed (DPCM rather than raw) | inferred |
+| 30 | track present | inferred |
+| 29 | 16-bit samples | observed |
+| 28 | stereo | observed |
+| 27 | Bink audio | inferred |
+| 0–23 | sample rate | observed |
+
+Bits 29 and 28 are `observed` because each compressed chunk **restates them**
+in its own bitstream, which makes the header checkable rather than assumed:
+across all 77 MM6 tracks the header's pair and the chunk's pair agree, with
+zero mismatches.
+
+Bits 31 and 30 are `inferred`: both are set on every MM6 track, so this data
+cannot say which is "compressed" and which is "present". Nothing in the decoder
+depends on telling them apart, since the chunk announces its own compression.
+
+Getting this wrong is easy and quiet. Reading bit 28 as "compressed" — a
+plausible-looking assignment — makes every mono track decode as raw PCM and
+come out as full-scale noise.
+
+MM6's tracks are 64 stereo 8-bit, 7 stereo 16-bit and 6 mono 8-bit, all DPCM
+at 22050 Hz. `observed`
+
+## Audio chunks
+
+A frame's audio chunk begins with a `u32` whose low three bytes are the chunk
+length **including that field**, so the payload is `length - 4` bytes.
+`observed`
+
+A compressed payload is:
+
+| Order | Contents |
+| --- | --- |
+| 1 | `u32` unpacked length, in bytes |
+| 2 | one bit: data present |
+| 3 | one bit: stereo |
+| 4 | one bit: 16-bit |
+| 5 | one 8-bit Huffman tree per byte per channel — two for 16-bit, doubled again for stereo |
+| 6 | base sample per channel, **right channel first** |
+| 7 | the delta stream |
+
+The audio trees are written **without a presence bit**: a dummy bit stands in
+its place. `observed`
+
+Each sample is the previous sample of that channel plus a delta drawn from that
+channel's tree, and the arithmetic **wraps** rather than clamping — 8-bit deltas
+wrap in 8-bit space, 16-bit deltas in 16-bit space. Eight-bit samples are
+unsigned, so 128 is silence. `observed`
+
+Verification without listening: decoded tracks were checked for lag-1 sample
+correlation, which is near 1 for speech and music and near 0 for noise. Of the
+43 tracks above an RMS of 600, 37 exceed 0.9 — the cinematics land at 0.94 to
+0.998. The rest are ambience so quiet that the signal sits at the 8-bit least
+significant bit, where low correlation is expected rather than a fault.
 
 ## Frame tables
 
@@ -188,8 +250,8 @@ were, which is what a run of skip blocks would have done.
 
 ## Open questions
 
-- Audio: both the DPCM tracks and the Bink-audio variant some Smacker files
-  use. MM6 sets audio track sizes on many videos. `unknown`
+- The Bink-audio variant, which no MM6 video uses. `unknown`
+- Which of bits 31 and 30 is "compressed" and which is "present". `unknown`
 - The `dummy` field at 0x64. `unknown`
 - Whether the `mmap_size`/`mclr_size`/`full_size`/`type_size` fields must be
   honored as allocation limits; this decoder bounds tree growth independently.

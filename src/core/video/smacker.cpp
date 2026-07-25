@@ -58,13 +58,19 @@ class ByteTree {
 public:
     // Reads a tree from the bit stream. `present` false means the caller has
     // already established there is no presence bit to consume.
-    [[nodiscard]] bool build(BitReader& bits) {
+    // `with_presence` false is the audio-tree form: a dummy bit stands where
+    // the presence bit would be, and the tree is always present.
+    [[nodiscard]] bool build(BitReader& bits, bool with_presence = true) {
         nodes_.clear();
         size_ = 0;
-        if (!bits.read_bit()) {
-            nodes_.push_back(0);  // absent: a single zero-valued leaf
-            size_ = 1;
-            return true;
+        if (with_presence) {
+            if (!bits.read_bit()) {
+                nodes_.push_back(0);  // absent: a single zero-valued leaf
+                size_ = 1;
+                return true;
+            }
+        } else {
+            bits.skip_bits(1);
         }
         if (!build_node(bits)) {
             return false;
@@ -698,6 +704,190 @@ void SmackerDecoder::full_block(BitReader& bits, std::uint32_t x, std::uint32_t 
             }
             break;
     }
+}
+
+SmackerAudioInfo SmackerDecoder::audio_info(std::size_t track) const {
+    SmackerAudioInfo info;
+    if (track >= kSmackerAudioTracks) {
+        return info;
+    }
+    // The rate word packs flags above the rate. The stereo and depth bits are
+    // confirmed against the chunks themselves, which restate both: they agree
+    // on all 77 MM6 tracks, with no mismatches.
+    //
+    // Bits 31 and 30 are set on every MM6 track, so this data cannot say which
+    // is "compressed" and which is "present"; the assignment below follows the
+    // usual convention and nothing here depends on telling them apart.
+    const std::uint32_t word = header_.audio_rate[track];
+    info.compressed = (word & 0x80000000u) != 0;
+    info.present = (word & 0x40000000u) != 0 && header_.audio_size[track] != 0;
+    info.is_16bit = (word & 0x20000000u) != 0;
+    info.stereo = (word & 0x10000000u) != 0;
+    info.bink_audio = (word & 0x08000000u) != 0;
+    info.sample_rate = word & 0x00FFFFFFu;
+    return info;
+}
+
+bool SmackerDecoder::audio_chunk(std::uint32_t index, std::size_t track,
+                                 std::span<const std::byte>& out) const {
+    out = {};
+    if (index >= frame_types_.size()) {
+        return false;
+    }
+    const std::uint64_t begin = frame_offsets_[index];
+    const std::uint32_t size = frame_sizes_[index] & ~std::uint32_t{3};
+    if (begin + size > data_.size()) {
+        return false;
+    }
+    const std::span<const std::byte> frame =
+        std::span<const std::byte>{data_}.subspan(static_cast<std::size_t>(begin), size);
+
+    std::size_t pos = 0;
+    const std::uint8_t type = frame_types_[index];
+    if ((type & 1u) != 0) {
+        if (pos >= frame.size()) return false;
+        const auto units = static_cast<std::size_t>(frame[pos++]);
+        std::size_t bytes = units * 4;
+        bytes = (bytes > 0) ? bytes - 1 : 0;
+        pos += std::min(bytes, frame.size() - pos);
+    }
+
+    for (std::size_t t = 0; t < kSmackerAudioTracks; ++t) {
+        if ((type & (2u << t)) == 0) {
+            continue;
+        }
+        if (pos + 4 > frame.size()) return false;
+        std::uint32_t chunk = 0;
+        for (int b = 0; b < 4; ++b) {
+            chunk |= static_cast<std::uint32_t>(frame[pos + b]) << (8 * b);
+        }
+        chunk &= 0x00FFFFFFu;   // the chunk length includes its own 4-byte field
+        pos += 4;
+        const std::size_t payload = (chunk > 4) ? chunk - 4 : 0;
+        if (payload > frame.size() - pos) return false;
+        if (t == track) {
+            out = frame.subspan(pos, payload);
+            return payload > 0;
+        }
+        pos += payload;
+    }
+    return false;
+}
+
+SmackerError SmackerDecoder::decode_audio(std::uint32_t index, std::size_t track,
+                                          SmackerAudioFrame& out) {
+    out = SmackerAudioFrame{};
+    if (index >= header_.frame_count || track >= kSmackerAudioTracks) {
+        return SmackerError::NoSuchFrame;
+    }
+    const SmackerAudioInfo info = audio_info(track);
+    if (!info.present || info.bink_audio) {
+        return SmackerError::NoAudio;
+    }
+
+    std::span<const std::byte> chunk;
+    if (!audio_chunk(index, track, chunk)) {
+        return SmackerError::None;   // this frame simply carries no audio
+    }
+
+    const std::uint8_t channels = info.stereo ? 2 : 1;
+    out.sample_rate = info.sample_rate;
+    out.channels = channels;
+
+    if (!info.compressed) {
+        // Raw PCM. Eight-bit samples are unsigned, so recentre them.
+        if (info.is_16bit) {
+            const std::size_t count = chunk.size() / 2;
+            out.samples.resize(count);
+            for (std::size_t i = 0; i < count; ++i) {
+                out.samples[i] = static_cast<std::int16_t>(
+                    static_cast<std::uint16_t>(chunk[i*2]) |
+                    (static_cast<std::uint16_t>(chunk[i*2 + 1]) << 8));
+            }
+        } else {
+            out.samples.resize(chunk.size());
+            for (std::size_t i = 0; i < chunk.size(); ++i) {
+                out.samples[i] = static_cast<std::int16_t>(
+                    (static_cast<int>(chunk[i]) - 128) << 8);
+            }
+        }
+        return SmackerError::None;
+    }
+
+    BitReader bits{chunk};
+    const std::uint32_t unpacked = bits.read_bits(32);
+    constexpr std::uint32_t kMaxUnpacked = 10u * 1024 * 1024;
+    if (unpacked == 0 || unpacked > kMaxUnpacked) {
+        return SmackerError::Truncated;
+    }
+    if (!bits.read_bit()) {
+        return SmackerError::None;   // the chunk declares itself empty
+    }
+    // The chunk restates its own layout; prefer it over the header, which is
+    // only needed for the sample rate.
+    const bool stereo = bits.read_bit();
+    const bool is_16bit = bits.read_bit();
+    out.channels = stereo ? 2 : 1;
+
+    // One tree per byte per channel: two for 16-bit, doubled again for stereo.
+    const std::size_t tree_count =
+        static_cast<std::size_t>(is_16bit ? 2 : 1) * (stereo ? 2 : 1);
+    std::array<ByteTree, 4> trees;
+    for (std::size_t i = 0; i < tree_count; ++i) {
+        if (!trees[i].build(bits, /*with_presence*/ false)) {
+            return SmackerError::BadTrees;
+        }
+    }
+
+    // Base samples, right channel first when stereo.
+    const std::size_t channel_count = stereo ? 2u : 1u;
+    std::array<std::int16_t, 2> base{};
+    if (is_16bit) {
+        for (std::size_t c = 0; c < channel_count; ++c) {
+            const auto hi = static_cast<std::uint16_t>(bits.read_bits(8));
+            const auto lo = static_cast<std::uint16_t>(bits.read_bits(8));
+            base[channel_count - 1 - c] =
+                static_cast<std::int16_t>((hi << 8) | lo);
+        }
+    } else {
+        for (std::size_t c = 0; c < channel_count; ++c) {
+            const auto v = static_cast<int>(bits.read_bits(8));
+            base[channel_count - 1 - c] =
+                static_cast<std::int16_t>((v - 128) << 8);
+        }
+    }
+
+    const std::size_t bytes_per_sample = is_16bit ? 2u : 1u;
+    const std::size_t total =
+        (unpacked / (bytes_per_sample * channel_count)) * channel_count;
+    out.samples.resize(total);
+
+    std::size_t at = 0;
+    for (std::size_t c = 0; c < channel_count && at < total; ++c) {
+        out.samples[at++] = base[c];
+    }
+
+    // Deltas wrap rather than clamp: that is the format's arithmetic, and
+    // clamping here would audibly distort loud passages.
+    while (at < total && !bits.at_end()) {
+        for (std::size_t c = 0; c < channel_count && at < total; ++c) {
+            if (is_16bit) {
+                const auto lo = static_cast<std::uint16_t>(trees[c*2].lookup(bits));
+                const auto hi = static_cast<std::uint16_t>(trees[c*2 + 1].lookup(bits));
+                const auto delta = static_cast<std::uint16_t>((hi << 8) | lo);
+                const auto prev = static_cast<std::uint16_t>(base[c]);
+                base[c] = static_cast<std::int16_t>(
+                    static_cast<std::uint16_t>(prev + delta));
+            } else {
+                const auto delta = static_cast<std::int8_t>(trees[c].lookup(bits));
+                const auto prev = static_cast<std::uint8_t>((base[c] >> 8) + 128);
+                const auto next = static_cast<std::uint8_t>(prev + delta);
+                base[c] = static_cast<std::int16_t>((static_cast<int>(next) - 128) << 8);
+            }
+            out.samples[at++] = base[c];
+        }
+    }
+    return SmackerError::None;
 }
 
 void SmackerDecoder::decode_palette(std::span<const std::byte> data) {

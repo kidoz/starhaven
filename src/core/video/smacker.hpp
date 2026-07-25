@@ -25,6 +25,8 @@ enum class SmackerError {
     BadTrees,
     // The requested frame index does not exist.
     NoSuchFrame,
+    // The track carries audio in a form this decoder does not handle.
+    NoAudio,
 };
 
 // A reader over a bit-packed stream, LSB-first within each byte, which is the
@@ -70,11 +72,27 @@ struct SmackerInfo {
     YScale y_scale = YScale::None;
 };
 
+// What one audio track carries, as declared by the header.
+struct SmackerAudioInfo {
+    bool present = false;
+    bool stereo = false;
+    bool is_16bit = false;
+    bool compressed = false;   // DPCM rather than raw PCM
+    bool bink_audio = false;   // a different codec; not decoded here
+    std::uint32_t sample_rate = 0;
+};
+
+// Decoded audio for one frame of one track: interleaved 16-bit samples,
+// whatever the source depth, so callers have a single format to feed a sink.
+struct SmackerAudioFrame {
+    std::vector<std::int16_t> samples;
+    std::uint32_t sample_rate = 0;
+    std::uint8_t channels = 1;
+};
+
 // A decoder for RAD Game Tools' Smacker video (`.smk`), the format MM6 uses for
 // every entry in `Anims1.vid` / `Anims2.vid`. See docs/formats/smacker.md.
 //
-// This slice decodes **video only**. Audio track payloads are located and
-// skipped, not decoded — starhaven has no audio output yet.
 //
 // Frames are inter-coded: frame N is a delta against the buffer left by frame
 // N-1, so `decode_frame` replays intervening frames when asked for a frame out
@@ -109,6 +127,17 @@ public:
     [[nodiscard]] SmackerError decode_frame_rgba(std::uint32_t index,
                                                  std::span<const std::uint8_t>& out);
 
+    // What track `track` (0..6) carries, per the header.
+    [[nodiscard]] SmackerAudioInfo audio_info(std::size_t track) const;
+
+    // Decode one frame's audio for one track. Frames carry audio independently
+    // of the video delta chain, so this does not require decoding pictures.
+    //
+    // Returns NoSuchFrame for an absent frame or track, and NoAudio for a track
+    // this decoder cannot handle (Bink audio, which MM6 never uses).
+    [[nodiscard]] SmackerError decode_audio(std::uint32_t index, std::size_t track,
+                                            SmackerAudioFrame& out);
+
     // Whether frame `index` carries a keyframe flag.
     [[nodiscard]] bool is_keyframe(std::uint32_t index) const noexcept;
 
@@ -134,6 +163,9 @@ private:
     [[nodiscard]] SmackerError parse_header();
     [[nodiscard]] SmackerError build_trees();
     [[nodiscard]] SmackerError decode_one(std::uint32_t index);
+    // Locate one track's audio chunk inside a frame, if present.
+    [[nodiscard]] bool audio_chunk(std::uint32_t index, std::size_t track,
+                                   std::span<const std::byte>& out) const;
     [[nodiscard]] bool decode_video(BitReader& bits);
     void decode_palette(std::span<const std::byte> data);
 

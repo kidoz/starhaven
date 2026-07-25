@@ -81,8 +81,10 @@ interoperability and compatibility with a legally purchased copy.
   since the sections that would give their offset are still undecoded.
 - A reader for the `.vid` video container (`Anims1.vid`, `Anims2.vid`) and a
   **Smacker video decoder**: header, Huffman trees, palette records and the
-  block-coded frame stream, decoded to RGBA. Verified on all 127 videos MM6
-  ships — every frame of every one. Video only; audio is located and skipped.
+  block-coded frame stream, decoded to RGBA, plus the **DPCM audio tracks**.
+  Verified on all 127 videos MM6 ships — every frame of every one — and the
+  audio checked by signal statistics against all 77 tracks. `play_smk` plays
+  video with sound through SDL3.
 - A **collision and movement layer** shared by both walkers: the decoded face
   planes become a collision world with floor queries and wall sliding, so you
   walk on surfaces and into walls under gravity instead of flying through them.
@@ -101,7 +103,8 @@ interoperability and compatibility with a legally purchased copy.
   reports non-expressive statistics (sizes, populated percentage).
 - `view_bitmap`, a CLI that decodes one `.LOD` image or sprite entry and shows
   it in an SDL3 window (sprites auto-resolve their shared palette).
-- `play_smk`, a CLI that lists and plays the game's Smacker videos.
+- `play_smk`, a CLI that lists and plays the game's Smacker videos with sound,
+  and can dump a video's audio track to a WAV.
 - `blv_info`, a CLI that decompresses one `.blv` indoor map and prints its
   geometry statistics.
 - `walk_blv`, a CLI that renders a `.blv` indoor level in 3D and lets you walk
@@ -306,7 +309,8 @@ docs/
 19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
 20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)
 21. Decode event-record bodies.
-22. Smacker audio, an audio output layer, UI, and gameplay systems.
+22. ~~Smacker DPCM audio and an SDL3 audio sink.~~ ✓ (this slice)
+23. UI, music playback, and gameplay systems.
 
 ## Contributing
 
