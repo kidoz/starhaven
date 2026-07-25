@@ -98,6 +98,12 @@ executable('walk_odm', 'tools/walk_odm.cpp',
   install : true,
 )
 
+# Indoor walker: software-rasterizes a .blv level in 3D.
+executable('walk_blv', 'tools/walk_blv.cpp',
+  dependencies : [starhaven_dep, sdl3_dep],
+  install : true,
+)
+
 # Smacker player: decodes one video from the install's Anims/*.vid archives.
 executable('play_smk', 'tools/play_smk.cpp',
   dependencies : [starhaven_dep, sdl3_dep],

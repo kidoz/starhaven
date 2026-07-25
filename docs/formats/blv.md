@@ -7,8 +7,8 @@ claim is tagged `observed`, `inferred`, or `unknown`.
 ## Scope
 
 Covers the zlib wrapper, the fixed header, the vertex array, the face array,
-the per-face index arrays and the face texture names — everything needed to
-build the level's polygon soup. Does **not** cover the rooms/sectors, BSP tree,
+the per-face index arrays (vertex ids and texture coordinates) and the face
+texture names — everything needed to draw the level. Does **not** cover the rooms/sectors, BSP tree,
 lights, doors or sprites that follow, which are 19–38% of each payload.
 
 ## Source provenance (non-expressive)
@@ -112,9 +112,23 @@ exactly `2 × (vertex_count + 1)` in every one of the 11,710 faces sampled,
 which is what identifies each face as owning six `u16[vertex_count + 1]`
 arrays. `observed`
 
-Only the first array — the vertex ids — is decoded here. By analogy with the
-outdoor facet record the remaining five are plausibly texture coordinates and
-intercept displacements, but that is `unknown`.
+The six arrays are, in order:
+
+| Index | Contents | Status |
+| --- | --- | --- |
+| 0 | vertex ids | observed |
+| 1, 2, 3 | small signed values, only -3..3 ever seen | inferred |
+| 4 | per-vertex texture u, in texels | observed |
+| 5 | per-vertex texture v, in texels | observed |
+
+Arrays 4 and 5 are identified by their ranges tracking the level's own world
+extents (on `d01.blv`, u spans -20672..20754 against an x extent of
+-20672..18672), and confirmed visually: dividing them by the texture's
+dimensions makes walls, floors and ceilings tile correctly. `observed`
+
+Arrays 1-3 take only seven distinct values across a whole level, matching the
+three 20-entry spans in the outdoor facet record; they are plausibly intercept
+displacements and are not needed for rendering. `inferred`
 
 ### Attributes
 
@@ -160,6 +174,6 @@ The parser rejects, deterministically and without reading out of bounds:
 - Everything after the texture names: rooms/sectors, the BSP tree, lights,
   doors and sprite placements — 19–38% of each payload. `unknown`
 - The header fields at 0x00, 0x6C, 0x70 and 0x74. `unknown`
-- The five index arrays other than the vertex ids. `unknown`
+- What arrays 1-3 of each face's six actually mean. `unknown`
 - The unknown spans inside the face record (+0x10, +0x38, +0x4E). `unknown`
 - Whether the `.dlv` files pair with `.blv` the way `.ddm` pairs with `.odm`.

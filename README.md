@@ -69,8 +69,9 @@ interoperability and compatibility with a legally purchased copy.
 - A parser for `.blv` **indoor map** files — the 52 dungeons, temples and
   building interiors, against 15 outdoor maps. Decodes the header, the vertex
   array, the 80-byte face records (16.16 plane, attributes, polygon size), the
-  variable-length per-face index arrays and the per-face texture names.
-  Verified on all 52 maps: 114,833 vertices and 89,091 faces.
+  variable-length per-face index arrays (vertex ids and texture coordinates)
+  and the per-face texture names. Verified on all 52 maps: 114,833 vertices and
+  89,091 faces, rendered in 3D by `walk_blv`.
 - A reader for the `.vid` video container (`Anims1.vid`, `Anims2.vid`) and a
   **Smacker video decoder**: header, Huffman trees, palette records and the
   block-coded frame stream, decoded to RGBA. Verified on all 127 videos MM6
@@ -92,6 +93,8 @@ interoperability and compatibility with a legally purchased copy.
 - `play_smk`, a CLI that lists and plays the game's Smacker videos.
 - `blv_info`, a CLI that decompresses one `.blv` indoor map and prints its
   geometry statistics.
+- `walk_blv`, a CLI that renders a `.blv` indoor level in 3D and lets you walk
+  through it.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in
@@ -161,10 +164,11 @@ Inspect an outdoor map's header (decompresses it on the fly):
 ./buildDir/odm_info Outa1.odm   # header, terrain stats, model/facet counts
 ```
 
-Inspect an indoor map's geometry:
+Inspect an indoor map's geometry, or walk through it:
 
 ```bash
 ./buildDir/blv_info CD1.blv
+./buildDir/walk_blv CD1.blv     # WASD move, Q/E fly, arrows look, ESC quits
 ```
 
 Render an outdoor map's heightmap as a grayscale image (visual terrain check):
@@ -243,6 +247,7 @@ tools/
   tile_probe.cpp             ground tileset research probe
   play_smk.cpp               list and play the game's Smacker videos
   blv_info.cpp               print one .blv indoor map's geometry stats
+  walk_blv.cpp               first-person 3D walker for indoor levels
   ddm_info.cpp               decompress one .ddm/.dlv event file, print stats
 tests/                       hermetic Catch2 unit tests (synthetic fixtures)
 docs/
@@ -268,9 +273,10 @@ docs/
 14. ~~Decode the model geometry stream (facets); render filled, textured props.~~ ✓ (this slice)
 15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
 16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
-17. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) and render indoor levels.
-18. Decode event-record bodies; sprites/decorations; mouse-look; collision.
-19. Smacker audio, an audio output layer, UI, and gameplay systems.
+17. ~~Render indoor levels (`walk_blv`), with per-face texture coordinates.~~ ✓ (this slice)
+18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors).
+19. Decode event-record bodies; sprites/decorations; mouse-look; collision.
+20. Smacker audio, an audio output layer, UI, and gameplay systems.
 
 ## Contributing
 
