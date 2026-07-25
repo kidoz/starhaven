@@ -106,6 +106,14 @@ int main(int argc, char** argv) {
               << " untextured\n";
     std::cout << "  distinct face textures: " << textures.size() << "\n";
     std::cout << "  index block: " << map.header.index_block_bytes << " bytes\n";
+    const auto decorations = world::find_decorations(map);
+    std::cout << "  decorations found by scan: " << decorations.size() << "\n";
+    for (std::size_t i = 0; i < std::min<std::size_t>(decorations.size(), 3); ++i) {
+        const auto& d = decorations[i];
+        std::cout << "    [" << i << "] " << d.name << "  pos=(" << d.x << ","
+                  << d.y << "," << d.z << ")  angle=" << d.angle << "\n";
+    }
+
     std::cout << "  decoded " << map.decoded_bytes << " of "
               << map.payload.size() << " bytes; "
               << (map.payload.size() - map.decoded_bytes)

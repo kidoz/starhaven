@@ -209,9 +209,22 @@ int main(int argc, char** argv) {
               << map.vertices.size() << " vertices, " << map.faces.size()
               << " faces, " << (loaded > 0 ? loaded : 0) << " textures\n";
 
-    // Without a start position, stand on the level's largest floor. The centre
-    // of the bounding box is usually inside solid rock, so picking an
-    // upward-facing face and rising a little above it lands in open space.
+    // Without a start position, prefer the level's own "Party Start" marker:
+    // that is where the game itself puts the party.
+    if (!have_pos) {
+        for (const auto& d : world::find_decorations(map)) {
+            if (d.name == "Party Start") {
+                start_pos = to_render_space(d.x, d.y, d.z + 160);
+                have_pos = true;
+                std::cout << "  spawning at the map's Party Start marker\n";
+                break;
+            }
+        }
+    }
+
+    // Otherwise stand on the level's largest floor. The centre of the bounding
+    // box is usually inside solid rock, so picking an upward-facing face and
+    // rising a little above it lands in open space.
     if (!have_pos && !map.faces.empty()) {
         const world::BlvFace* best = nullptr;
         long best_area = -1;

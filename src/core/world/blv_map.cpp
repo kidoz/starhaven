@@ -3,6 +3,7 @@
 #include "core/image/zlib_util.hpp"
 #include "core/io/byte_reader.hpp"
 
+#include <algorithm>
 #include <utility>
 
 namespace starhaven::world {
@@ -238,6 +239,148 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
     }
     out.decoded_bytes = names_end;
     return BlvError::None;
+}
+
+namespace {
+
+// Field offsets within a 32-byte decoration record.
+constexpr std::size_t kDecoFlagsOff = 0x16;
+constexpr std::size_t kDecoPosOff = 0x18;
+constexpr std::size_t kDecoAngleOff = 0x1E;
+
+// A run this long of records that all validate is treated as the array. One or
+// two matches could be coincidence in a large payload; four in a row, each with
+// a printable name and in-bounds coordinates, is not.
+constexpr std::size_t kMinRun = 4;
+
+// Coordinates may sit slightly outside the geometry's own extents (a torch
+// mounted in a wall recess, say), so allow a margin before rejecting.
+constexpr int kExtentMargin = 2000;
+
+struct Extent {
+    int lo[3] = {0, 0, 0};
+    int hi[3] = {0, 0, 0};
+};
+
+[[nodiscard]] Extent vertex_extent(const BlvMap& map) {
+    Extent e;
+    if (map.vertices.empty()) {
+        return e;
+    }
+    e.lo[0] = e.hi[0] = map.vertices[0].x;
+    e.lo[1] = e.hi[1] = map.vertices[0].y;
+    e.lo[2] = e.hi[2] = map.vertices[0].z;
+    for (const auto& v : map.vertices) {
+        const int c[3] = {v.x, v.y, v.z};
+        for (int i = 0; i < 3; ++i) {
+            e.lo[i] = std::min(e.lo[i], c[i]);
+            e.hi[i] = std::max(e.hi[i], c[i]);
+        }
+    }
+    return e;
+}
+
+[[nodiscard]] bool read_decoration(const std::vector<std::uint8_t>& p,
+                                   std::size_t off, const Extent& extent,
+                                   BlvDecoration& out) {
+    if (off + kBlvDecorationSize > p.size()) {
+        return false;
+    }
+
+    // The name must be non-empty, printable, and terminated inside its field.
+    std::string name;
+    for (std::size_t i = 0; i < kBlvDecorationNameSize; ++i) {
+        const std::uint8_t c = p[off + i];
+        if (c == 0) break;
+        if (c < 32 || c >= 127) return false;
+        name.push_back(static_cast<char>(c));
+    }
+    if (name.empty() || name.size() == kBlvDecorationNameSize) {
+        return false;
+    }
+
+    const auto u16_at = [&](std::size_t o) {
+        return static_cast<std::uint16_t>(p[off + o] |
+                                          (p[off + o + 1] << 8));
+    };
+    const auto i16_at = [&](std::size_t o) {
+        return static_cast<std::int16_t>(u16_at(o));
+    };
+
+    const std::uint16_t flags = u16_at(kDecoFlagsOff);
+    if (flags > 1) {
+        return false;
+    }
+    const std::int16_t c[3] = {i16_at(kDecoPosOff), i16_at(kDecoPosOff + 2),
+                               i16_at(kDecoPosOff + 4)};
+    for (int i = 0; i < 3; ++i) {
+        if (c[i] < extent.lo[i] - kExtentMargin ||
+            c[i] > extent.hi[i] + kExtentMargin) {
+            return false;
+        }
+    }
+
+    out.name = std::move(name);
+    out.flags = flags;
+    out.x = c[0];
+    out.y = c[1];
+    out.z = c[2];
+    out.angle = i16_at(kDecoAngleOff);
+    return true;
+}
+
+}  // namespace
+
+std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
+    std::vector<BlvDecoration> out;
+    if (map.vertices.empty() || map.decoded_bytes >= map.payload.size()) {
+        return out;
+    }
+    const Extent extent = vertex_extent(map);
+
+    // Find the first offset that begins a run of valid records.
+    std::size_t anchor = map.payload.size();
+    for (std::size_t off = static_cast<std::size_t>(map.decoded_bytes);
+         off + kMinRun * kBlvDecorationSize <= map.payload.size(); off += 2) {
+        bool run = true;
+        for (std::size_t k = 0; k < kMinRun; ++k) {
+            BlvDecoration probe;
+            if (!read_decoration(map.payload, off + k * kBlvDecorationSize,
+                                 extent, probe)) {
+                run = false;
+                break;
+            }
+        }
+        if (run) {
+            anchor = off;
+            break;
+        }
+    }
+    if (anchor == map.payload.size()) {
+        return out;
+    }
+
+    // Extend backwards to the true first record, then read forwards.
+    std::size_t start = anchor;
+    while (start >= kBlvDecorationSize &&
+           start - kBlvDecorationSize >= map.decoded_bytes) {
+        BlvDecoration probe;
+        if (!read_decoration(map.payload, start - kBlvDecorationSize, extent,
+                             probe)) {
+            break;
+        }
+        start -= kBlvDecorationSize;
+    }
+
+    for (std::size_t off = start; off + kBlvDecorationSize <= map.payload.size();
+         off += kBlvDecorationSize) {
+        BlvDecoration d;
+        if (!read_decoration(map.payload, off, extent, d)) {
+            break;
+        }
+        out.push_back(std::move(d));
+    }
+    return out;
 }
 
 }  // namespace starhaven::world

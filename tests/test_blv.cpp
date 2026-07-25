@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <zlib.h>
@@ -136,6 +137,31 @@ std::vector<std::byte> wrap(const std::vector<std::uint8_t>& payload,
                                      : static_cast<std::uint32_t>(payload.size()));
     std::memcpy(&entry[kBlvWrapperSize], compressed.data(), compressed.size());
     return entry;
+}
+
+// Append decoration records to a payload: 32 bytes each, name then flags,
+// position and facing.
+void append_decorations(
+    std::vector<std::uint8_t>& p,
+    const std::vector<std::tuple<std::string, std::int16_t, std::int16_t,
+                                 std::int16_t, std::int16_t>>& decos) {
+    for (const auto& [name, x, y, z, angle] : decos) {
+        const std::size_t base = p.size();
+        p.resize(base + kBlvDecorationSize, 0);
+        for (std::size_t i = 0; i < name.size() && i < kBlvDecorationNameSize - 1; ++i) {
+            p[base + i] = static_cast<std::uint8_t>(name[i]);
+        }
+        auto put_i16 = [&](std::size_t off, std::int16_t v) {
+            const auto u = static_cast<std::uint16_t>(v);
+            p[base + off] = static_cast<std::uint8_t>(u & 0xFF);
+            p[base + off + 1] = static_cast<std::uint8_t>((u >> 8) & 0xFF);
+        };
+        put_i16(0x16, 1);
+        put_i16(0x18, x);
+        put_i16(0x1A, y);
+        put_i16(0x1C, z);
+        put_i16(0x1E, angle);
+    }
 }
 
 const std::vector<std::array<std::int16_t, 3>> kSquare = {
@@ -312,4 +338,59 @@ TEST_CASE("a truncated texture-name block is rejected", "[blv]") {
     auto entry = wrap(payload);
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::Truncated);
+}
+
+TEST_CASE("decorations are found in the undecoded tail", "[blv]") {
+    // The sections between the texture names and the decorations are unknown,
+    // so the array is located by scanning; give it some filler to skip past.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    payload.resize(payload.size() + 200, 0x11);  // undecoded filler
+    append_decorations(payload, {
+        {"Party Start", 100, 120, 0, 0},
+        {"Torch01", 40, 60, 0, 64},
+        {"Barrel", 200, 30, 0, 128},
+        {"tree09", 10, 250, 0, 250},
+    });
+    auto entry = wrap(payload);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    const auto decos = find_decorations(map);
+    REQUIRE(decos.size() == 4);
+    REQUIRE(decos[0].name == "Party Start");
+    REQUIRE(decos[0].x == 100);
+    REQUIRE(decos[0].y == 120);
+    REQUIRE(decos[1].name == "Torch01");
+    REQUIRE(decos[1].angle == 64);
+    REQUIRE(decos[3].name == "tree09");
+}
+
+TEST_CASE("a tail with no decorations yields none", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    payload.resize(payload.size() + 512, 0x7F);  // printable filler, no records
+    auto entry = wrap(payload);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(find_decorations(map).empty());
+}
+
+TEST_CASE("decorations far outside the level are not accepted", "[blv]") {
+    // Coordinates outside the geometry's extents are what stops the scan
+    // latching onto unrelated bytes.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    append_decorations(payload, {
+        {"Torch01", 30000, 30000, 30000, 0},
+        {"Torch01", 30000, 30000, 30000, 0},
+        {"Torch01", 30000, 30000, 30000, 0},
+        {"Torch01", 30000, 30000, 30000, 0},
+    });
+    auto entry = wrap(payload);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(find_decorations(map).empty());
 }

@@ -169,10 +169,45 @@ The parser rejects, deterministically and without reading out of bounds:
 - a face referencing a vertex the map does not have;
 - an index block that does not match the sum over the faces' vertex counts.
 
+## Decorations (located by scanning, not by offset)
+
+Somewhere in the tail sits an array of 32-byte decoration records — the placed
+sprites and markers of the level.
+
+| Offset | Size | Type | Field | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| +0x00 | 22 | char[22] | name | observed | NUL-terminated, e.g. `"Torch01"` |
+| +0x16 | 2 | u16 | flags | inferred | only 0 and 1 observed |
+| +0x18 | 2 | i16 | x | observed | |
+| +0x1A | 2 | i16 | y | observed | |
+| +0x1C | 2 | i16 | z | observed | |
+| +0x1E | 2 | i16 | angle | inferred | facing; units unconfirmed |
+
+Observed names include `Party Start`, `Torch01`, `TorcH2`, `Brazieroff`,
+`CampfireOn`, `Barrel` and `tree09`. `Party Start` is the party's spawn point,
+and every coordinate observed falls inside its own level's vertex extents.
+`observed`
+
+**The array's position cannot be computed.** The sections between the face
+texture names and this array are undecoded, and no count for it appears
+anywhere nearby — searching the whole payload before the array finds the count
+value at most a handful of times, never within 4 KB of it. The decoder
+therefore *scans*: it looks for a run of at least four consecutive records
+whose names are printable and whose coordinates lie inside the level's vertex
+extents, then extends in both directions.
+
+That filter is strong in practice — 50 of the 52 maps yield decorations,
+5,780 in total — but it is a heuristic, and `hive.blv` and `zddb04.blv` yield
+none. Whether those two genuinely have no decorations or the scan misses them
+is `unknown`. The API keeps this separate from `parse_blv` for that reason.
+
 ## Open questions (next slice)
 
-- Everything after the texture names: rooms/sectors, the BSP tree, lights,
-  doors and sprite placements — 19–38% of each payload. `unknown`
+- The sections between the texture names and the decorations: rooms/sectors,
+  the BSP tree, lights and doors. Locating the decoration array by offset
+  rather than by scanning depends on these. `unknown`
+- Whatever follows the decoration array — 32 KB on `d01.blv`, 70 KB on
+  `CD1.blv`. `unknown`
 - The header fields at 0x00, 0x6C, 0x70 and 0x74. `unknown`
 - What arrays 1-3 of each face's six actually mean. `unknown`
 - The unknown spans inside the face record (+0x10, +0x38, +0x4E). `unknown`

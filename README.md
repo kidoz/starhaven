@@ -71,7 +71,9 @@ interoperability and compatibility with a legally purchased copy.
   array, the 80-byte face records (16.16 plane, attributes, polygon size), the
   variable-length per-face index arrays (vertex ids and texture coordinates)
   and the per-face texture names. Verified on all 52 maps: 114,833 vertices and
-  89,091 faces, rendered in 3D by `walk_blv`.
+  89,091 faces, rendered in 3D by `walk_blv`. Placed **decorations** (torches,
+  barrels, trees, and the party's start point) are located too — by scanning,
+  since the sections that would give their offset are still undecoded.
 - A reader for the `.vid` video container (`Anims1.vid`, `Anims2.vid`) and a
   **Smacker video decoder**: header, Huffman trees, palette records and the
   block-coded frame stream, decoded to RGBA. Verified on all 127 videos MM6
@@ -288,7 +290,7 @@ docs/
 15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
 16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
 17. ~~Render indoor levels (`walk_blv`), with per-face texture coordinates.~~ ✓ (this slice)
-18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors).
+18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) so decorations can be located by offset rather than by scanning.
 19. Decode event-record bodies; sprites/decorations; mouse-look; collision.
 20. Smacker audio, an audio output layer, UI, and gameplay systems.
 

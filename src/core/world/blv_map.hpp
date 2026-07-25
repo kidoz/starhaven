@@ -90,6 +90,32 @@ struct BlvMap {
     std::uint64_t decoded_bytes = 0;
 };
 
+// One placed decoration: a named sprite (torch, barrel, tree, campfire) or a
+// marker such as the party's start point.
+struct BlvDecoration {
+    std::string name;
+    std::uint16_t flags = 0;   // 0 or 1; meaning unknown
+    std::int16_t x = 0, y = 0, z = 0;
+    std::int16_t angle = 0;    // facing; units unconfirmed
+};
+
+// Locate a map's decoration array.
+//
+// This is a **scan, not a decode**: the sections between the face texture
+// names and the decorations (rooms, BSP, lights, doors) are still unknown, so
+// there is no offset or count to compute the array's position from. The scan
+// looks for a run of records whose names are printable and whose coordinates
+// fall inside the level's own vertex extents, which in practice is a strong
+// filter — but it can find nothing on a map whose decorations happen not to
+// match, and callers must treat an empty result as "not found" rather than
+// "none present".
+//
+// Returns the records in file order.
+[[nodiscard]] std::vector<BlvDecoration> find_decorations(const BlvMap& map);
+
+constexpr std::uint32_t kBlvDecorationSize = 32;
+constexpr std::size_t kBlvDecorationNameSize = 0x16;
+
 // Parse a raw `.blv` entry (as read from Games.lod). Handles the 8-byte zlib
 // wrapper, the header, the vertex array, the face array, the per-face index
 // arrays and the face texture names.
