@@ -100,6 +100,13 @@ executable('ddm_info', 'tools/ddm_info.cpp',
   install : true,
 )
 
+# Tile-table probe: surveys the user's install for the ground-tile lookup
+# chain. Read-only; reports names, sizes and counts, never pixel data.
+executable('tile_probe', 'tools/tile_probe.cpp',
+  dependencies : openmm6_dep,
+  install : true,
+)
+
 # Unit tests. Built as separate executables, never as the app itself.
 # default_options silences Catch2's own self-test suite (per the engineer skill).
 catch2 = dependency('catch2',
