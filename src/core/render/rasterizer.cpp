@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace openmm6::render {
 
@@ -24,12 +25,6 @@ namespace {
 // fill test and backface winding.
 inline float edge(float ax, float ay, float bx, float by, float px, float py) {
     return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
-}
-
-inline Color shade(float b) {
-    const std::uint8_t v = static_cast<std::uint8_t>(
-        std::clamp(b, 0.0f, 1.0f) * 255.0f);
-    return {v, v, v, 255};
 }
 
 }  // namespace
@@ -109,6 +104,120 @@ void Framebuffer::draw_triangle(const ScreenVertex& v0, const ScreenVertex& v1,
     }
 }
 
+void Framebuffer::draw_triangle_textured(const ScreenVertex& a,
+                                         const ScreenVertex& b,
+                                         const ScreenVertex& c,
+                                         const Texture& texture, WrapMode wrap,
+                                         bool cull_backfaces) {
+    if (texture.empty()) {
+        return;  // nothing resolved for this surface yet
+    }
+
+    float area = edge(a.x, a.y, b.x, b.y, c.x, c.y);
+    if (area == 0.0f) {
+        return;  // degenerate
+    }
+
+    // The coverage test below assumes positive (CCW) winding. Rather than test
+    // both signs per pixel, normalize the winding once by swapping two
+    // vertices; a clockwise triangle then rasterizes identically.
+    const ScreenVertex* pv0 = &a;
+    const ScreenVertex* pv1 = &b;
+    const ScreenVertex* pv2 = &c;
+    if (area < 0.0f) {
+        if (cull_backfaces) {
+            return;  // back face
+        }
+        std::swap(pv1, pv2);
+        area = -area;
+    }
+    const ScreenVertex& v0 = *pv0;
+    const ScreenVertex& v1 = *pv1;
+    const ScreenVertex& v2 = *pv2;
+
+    const float minx = std::max(0.0f, std::min({v0.x, v1.x, v2.x}));
+    const float maxx =
+        std::min(static_cast<float>(width_ - 1), std::max({v0.x, v1.x, v2.x}));
+    const float miny = std::max(0.0f, std::min({v0.y, v1.y, v2.y}));
+    const float maxy =
+        std::min(static_cast<float>(height_ - 1), std::max({v0.y, v1.y, v2.y}));
+    if (maxx < minx || maxy < miny) {
+        return;
+    }
+
+    const float inv_area = 1.0f / area;
+    const int x0 = static_cast<int>(std::floor(minx));
+    const int x1 = static_cast<int>(std::ceil(maxx));
+    const int y0 = static_cast<int>(std::floor(miny));
+    const int y1 = static_cast<int>(std::ceil(maxy));
+
+    // Perspective-correct interpolation works on u/w, v/w and 1/w, all of
+    // which vary linearly in screen space. Precompute the per-vertex numerators
+    // once rather than per pixel.
+    const float uw0 = v0.u * v0.inv_w;
+    const float uw1 = v1.u * v1.inv_w;
+    const float uw2 = v2.u * v2.inv_w;
+    const float vw0 = v0.v * v0.inv_w;
+    const float vw1 = v1.v * v1.inv_w;
+    const float vw2 = v2.v * v2.inv_w;
+
+    for (int y = y0; y <= y1; ++y) {
+        for (int x = x0; x <= x1; ++x) {
+            const float px = static_cast<float>(x) + 0.5f;
+            const float py = static_cast<float>(y) + 0.5f;
+            const float e0 = edge(v1.x, v1.y, v2.x, v2.y, px, py);
+            const float e1 = edge(v2.x, v2.y, v0.x, v0.y, px, py);
+            const float e2 = edge(v0.x, v0.y, v1.x, v1.y, px, py);
+            if (e0 < 0 || e1 < 0 || e2 < 0) {
+                continue;
+            }
+
+            const float w0 = e0 * inv_area;
+            const float w1 = e1 * inv_area;
+            const float w2 = e2 * inv_area;
+
+            const float z = w0 * v0.z + w1 * v1.z + w2 * v2.z;
+            const int idx = y * width_ + x;
+            if (z < 0.0f || z > 1.0f || z >= depth_[idx]) {
+                continue;
+            }
+
+            // Recover the true u,v by dividing the interpolated u/w by the
+            // interpolated 1/w. This is what keeps a grazing-angle ground
+            // plane from swimming.
+            const float inv_w = w0 * v0.inv_w + w1 * v1.inv_w + w2 * v2.inv_w;
+            if (inv_w == 0.0f) {
+                continue;  // degenerate projection; nothing sensible to sample
+            }
+            const float w_recip = 1.0f / inv_w;
+            const float u = (w0 * uw0 + w1 * uw1 + w2 * uw2) * w_recip;
+            const float v = (w0 * vw0 + w1 * vw1 + w2 * vw2) * w_recip;
+
+            const Color texel = texture.sample(u, v, wrap);
+            if (texel.a == 0) {
+                // Alpha-tested cutout: contributes neither color nor depth, so
+                // geometry behind it still draws.
+                continue;
+            }
+
+            // Modulate by the interpolated vertex color so existing Lambert
+            // shading composes with the texture.
+            const float r = w0 * v0.r + w1 * v1.r + w2 * v2.r;
+            const float g = w0 * v0.g + w1 * v1.g + w2 * v2.g;
+            const float b = w0 * v0.b + w1 * v1.b + w2 * v2.b;
+
+            depth_[idx] = z;
+            color_[idx * 4 + 0] = static_cast<std::uint8_t>(
+                std::clamp(static_cast<float>(texel.r) * r, 0.0f, 255.0f));
+            color_[idx * 4 + 1] = static_cast<std::uint8_t>(
+                std::clamp(static_cast<float>(texel.g) * g, 0.0f, 255.0f));
+            color_[idx * 4 + 2] = static_cast<std::uint8_t>(
+                std::clamp(static_cast<float>(texel.b) * b, 0.0f, 255.0f));
+            color_[idx * 4 + 3] = texel.a;
+        }
+    }
+}
+
 void Framebuffer::draw_line(const ScreenVertex& a, const ScreenVertex& b,
                             Color color) {
     // Bresenham, z-tested against the existing depth so the line is occluded
@@ -175,13 +284,19 @@ void emit_tri(std::vector<ViewVertex>& out, ViewVertex a, ViewVertex b, ViewVert
 }
 
 // Linear interpolation between two view vertices at param t in [0,1].
+//
+// u and v are interpolated here too. That is exact because clipping runs in
+// view space, before the projective divide, where texture coordinates are
+// still a linear function of position.
 ViewVertex lerp(const ViewVertex& a, const ViewVertex& b, float t) {
     return {a.x + (b.x - a.x) * t,
             a.y + (b.y - a.y) * t,
             a.z + (b.z - a.z) * t,
             a.r + (b.r - a.r) * t,
             a.g + (b.g - a.g) * t,
-            a.b + (b.b - a.b) * t};
+            a.b + (b.b - a.b) * t,
+            a.u + (b.u - a.u) * t,
+            a.v + (b.v - a.v) * t};
 }
 
 }  // namespace
