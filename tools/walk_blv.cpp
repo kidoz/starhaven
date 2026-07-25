@@ -18,6 +18,7 @@
 #include "core/world/collision.hpp"
 
 #include "walker_common.hpp"
+#include "walker_music.hpp"
 
 namespace {
 
@@ -48,6 +49,7 @@ void print_usage(const char* argv0) {
               << "  --look YAW,PITCH    start orientation in degrees\n"
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
               << "  --fly               disable gravity and wall collision\n"
+              << "  --no-music          do not play the map's music track\n"
               << "\n"
               << "Set " << platform::kInstallEnvVar << " to the install directory.\n";
 }
@@ -58,6 +60,7 @@ int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;
     bool fly = false;
+    bool music_wanted = true;
     bool have_pos = false;
     render::Camera camera;
 
@@ -133,9 +136,19 @@ int main(int argc, char** argv) {
     }
 
     const auto decorations = world::find_decorations(map);
-    std::cout << map_name << ": \"" << map.header.name << "\"  " << map.vertices.size()
-              << " vertices, " << map.faces.size() << " faces, " << collision.size()
-              << " collision polygons, " << decorations.size() << " decorations\n";
+
+    // The design table names the map and picks its music (docs/formats/text-tables.md).
+    // The level's own header carries a name too, but it is often a placeholder
+    // the designers never filled in: D01.blv calls itself "No Name Level" where
+    // the table calls it "Goblinwatch".
+    const tools::MapIdentity identity = tools::identify_map(map_name);
+
+    std::cout << map_name;
+    if (!identity.display_name.empty())
+        std::cout << " \"" << identity.display_name << "\"";
+    std::cout << ": header \"" << map.header.name << "\"  " << map.vertices.size() << " vertices, "
+              << map.faces.size() << " faces, " << collision.size() << " collision polygons, "
+              << decorations.size() << " decorations\n";
 
     // Without a start position, prefer the level's own "Party Start" marker:
     // that is where the game itself puts the party.
@@ -195,7 +208,9 @@ int main(int argc, char** argv) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
         return 1;
     }
-    const std::string title = "StarHaven - indoor - " + map_name;
+    const std::string title =
+        "StarHaven - indoor - " +
+        (identity.display_name.empty() ? map_name : identity.display_name + " (" + map_name + ")");
     SDL_Window* window = SDL_CreateWindow(title.c_str(), kWidth, kHeight, 0);
     SDL_Renderer* sdl_renderer = SDL_CreateRenderer(window, nullptr);
     SDL_Texture* screen = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ABGR8888,
@@ -204,6 +219,17 @@ int main(int argc, char** argv) {
     const bool mouse_look = screenshot.empty();
     if (mouse_look) {
         SDL_SetWindowRelativeMouseMode(window, true);
+    }
+
+    // A one-frame capture ends before a note sounds, so do not start audio for
+    // it at all.
+    tools::MusicPlayer music;
+    if (music_wanted && screenshot.empty() && identity.music_track > 0) {
+        if (const auto install = platform::install_from_env()) {
+            if (music.start(*install, identity.music_track)) {
+                std::cout << "playing track " << identity.music_track << "\n";
+            }
+        }
     }
 
     // Indoor levels have no sky, so light them from a fixed overhead direction.
@@ -215,6 +241,7 @@ int main(int argc, char** argv) {
 
     while (running) {
         ++frame;
+        music.update();
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {

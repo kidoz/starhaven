@@ -26,6 +26,7 @@
 #include "core/world/tile_table.hpp"
 
 #include "walker_common.hpp"
+#include "walker_music.hpp"
 
 namespace {
 
@@ -59,6 +60,7 @@ void print_usage(const char* argv0) {
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
               << "  --boxes             overlay model bounding boxes\n"
               << "  --fly               disable gravity and collision\n"
+              << "  --no-music          do not play the map's music track\n"
               << "\n"
               << "Set " << platform::kInstallEnvVar << " to the install directory.\n";
 }
@@ -151,6 +153,7 @@ int main(int argc, char** argv) {
     std::string screenshot;
     bool show_boxes = false;
     bool fly = false;
+    bool music_wanted = true;
     bool have_pos = false;
     render::Camera camera;
     camera.position = {0, 32.0f * 30.0f, 0};
@@ -165,6 +168,8 @@ int main(int argc, char** argv) {
             show_boxes = true;
         } else if (a == "--fly") {
             fly = true;
+        } else if (a == "--no-music") {
+            music_wanted = false;
         } else if (a == "--pos" && i + 1 < argc) {
             float xyz[3] = {0, 0, 0};
             if (tools::parse_floats(argv[++i], xyz, 3) != 3) {
@@ -312,7 +317,13 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::cout << map_name << ": " << meshes.size() << " model meshes, " << collision.size()
+    // The design table names the map and picks its music (docs/formats/text-tables.md).
+    const tools::MapIdentity identity = tools::identify_map(map_name);
+
+    std::cout << map_name;
+    if (!identity.display_name.empty())
+        std::cout << " \"" << identity.display_name << "\"";
+    std::cout << ": " << meshes.size() << " model meshes, " << collision.size()
               << " collision polygons, " << decorations.size() << " decorations, " << actors.size()
               << " actors (" << actor_sprite.size() << " with sprites)\n";
 
@@ -320,7 +331,9 @@ int main(int argc, char** argv) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
         return 1;
     }
-    const std::string title = "StarHaven - walk - " + map_name;
+    const std::string title =
+        "StarHaven - walk - " +
+        (identity.display_name.empty() ? map_name : identity.display_name + " (" + map_name + ")");
     SDL_Window* window = SDL_CreateWindow(title.c_str(), kWidth, kHeight, 0);
     SDL_Renderer* sdl_renderer = SDL_CreateRenderer(window, nullptr);
     SDL_Texture* screen = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ABGR8888,
@@ -331,6 +344,17 @@ int main(int argc, char** argv) {
         SDL_SetWindowRelativeMouseMode(window, true);
     }
 
+    // A one-frame capture ends before a note sounds, so do not start audio for
+    // it at all.
+    tools::MusicPlayer music;
+    if (music_wanted && screenshot.empty() && identity.music_track > 0) {
+        if (const auto install = platform::install_from_env()) {
+            if (music.start(*install, identity.music_track)) {
+                std::cout << "playing track " << identity.music_track << "\n";
+            }
+        }
+    }
+
     const render::Vec3 sun = render::normalize(render::Vec3{0.4f, 1.0f, 0.3f});
     render::SceneRenderer scene(kWidth, kHeight);
     float fall_speed = 0.0f;
@@ -339,6 +363,7 @@ int main(int argc, char** argv) {
 
     while (running) {
         ++frame;
+        music.update();
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
