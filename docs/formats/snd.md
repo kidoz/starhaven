@@ -6,9 +6,8 @@ format its entries carry. Each claim is tagged `observed`, `inferred`, or
 
 ## Scope
 
-Covers `Sounds/Audio.snd` and the RIFF/WAVE payloads inside it. The game's
-music is separate: fifteen ordinary MP3 files sit beside the archive in
-`Sounds/`, needing no format work.
+Covers `Sounds/Audio.snd` and the RIFF/WAVE payloads inside it, and — briefly —
+the music beside it.
 
 ## Source provenance (non-expressive)
 
@@ -98,6 +97,28 @@ bounds:
 All 1,526 entries decode. Sampled effects show lag-1 sample correlation of 0.76
 to 0.985 — monster roars and movement sounds are broadband, so lower than
 speech, but far from the near-zero a broken decode produces. `observed`
+
+## Music
+
+The game's music needs no reverse engineering: fifteen ordinary **MP3** files
+sit beside the archive in `Sounds/`, named `2.mp3` through `16.mp3`, all
+44,100 Hz stereo and totalling about 51 minutes. `observed`
+
+Because MP3 is a standard format rather than anything of MM6's, StarHaven
+decodes it with a third-party library instead of writing one: **minimp3**,
+a public-domain (CC0) single-header decoder, pinned to a commit in
+`subprojects/minimp3.wrap`. It is the project's only decoding dependency that
+is not either the standard library, zlib, or SDL.
+
+Verification is the same statistic used for the Smacker and ADPCM paths:
+decoded tracks show lag-1 sample correlation of 0.982 to 0.998, which is what
+music looks like and noise does not.
+
+Two notes on the tracks:
+
+- Their names sort as text in a way that reads wrongly — `10.mp3` before
+  `2.mp3` — so discovery sorts numeric stems numerically. `observed`
+- There is no `1.mp3`; the set begins at 2. `observed`
 
 ## Open questions
 

@@ -127,3 +127,9 @@ test('scene',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('mp3',
+  executable('test_mp3', 'test_mp3.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

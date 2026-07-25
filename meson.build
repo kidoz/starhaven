@@ -19,6 +19,11 @@ starhaven_core_inc = include_directories('src', '.')
 # (see docs/formats/bitmap.md). It is standard zlib, not a proprietary scheme.
 zlib_dep = dependency('zlib')
 
+# minimp3 decodes the game's MP3 music: the tracks are ordinary MP3 files, so
+# playing them needs a decoder rather than reverse engineering. Header-only and
+# public domain; see subprojects/minimp3.wrap.
+minimp3_dep = dependency('minimp3', fallback: ['minimp3', 'minimp3_dep'])
+
 # Core engine library. Reused by the application, tools, and tests so that
 # parser behavior is exercised by the same code path in every target.
 starhaven_core_sources = files(
@@ -43,6 +48,7 @@ starhaven_core_sources = files(
   'src/core/assets/asset_cache.cpp',
   'src/core/audio/snd_archive.cpp',
   'src/core/audio/wav.cpp',
+  'src/core/audio/mp3.cpp',
   'src/core/video/vid_archive.cpp',
   'src/core/video/smacker.cpp',
   'src/core/platform/paths.cpp',
@@ -51,7 +57,8 @@ starhaven_core_sources = files(
 starhaven_core = static_library('starhaven_core',
   starhaven_core_sources,
   include_directories : starhaven_core_inc,
-  dependencies : [zlib_dep, dependency('threads', required : false)],
+  dependencies : [zlib_dep, minimp3_dep,
+                  dependency('threads', required : false)],
 )
 
 starhaven_dep = declare_dependency(
@@ -78,6 +85,7 @@ executable('lod_browser', 'tools/lod_browser.cpp',
 # subprojects/sdl3.wrap declares `dependency_names = sdl3`, so Meson falls back
 # to the wrap automatically when no system SDL3 is found.
 sdl3_dep = dependency('sdl3')
+
 
 # Bitmap viewer: decodes one .LOD image entry and shows it in an SDL3 window.
 # Only built when SDL3 is available.
@@ -106,6 +114,12 @@ executable('walk_odm', 'tools/walk_odm.cpp',
 
 # Indoor walker: software-rasterizes a .blv level in 3D.
 executable('walk_blv', 'tools/walk_blv.cpp',
+  dependencies : [starhaven_dep, sdl3_dep],
+  install : true,
+)
+
+# Music player: decodes and plays one of the installation's MP3 tracks.
+executable('play_music', 'tools/play_music.cpp',
   dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )

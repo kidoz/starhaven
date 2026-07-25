@@ -1,0 +1,14 @@
+# minimp3 — a public-domain (CC0) single-header MP3 decoder.
+#
+# MM6 ships its music as ordinary MP3 files, so playing them needs a decoder
+# rather than reverse engineering. Pinned to a commit: the project has no
+# releases, and an unpinned master would make builds unreproducible.
+[wrap-file]
+directory = minimp3-7b590fdcfa5a79c033e76eacc05d0c3e4c79f536
+source_url = https://github.com/lieff/minimp3/archive/7b590fdcfa5a79c033e76eacc05d0c3e4c79f536.tar.gz
+source_filename = minimp3-7b590fdcfa5a79c033e76eacc05d0c3e4c79f536.tar.gz
+source_hash = f7ae40b3574f004bc85773218c2873ffc67b7b1ef5c86ea0474b9e8a2ee6b260
+patch_directory = minimp3
+
+[provide]
+minimp3 = minimp3_dep

@@ -99,6 +99,9 @@ interoperability and compatibility with a legally purchased copy.
   and a RIFF/WAVE decoder handling PCM and **IMA ADPCM** — the encoding every
   MM6 effect uses. All 1,526 decode, trimmed to the exact length the `fact`
   chunk declares.
+- **Music playback**: the installation's fifteen MP3 tracks, decoded with the
+  public-domain minimp3 (the project's only non-standard decoding dependency)
+  and played through the same SDL3 sink as the sound effects.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
@@ -145,8 +148,8 @@ The format specs are documented from observed behavior in
 
 Requirements: a C++20 compiler, [Meson](https://mesonbuild.com/) ≥ 1.0,
 [Ninja](https://ninja-build.org/), **zlib** (system), and **SDL3** (system, or
-built via the committed `subprojects/sdl3.wrap`). Catch2 v3 is pulled in
-automatically via a Meson Wrap (committed in `subprojects/catch2.wrap`).
+built via the committed `subprojects/sdl3.wrap`). Catch2 v3 and minimp3 are
+pulled in automatically via committed Meson wraps.
 
 ```bash
 meson setup buildDir
@@ -232,6 +235,13 @@ Walk a 3D, software-rasterized view of an outdoor map — terrain and buildings:
 ./buildDir/walk_odm Outa1.odm --boxes
 ```
 
+Play a music track (`--list` shows all fifteen):
+
+```bash
+./buildDir/play_music --list
+./buildDir/play_music 10 --seconds 30
+```
+
 Play a sound effect (`--list` shows all 1,526):
 
 ```bash
@@ -283,6 +293,7 @@ src/
     world/collision.{hpp,cpp} static collision world: floor queries, wall slide
     audio/snd_archive.{hpp,cpp} Audio.snd sound-effect archive reader
     audio/wav.{hpp,cpp}       RIFF/WAVE decoder (PCM and IMA ADPCM)
+    audio/mp3.{hpp,cpp}       MP3 music decoding (wraps minimp3) + discovery
     video/vid_archive.{hpp,cpp} .vid video container directory reader
     video/smacker.{hpp,cpp}   Smacker video decoder (video only, no audio)
     world/map_event.{hpp,cpp} .ddm/.dlv event-data parser (zlib wrapper)
@@ -303,6 +314,7 @@ tools/
   tile_probe.cpp             ground tileset research probe
   play_smk.cpp               list and play the game's Smacker videos
   play_sound.cpp             list, play and dump the game's sound effects
+  play_music.cpp             list and play the installation's music tracks
   blv_info.cpp               print one .blv indoor map's geometry stats
   walk_blv.cpp               first-person 3D walker for indoor levels
   walker_common.hpp          player proportions, movement step, CLI helpers
@@ -343,7 +355,8 @@ docs/
 25. ~~Resolve actors to sprites via `DMONLIST.BIN` and draw them.~~ ✓ (this slice)
 26. ~~Verify the actor position field and map the record's fields.~~ ✓ (this slice)
 27. ~~Share the scene, camera and asset code between the walkers; draw indoor decorations.~~ ✓ (this slice)
-28. Actor statistics, monster palette variants, UI, music, and gameplay systems.
+28. ~~Play the installation's MP3 music.~~ ✓ (this slice)
+29. UI and gameplay systems.
 
 ## Contributing
 
