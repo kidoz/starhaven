@@ -58,6 +58,9 @@ interoperability and compatibility with a legally purchased copy.
 - **Real ground textures**: the `DTILE.BIN` global tile table (in `icons.lod`)
   resolves an `.odm` tilemap byte to a `BITMAPS.LOD` entry, so terrain is drawn
   with the game's own art rather than placeholder colors.
+- A decoder for map **actors** — the named monsters and NPCs placed on outdoor
+  maps, with their world positions. 266 across 15 maps, of which 252 stand
+  either on the terrain or inside a building footprint.
 - A decoder for `.ddm` (outdoor) and `.dlv` (indoor) **event-data files** — the
   map interaction scripts (triggers, spawns, actions). Same zlib wrapper as
   `.odm`. Also enumerates the first event table's populated records (type +
@@ -130,7 +133,8 @@ The format specs are documented from observed behavior in
 [`docs/formats/sprite.md`](docs/formats/sprite.md),
 [`docs/formats/blv.md`](docs/formats/blv.md),
 [`docs/formats/vid.md`](docs/formats/vid.md),
-[`docs/formats/snd.md`](docs/formats/snd.md), and
+[`docs/formats/snd.md`](docs/formats/snd.md),
+[`docs/formats/event-actors.md`](docs/formats/event-actors.md), and
 [`docs/formats/smacker.md`](docs/formats/smacker.md).
 
 ## Build
@@ -327,7 +331,8 @@ docs/
 21. Decode event-record bodies.
 22. ~~Smacker DPCM audio and an SDL3 audio sink.~~ ✓ (this slice)
 23. ~~Decode the sound-effect archive and its IMA ADPCM waves.~~ ✓ (this slice)
-24. UI, music playback, and gameplay systems.
+24. ~~Decode actor placements from the event files.~~ ✓ (this slice)
+25. Resolve actor names to sprites via `DMONLIST.BIN`; UI, music, and gameplay systems.
 
 ## Contributing
 

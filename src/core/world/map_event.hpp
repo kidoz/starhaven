@@ -59,6 +59,32 @@ constexpr std::uint32_t kEventRecordNameMax = 12;   // verified readable prefix
 [[nodiscard]] std::vector<EventTableRecord>
 enumerate_event_table(const MapEventFile& file, std::size_t max_records = 4096);
 
+// --- Actors (see docs/formats/event-actors.md) -----------------------------
+
+// One placed actor: a named monster or NPC standing somewhere on the map.
+//
+// The 548-byte record holds far more than this — stats and behaviour flags are
+// visible but unconfirmed — so only the fields verified against the maps
+// themselves are exposed.
+struct MapActor {
+    std::string name;                   // e.g. "Peasant"
+    std::int16_t x = 0, y = 0, z = 0;   // world position, MM6 axes
+};
+
+// Extract the actor array: the same 548-byte records `enumerate_event_table`
+// walks, read for their name and position.
+//
+// The array has no count field, so it is read until the first slot whose name
+// is not plausible text. That rule is what keeps a trailing garbage slot — one
+// exists in several shipped files — out of the result.
+[[nodiscard]] std::vector<MapActor>
+extract_actors(const MapEventFile& file, std::size_t max_records = 4096);
+
+// Offset of the position triple within a record, and the minimum name length
+// treated as a real entry.
+constexpr std::uint32_t kActorPositionOffset = 0x82;
+constexpr std::size_t kActorMinNameLength = 2;
+
 }  // namespace starhaven::world
 
 #endif  // STARHAVEN_CORE_WORLD_MAP_EVENT_HPP

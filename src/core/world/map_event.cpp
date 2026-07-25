@@ -81,4 +81,54 @@ enumerate_event_table(const MapEventFile& file, std::size_t max_records) {
     return out;
 }
 
+// --- Actors ----------------------------------------------------------------
+
+std::vector<MapActor> extract_actors(const MapEventFile& file,
+                                     std::size_t max_records) {
+    std::vector<MapActor> out;
+    const auto& p = file.payload;
+
+    for (std::size_t i = 0; i < max_records; ++i) {
+        const std::uint64_t base =
+            static_cast<std::uint64_t>(kEventTableOffset) +
+            static_cast<std::uint64_t>(i) * kEventRecordSize;
+        if (base + kEventRecordSize > p.size()) {
+            break;
+        }
+
+        // The name runs to its first NUL. A slot whose name is short or
+        // non-printable is past the end of the array: several shipped files
+        // have one such slot, holding an implausible position of (0, 0, 31744).
+        std::string name;
+        const std::size_t name_at =
+            static_cast<std::size_t>(base) + kEventRecordNameOffset;
+        for (std::size_t k = 0; k < 32; ++k) {
+            const std::uint8_t ch = p[name_at + k];
+            if (ch == 0) break;
+            if (ch < 32 || ch >= 127) {
+                name.clear();
+                break;
+            }
+            name.push_back(static_cast<char>(ch));
+        }
+        if (name.size() < kActorMinNameLength) {
+            break;
+        }
+
+        MapActor a;
+        a.name = std::move(name);
+        const std::size_t pos = static_cast<std::size_t>(base) + kActorPositionOffset;
+        const auto i16_at = [&](std::size_t o) {
+            return static_cast<std::int16_t>(
+                static_cast<std::uint16_t>(p[o]) |
+                (static_cast<std::uint16_t>(p[o + 1]) << 8));
+        };
+        a.x = i16_at(pos);
+        a.y = i16_at(pos + 2);
+        a.z = i16_at(pos + 4);
+        out.push_back(std::move(a));
+    }
+    return out;
+}
+
 }  // namespace starhaven::world

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <tuple>
 #include <vector>
 
 #include <zlib.h>
@@ -148,4 +149,111 @@ TEST_CASE("empty slots between populated records are skipped", "[map_event]") {
     REQUIRE(recs.size() == 2);
     REQUIRE(recs[0].name == "A");
     REQUIRE(recs[1].name == "D");
+}
+
+// --- actor tests -----------------------------------------------------------
+
+namespace {
+
+// Build an event payload whose actor table holds the given entries.
+std::vector<std::byte> make_event_entry_with_actors(
+    const std::vector<std::tuple<std::string, std::int16_t, std::int16_t,
+                                 std::int16_t>>& actors,
+    bool trailing_garbage = false) {
+    const std::size_t count = actors.size() + (trailing_garbage ? 1 : 0);
+    std::vector<std::uint8_t> payload(
+        kEventTableOffset + (count + 1) * kEventRecordSize, 0);
+
+    auto put_i16 = [&](std::size_t off, std::int16_t v) {
+        const auto u = static_cast<std::uint16_t>(v);
+        payload[off] = static_cast<std::uint8_t>(u & 0xFF);
+        payload[off + 1] = static_cast<std::uint8_t>((u >> 8) & 0xFF);
+    };
+
+    for (std::size_t i = 0; i < actors.size(); ++i) {
+        const auto& [name, x, y, z] = actors[i];
+        const std::size_t base = kEventTableOffset + i * kEventRecordSize;
+        for (std::size_t k = 0; k < name.size() && k < 31; ++k) {
+            payload[base + kEventRecordNameOffset + k] =
+                static_cast<std::uint8_t>(name[k]);
+        }
+        put_i16(base + kActorPositionOffset, x);
+        put_i16(base + kActorPositionOffset + 2, y);
+        put_i16(base + kActorPositionOffset + 4, z);
+    }
+
+    if (trailing_garbage) {
+        // Several shipped files end with a slot holding a one-character name
+        // and an implausible position; it must not be reported as an actor.
+        const std::size_t base = kEventTableOffset + actors.size() * kEventRecordSize;
+        payload[base + kEventRecordNameOffset] = static_cast<std::uint8_t>('(');
+        put_i16(base + kActorPositionOffset, 0);
+        put_i16(base + kActorPositionOffset + 2, 0);
+        put_i16(base + kActorPositionOffset + 4, 31744);
+    }
+
+    std::vector<std::uint8_t> compressed;
+    REQUIRE(zlib_compress(payload, compressed));
+    std::vector<std::byte> entry(kEventWrapperSize + compressed.size());
+    put_u32_le(entry, 0x00, static_cast<std::uint32_t>(payload.size()));
+    put_u32_le(entry, 0x04, static_cast<std::uint32_t>(payload.size()));
+    std::memcpy(&entry[kEventWrapperSize], compressed.data(), compressed.size());
+    return entry;
+}
+
+}  // namespace
+
+TEST_CASE("actors decode with their names and positions", "[map_event]") {
+    auto entry = make_event_entry_with_actors({
+        {"Peasant", 10896, 15872, 160},
+        {"Peasant", -13632, 18976, 96},
+        {"Goblin", 0, -2048, -64},
+    });
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+
+    const auto actors = extract_actors(file);
+    REQUIRE(actors.size() == 3);
+    REQUIRE(actors[0].name == "Peasant");
+    REQUIRE(actors[0].x == 10896);
+    REQUIRE(actors[0].y == 15872);
+    REQUIRE(actors[0].z == 160);
+    REQUIRE(actors[1].x == -13632);   // negative coordinates survive
+    REQUIRE(actors[2].name == "Goblin");
+    REQUIRE(actors[2].z == -64);
+}
+
+TEST_CASE("a trailing one-character slot ends the actor array", "[map_event]") {
+    auto entry = make_event_entry_with_actors({{"Peasant", 100, 200, 300}},
+                                              /*trailing_garbage*/ true);
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    const auto actors = extract_actors(file);
+    REQUIRE(actors.size() == 1);
+    REQUIRE(actors[0].name == "Peasant");
+}
+
+TEST_CASE("a map with no actors yields none", "[map_event]") {
+    auto entry = make_event_entry_with_actors({});
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    REQUIRE(extract_actors(file).empty());
+}
+
+TEST_CASE("a payload too short for the table yields no actors", "[map_event]") {
+    auto entry = make_event_entry(std::vector<std::uint8_t>(64, 0));
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    REQUIRE(extract_actors(file).empty());
+}
+
+TEST_CASE("a non-printable name ends the array", "[map_event]") {
+    auto entry = make_event_entry_with_actors({{"Peasant", 1, 2, 3}});
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    // Corrupt the second slot's name with a control byte.
+    const std::size_t second = kEventTableOffset + kEventRecordSize;
+    file.payload[second + kEventRecordNameOffset] = 0x01;
+    file.payload[second + kEventRecordNameOffset + 1] = 0x02;
+    REQUIRE(extract_actors(file).size() == 1);
 }
