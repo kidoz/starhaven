@@ -105,6 +105,25 @@ TEST_CASE("distinct tile indices get distinct colors", "[terrain_mesh]") {
     REQUIRE((a.r != b.r || a.g != b.g || a.b != b.b));
 }
 
+TEST_CASE("triangles wind CW from above so screen-space culling keeps them",
+          "[terrain_mesh]") {
+    // Regression guard. Projection flips Y when mapping NDC to screen rows,
+    // and that flip reverses orientation. Emitting world-space CCW here makes
+    // every top face arrive at the rasterizer with negative screen area, so
+    // backface culling discards the whole terrain and the view is empty sky.
+    auto mesh = build_terrain_mesh(flat_terrain(), {});
+    REQUIRE(mesh.indices.size() >= 3);
+
+    const Vec3 a = mesh.vertices[mesh.indices[0]];
+    const Vec3 b = mesh.vertices[mesh.indices[1]];
+    const Vec3 c = mesh.vertices[mesh.indices[2]];
+
+    // Signed area in the ground plane, looking down +Y. Positive here is the
+    // winding that survives culling once Y is flipped downstream.
+    const float area = (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
+    REQUIRE(area > 0.0f);
+}
+
 TEST_CASE("mesh carries one uv per vertex, in cell units", "[terrain_mesh]") {
     auto mesh = build_terrain_mesh(flat_terrain(), {});
     REQUIRE(mesh.uvs.size() == mesh.vertices.size());

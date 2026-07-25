@@ -126,14 +126,19 @@ TerrainMesh build_terrain_mesh(const world::OdmTerrain& terrain,
             const std::uint32_t b = idx(x + 1, y);
             const std::uint32_t c = idx(x + 1, y + 1);
             const std::uint32_t d = idx(x, y + 1);
-            // Winding CCW when viewed from above (+Y) so backface culling keeps
-            // top-facing terrain.
+            // Winding is CW when viewed from above (+Y) in world space, which
+            // is deliberate: projection flips Y when converting NDC to screen
+            // rows, and that flip reverses orientation. A world-space CW top
+            // face therefore arrives at the rasterizer as screen-space CCW
+            // (positive area), which is what draw_triangle treats as
+            // front-facing. Emitting world-space CCW here instead would make
+            // backface culling discard the entire terrain.
             mesh.indices.push_back(a);
-            mesh.indices.push_back(d);
-            mesh.indices.push_back(b);
             mesh.indices.push_back(b);
             mesh.indices.push_back(d);
+            mesh.indices.push_back(b);
             mesh.indices.push_back(c);
+            mesh.indices.push_back(d);
 
             // Both triangles of the cell take the cell's own tile index, read
             // at its top-left corner — the same convention build_terrain_colors
