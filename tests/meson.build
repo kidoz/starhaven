@@ -103,3 +103,15 @@ test('collision',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('wav',
+  executable('test_wav', 'test_wav.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
+test('snd_archive',
+  executable('test_snd_archive', 'test_snd_archive.cpp',
+    dependencies : [starhaven_dep, catch2_main, zlib_dep]),
+  workdir : meson.current_build_dir(),
+)

@@ -89,6 +89,10 @@ interoperability and compatibility with a legally purchased copy.
   planes become a collision world with floor queries and wall sliding, so you
   walk on surfaces and into walls under gravity instead of flying through them.
   Mouse-look included; `--fly` restores the free camera.
+- A reader for `Sounds/Audio.snd`, the **sound-effect archive** (1,526 entries),
+  and a RIFF/WAVE decoder handling PCM and **IMA ADPCM** — the encoding every
+  MM6 effect uses. All 1,526 decode, trimmed to the exact length the `fact`
+  chunk declares.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
@@ -125,7 +129,8 @@ The format specs are documented from observed behavior in
 [`docs/formats/bitmap.md`](docs/formats/bitmap.md),
 [`docs/formats/sprite.md`](docs/formats/sprite.md),
 [`docs/formats/blv.md`](docs/formats/blv.md),
-[`docs/formats/vid.md`](docs/formats/vid.md), and
+[`docs/formats/vid.md`](docs/formats/vid.md),
+[`docs/formats/snd.md`](docs/formats/snd.md), and
 [`docs/formats/smacker.md`](docs/formats/smacker.md).
 
 ## Build
@@ -219,6 +224,14 @@ Walk a 3D, software-rasterized view of an outdoor map — terrain and buildings:
 ./buildDir/walk_odm Outa1.odm --boxes
 ```
 
+Play a sound effect (`--list` shows all 1,526):
+
+```bash
+./buildDir/play_sound --list
+./buildDir/play_sound 01archerA_attack
+./buildDir/play_sound door_open --dump door.wav
+```
+
 Play one of the game's videos (`--list` shows every name):
 
 ```bash
@@ -259,6 +272,8 @@ src/
     world/tile_table.{hpp,cpp} DTILE.BIN ground tile table (index -> bitmap)
     world/blv_map.{hpp,cpp}   .blv indoor map parser (vertices + faces)
     world/collision.{hpp,cpp} static collision world: floor queries, wall slide
+    audio/snd_archive.{hpp,cpp} Audio.snd sound-effect archive reader
+    audio/wav.{hpp,cpp}       RIFF/WAVE decoder (PCM and IMA ADPCM)
     video/vid_archive.{hpp,cpp} .vid video container directory reader
     video/smacker.{hpp,cpp}   Smacker video decoder (video only, no audio)
     world/map_event.{hpp,cpp} .ddm/.dlv event-data parser (zlib wrapper)
@@ -276,6 +291,7 @@ tools/
   walk_odm.cpp               first-person 3D walker (terrain + model meshes)
   tile_probe.cpp             ground tileset research probe
   play_smk.cpp               list and play the game's Smacker videos
+  play_sound.cpp             list, play and dump the game's sound effects
   blv_info.cpp               print one .blv indoor map's geometry stats
   walk_blv.cpp               first-person 3D walker for indoor levels
   ddm_info.cpp               decompress one .ddm/.dlv event file, print stats
@@ -310,7 +326,8 @@ docs/
 20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)
 21. Decode event-record bodies.
 22. ~~Smacker DPCM audio and an SDL3 audio sink.~~ ✓ (this slice)
-23. UI, music playback, and gameplay systems.
+23. ~~Decode the sound-effect archive and its IMA ADPCM waves.~~ ✓ (this slice)
+24. UI, music playback, and gameplay systems.
 
 ## Contributing
 

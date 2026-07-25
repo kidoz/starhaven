@@ -38,6 +38,8 @@ starhaven_core_sources = files(
   'src/core/render/texture.cpp',
   'src/core/render/tile_set.cpp',
   'src/core/render/terrain_mesh.cpp',
+  'src/core/audio/snd_archive.cpp',
+  'src/core/audio/wav.cpp',
   'src/core/video/vid_archive.cpp',
   'src/core/video/smacker.cpp',
   'src/core/platform/paths.cpp',
@@ -101,6 +103,12 @@ executable('walk_odm', 'tools/walk_odm.cpp',
 
 # Indoor walker: software-rasterizes a .blv level in 3D.
 executable('walk_blv', 'tools/walk_blv.cpp',
+  dependencies : [starhaven_dep, sdl3_dep],
+  install : true,
+)
+
+# Sound-effect player: decodes one entry of Sounds/Audio.snd and plays it.
+executable('play_sound', 'tools/play_sound.cpp',
   dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
