@@ -97,3 +97,9 @@ test('blv',
     dependencies : [starhaven_dep, catch2_main, zlib_dep]),
   workdir : meson.current_build_dir(),
 )
+
+test('collision',
+  executable('test_collision', 'test_collision.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

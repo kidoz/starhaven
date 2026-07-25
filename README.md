@@ -83,6 +83,10 @@ interoperability and compatibility with a legally purchased copy.
   **Smacker video decoder**: header, Huffman trees, palette records and the
   block-coded frame stream, decoded to RGBA. Verified on all 127 videos MM6
   ships — every frame of every one. Video only; audio is located and skipped.
+- A **collision and movement layer** shared by both walkers: the decoded face
+  planes become a collision world with floor queries and wall sliding, so you
+  walk on surfaces and into walls under gravity instead of flying through them.
+  Mouse-look included; `--fly` restores the free camera.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
@@ -251,6 +255,7 @@ src/
     world/odm_map.{hpp,cpp}   .odm parser (zlib, header, terrain, model meshes)
     world/tile_table.{hpp,cpp} DTILE.BIN ground tile table (index -> bitmap)
     world/blv_map.{hpp,cpp}   .blv indoor map parser (vertices + faces)
+    world/collision.{hpp,cpp} static collision world: floor queries, wall slide
     video/vid_archive.{hpp,cpp} .vid video container directory reader
     video/smacker.{hpp,cpp}   Smacker video decoder (video only, no audio)
     world/map_event.{hpp,cpp} .ddm/.dlv event-data parser (zlib wrapper)
@@ -275,6 +280,7 @@ tests/                       hermetic Catch2 unit tests (synthetic fixtures)
 docs/
   formats/…                  evidence-backed format specifications
   rendering/software-rasterizer.md  rasterizer design and frame pipeline
+  rendering/collision.md     collision world, movement and player proportions
 ```
 
 ## Roadmap (toward playable)
@@ -298,8 +304,9 @@ docs/
 17. ~~Render indoor levels (`walk_blv`), with per-face texture coordinates.~~ ✓ (this slice)
 18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) so decorations can be located by offset rather than by scanning.
 19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
-20. Decode event-record bodies; mouse-look; collision.
-21. Smacker audio, an audio output layer, UI, and gameplay systems.
+20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)
+21. Decode event-record bodies.
+22. Smacker audio, an audio output layer, UI, and gameplay systems.
 
 ## Contributing
 

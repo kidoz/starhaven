@@ -20,8 +20,19 @@
 #include "core/render/rasterizer.hpp"
 #include "core/render/texture.hpp"
 #include "core/world/blv_map.hpp"
+#include "core/world/collision.hpp"
 
 namespace {
+
+// Player proportions, in MM6 world units. A terrain cell is 512 across, so a
+// body a little under a third of a cell wide walks through doorways.
+constexpr float kBodyRadius = 64.0f;
+constexpr float kBodyHeight = 320.0f;
+constexpr float kEyeHeight = 280.0f;
+constexpr float kStepHeight = 96.0f;   // stairs and kerbs this tall are walked up
+constexpr float kGravity = -2400.0f;   // units per second squared
+
+constexpr float kMouseSensitivity = 0.0025f;
 
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
@@ -43,6 +54,7 @@ void print_usage(const char* argv0) {
               << "  --pos X,Y,Z         start position (renderer axes, Y up)\n"
               << "  --look YAW,PITCH    start orientation in degrees\n"
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
+              << "  --fly               disable gravity and wall collision\n"
               << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory.\n";
@@ -132,6 +144,7 @@ int main(int argc, char** argv) {
 
     std::string map_name;
     std::string screenshot;
+    bool fly = false;
     bool have_pos = false;
     render::Vec3 start_pos{0, 0, 0};
     float start_yaw = 0.0f;
@@ -155,6 +168,8 @@ int main(int argc, char** argv) {
         const std::string a = argv[i];
         if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
+        } else if (a == "--fly") {
+            fly = true;
         } else if (a == "--pos" && i + 1 < argc) {
             float xyz[3] = {0, 0, 0};
             if (parse_floats(argv[++i], xyz, 3) != 3) {
@@ -203,6 +218,22 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Collision uses the same faces the renderer draws, minus the portals.
+    world::CollisionWorld collision;
+    {
+        std::vector<render::Vec3> corners;
+        for (const auto& f : map.faces) {
+            if (f.invisible() || f.vertex_count < 3) continue;
+            corners.clear();
+            for (std::size_t k = 0; k < f.vertex_count; ++k) {
+                const auto& v = map.vertices[f.vertex_ids[k]];
+                corners.push_back(to_render_space(v.x, v.y, v.z));
+            }
+            collision.add_polygon(corners, {f.nx(), f.nz(), f.ny()});
+        }
+    }
+    std::cout << "  collision polygons: " << collision.size() << "\n";
+
     std::map<std::string, render::Texture> textures;
     const int loaded = load_face_textures(map, textures);
     std::cout << map_name << ": \"" << map.header.name << "\"  "
@@ -214,7 +245,8 @@ int main(int argc, char** argv) {
     if (!have_pos) {
         for (const auto& d : world::find_decorations(map)) {
             if (d.name == "Party Start") {
-                start_pos = to_render_space(d.x, d.y, d.z + 160);
+                start_pos = to_render_space(d.x, d.y, d.z) ;
+                start_pos.y += kEyeHeight;
                 have_pos = true;
                 std::cout << "  spawning at the map's Party Start marker\n";
                 break;
@@ -251,7 +283,8 @@ int main(int argc, char** argv) {
             // Roughly eye height above the floor.
             start_pos = to_render_space(static_cast<int>(sx / n),
                                         static_cast<int>(sy / n),
-                                        static_cast<int>(sz / n) + 160);
+                                        static_cast<int>(sz / n));
+            start_pos.y += kEyeHeight;
         }
     }
 
@@ -269,19 +302,37 @@ int main(int argc, char** argv) {
     render::Vec3 cam_pos = start_pos;
     float yaw = start_yaw;
     float pitch = start_pitch;
+    float fall_speed = 0.0f;
+
+    // Relative mouse mode gives unbounded look; without a window it is a no-op,
+    // which is what the screenshot path wants.
+    const bool mouse_look = screenshot.empty();
+    if (mouse_look) {
+        SDL_SetWindowRelativeMouseMode(window, true);
+    }
 
     // Indoor levels have no sky, so light them from a fixed overhead direction
     // rather than a sun: it keeps floors bright and walls readable.
     const render::Vec3 lamp = render::normalize(render::Vec3{0.3f, 1.0f, 0.2f});
     render::Framebuffer fb(kWidth, kHeight);
 
+    // A capture taken on the first frame shows the camera before gravity has
+    // settled it, which misrepresents where the player actually stands.
+    constexpr int kSettleFrames = 90;
+    int frame = 0;
+
     bool running = true;
     while (running) {
+        ++frame;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) running = false;
             else if (event.type == SDL_EVENT_KEY_DOWN &&
                      event.key.key == SDLK_ESCAPE) running = false;
+            else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
+                yaw += event.motion.xrel * kMouseSensitivity;
+                pitch -= event.motion.yrel * kMouseSensitivity;
+            }
         }
         const auto* keys = SDL_GetKeyboardState(nullptr);
         const float speed = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1200.0f : 400.0f;
@@ -290,12 +341,38 @@ int main(int argc, char** argv) {
         const render::Vec3 fwd = render::camera_forward(yaw, pitch);
         const render::Vec3 fwd_flat = render::normalize(render::Vec3{fwd.x, 0, fwd.z});
         const render::Vec3 right = render::camera_right(yaw);
-        if (keys[SDL_SCANCODE_W]) cam_pos = cam_pos + fwd_flat * (speed * dt);
-        if (keys[SDL_SCANCODE_S]) cam_pos = cam_pos - fwd_flat * (speed * dt);
-        if (keys[SDL_SCANCODE_A]) cam_pos = cam_pos - right * (speed * dt);
-        if (keys[SDL_SCANCODE_D]) cam_pos = cam_pos + right * (speed * dt);
-        if (keys[SDL_SCANCODE_Q]) cam_pos.y -= speed * dt;
-        if (keys[SDL_SCANCODE_E]) cam_pos.y += speed * dt;
+
+        // Horizontal intent first, then collision, then gravity: keeping them
+        // separate is what lets a blocked step still slide along the wall.
+        render::Vec3 wish = cam_pos;
+        if (keys[SDL_SCANCODE_W]) wish = wish + fwd_flat * (speed * dt);
+        if (keys[SDL_SCANCODE_S]) wish = wish - fwd_flat * (speed * dt);
+        if (keys[SDL_SCANCODE_A]) wish = wish - right * (speed * dt);
+        if (keys[SDL_SCANCODE_D]) wish = wish + right * (speed * dt);
+
+        if (fly) {
+            if (keys[SDL_SCANCODE_Q]) wish.y -= speed * dt;
+            if (keys[SDL_SCANCODE_E]) wish.y += speed * dt;
+            cam_pos = wish;
+        } else {
+            // Feet are eye height below the camera; collide the body, not the eye.
+            const render::Vec3 feet_from{cam_pos.x, cam_pos.y - kEyeHeight, cam_pos.z};
+            const render::Vec3 feet_to{wish.x, wish.y - kEyeHeight, wish.z};
+            render::Vec3 feet =
+                collision.slide(feet_from, feet_to, kBodyRadius, kBodyHeight);
+
+            fall_speed += kGravity * dt;
+            feet.y += fall_speed * dt;
+
+            float ground = 0.0f;
+            if (collision.floor_below({feet.x, feet.y + kStepHeight, feet.z}, ground) &&
+                feet.y <= ground) {
+                feet.y = ground;
+                fall_speed = 0.0f;
+            }
+            cam_pos = {feet.x, feet.y + kEyeHeight, feet.z};
+        }
+
         if (keys[SDL_SCANCODE_LEFT]) yaw -= 1.5f * dt;
         if (keys[SDL_SCANCODE_RIGHT]) yaw += 1.5f * dt;
         if (keys[SDL_SCANCODE_UP]) pitch += 1.5f * dt;
@@ -387,7 +464,7 @@ int main(int argc, char** argv) {
         SDL_RenderTexture(sdl_renderer, screen, nullptr, nullptr);
         SDL_RenderPresent(sdl_renderer);
 
-        if (!screenshot.empty()) {
+        if (!screenshot.empty() && frame >= kSettleFrames) {
             std::ofstream out(screenshot, std::ios::binary);
             out << "P6\n" << kWidth << " " << kHeight << "\n255\n";
             const auto px = fb.color();

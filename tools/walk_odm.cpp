@@ -24,6 +24,7 @@
 #include "core/render/terrain_mesh.hpp"
 #include "core/render/texture.hpp"
 #include "core/render/tile_set.hpp"
+#include "core/world/collision.hpp"
 #include "core/world/odm_map.hpp"
 #include "core/world/tile_table.hpp"
 
@@ -46,6 +47,7 @@ void print_usage(const char* argv0) {
               << "  --pos X,Y,Z         start position (renderer axes, Y up)\n"
               << "  --look YAW,PITCH    start orientation in degrees\n"
               << "  --boxes             overlay model bounding boxes\n"
+              << "  --fly               disable gravity and collision\n"
               << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory.\n";
@@ -61,6 +63,14 @@ std::filesystem::path resolve_games_lod() {
     }
     return "data/Games.lod";
 }
+
+// Player proportions, in MM6 world units. A terrain cell is 512 across.
+constexpr float kBodyRadius = 64.0f;
+constexpr float kBodyHeight = 320.0f;
+constexpr float kEyeHeight = 280.0f;
+constexpr float kStepHeight = 96.0f;
+constexpr float kGravity = -2400.0f;
+constexpr float kMouseSensitivity = 0.0025f;
 
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
@@ -246,6 +256,31 @@ starhaven::render::Vec3 to_render_space(std::int32_t x, std::int32_t y, std::int
     return {static_cast<float>(x), static_cast<float>(z), static_cast<float>(y)};
 }
 
+// Height of the terrain under a renderer-space point, interpolated across the
+// cell so walking a slope is smooth rather than stepped.
+float terrain_height_at(const starhaven::world::OdmTerrain& terrain,
+                        starhaven::render::TerrainScale scale, float x, float z) {
+    constexpr int dim = starhaven::world::OdmTerrain::kGridDim;
+    const float half = (dim - 1) * scale.cell_size * 0.5f;
+    const float gx = (x + half) / scale.cell_size;
+    const float gz = (z + half) / scale.cell_size;
+
+    const int x0 = std::clamp(static_cast<int>(std::floor(gx)), 0, dim - 1);
+    const int z0 = std::clamp(static_cast<int>(std::floor(gz)), 0, dim - 1);
+    const int x1 = std::min(x0 + 1, dim - 1);
+    const int z1 = std::min(z0 + 1, dim - 1);
+    const float fx = std::clamp(gx - static_cast<float>(x0), 0.0f, 1.0f);
+    const float fz = std::clamp(gz - static_cast<float>(z0), 0.0f, 1.0f);
+
+    auto at = [&](int cx, int cz) {
+        const std::size_t idx = static_cast<std::size_t>(cz) * dim + cx;
+        return static_cast<float>(terrain.heightmap[idx]) * scale.height_scale;
+    };
+    const float top = at(x0, z0) + (at(x1, z0) - at(x0, z0)) * fx;
+    const float bottom = at(x0, z1) + (at(x1, z1) - at(x0, z1)) * fx;
+    return top + (bottom - top) * fz;
+}
+
 // Transform one world-space vertex through view+projection, then to a screen
 // vertex. Returns false if the vertex is behind the near plane (caller should
 // have clipped already).
@@ -278,6 +313,7 @@ int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;  // when set, render one frame to PPM and exit
     bool show_boxes = false;  // model bounding-box wireframe overlay
+    bool fly = false;         // free-look camera, no gravity or collision
     // Camera defaults: above the map center, looking across it.
     starhaven::render::Vec3 start_pos{0, 32.0f * 30.0f, 0};
     float start_yaw = 0.6f, start_pitch = -0.3f;  // radians
@@ -303,6 +339,8 @@ int main(int argc, char** argv) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
             show_boxes = true;
+        } else if (a == "--fly") {
+            fly = true;
         } else if (a == "--pos" && i + 1 < argc) {
             float xyz[3] = {0, 0, 0};
             if (parse_floats(argv[++i], xyz, 3) != 3) {
@@ -387,6 +425,25 @@ int main(int argc, char** argv) {
                   << (deco_loaded > 0 ? deco_loaded : 0) << " sprites\n";
     }
 
+    // Collision: the models' own facets. Terrain is handled separately, by
+    // sampling the heightfield, which is both cheaper and exactly right.
+    world::CollisionWorld collision;
+    {
+        std::vector<render::Vec3> corners;
+        for (const auto& mesh : meshes) {
+            for (const auto& f : mesh.facets) {
+                if (f.vertex_count < 3) continue;
+                corners.clear();
+                for (std::size_t k = 0; k < f.vertex_count; ++k) {
+                    const auto& v = mesh.vertices[f.vertex_ids[k]];
+                    corners.push_back(to_render_space(v.x, v.y, v.z));
+                }
+                collision.add_polygon(corners, {f.nx(), f.nz(), f.ny()});
+            }
+        }
+    }
+    std::cout << "collision polygons: " << collision.size() << "\n";
+
     std::map<std::string, render::Texture> model_textures;
     const int model_tex = load_model_textures(meshes, model_textures);
     if (!meshes.empty()) {
@@ -415,17 +472,33 @@ int main(int argc, char** argv) {
     render::Vec3 cam_pos = start_pos;
     float yaw = start_yaw;      // radians
     float pitch = start_pitch;
+    float fall_speed = 0.0f;
+
+    const bool mouse_look = screenshot.empty();
+    if (mouse_look) {
+        SDL_SetWindowRelativeMouseMode(window, true);
+    }
 
     const render::Vec3 sun = render::normalize(render::Vec3{0.4f, 1.0f, 0.3f});
     render::Framebuffer fb(kWidth, kHeight);
 
+    // A capture taken on the first frame shows the camera before gravity has
+    // settled it, which misrepresents where the player actually stands.
+    constexpr int kSettleFrames = 90;
+    int frame = 0;
+
     bool running = true;
     while (running) {
+        ++frame;
         // --- input ---
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) running = false;
             else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) running = false;
+            else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
+                yaw += event.motion.xrel * kMouseSensitivity;
+                pitch -= event.motion.yrel * kMouseSensitivity;
+            }
         }
         // SDL3 hands back `const bool*` here; SDL2 used `const Uint8*`.
         const auto* keys = SDL_GetKeyboardState(nullptr);
@@ -435,12 +508,41 @@ int main(int argc, char** argv) {
         const render::Vec3 fwd = render::camera_forward(yaw, pitch);
         const render::Vec3 fwd_flat = render::normalize(render::Vec3{fwd.x, 0, fwd.z});
         const render::Vec3 right = render::camera_right(yaw);
-        if (keys[SDL_SCANCODE_W]) cam_pos = cam_pos + fwd_flat * (speed * dt);
-        if (keys[SDL_SCANCODE_S]) cam_pos = cam_pos - fwd_flat * (speed * dt);
-        if (keys[SDL_SCANCODE_A]) cam_pos = cam_pos - right * (speed * dt);
-        if (keys[SDL_SCANCODE_D]) cam_pos = cam_pos + right * (speed * dt);
-        if (keys[SDL_SCANCODE_Q]) cam_pos.y -= speed * dt;
-        if (keys[SDL_SCANCODE_E]) cam_pos.y += speed * dt;
+
+        render::Vec3 wish = cam_pos;
+        if (keys[SDL_SCANCODE_W]) wish = wish + fwd_flat * (speed * dt);
+        if (keys[SDL_SCANCODE_S]) wish = wish - fwd_flat * (speed * dt);
+        if (keys[SDL_SCANCODE_A]) wish = wish - right * (speed * dt);
+        if (keys[SDL_SCANCODE_D]) wish = wish + right * (speed * dt);
+
+        if (fly) {
+            if (keys[SDL_SCANCODE_Q]) wish.y -= speed * dt;
+            if (keys[SDL_SCANCODE_E]) wish.y += speed * dt;
+            cam_pos = wish;
+        } else {
+            const render::Vec3 feet_from{cam_pos.x, cam_pos.y - kEyeHeight, cam_pos.z};
+            const render::Vec3 feet_to{wish.x, wish.y - kEyeHeight, wish.z};
+            render::Vec3 feet =
+                collision.slide(feet_from, feet_to, kBodyRadius, kBodyHeight);
+
+            fall_speed += kGravity * dt;
+            feet.y += fall_speed * dt;
+
+            // The ground is whichever is higher: the terrain, or a model
+            // surface (a bridge deck, a floor inside a building).
+            float ground = terrain_height_at(terrain, {}, feet.x, feet.z);
+            float model_floor = 0.0f;
+            if (collision.floor_below({feet.x, feet.y + kStepHeight, feet.z},
+                                      model_floor)) {
+                ground = std::max(ground, model_floor);
+            }
+            if (feet.y <= ground) {
+                feet.y = ground;
+                fall_speed = 0.0f;
+            }
+            cam_pos = {feet.x, feet.y + kEyeHeight, feet.z};
+        }
+
         if (keys[SDL_SCANCODE_LEFT]) yaw -= 1.5f * dt;
         if (keys[SDL_SCANCODE_RIGHT]) yaw += 1.5f * dt;
         if (keys[SDL_SCANCODE_UP]) pitch += 1.5f * dt;
@@ -660,7 +762,7 @@ int main(int argc, char** argv) {
 
         // One-frame capture: lets the render be inspected without a live
         // session, and makes visual checks reproducible.
-        if (!screenshot.empty()) {
+        if (!screenshot.empty() && frame >= kSettleFrames) {
             std::ofstream out(screenshot, std::ios::binary);
             out << "P6\n" << kWidth << " " << kHeight << "\n255\n";
             const auto px = fb.color();
