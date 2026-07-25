@@ -1,9 +1,8 @@
 # Event-data format (.ddm / .dlv) (Might and Magic VI)
 
-Status: **draft, evidence-backed — outer format only.** This documents the file
-envelope of the outdoor (`.ddm`) and indoor (`.dlv`) event-data files stored in
-`Games.lod`. The decompressed payload's internal event-record layout is a
-follow-up. Each claim is tagged `observed`, `inferred`, or `unknown`.
+Status: **draft, evidence-backed.** This documents the file envelope of the
+outdoor (`.ddm`) and indoor (`.dlv`) event-data files stored in `Games.lod`.
+The outdoor counted sections are documented separately.
 
 ## Scope
 
@@ -42,11 +41,9 @@ The decompressed payload is a **large, mostly-zero fixed-size structure**
 - `outa1.ddm`: 86292 bytes, only ~handful nonzero (a nearly-empty starting map).
 - `outb2.ddm`: 97552 bytes, 1244 nonzero bytes (a populated town region).
 
-The payload holds the map's event tables (tile triggers, scripted actions,
-monster spawns, NPC placements, chest contents, etc.). The exact sectioning and
-record layouts are `unknown` in this slice and are the subject of follow-up
-research (they are large, fixed-offset tables referenced by the engine's
-`MapInfo`/event structures).
+The outdoor payload's counted actors, sprite objects, and chests are documented
+in [`event-tables.md`](event-tables.md). Indoor `.dlv` sectioning remains
+unknown.
 
 ## Decoding (this slice)
 
@@ -68,9 +65,5 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 ## Open questions (next slice)
 
-- The internal layout of the event tables beyond the first one's type/name
-  fields (see [`event-tables.md`](event-tables.md)): the 548-byte record body,
-  the other tables (spawn points, chests, objects), and the `.dlv` indoor
-  differences. These need the `MM6.exe` `.ddm`-loader trace.
-- The distinction between `.ddm` and `.dlv` payloads beyond size (indoor vs
-  outdoor event sets).
+- The fields within actor and chest records.
+- The counted section layout used by indoor `.dlv` files.

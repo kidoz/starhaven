@@ -1,81 +1,55 @@
-# Event-table records (.ddm / .dlv) (Might and Magic VI)
+# Outdoor event sections (`.ddm`)
 
-Status: **draft, evidence-backed — gross structure only.** This documents the
-first event table inside a decompressed `.ddm`/`.dlv` payload: a fixed-offset
-array of 548-byte records. The per-record field layout (beyond type and name)
-is `unknown` and is the subject of follow-up research. Each claim is tagged
-`observed`, `inferred`, or `unknown`.
+Status: **draft, evidence-backed.** This documents the counted actor,
+sprite-object, and chest arrays in a decompressed outdoor `.ddm` payload. It
+supersedes the earlier interpretation of `0x798` as an actor record.
 
 ## Scope
 
-This document covers the **first event table** found in the decompressed event
-payload (see [`event-data.md`](event-data.md) for the wrapper). It documents the
-table's fixed start offset, record stride, and the two verified leading fields
-(type, name). It does **not** cover:
+This layout applies to the 15 outdoor `.ddm` files examined. Indoor `.dlv`
+sectioning remains unknown.
 
-- the full per-record field layout (548 bytes, mostly unconfirmed);
-- the other tables that follow (spawn points, chests, objects, etc.);
-- the `.dlv`-specific indoor differences.
+## Layout
 
-## Source provenance (non-expressive)
+| Payload offset | Size | Field | Status |
+| --- | ---: | --- | --- |
+| `0x000` | 8 | saved outdoor state | observed |
+| `0x008` | 968 | fixed block | observed |
+| `0x3D0` | 968 | fixed block | observed |
+| `0x798` | 4 | `actor_count` | observed |
+| `0x79C` | `actor_count × 548` | actor records | observed |
+| next | 4 | `sprite_object_count` | observed |
+| next | `sprite_object_count × 100` | sprite-object records | observed |
+| next | 4 | `chest_count` | observed |
+| next | `chest_count × 4204` | chest records | observed |
+| next | 256 | fixed trailer | observed |
 
-| Field | Value |
-| --- | --- |
-| Product | Might and Magic VI: The Mandate of Heaven (GOG.com edition) |
-| Files verified | `outb2.ddm` (21 populated records), `outa1.ddm` (0 populated) |
-| Record size | 548 bytes (0x224) `observed` |
-| Table start | 0x798 (decompressed-payload offset) `observed` |
+The counts, strides, and trailer account for every byte in all 15 shipped
+outdoor payloads. Actor counts range from 0 to 58, sprite-object counts from 0
+to 42, and `chest_count` is 20 in every examined map.
 
-## First event table
+The executable's outdoor loader reads the count at `0x798`, copies
+`actor_count × 548`, then repeats the same count-and-copy sequence for
+100-byte sprite objects and 4204-byte chests. `observed`
 
-In the decompressed payload, the first event table begins at **offset 0x798**.
-It is a fixed-capacity array of 548-byte records; empty slots are all-zero.
+## Correction to the earlier interpretation
 
-| Offset | Size | Type | Field | Status | Notes |
-| --- | --- | --- | --- | --- | --- |
-| 0x798 + n×548 | 4 | i32 | type | observed | record type (e.g. 20 = NPC-bearing); 0 = empty |
-| 0x798 + n×548 + 4 | ~12 | char[] | name | observed | NUL-padded ASCII, e.g. `"Peasant"` |
-| +0x10 onward | ~536 | — | (record body) | unknown | unconfirmed fields |
-
-### Verified observations
-
-On `outb2.ddm`: 21 consecutive records populated, all with name `"Peasant"`,
-record 0 carrying type=20 and the rest type=0. Records are exactly 548 bytes
-apart (19 strides of 548 + one boundary of 552). `observed`.
-
-On `outa1.ddm`: the table is empty (type=0, no name at the first slot) — a
-nearly-empty starting map. `observed`. The fixed start offset 0x798 is identical
-across both files.
-
-## Why the full layout is deferred
-
-The engine's runtime structs (e.g. `Events2DItem` at 48 bytes, `NPC` at 60
-bytes) do **not** match the 548-byte on-disk record — the on-disk record is much
-larger, embedding inline strings/arrays that the runtime stores by pointer.
-This is the same runtime-vs-file discrepancy found in the ODM model facets.
-Confirming the 548-byte body reliably requires tracing the `.ddm` loader in
-`MM6.exe`, which is a dedicated follow-up.
-
-## Decoding (this slice)
-
-1. Decompress the `.ddm`/`.dlv` payload (see `event-data.md`).
-2. The first event table starts at offset 0x798.
-3. Walk records at stride 548; a record is "populated" if its type field is
-   nonzero OR its name field has any nonzero byte.
-4. Report each populated record's type and name.
+The `u32` at `0x798` is the actor count, not a field in actor record zero. The
+first actor begins four bytes later at `0x79C`. Treating the count as a record
+field produced an apparent first-record “type” equal to the map's actor count
+and shifted every decoded actor field by four bytes.
 
 ## Invalid-input behavior
 
-The enumeration rejects, deterministically and without reading out of bounds:
+The decoder rejects an outdoor layout when:
 
-- a payload shorter than 0x798 + record_size (cannot hold even one record);
-- a record whose fields would read past the end of the payload (stops early).
+- the payload cannot reach the actor count;
+- any count-times-stride section exceeds the payload or overflows;
+- a following count cannot be read;
+- the bytes after the chest array are not exactly the 256-byte trailer.
 
-## Open questions (next slice)
+## Open questions
 
-- The 548-byte record body layout (fields beyond type/name). Needs the `MM6.exe`
-  `.ddm`-loader trace.
-- The other tables in the payload (the sparser regions at 0x440C+, the flag
-  array at 0xB700+).
-- The total capacity of this table (how many slots).
-- `.dlv` (indoor) event-table differences.
+- Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
+- The 4204-byte chest record body.
+- The corresponding section layout for indoor `.dlv` files.

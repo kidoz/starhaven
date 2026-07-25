@@ -56,10 +56,10 @@ A base name is completed with a view direction 0–4: `pfemsta` becomes
 
 ## How actors reach this table
 
-The 548-byte actor record holds the monster id as a `u8` at **+0x38** (see
+The 548-byte actor record holds the monster id as a `u8` at **+0x34** (see
 [`event-actors.md`](event-actors.md)). That offset was found by requiring the
 field to be a valid table index for all 266 actors *and* to select a monster
-whose name matches the actor's own: **+0x38 is the only field satisfying both,
+whose name matches the actor's own: **+0x34 is the only field satisfying both,
 at 266/266**. `observed`
 
 The ids actually used are 121, 122, 123, 133, 134 and 135 — six values, all

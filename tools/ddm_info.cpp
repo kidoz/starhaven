@@ -5,8 +5,10 @@
 #include <string>
 
 #include "core/lod/game_lod_archive.hpp"
+#include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_event.hpp"
+#include "core/world/object_table.hpp"
 
 namespace {
 
@@ -15,8 +17,8 @@ void print_usage(const char* argv0) {
               << "\n"
               << "Decompresses one .ddm (outdoor) or .dlv (indoor) event-data\n"
               << "file from your own legal game install (Games.lod) and prints\n"
-              << "non-expressive statistics. The internal event-table layout is\n"
-              << "not yet decoded.\n"
+              << "non-expressive statistics. Outdoor files also report their\n"
+              << "counted actors, sprite objects, and chests.\n"
               << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
 }
@@ -30,6 +32,17 @@ std::filesystem::path resolve_games_lod() {
         }
     }
     return "data/Games.lod";
+}
+
+std::filesystem::path resolve_icons_lod() {
+    namespace fs = std::filesystem;
+    if (auto install = starhaven::platform::install_from_env()) {
+        fs::path path = *install / "data" / "icons.lod";
+        if (fs::exists(path)) {
+            return path;
+        }
+    }
+    return "data/icons.lod";
 }
 
 }  // namespace
@@ -75,23 +88,54 @@ int main(int argc, char** argv) {
               << (ev.payload.empty() ? 0 : (100.0 * nonzero / ev.payload.size()))
               << "% populated)\n";
 
-    // First event table: populated records (non-expressive: type + name).
-    auto records = world::enumerate_event_table(ev);
-    std::cout << "  event_records: " << records.size() << "\n";
-    const std::size_t show = std::min<std::size_t>(records.size(), 8);
-    for (std::size_t i = 0; i < show; ++i) {
-        std::cout << "    [" << i << "] type=" << records[i].type << "  name=\"" << records[i].name
-                  << "\"\n";
+    world::OutdoorEventLayout layout;
+    if (world::parse_outdoor_event_layout(ev, layout) != world::OutdoorEventLayoutError::None) {
+        std::cout << "  outdoor-layout: not present\n";
+        return 0;
     }
-    if (records.size() > show) {
-        std::cout << "    ... (" << (records.size() - show) << " more)\n";
-    }
+
+    std::cout << "  actors: " << layout.actor_count << "\n";
+    std::cout << "  sprite_objects: " << layout.sprite_object_count << "\n";
+    std::cout << "  chests: " << layout.chest_count << "\n";
+
     const auto actors = world::extract_actors(ev);
-    std::cout << "  actors: " << actors.size() << "\n";
     for (std::size_t i = 0; i < actors.size() && i < 3; ++i) {
         std::cout << "    [" << i << "] " << actors[i].name << " (monster "
                   << static_cast<int>(actors[i].monster_id) << ") at (" << actors[i].x << ","
                   << actors[i].y << "," << actors[i].z << ")\n";
+    }
+
+    const auto objects = world::extract_sprite_objects(ev);
+    world::ObjectTable descriptors;
+    lod::LodArchive icons;
+    std::span<const std::byte> descriptor_entry;
+    const bool have_descriptors =
+        lod::LodArchive::open(resolve_icons_lod(), icons) == lod::LodError::None &&
+        icons.payload("DOBJLIST.BIN", descriptor_entry) == lod::LodArchive::PayloadError::None &&
+        world::ObjectTable::parse(descriptor_entry, descriptors) == world::ObjectTableError::None;
+
+    if (have_descriptors) {
+        std::size_t joined = 0;
+        for (const auto& object : objects) {
+            const auto* descriptor = descriptors.at(object.descriptor_index);
+            if (descriptor != nullptr && descriptor->object_id == object.object_id) {
+                ++joined;
+            }
+        }
+        std::cout << "  descriptor_joins: " << joined << "/" << objects.size() << "\n";
+    }
+    for (std::size_t i = 0; i < objects.size() && i < 3; ++i) {
+        std::cout << "    object[" << i << "] id=" << objects[i].object_id
+                  << " descriptor=" << objects[i].descriptor_index
+                  << " item=" << objects[i].contained_item_id << " at (" << objects[i].x << ","
+                  << objects[i].y << "," << objects[i].z << ")";
+        if (have_descriptors) {
+            if (const auto* descriptor = descriptors.at(objects[i].descriptor_index)) {
+                std::cout << " \"" << descriptor->name
+                          << "\" frame=" << descriptor->sprite_frame_index;
+            }
+        }
+        std::cout << "\n";
     }
 
     return 0;

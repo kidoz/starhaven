@@ -9,84 +9,103 @@
 
 namespace starhaven::world {
 
-// A decompressed map event-data file (.ddm outdoor / .dlv indoor). The payload
-// is a large fixed-size structure holding the map's event tables; its internal
-// layout is decoded in a later slice. This type exposes the decompressed bytes.
+// A decompressed map event-data file (.ddm outdoor / .dlv indoor).
 struct MapEventFile {
     std::vector<std::uint8_t> payload;
 };
 
-// Outcome of parsing. Callers convert these into user-facing text; the parser
-// never throws.
-enum class MapEventError {
+enum class MapEventError : std::uint8_t {
     None,
-    // Input too small for the 8-byte wrapper.
     TooSmall,
-    // zlib inflate failed.
     InflateFailed,
-    // The inflated length does not match the wrapper's decompressedSize.
     SizeMismatch,
 };
 
-// Parse a raw .ddm/.dlv entry (as read from Games.lod) into a MapEventFile.
-// Uses the same 8-byte zlib wrapper as the .odm parser (see
-// docs/formats/event-data.md).
+// Parse a raw .ddm/.dlv entry (as read from Games.lod).
 [[nodiscard]] MapEventError parse_map_event(std::span<const std::byte> entry, MapEventFile& out);
 
-// Fixed wrapper size, exposed for tests and tools.
 constexpr std::uint32_t kEventWrapperSize = 8;
 
-// --- First event table (see docs/formats/event-tables.md) -----------------
+// --- Outdoor DDM layout (see docs/formats/event-tables.md) -----------------
 
-// One populated record from the first event table. Only the verified leading
-// fields are exposed; the 548-byte body is decoded in a later slice.
-struct EventTableRecord {
-    std::int32_t type = 0;  // record type (e.g. 20); 0 = empty slot
-    std::string name;       // NUL-padded ASCII at +4
+constexpr std::size_t kOutdoorActorCountOffset = 0x798;
+constexpr std::size_t kOutdoorActorArrayOffset = 0x79C;
+constexpr std::size_t kActorRecordSize = 548;
+constexpr std::size_t kSpriteObjectRecordSize = 100;
+constexpr std::size_t kChestRecordSize = 4204;
+constexpr std::size_t kOutdoorEventTrailerSize = 256;
+
+struct OutdoorEventLayout {
+    std::uint32_t actor_count = 0;
+    std::size_t actors_offset = 0;
+    std::uint32_t sprite_object_count = 0;
+    std::size_t sprite_objects_offset = 0;
+    std::uint32_t chest_count = 0;
+    std::size_t chests_offset = 0;
+    std::size_t trailer_offset = 0;
 };
 
-// Verified layout constants for the first event table.
-constexpr std::uint32_t kEventTableOffset = 0x798;
-constexpr std::uint32_t kEventRecordSize = 548;  // 0x224
-constexpr std::uint32_t kEventRecordNameOffset = 4;
-constexpr std::uint32_t kEventRecordNameMax = 12;  // verified readable prefix
+enum class OutdoorEventLayoutError : std::uint8_t {
+    None,
+    TooSmall,
+    BadSectionSize,
+    BadTrailerSize,
+};
 
-// Enumerate the populated records of the first event table. A record counts as
-// populated if its type is nonzero OR its name field has any nonzero byte.
-// Stops at the end of the payload or after `max_records` (whichever comes
-// first); empty trailing slots are skipped.
-[[nodiscard]] std::vector<EventTableRecord> enumerate_event_table(const MapEventFile& file,
-                                                                  std::size_t max_records = 4096);
+// Decode the counted sections of an outdoor .ddm payload. Counts and strides
+// must account for the complete payload, including its fixed 256-byte trailer.
+[[nodiscard]] OutdoorEventLayoutError parse_outdoor_event_layout(const MapEventFile& file,
+                                                                 OutdoorEventLayout& out);
 
 // --- Actors (see docs/formats/event-actors.md) -----------------------------
 
-// One placed actor: a named monster or NPC standing somewhere on the map.
-//
-// The 548-byte record holds far more than this — stats and behaviour flags are
-// visible but unconfirmed — so only the fields verified against the maps
-// themselves are exposed.
 struct MapActor {
-    std::string name;                  // e.g. "Peasant"
-    std::uint8_t monster_id = 0;       // index into DMONLIST.BIN
-    std::uint8_t variant = 0;          // 1..3 within the monster's A/B/C triple
-    std::int16_t x = 0, y = 0, z = 0;  // world position, MM6 axes
+    std::string name;
+    std::uint8_t monster_id = 0;
+    std::uint8_t variant = 0;
+    std::int16_t x = 0, y = 0, z = 0;
 };
 
-// Extract the actor array: the same 548-byte records `enumerate_event_table`
-// walks, read for their name and position.
-//
-// The array has no count field, so it is read until the first slot whose name
-// is not plausible text. That rule is what keeps a trailing garbage slot — one
-// exists in several shipped files — out of the result.
+constexpr std::size_t kActorNameOffset = 0x00;
+constexpr std::size_t kActorNameSize = 32;
+constexpr std::size_t kActorMonsterIdOffset = 0x34;
+constexpr std::size_t kActorVariantOffset = 0x35;
+constexpr std::size_t kActorPositionOffset = 0x7E;
+
+// Returns no records when the outdoor section layout is malformed.
 [[nodiscard]] std::vector<MapActor> extract_actors(const MapEventFile& file,
                                                    std::size_t max_records = 4096);
 
-// Offset of the position triple within a record, and the minimum name length
-// treated as a real entry.
-constexpr std::uint32_t kActorPositionOffset = 0x82;
-constexpr std::uint32_t kActorMonsterIdOffset = 0x38;
-constexpr std::uint32_t kActorVariantOffset = 0x39;
-constexpr std::size_t kActorMinNameLength = 2;
+// --- Sprite objects (see docs/formats/event-objects.md) --------------------
+
+// One placed loot object or projectile. Fields whose meaning is not yet
+// independently verified remain in the raw 100-byte record and are not
+// exposed here.
+struct MapSpriteObject {
+    std::uint16_t object_id = 0;
+    std::uint16_t descriptor_index = 0;
+    std::int32_t x = 0, y = 0, z = 0;
+    std::int16_t velocity_x = 0, velocity_y = 0, velocity_z = 0;
+    std::uint16_t facing = 0;
+    std::uint16_t attributes = 0;
+    std::uint16_t sprite_frame = 0;
+    std::uint32_t contained_item_id = 0;
+    std::int32_t previous_x = 0, previous_y = 0, previous_z = 0;
+};
+
+constexpr std::size_t kSpriteObjectIdOffset = 0x00;
+constexpr std::size_t kSpriteObjectDescriptorOffset = 0x02;
+constexpr std::size_t kSpriteObjectPositionOffset = 0x04;
+constexpr std::size_t kSpriteObjectVelocityOffset = 0x10;
+constexpr std::size_t kSpriteObjectFacingOffset = 0x16;
+constexpr std::size_t kSpriteObjectAttributesOffset = 0x1A;
+constexpr std::size_t kSpriteObjectFrameOffset = 0x1E;
+constexpr std::size_t kSpriteObjectItemOffset = 0x24;
+constexpr std::size_t kSpriteObjectPreviousPositionOffset = 0x58;
+
+// Returns no records when the outdoor section layout is malformed.
+[[nodiscard]] std::vector<MapSpriteObject> extract_sprite_objects(const MapEventFile& file,
+                                                                  std::size_t max_records = 4096);
 
 }  // namespace starhaven::world
 

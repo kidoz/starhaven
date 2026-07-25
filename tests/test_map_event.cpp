@@ -1,12 +1,11 @@
 // Tests for the .ddm/.dlv event-data parser.
 //
-// Fixtures are SYNTHETIC: a known payload is zlib-compressed and wrapped per
-// docs/formats/event-data.md. No bytes from the game are involved.
+// Fixtures are synthetic. No bytes from the game are involved.
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
 #include <cstring>
-#include <tuple>
+#include <string>
 #include <vector>
 
 #include <zlib.h>
@@ -30,6 +29,25 @@ bool zlib_compress(const std::vector<std::uint8_t>& src, std::vector<std::uint8_
     return true;
 }
 
+void put_u16(std::vector<std::uint8_t>& v, std::size_t off, std::uint16_t x) {
+    v[off] = static_cast<std::uint8_t>(x & 0xFF);
+    v[off + 1] = static_cast<std::uint8_t>(x >> 8);
+}
+
+void put_u32(std::vector<std::uint8_t>& v, std::size_t off, std::uint32_t x) {
+    for (int i = 0; i < 4; ++i) {
+        v[off + static_cast<std::size_t>(i)] = static_cast<std::uint8_t>((x >> (8 * i)) & 0xFF);
+    }
+}
+
+void put_i16(std::vector<std::uint8_t>& v, std::size_t off, std::int16_t x) {
+    put_u16(v, off, static_cast<std::uint16_t>(x));
+}
+
+void put_i32(std::vector<std::uint8_t>& v, std::size_t off, std::int32_t x) {
+    put_u32(v, off, static_cast<std::uint32_t>(x));
+}
+
 void put_u32_le(std::vector<std::byte>& v, std::size_t off, std::uint32_t x) {
     v[off] = static_cast<std::byte>(x & 0xFF);
     v[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
@@ -41,10 +59,77 @@ std::vector<std::byte> make_event_entry(const std::vector<std::uint8_t>& payload
     std::vector<std::uint8_t> compressed;
     REQUIRE(zlib_compress(payload, compressed));
     std::vector<std::byte> entry(kEventWrapperSize + compressed.size());
-    put_u32_le(entry, 0x00, static_cast<std::uint32_t>(payload.size()));
+    put_u32_le(entry, 0x00, static_cast<std::uint32_t>(compressed.size()));
     put_u32_le(entry, 0x04, static_cast<std::uint32_t>(payload.size()));
     std::memcpy(&entry[kEventWrapperSize], compressed.data(), compressed.size());
     return entry;
+}
+
+struct ActorSpec {
+    std::string name;
+    std::uint8_t monster_id = 0;
+    std::uint8_t variant = 0;
+    std::int16_t x = 0, y = 0, z = 0;
+};
+
+struct ObjectSpec {
+    std::uint16_t object_id = 0;
+    std::uint16_t descriptor_index = 0;
+    std::int32_t x = 0, y = 0, z = 0;
+    std::int16_t velocity_x = 0, velocity_y = 0, velocity_z = 0;
+    std::uint16_t facing = 0;
+    std::uint16_t attributes = 0;
+    std::uint16_t sprite_frame = 0;
+    std::uint32_t item_id = 0;
+    std::int32_t previous_x = 0, previous_y = 0, previous_z = 0;
+};
+
+std::vector<std::uint8_t>
+make_outdoor_payload(const std::vector<ActorSpec>& actors, const std::vector<ObjectSpec>& objects,
+                     std::uint32_t chest_count = 2,
+                     std::size_t trailer_size = kOutdoorEventTrailerSize) {
+    const std::size_t objects_offset =
+        kOutdoorActorArrayOffset + actors.size() * kActorRecordSize + 4;
+    const std::size_t chests_offset = objects_offset + objects.size() * kSpriteObjectRecordSize + 4;
+    std::vector<std::uint8_t> payload(chests_offset + chest_count * kChestRecordSize + trailer_size,
+                                      0);
+
+    put_u32(payload, kOutdoorActorCountOffset, static_cast<std::uint32_t>(actors.size()));
+    for (std::size_t i = 0; i < actors.size(); ++i) {
+        const std::size_t base = kOutdoorActorArrayOffset + i * kActorRecordSize;
+        for (std::size_t k = 0; k < actors[i].name.size() && k < kActorNameSize; ++k) {
+            payload[base + k] = static_cast<std::uint8_t>(actors[i].name[k]);
+        }
+        payload[base + kActorMonsterIdOffset] = actors[i].monster_id;
+        payload[base + kActorVariantOffset] = actors[i].variant;
+        put_i16(payload, base + kActorPositionOffset, actors[i].x);
+        put_i16(payload, base + kActorPositionOffset + 2, actors[i].y);
+        put_i16(payload, base + kActorPositionOffset + 4, actors[i].z);
+    }
+
+    put_u32(payload, objects_offset - 4, static_cast<std::uint32_t>(objects.size()));
+    for (std::size_t i = 0; i < objects.size(); ++i) {
+        const ObjectSpec& object = objects[i];
+        const std::size_t base = objects_offset + i * kSpriteObjectRecordSize;
+        put_u16(payload, base + kSpriteObjectIdOffset, object.object_id);
+        put_u16(payload, base + kSpriteObjectDescriptorOffset, object.descriptor_index);
+        put_i32(payload, base + kSpriteObjectPositionOffset, object.x);
+        put_i32(payload, base + kSpriteObjectPositionOffset + 4, object.y);
+        put_i32(payload, base + kSpriteObjectPositionOffset + 8, object.z);
+        put_i16(payload, base + kSpriteObjectVelocityOffset, object.velocity_x);
+        put_i16(payload, base + kSpriteObjectVelocityOffset + 2, object.velocity_y);
+        put_i16(payload, base + kSpriteObjectVelocityOffset + 4, object.velocity_z);
+        put_u16(payload, base + kSpriteObjectFacingOffset, object.facing);
+        put_u16(payload, base + kSpriteObjectAttributesOffset, object.attributes);
+        put_u16(payload, base + kSpriteObjectFrameOffset, object.sprite_frame);
+        put_u32(payload, base + kSpriteObjectItemOffset, object.item_id);
+        put_i32(payload, base + kSpriteObjectPreviousPositionOffset, object.previous_x);
+        put_i32(payload, base + kSpriteObjectPreviousPositionOffset + 4, object.previous_y);
+        put_i32(payload, base + kSpriteObjectPreviousPositionOffset + 8, object.previous_z);
+    }
+
+    put_u32(payload, chests_offset - 4, chest_count);
+    return payload;
 }
 
 }  // namespace
@@ -54,229 +139,129 @@ TEST_CASE("valid event payload decompresses to the original bytes", "[map_event]
     payload[10] = 0xAB;
     payload[11] = 0xCD;
     auto entry = make_event_entry(payload);
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::None);
-    REQUIRE(f.payload.size() == 100);
-    REQUIRE(f.payload[10] == 0xAB);
-    REQUIRE(f.payload[11] == 0xCD);
-}
-
-TEST_CASE("truncated wrapper is rejected", "[map_event]") {
-    std::vector<std::byte> entry(4, std::byte{0});
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::TooSmall);
-}
-
-TEST_CASE("corrupt zlib is rejected", "[map_event]") {
-    std::vector<std::byte> entry(kEventWrapperSize + 16, std::byte{0xFF});
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::InflateFailed);
-}
-
-TEST_CASE("decompressed-size mismatch is rejected", "[map_event]") {
-    auto entry = make_event_entry(std::vector<std::uint8_t>(50, 0));
-    put_u32_le(entry, 0x04, 999999);  // lie about decompressed size
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::SizeMismatch);
-}
-
-TEST_CASE("decompressed size of zero is accepted (unknown)", "[map_event]") {
-    auto entry = make_event_entry(std::vector<std::uint8_t>(50, 0));
-    put_u32_le(entry, 0x04, 0);
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::None);
-    REQUIRE(f.payload.size() == 50);
-}
-
-// --- event-table tests -----------------------------------------------------
-
-// Build a decompressed payload large enough for `populated` records at the
-// event-table offset, stamping type/name into each.
-std::vector<std::byte>
-make_event_entry_with_table(const std::vector<std::pair<std::int32_t, std::string>>& records) {
-    std::vector<std::uint8_t> payload(kEventTableOffset + records.size() * kEventRecordSize + 16,
-                                      0);
-    for (std::size_t i = 0; i < records.size(); ++i) {
-        const std::size_t rec = kEventTableOffset + i * kEventRecordSize;
-        const auto [type, name] = records[i];
-        payload[rec] = static_cast<std::uint8_t>(type & 0xFF);
-        payload[rec + 1] = static_cast<std::uint8_t>((type >> 8) & 0xFF);
-        payload[rec + 2] = static_cast<std::uint8_t>((type >> 16) & 0xFF);
-        payload[rec + 3] = static_cast<std::uint8_t>((type >> 24) & 0xFF);
-        for (std::size_t c = 0; c < name.size() && c < kEventRecordNameMax; ++c) {
-            payload[rec + kEventRecordNameOffset + c] = static_cast<std::uint8_t>(name[c]);
-        }
-    }
-    return make_event_entry(payload);
-}
-
-TEST_CASE("populated event records are enumerated with type and name", "[map_event]") {
-    auto entry = make_event_entry_with_table({{20, "Peasant"}, {0, "Guard"}, {7, "Merchant"}});
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::None);
-    auto recs = enumerate_event_table(f);
-    REQUIRE(recs.size() == 3);
-    REQUIRE(recs[0].type == 20);
-    REQUIRE(recs[0].name == "Peasant");
-    REQUIRE(recs[1].type == 0);
-    REQUIRE(recs[1].name == "Guard");  // populated via name
-    REQUIRE(recs[2].type == 7);
-    REQUIRE(recs[2].name == "Merchant");
-}
-
-TEST_CASE("empty event table yields no records", "[map_event]") {
-    // Payload sized for the table region but all zero.
-    std::vector<std::uint8_t> payload(kEventTableOffset + 3 * kEventRecordSize, 0);
-    auto entry = make_event_entry(payload);
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::None);
-    REQUIRE(enumerate_event_table(f).empty());
-}
-
-TEST_CASE("event table stops safely on a truncated payload", "[map_event]") {
-    // Payload that ends mid-table (only enough for part of record 0).
-    std::vector<std::uint8_t> payload(kEventTableOffset + 4, 0);
-    payload[kEventTableOffset] = 1;  // type=1
-    auto entry = make_event_entry(payload);
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::None);
-    // Not enough bytes for even one record's name field -> no records.
-    REQUIRE(enumerate_event_table(f).empty());
-}
-
-TEST_CASE("empty slots between populated records are skipped", "[map_event]") {
-    auto entry = make_event_entry_with_table({{5, "A"}, {0, ""}, {0, ""}, {9, "D"}});
-    MapEventFile f;
-    REQUIRE(parse_map_event(entry, f) == MapEventError::None);
-    auto recs = enumerate_event_table(f);
-    REQUIRE(recs.size() == 2);
-    REQUIRE(recs[0].name == "A");
-    REQUIRE(recs[1].name == "D");
-}
-
-// --- actor tests -----------------------------------------------------------
-
-namespace {
-
-// Build an event payload whose actor table holds the given entries.
-std::vector<std::byte> make_event_entry_with_actors(
-    const std::vector<std::tuple<std::string, std::int16_t, std::int16_t, std::int16_t>>& actors,
-    bool trailing_garbage = false) {
-    const std::size_t count = actors.size() + (trailing_garbage ? 1 : 0);
-    std::vector<std::uint8_t> payload(kEventTableOffset + (count + 1) * kEventRecordSize, 0);
-
-    auto put_i16 = [&](std::size_t off, std::int16_t v) {
-        const auto u = static_cast<std::uint16_t>(v);
-        payload[off] = static_cast<std::uint8_t>(u & 0xFF);
-        payload[off + 1] = static_cast<std::uint8_t>((u >> 8) & 0xFF);
-    };
-
-    for (std::size_t i = 0; i < actors.size(); ++i) {
-        const auto& [name, x, y, z] = actors[i];
-        const std::size_t base = kEventTableOffset + i * kEventRecordSize;
-        for (std::size_t k = 0; k < name.size() && k < 31; ++k) {
-            payload[base + kEventRecordNameOffset + k] = static_cast<std::uint8_t>(name[k]);
-        }
-        put_i16(base + kActorPositionOffset, x);
-        put_i16(base + kActorPositionOffset + 2, y);
-        put_i16(base + kActorPositionOffset + 4, z);
-    }
-
-    if (trailing_garbage) {
-        // Several shipped files end with a slot holding a one-character name
-        // and an implausible position; it must not be reported as an actor.
-        const std::size_t base = kEventTableOffset + actors.size() * kEventRecordSize;
-        payload[base + kEventRecordNameOffset] = static_cast<std::uint8_t>('(');
-        put_i16(base + kActorPositionOffset, 0);
-        put_i16(base + kActorPositionOffset + 2, 0);
-        put_i16(base + kActorPositionOffset + 4, 31744);
-    }
-
-    std::vector<std::uint8_t> compressed;
-    REQUIRE(zlib_compress(payload, compressed));
-    std::vector<std::byte> entry(kEventWrapperSize + compressed.size());
-    put_u32_le(entry, 0x00, static_cast<std::uint32_t>(payload.size()));
-    put_u32_le(entry, 0x04, static_cast<std::uint32_t>(payload.size()));
-    std::memcpy(&entry[kEventWrapperSize], compressed.data(), compressed.size());
-    return entry;
-}
-
-}  // namespace
-
-TEST_CASE("actors decode with their names and positions", "[map_event]") {
-    auto entry = make_event_entry_with_actors({
-        {"Peasant", 10896, 15872, 160},
-        {"Peasant", -13632, 18976, 96},
-        {"Goblin", 0, -2048, -64},
-    });
     MapEventFile file;
     REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    REQUIRE(file.payload == payload);
+}
 
+TEST_CASE("event wrapper failures are deterministic", "[map_event]") {
+    MapEventFile file;
+    REQUIRE(parse_map_event(std::vector<std::byte>(4), file) == MapEventError::TooSmall);
+
+    std::vector<std::byte> corrupt(kEventWrapperSize + 16, std::byte{0xFF});
+    REQUIRE(parse_map_event(corrupt, file) == MapEventError::InflateFailed);
+
+    auto mismatch = make_event_entry(std::vector<std::uint8_t>(50, 0));
+    put_u32_le(mismatch, 0x04, 999999);
+    REQUIRE(parse_map_event(mismatch, file) == MapEventError::SizeMismatch);
+}
+
+TEST_CASE("a zero declared decompressed size means unknown", "[map_event]") {
+    auto entry = make_event_entry(std::vector<std::uint8_t>(50, 0));
+    put_u32_le(entry, 0x04, 0);
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    REQUIRE(file.payload.size() == 50);
+}
+
+TEST_CASE("outdoor section counts close on the fixed trailer", "[map_event]") {
+    MapEventFile file{make_outdoor_payload({{"Peasant"}, {"Guard"}}, {{76, 54}}, 20)};
+    OutdoorEventLayout layout;
+    REQUIRE(parse_outdoor_event_layout(file, layout) == OutdoorEventLayoutError::None);
+    REQUIRE(layout.actor_count == 2);
+    REQUIRE(layout.actors_offset == kOutdoorActorArrayOffset);
+    REQUIRE(layout.sprite_object_count == 1);
+    REQUIRE(layout.sprite_objects_offset == kOutdoorActorArrayOffset + 2 * kActorRecordSize + 4);
+    REQUIRE(layout.chest_count == 20);
+    REQUIRE(file.payload.size() - layout.trailer_offset == kOutdoorEventTrailerSize);
+}
+
+TEST_CASE("outdoor layout rejects truncation and corrupt counts", "[map_event]") {
+    OutdoorEventLayout layout;
+    MapEventFile too_small{std::vector<std::uint8_t>(64, 0)};
+    REQUIRE(parse_outdoor_event_layout(too_small, layout) == OutdoorEventLayoutError::TooSmall);
+
+    MapEventFile bad_actor_count{make_outdoor_payload({}, {})};
+    put_u32(bad_actor_count.payload, kOutdoorActorCountOffset, 0xFFFFFFFFu);
+    REQUIRE(parse_outdoor_event_layout(bad_actor_count, layout) ==
+            OutdoorEventLayoutError::BadSectionSize);
+
+    MapEventFile bad_object_count{make_outdoor_payload({}, {})};
+    put_u32(bad_object_count.payload, kOutdoorActorArrayOffset, 0xFFFFFFFFu);
+    REQUIRE(parse_outdoor_event_layout(bad_object_count, layout) ==
+            OutdoorEventLayoutError::BadSectionSize);
+
+    MapEventFile short_trailer{make_outdoor_payload({}, {}, 2, 255)};
+    REQUIRE(parse_outdoor_event_layout(short_trailer, layout) ==
+            OutdoorEventLayoutError::BadTrailerSize);
+}
+
+TEST_CASE("actors use the counted array and corrected field offsets", "[map_event]") {
+    MapEventFile file{make_outdoor_payload(
+        {
+            {"Peasant", 133, 2, 10896, 15872, 160},
+            {"Goblin", 17, 3, -13632, 18976, -64},
+        },
+        {})};
     const auto actors = extract_actors(file);
-    REQUIRE(actors.size() == 3);
+    REQUIRE(actors.size() == 2);
     REQUIRE(actors[0].name == "Peasant");
+    REQUIRE(actors[0].monster_id == 133);
+    REQUIRE(actors[0].variant == 2);
     REQUIRE(actors[0].x == 10896);
     REQUIRE(actors[0].y == 15872);
     REQUIRE(actors[0].z == 160);
-    REQUIRE(actors[1].x == -13632);  // negative coordinates survive
-    REQUIRE(actors[2].name == "Goblin");
-    REQUIRE(actors[2].z == -64);
+    REQUIRE(actors[1].name == "Goblin");
+    REQUIRE(actors[1].x == -13632);
+    REQUIRE(actors[1].z == -64);
 }
 
-TEST_CASE("a trailing one-character slot ends the actor array", "[map_event]") {
-    auto entry = make_event_entry_with_actors({{"Peasant", 100, 200, 300}},
-                                              /*trailing_garbage*/ true);
-    MapEventFile file;
-    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
-    const auto actors = extract_actors(file);
-    REQUIRE(actors.size() == 1);
-    REQUIRE(actors[0].name == "Peasant");
+TEST_CASE("actor extraction honors the caller limit", "[map_event]") {
+    MapEventFile file{make_outdoor_payload({{"One"}, {"Two"}, {"Three"}}, /*objects*/ {})};
+    REQUIRE(extract_actors(file, 2).size() == 2);
 }
 
-TEST_CASE("a map with no actors yields none", "[map_event]") {
-    auto entry = make_event_entry_with_actors({});
-    MapEventFile file;
-    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
-    REQUIRE(extract_actors(file).empty());
+TEST_CASE("sprite objects decode identity, motion, item, and previous position", "[map_event]") {
+    const ObjectSpec placed{
+        .object_id = 76,
+        .descriptor_index = 54,
+        .x = 123456,
+        .y = -654321,
+        .z = 96,
+        .velocity_x = 120,
+        .velocity_y = -40,
+        .velocity_z = 8,
+        .facing = 1536,
+        .attributes = 0x7C00,
+        .sprite_frame = 7,
+        .item_id = 160,
+        .previous_x = 123000,
+        .previous_y = -654000,
+        .previous_z = 80,
+    };
+    MapEventFile file{make_outdoor_payload({}, {placed})};
+    const auto objects = extract_sprite_objects(file);
+    REQUIRE(objects.size() == 1);
+    REQUIRE(objects[0].object_id == 76);
+    REQUIRE(objects[0].descriptor_index == 54);
+    REQUIRE(objects[0].x == 123456);
+    REQUIRE(objects[0].y == -654321);
+    REQUIRE(objects[0].z == 96);
+    REQUIRE(objects[0].velocity_x == 120);
+    REQUIRE(objects[0].velocity_y == -40);
+    REQUIRE(objects[0].velocity_z == 8);
+    REQUIRE(objects[0].facing == 1536);
+    REQUIRE(objects[0].attributes == 0x7C00);
+    REQUIRE(objects[0].sprite_frame == 7);
+    REQUIRE(objects[0].contained_item_id == 160);
+    REQUIRE(objects[0].previous_x == 123000);
+    REQUIRE(objects[0].previous_y == -654000);
+    REQUIRE(objects[0].previous_z == 80);
 }
 
-TEST_CASE("a payload too short for the table yields no actors", "[map_event]") {
-    auto entry = make_event_entry(std::vector<std::uint8_t>(64, 0));
-    MapEventFile file;
-    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
-    REQUIRE(extract_actors(file).empty());
-}
-
-TEST_CASE("a non-printable name ends the array", "[map_event]") {
-    auto entry = make_event_entry_with_actors({{"Peasant", 1, 2, 3}});
-    MapEventFile file;
-    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
-    // Corrupt the second slot's name with a control byte.
-    const std::size_t second = kEventTableOffset + kEventRecordSize;
-    file.payload[second + kEventRecordNameOffset] = 0x01;
-    file.payload[second + kEventRecordNameOffset + 1] = 0x02;
-    REQUIRE(extract_actors(file).size() == 1);
-}
-
-TEST_CASE("actors carry the monster id that indexes DMONLIST", "[map_event]") {
-    auto entry = make_event_entry_with_actors({{"Peasant", 1, 2, 3}});
-    MapEventFile file;
-    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
-    // Stamp a monster id into the first record.
-    file.payload[kEventTableOffset + kActorMonsterIdOffset] = 133;
-    const auto actors = extract_actors(file);
-    REQUIRE(actors.size() == 1);
-    REQUIRE(actors[0].monster_id == 133);
-}
-
-TEST_CASE("actors carry the A/B/C variant number", "[map_event]") {
-    auto entry = make_event_entry_with_actors({{"Peasant", 1, 2, 3}});
-    MapEventFile file;
-    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
-    file.payload[kEventTableOffset + kActorMonsterIdOffset] = 122;
-    file.payload[kEventTableOffset + kActorVariantOffset] = 2;
-    const auto actors = extract_actors(file);
-    REQUIRE(actors.size() == 1);
-    REQUIRE(actors[0].monster_id == 122);
-    REQUIRE(actors[0].variant == 2);
+TEST_CASE("object extraction rejects malformed layout and honors its limit", "[map_event]") {
+    MapEventFile file{make_outdoor_payload({}, {{1, 1}, {2, 2}, {3, 3}})};
+    REQUIRE(extract_sprite_objects(file, 2).size() == 2);
+    file.payload.pop_back();
+    REQUIRE(extract_sprite_objects(file).empty());
 }
