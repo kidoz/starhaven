@@ -34,6 +34,10 @@ starhaven_core_sources = files(
   'src/core/image/palette.cpp',
   'src/core/image/sprite.cpp',
   'src/core/image/zlib_util.cpp',
+  'src/core/data/text_table.cpp',
+  'src/core/data/map_stats.cpp',
+  'src/core/data/monster_stats.cpp',
+  'src/core/data/game_data.cpp',
   'src/core/world/odm_map.cpp',
   'src/core/world/map_event.cpp',
   'src/core/world/tile_table.cpp',
@@ -144,6 +148,12 @@ executable('blv_info', 'tools/blv_info.cpp',
 
 # Event-data inspector: decompresses one .ddm/.dlv file and prints stats.
 executable('ddm_info', 'tools/ddm_info.cpp',
+  dependencies : starhaven_dep,
+  install : true,
+)
+
+# Data-table inspector: reads the tab-separated design tables in icons.lod.
+executable('data_info', 'tools/data_info.cpp',
   dependencies : starhaven_dep,
   install : true,
 )

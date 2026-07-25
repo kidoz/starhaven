@@ -133,3 +133,9 @@ test('mp3',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('text_table',
+  executable('test_text_table', 'test_text_table.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
