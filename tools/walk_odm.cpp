@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <span>
 #include <string>
 #include <vector>
@@ -39,7 +40,10 @@ void print_usage(const char* argv0) {
               << "  Shift      move faster\n"
               << "  Arrows     look left/right/up/down\n"
               << "  ESC/close  quit\n"
-              << "\n  --screenshot FILE  render one frame to a PPM and exit\n"
+              << "\n  --screenshot FILE   render one frame to a PPM and exit\n"
+              << "  --pos X,Y,Z         start position (renderer axes, Y up)\n"
+              << "  --look YAW,PITCH    start orientation in degrees\n"
+              << "  --boxes             overlay model bounding boxes\n"
               << "\n"
               << "Set " << openmm6::platform::kInstallEnvVar
               << " to the install directory.\n";
@@ -121,6 +125,55 @@ int load_ground_tiles(const openmm6::world::OdmTerrain& terrain,
     return resolved;
 }
 
+// Decode the textures the map's model facets reference, keyed by the facet's
+// texture name. Returns the number of distinct textures resolved, or -1 if
+// BITMAPS.LOD could not be opened.
+int load_model_textures(const std::vector<openmm6::world::OdmModelMesh>& meshes,
+                        std::map<std::string, openmm6::render::Texture>& out) {
+    namespace lod = openmm6::lod;
+    namespace img = openmm6::image;
+
+    const auto install = openmm6::platform::install_from_env();
+    if (!install) return -1;
+
+    lod::LodArchive bitmaps;
+    if (lod::LodArchive::open(*install / "data" / "BITMAPS.LOD", bitmaps) !=
+        lod::LodError::None) {
+        return -1;
+    }
+
+    int resolved = 0;
+    for (const auto& mesh : meshes) {
+        for (const auto& f : mesh.facets) {
+            if (f.texture_name.empty() || out.count(f.texture_name) != 0) continue;
+
+            std::span<const std::byte> raw;
+            if (bitmaps.payload(f.texture_name, raw) !=
+                lod::LodArchive::PayloadError::None) {
+                continue;
+            }
+            img::Bitmap bmp;
+            if (img::decode_bitmap(raw, bmp) != img::BitmapError::None) continue;
+            openmm6::render::Texture tex;
+            if (!openmm6::render::Texture::create(bmp.width, bmp.height,
+                                                  std::move(bmp.rgba), tex)) {
+                continue;
+            }
+            out.emplace(f.texture_name, std::move(tex));
+            ++resolved;
+        }
+    }
+    return resolved;
+}
+
+// MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up. Model
+// geometry is stored in absolute world units on the same scale as the terrain
+// (verified in docs/formats/odm-model-facets.md), so placement is a pure axis
+// swap with no offset.
+openmm6::render::Vec3 to_render_space(std::int32_t x, std::int32_t y, std::int32_t z) {
+    return {static_cast<float>(x), static_cast<float>(z), static_cast<float>(y)};
+}
+
 // Transform one world-space vertex through view+projection, then to a screen
 // vertex. Returns false if the vertex is behind the near plane (caller should
 // have clipped already).
@@ -152,10 +205,47 @@ bool project(const openmm6::render::Mat4& view_proj,
 int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;  // when set, render one frame to PPM and exit
+    bool show_boxes = false;  // model bounding-box wireframe overlay
+    // Camera defaults: above the map center, looking across it.
+    openmm6::render::Vec3 start_pos{0, 32.0f * 30.0f, 0};
+    float start_yaw = 0.6f, start_pitch = -0.3f;  // radians
+
+    // Parse "a,b,c" into up to three floats; returns how many were read.
+    auto parse_floats = [](const std::string& s, float* out, int max_count) {
+        int n = 0;
+        std::size_t pos = 0;
+        while (n < max_count && pos <= s.size()) {
+            const std::size_t comma = s.find(',', pos);
+            const std::string field = s.substr(pos, comma - pos);
+            if (field.empty()) break;
+            out[n++] = std::strtof(field.c_str(), nullptr);
+            if (comma == std::string::npos) break;
+            pos = comma + 1;
+        }
+        return n;
+    };
+
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
+        } else if (a == "--boxes") {
+            show_boxes = true;
+        } else if (a == "--pos" && i + 1 < argc) {
+            float xyz[3] = {0, 0, 0};
+            if (parse_floats(argv[++i], xyz, 3) != 3) {
+                print_usage(argv[0]);
+                return 2;
+            }
+            start_pos = {xyz[0], xyz[1], xyz[2]};
+        } else if (a == "--look" && i + 1 < argc) {
+            float yp[2] = {0, 0};
+            if (parse_floats(argv[++i], yp, 2) != 2) {
+                print_usage(argv[0]);
+                return 2;
+            }
+            start_yaw = openmm6::render::radians(yp[0]);
+            start_pitch = openmm6::render::radians(yp[1]);
         } else if (map_name.empty()) {
             map_name = a;
         } else {
@@ -208,11 +298,20 @@ int main(int argc, char** argv) {
     if (world::extract_models(map, models) != world::OdmError::None) {
         models.clear();
     }
-    // The first model's mesh vertices (a verified subset; subsequent models
-    // need the variable-length facet stream decoded first).
-    std::vector<world::OdmModelVertex> model_verts;
-    if (world::extract_first_model_vertices(map, model_verts) != world::OdmError::None) {
-        model_verts.clear();
+    // Every model's mesh: vertices plus the facets (polygons) over them.
+    std::vector<world::OdmModelMesh> meshes;
+    if (world::extract_model_meshes(map, meshes) != world::OdmError::None) {
+        std::cerr << "note: model geometry did not decode; drawing bounds only\n";
+        meshes.clear();
+    }
+    std::map<std::string, render::Texture> model_textures;
+    const int model_tex = load_model_textures(meshes, model_textures);
+    if (!meshes.empty()) {
+        std::size_t facets = 0;
+        for (const auto& mesh : meshes) facets += mesh.facets.size();
+        std::cout << "loaded " << meshes.size() << " model meshes, " << facets
+                  << " facets, " << (model_tex > 0 ? model_tex : 0)
+                  << " facet textures\n";
     }
 
     // SDL3 returns true on success, unlike SDL2's 0-on-success convention.
@@ -229,10 +328,10 @@ int main(int argc, char** argv) {
         sdl_renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING,
         kWidth, kHeight);
 
-    // Camera state: positioned above the map center, looking across.
-    render::Vec3 cam_pos{0, 32.0f * 30.0f, 0};  // height ~ above the field
-    float yaw = 0.6f;   // radians
-    float pitch = -0.3f;
+    // Camera state (overridable with --pos / --look).
+    render::Vec3 cam_pos = start_pos;
+    float yaw = start_yaw;      // radians
+    float pitch = start_pitch;
 
     const render::Vec3 sun = render::normalize(render::Vec3{0.4f, 1.0f, 0.3f});
     render::Framebuffer fb(kWidth, kHeight);
@@ -276,6 +375,47 @@ int main(int argc, char** argv) {
                                                            aspect, 1.0f, 20000.0f);
         const render::Mat4 view_proj = proj * view;
 
+        // Rasterize one flat-shaded world-space triangle: near-clip in view
+        // space, project, then hand each resulting triangle to the rasterizer.
+        // Terrain and model facets share this path; they differ only in which
+        // texture they sample and whether backfaces are culled.
+        auto draw_world_triangle = [&](const render::Vec3 w[3],
+                                       const render::Vec2 uv[3], float shade,
+                                       const render::Texture& texture,
+                                       render::WrapMode wrap, bool cull) {
+            render::ViewVertex vv[3];
+            for (int k = 0; k < 3; ++k) {
+                const render::Vec4 vp = view * render::Vec4{w[k].x, w[k].y, w[k].z, 1};
+                vv[k] = {vp.x, vp.y, vp.z, shade, shade, shade, uv[k].u, uv[k].v};
+            }
+            std::vector<render::ViewVertex> clipped;
+            render::clip_near(vv, /*near_z*/ -1.0f, clipped);
+
+            for (std::size_t t = 0; t + 2 < clipped.size(); t += 3) {
+                render::ScreenVertex s[3];
+                bool ok = true;
+                for (int k = 0; k < 3; ++k) {
+                    // `clipped` is already in view space, so only the
+                    // projection matrix may be applied here. Using view_proj
+                    // would transform by the view matrix a second time.
+                    if (!project(proj,
+                                 {clipped[t + k].x, clipped[t + k].y, clipped[t + k].z},
+                                 clipped[t + k].r, clipped[t + k].g, clipped[t + k].b,
+                                 {clipped[t + k].u, clipped[t + k].v}, s[k])) {
+                        ok = false; break;
+                    }
+                }
+                if (!ok) continue;
+                // Textured drawing is a no-op without art, so fall back to a
+                // flat fill: an untextured surface still reads as solid.
+                if (texture.empty()) {
+                    fb.draw_triangle(s[0], s[1], s[2], cull);
+                } else {
+                    fb.draw_triangle_textured(s[0], s[1], s[2], texture, wrap, cull);
+                }
+            }
+        };
+
         // Rasterize triangles with near-plane clipping + flat shading.
         for (std::size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
             const render::Vec3 w0 = mesh.vertices[mesh.indices[i]];
@@ -294,64 +434,93 @@ int main(int argc, char** argv) {
             float lambert = render::dot(n, sun);
             lambert = std::clamp(lambert, 0.0f, 1.0f) * 0.8f + 0.2f;  // ambient
 
-            // View-space coords for near clipping.
-            const render::Vec4 vp[3] = {view * render::Vec4{w0.x, w0.y, w0.z, 1},
-                                        view * render::Vec4{w1.x, w1.y, w1.z, 1},
-                                        view * render::Vec4{w2.x, w2.y, w2.z, 1}};
             // Flat shading: the scalar Lambert term drives all three channels,
             // so terrain stays grayscale-modulated as before.
-            render::ViewVertex vv[3] = {
-                {vp[0].x, vp[0].y, vp[0].z, lambert, lambert, lambert, t0.u, t0.v},
-                {vp[1].x, vp[1].y, vp[1].z, lambert, lambert, lambert, t1.u, t1.v},
-                {vp[2].x, vp[2].y, vp[2].z, lambert, lambert, lambert, t2.u, t2.v}};
-            std::vector<render::ViewVertex> clipped;
-            render::clip_near(vv, /*near_z*/ -1.0f, clipped);
-            if (clipped.empty()) continue;
+            const render::Vec3 w[3] = {w0, w1, w2};
+            const render::Vec2 uv[3] = {t0, t1, t2};
+            // UVs are in cell units, so Repeat lays one tile per cell.
+            draw_world_triangle(w, uv, lambert, tiles.texture_for(tile_id),
+                                render::WrapMode::Repeat,
+                                /*cull_backfaces*/ true);
+        }
 
-            const render::Texture& tile = tiles.texture_for(tile_id);
+        // Model meshes: every facet is a convex n-gon over its model's own
+        // vertex array, triangulated here as a fan.
+        //
+        // Backfaces are not culled. The MM6->renderer axis swap mirrors the
+        // space, so on-disk winding no longer predicts screen winding, and the
+        // attribute bit that marks a facet two-sided is not yet identified.
+        // The z-buffer resolves the overdraw correctly either way.
+        for (const auto& model_mesh : meshes) {
+            for (const auto& f : model_mesh.facets) {
+                if (f.vertex_count < 3) continue;  // degenerate; nothing to fill
 
-            // Project and rasterize each resulting triangle.
-            for (std::size_t t = 0; t + 2 < clipped.size(); t += 3) {
-                render::ScreenVertex s[3];
-                bool ok = true;
-                for (int k = 0; k < 3; ++k) {
-                    // `clipped` is already in view space, so only the
-                    // projection matrix may be applied here. Using view_proj
-                    // would transform by the view matrix a second time.
-                    if (!project(proj,
-                                 {clipped[t + k].x, clipped[t + k].y, clipped[t + k].z},
-                                 clipped[t + k].r, clipped[t + k].g,
-                                 clipped[t + k].b,
-                                 {clipped[t + k].u, clipped[t + k].v}, s[k])) {
-                        ok = false; break;
+                // The facet's own plane normal, in renderer axes.
+                const render::Vec3 n =
+                    render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
+                // Facets face both ways here, so light the side being seen.
+                float lambert = std::abs(render::dot(n, sun));
+                lambert = std::clamp(lambert, 0.0f, 1.0f) * 0.8f + 0.2f;
+
+                const auto tex_it = model_textures.find(f.texture_name);
+                const bool has_tex = tex_it != model_textures.end();
+                // Texture coordinates are stored in texels; the rasterizer
+                // wants them normalized to the texture it samples.
+                const float inv_w = has_tex && tex_it->second.width() > 0
+                    ? 1.0f / static_cast<float>(tex_it->second.width()) : 0.0f;
+                const float inv_h = has_tex && tex_it->second.height() > 0
+                    ? 1.0f / static_cast<float>(tex_it->second.height()) : 0.0f;
+
+                auto corner = [&](std::size_t k) {
+                    const auto& v = model_mesh.vertices[f.vertex_ids[k]];
+                    return to_render_space(v.x, v.y, v.z);
+                };
+                auto corner_uv = [&](std::size_t k) {
+                    return render::Vec2{static_cast<float>(f.u[k]) * inv_w,
+                                        static_cast<float>(f.v[k]) * inv_h};
+                };
+
+                for (std::size_t k = 1; k + 1 < f.vertex_count; ++k) {
+                    const render::Vec3 w[3] = {corner(0), corner(k), corner(k + 1)};
+                    const render::Vec2 uv[3] = {corner_uv(0), corner_uv(k),
+                                                corner_uv(k + 1)};
+                    if (has_tex) {
+                        draw_world_triangle(w, uv, lambert, tex_it->second,
+                                            render::WrapMode::Repeat,
+                                            /*cull_backfaces*/ false);
+                    } else {
+                        // No art for this facet: fill it flat rather than
+                        // dropping it, so the prop still reads as solid.
+                        draw_world_triangle(w, uv, lambert * 0.7f,
+                                            render::Texture{},
+                                            render::WrapMode::Repeat, false);
                     }
                 }
-                if (!ok) continue;
-                // UVs are in cell units, so Repeat lays one tile per cell.
-                fb.draw_triangle_textured(s[0], s[1], s[2], tile,
-                                          render::WrapMode::Repeat,
-                                          /*cull_backfaces*/ true);
             }
         }
 
-        // Overlay model bounding boxes as wireframe (debug placement of props).
-        // Model coordinates are in MM6 world units, matching the terrain scale.
+        // Optional wireframe overlay of the model bounding boxes (--boxes).
+        // Model coordinates are in MM6 world units, matching the terrain scale,
+        // and go through the same axis swap as the meshes.
         const render::Color box_color{255, 220, 0, 255};
-        // Debug overlays are drawn with draw_line/draw_point, which ignore UVs.
+        // Debug overlays are drawn with draw_line, which ignores UVs.
         auto project_box_vert = [&](render::Vec3 world, render::ScreenVertex& out) {
             return project(view_proj, world, 1.0f, 1.0f, 1.0f, {0.0f, 0.0f}, out);
         };
-        for (const auto& m : models) {
+        for (std::size_t mi = 0; show_boxes && mi < models.size(); ++mi) {
+            const world::OdmModel& m = models[mi];
             render::ScreenVertex c[8];
+            // Corners of the box in MM6 axes: the four (x,y) corners at min_z,
+            // then the same four at max_z (z being MM6's up axis).
             const bool ok =
-                project_box_vert({static_cast<float>(m.min_x), static_cast<float>(m.min_y), static_cast<float>(m.min_z)}, c[0]) &&
-                project_box_vert({static_cast<float>(m.max_x), static_cast<float>(m.min_y), static_cast<float>(m.min_z)}, c[1]) &&
-                project_box_vert({static_cast<float>(m.max_x), static_cast<float>(m.min_y), static_cast<float>(m.max_z)}, c[2]) &&
-                project_box_vert({static_cast<float>(m.min_x), static_cast<float>(m.min_y), static_cast<float>(m.max_z)}, c[3]) &&
-                project_box_vert({static_cast<float>(m.min_x), static_cast<float>(m.max_y), static_cast<float>(m.min_z)}, c[4]) &&
-                project_box_vert({static_cast<float>(m.max_x), static_cast<float>(m.max_y), static_cast<float>(m.min_z)}, c[5]) &&
-                project_box_vert({static_cast<float>(m.max_x), static_cast<float>(m.max_y), static_cast<float>(m.max_z)}, c[6]) &&
-                project_box_vert({static_cast<float>(m.min_x), static_cast<float>(m.max_y), static_cast<float>(m.max_z)}, c[7]);
+                project_box_vert(to_render_space(m.min_x, m.min_y, m.min_z), c[0]) &&
+                project_box_vert(to_render_space(m.max_x, m.min_y, m.min_z), c[1]) &&
+                project_box_vert(to_render_space(m.max_x, m.max_y, m.min_z), c[2]) &&
+                project_box_vert(to_render_space(m.min_x, m.max_y, m.min_z), c[3]) &&
+                project_box_vert(to_render_space(m.min_x, m.min_y, m.max_z), c[4]) &&
+                project_box_vert(to_render_space(m.max_x, m.min_y, m.max_z), c[5]) &&
+                project_box_vert(to_render_space(m.max_x, m.max_y, m.max_z), c[6]) &&
+                project_box_vert(to_render_space(m.min_x, m.max_y, m.max_z), c[7]);
             if (!ok) continue;
             // 12 edges of the box: bottom square, top square, 4 uprights.
             const int edges[12][2] = {{0,1},{1,2},{2,3},{3,0},
@@ -359,16 +528,6 @@ int main(int argc, char** argv) {
                                       {0,4},{1,5},{2,6},{3,7}};
             for (const auto& e : edges) {
                 fb.draw_line(c[e[0]], c[e[1]], box_color);
-            }
-        }
-
-        // Overlay the first model's mesh vertices as bright cyan points.
-        const render::Color vert_color{0, 240, 255, 255};
-        for (const auto& v : model_verts) {
-            render::ScreenVertex sv;
-            if (project_box_vert({static_cast<float>(v.x), static_cast<float>(v.y),
-                                  static_cast<float>(v.z)}, sv)) {
-                fb.draw_point(sv, vert_color);
             }
         }
 

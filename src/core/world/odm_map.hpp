@@ -132,6 +132,67 @@ struct OdmModelVertex {
 
 constexpr std::uint32_t kModelVertexSize = 12;  // 3 × i32
 
+// --- Model meshes (see docs/formats/odm-model-facets.md) -------------------
+
+// The fixed capacity of a facet's per-vertex arrays. A facet is a convex
+// polygon of at most this many vertices; the on-disk record reserves the full
+// capacity whatever the actual polygon size.
+constexpr std::size_t kFacetMaxVertices = 20;
+
+// One facet (polygon) of a model's mesh: an n-gon over that model's own vertex
+// array, with a plane, per-vertex texture coordinates, and a texture name.
+struct OdmModelFacet {
+    // The facet plane, stored as 16.16 fixed point. The normal is unit length,
+    // and `normal · v + plane_distance == 0` holds for every vertex v of the
+    // facet — which is how this decode was verified.
+    std::int32_t normal_x = 0, normal_y = 0, normal_z = 0;
+    std::int32_t plane_distance = 0;
+
+    std::uint32_t attributes = 0;   // bit flags; see the spec (partly unknown)
+    std::uint8_t vertex_count = 0;  // the polygon's size; indexes the arrays below
+
+    // Indices into the owning mesh's `vertices`. Only the first
+    // `vertex_count` entries are meaningful.
+    std::array<std::uint16_t, kFacetMaxVertices> vertex_ids{};
+
+    // Per-vertex texture coordinates in texels, parallel to `vertex_ids`.
+    std::array<std::int16_t, kFacetMaxVertices> u{};
+    std::array<std::int16_t, kFacetMaxVertices> v{};
+
+    // The facet's texture: a BITMAPS.LOD entry name. May be empty.
+    std::string texture_name;
+
+    // The plane with the 16.16 fixed point divided out, for renderers that
+    // work in floats.
+    [[nodiscard]] float nx() const noexcept { return static_cast<float>(normal_x) / 65536.0f; }
+    [[nodiscard]] float ny() const noexcept { return static_cast<float>(normal_y) / 65536.0f; }
+    [[nodiscard]] float nz() const noexcept { return static_cast<float>(normal_z) / 65536.0f; }
+};
+
+// One model's complete mesh: its own vertex array plus the facets over it.
+// Facet vertex ids are local to this mesh, not global to the map.
+struct OdmModelMesh {
+    std::vector<OdmModelVertex> vertices;
+    std::vector<OdmModelFacet> facets;
+};
+
+// Extract every model's mesh, in model-array order (so index i corresponds to
+// `extract_models`' entry i).
+//
+// The geometry section is a single stream with no offset table: each model
+// contributes vertices, facets, a facet-ordering array, BSP nodes, and facet
+// texture names back to back, and the next model starts immediately after.
+// Walking it is therefore all-or-nothing — a truncated or inconsistent stream
+// is rejected rather than partially decoded.
+[[nodiscard]] OdmError extract_model_meshes(const OdmMap& map,
+                                            std::vector<OdmModelMesh>& out);
+
+// Sizes of the per-model geometry arrays (see docs/formats/odm-model-facets.md).
+constexpr std::uint32_t kModelFacetSize = 308;         // 0x134
+constexpr std::uint32_t kFacetOrderingEntrySize = 2;   // u16 per facet
+constexpr std::uint32_t kModelBspNodeSize = 8;         // per BSP node
+constexpr std::uint32_t kFacetTextureNameSize = 10;    // char[10] per facet
+
 // Fixed sizes from the verified spec, exposed for tests and tools.
 constexpr std::uint32_t kWrapperSize = 8;
 constexpr std::uint32_t kHeaderSize = 0xB0;  // name..dim_fields inclusive

@@ -263,4 +263,186 @@ OdmError extract_first_model_vertices(const OdmMap& map,
     return OdmError::None;
 }
 
+// --- Model meshes ----------------------------------------------------------
+
+namespace {
+
+// Field offsets within a 308-byte facet record (docs/formats/odm-model-facets.md).
+constexpr std::uint32_t kFacetPlaneOff = 0x00;      // 4 x i32, 16.16 fixed point
+constexpr std::uint32_t kFacetAttributesOff = 0x1C;  // u32 bit flags
+constexpr std::uint32_t kFacetVertexIdsOff = 0x20;   // u16[20]
+constexpr std::uint32_t kFacetUOff = 0x48;           // i16[20]
+constexpr std::uint32_t kFacetVOff = 0x70;           // i16[20]
+constexpr std::uint32_t kFacetVertexCountOff = 0x12E;  // u8
+
+// Read a model record's three geometry counts. Returns false if the record
+// does not fit in the payload.
+[[nodiscard]] bool read_model_counts(io::ByteReader& r, std::uint64_t record_off,
+                                     std::uint32_t& vertex_count,
+                                     std::uint32_t& facet_count,
+                                     std::uint32_t& bsp_node_count) {
+    if (!r.seek(static_cast<std::size_t>(record_off + 0x44))) return false;
+    vertex_count = r.read_u32_le();
+    if (!r.seek(static_cast<std::size_t>(record_off + 0x4C))) return false;
+    facet_count = r.read_u32_le();
+    if (!r.seek(static_cast<std::size_t>(record_off + 0x5C))) return false;
+    bsp_node_count = r.read_u32_le();
+    return r.ok();
+}
+
+}  // namespace
+
+OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out) {
+    out.clear();
+
+    const auto& p = map.payload;
+    if (p.size() < kModelCountOffset + 4) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    io::ByteReader r{std::span<const std::byte>{
+        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(kModelCountOffset)) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t model_count = r.read_u32_le();
+
+    const std::uint64_t array_end =
+        static_cast<std::uint64_t>(kModelCountOffset) + 4 +
+        static_cast<std::uint64_t>(model_count) * kModelRecordSize;
+    if (array_end > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    // The geometry stream begins right after the model array and is walked
+    // strictly sequentially; `cursor` is the running position in it.
+    std::uint64_t cursor = array_end;
+    out.reserve(model_count);
+
+    for (std::uint32_t i = 0; i < model_count; ++i) {
+        const std::uint64_t record_off =
+            kModelCountOffset + 4 + static_cast<std::uint64_t>(i) * kModelRecordSize;
+        std::uint32_t vertex_count = 0;
+        std::uint32_t facet_count = 0;
+        std::uint32_t bsp_node_count = 0;
+        if (!read_model_counts(r, record_off, vertex_count, facet_count,
+                               bsp_node_count)) {
+            return OdmError::HeaderTooSmall;
+        }
+
+        // Size the whole block before reading any of it, in 64-bit arithmetic
+        // so that a hostile count cannot wrap.
+        const std::uint64_t verts_bytes =
+            static_cast<std::uint64_t>(vertex_count) * kModelVertexSize;
+        const std::uint64_t facets_bytes =
+            static_cast<std::uint64_t>(facet_count) * kModelFacetSize;
+        const std::uint64_t ordering_bytes =
+            static_cast<std::uint64_t>(facet_count) * kFacetOrderingEntrySize;
+        const std::uint64_t bsp_bytes =
+            static_cast<std::uint64_t>(bsp_node_count) * kModelBspNodeSize;
+        const std::uint64_t names_bytes =
+            static_cast<std::uint64_t>(facet_count) * kFacetTextureNameSize;
+
+        const std::uint64_t verts_off = cursor;
+        const std::uint64_t facets_off = verts_off + verts_bytes;
+        const std::uint64_t ordering_off = facets_off + facets_bytes;
+        const std::uint64_t bsp_off = ordering_off + ordering_bytes;
+        const std::uint64_t names_off = bsp_off + bsp_bytes;
+        const std::uint64_t block_end = names_off + names_bytes;
+        if (block_end > p.size()) {
+            return OdmError::HeaderTooSmall;
+        }
+
+        OdmModelMesh mesh;
+        mesh.vertices.reserve(vertex_count);
+        for (std::uint32_t vi = 0; vi < vertex_count; ++vi) {
+            if (!r.seek(static_cast<std::size_t>(
+                    verts_off + static_cast<std::uint64_t>(vi) * kModelVertexSize))) {
+                return OdmError::HeaderTooSmall;
+            }
+            OdmModelVertex v;
+            v.x = r.read_i32_le();
+            v.y = r.read_i32_le();
+            v.z = r.read_i32_le();
+            mesh.vertices.push_back(v);
+        }
+
+        mesh.facets.reserve(facet_count);
+        for (std::uint32_t fi = 0; fi < facet_count; ++fi) {
+            const std::uint64_t base = facets_off +
+                static_cast<std::uint64_t>(fi) * kModelFacetSize;
+            OdmModelFacet f;
+
+            if (!r.seek(static_cast<std::size_t>(base + kFacetPlaneOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            f.normal_x = r.read_i32_le();
+            f.normal_y = r.read_i32_le();
+            f.normal_z = r.read_i32_le();
+            f.plane_distance = r.read_i32_le();
+
+            if (!r.seek(static_cast<std::size_t>(base + kFacetAttributesOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            f.attributes = r.read_u32_le();
+
+            if (!r.seek(static_cast<std::size_t>(base + kFacetVertexCountOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            const std::uint8_t n = r.read_u8();
+            // A facet that claims more vertices than the record can hold is
+            // malformed; clamping would silently invent geometry.
+            if (n > kFacetMaxVertices) {
+                return OdmError::HeaderTooSmall;
+            }
+            f.vertex_count = n;
+
+            if (!r.seek(static_cast<std::size_t>(base + kFacetVertexIdsOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            for (std::size_t k = 0; k < kFacetMaxVertices; ++k) {
+                f.vertex_ids[k] = r.read_u16_le();
+            }
+            if (!r.seek(static_cast<std::size_t>(base + kFacetUOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            for (std::size_t k = 0; k < kFacetMaxVertices; ++k) {
+                f.u[k] = static_cast<std::int16_t>(r.read_u16_le());
+            }
+            if (!r.seek(static_cast<std::size_t>(base + kFacetVOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            for (std::size_t k = 0; k < kFacetMaxVertices; ++k) {
+                f.v[k] = static_cast<std::int16_t>(r.read_u16_le());
+            }
+
+            // Every referenced vertex must exist in this model's own array.
+            for (std::size_t k = 0; k < n; ++k) {
+                if (f.vertex_ids[k] >= vertex_count) {
+                    return OdmError::HeaderTooSmall;
+                }
+            }
+
+            if (!r.seek(static_cast<std::size_t>(
+                    names_off + static_cast<std::uint64_t>(fi) * kFacetTextureNameSize))) {
+                return OdmError::HeaderTooSmall;
+            }
+            // The field is reused memory: many entries carry stale bytes after
+            // the terminator, so read the fixed width and stop at the NUL.
+            if (!r.read_fixed_string(kFacetTextureNameSize, f.texture_name)) {
+                return OdmError::HeaderTooSmall;
+            }
+
+            mesh.facets.push_back(std::move(f));
+        }
+
+        if (!r.ok()) {
+            return OdmError::HeaderTooSmall;
+        }
+        out.push_back(std::move(mesh));
+        cursor = block_end;
+    }
+    return OdmError::None;
+}
+
 }  // namespace openmm6::world

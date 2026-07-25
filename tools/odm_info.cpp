@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <span>
 #include <string>
 
@@ -131,6 +132,27 @@ int main(int argc, char** argv) {
         if (models.size() > show) {
             std::cout << "    ... (" << (models.size() - show) << " more)\n";
         }
+    }
+
+    // Model meshes (non-expressive: counts only).
+    std::vector<world::OdmModelMesh> meshes;
+    if (world::extract_model_meshes(map, meshes) == world::OdmError::None) {
+        std::size_t verts = 0, facets = 0, tris = 0;
+        std::set<std::string> textures;
+        for (const auto& mesh : meshes) {
+            verts += mesh.vertices.size();
+            facets += mesh.facets.size();
+            for (const auto& f : mesh.facets) {
+                // Each n-gon triangulates into n-2 triangles.
+                if (f.vertex_count >= 3) tris += f.vertex_count - 2u;
+                if (!f.texture_name.empty()) textures.insert(f.texture_name);
+            }
+        }
+        std::cout << "  meshes: " << meshes.size() << " models, " << verts
+                  << " vertices, " << facets << " facets (" << tris
+                  << " triangles), " << textures.size() << " distinct textures\n";
+    } else {
+        std::cout << "  meshes: geometry stream did not decode\n";
     }
     return 0;
 }

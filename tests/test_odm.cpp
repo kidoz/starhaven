@@ -379,3 +379,241 @@ TEST_CASE("vertex array past EOF is rejected", "[odm]") {
     std::vector<OdmModelVertex> verts;
     REQUIRE(extract_first_model_vertices(m, verts) == OdmError::HeaderTooSmall);
 }
+
+// --- model mesh (facet) tests ----------------------------------------------
+
+// One model's geometry description for the fixture builder below.
+struct MeshSpec {
+    std::uint32_t vertex_count = 0;
+    std::uint32_t facet_count = 0;
+    std::uint32_t bsp_node_count = 0;  // real maps use 0; nonzero shifts names
+    std::uint8_t facet_vertices = 4;   // polygon size of every facet
+};
+
+// Build an ODM entry whose geometry stream holds one block per spec, laid out
+// as verts | facets | ordering | bsp | names (docs/formats/odm-model-facets.md).
+//
+// Every value is derived from the model/facet index so the test can assert on
+// exact numbers and prove that later models are reached at the right offsets.
+std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& specs) {
+    const std::size_t geo_start =
+        kModelCountOffset + 4 + specs.size() * kModelRecordSize;
+
+    std::size_t geo_bytes = 0;
+    for (const auto& s : specs) {
+        geo_bytes += s.vertex_count * kModelVertexSize +
+                     s.facet_count * kModelFacetSize +
+                     s.facet_count * kFacetOrderingEntrySize +
+                     s.bsp_node_count * kModelBspNodeSize +
+                     s.facet_count * kFacetTextureNameSize;
+    }
+    std::vector<std::uint8_t> payload(geo_start + geo_bytes, 0);
+    put_fixed_string(payload, 0x00, "blank");
+    put_fixed_string(payload, 0x20, "default.odm");
+    put_fixed_string(payload, 0x40, "MM6 Outdoor v1.11");
+    put_fixed_string(payload, 0x80, "grastyl");
+
+    auto put_u32 = [&](std::size_t o, std::uint32_t v) {
+        payload[o]     = static_cast<std::uint8_t>(v & 0xFF);
+        payload[o + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+        payload[o + 2] = static_cast<std::uint8_t>((v >> 16) & 0xFF);
+        payload[o + 3] = static_cast<std::uint8_t>((v >> 24) & 0xFF);
+    };
+    auto put_u16 = [&](std::size_t o, std::uint16_t v) {
+        payload[o]     = static_cast<std::uint8_t>(v & 0xFF);
+        payload[o + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+    };
+    auto put_i32 = [&](std::size_t o, std::int32_t v) {
+        put_u32(o, static_cast<std::uint32_t>(v));
+    };
+
+    put_u32(kModelCountOffset, static_cast<std::uint32_t>(specs.size()));
+
+    std::size_t cursor = geo_start;
+    for (std::size_t mi = 0; mi < specs.size(); ++mi) {
+        const MeshSpec& s = specs[mi];
+        const std::size_t rec = kModelCountOffset + 4 + mi * kModelRecordSize;
+        put_fixed_string(payload, rec, "model" + std::to_string(mi));
+        put_u32(rec + 0x44, s.vertex_count);
+        put_u32(rec + 0x4C, s.facet_count);
+        put_u32(rec + 0x5C, s.bsp_node_count);
+
+        // Vertices: (mi*1000 + i, +1, +2).
+        for (std::uint32_t i = 0; i < s.vertex_count; ++i) {
+            const std::size_t o = cursor + i * kModelVertexSize;
+            put_i32(o,     static_cast<std::int32_t>(mi * 1000 + i));
+            put_i32(o + 4, static_cast<std::int32_t>(mi * 1000 + i + 1));
+            put_i32(o + 8, static_cast<std::int32_t>(mi * 1000 + i + 2));
+        }
+        cursor += s.vertex_count * kModelVertexSize;
+
+        const std::size_t facets_off = cursor;
+        for (std::uint32_t f = 0; f < s.facet_count; ++f) {
+            const std::size_t o = facets_off + f * kModelFacetSize;
+            put_i32(o,        0);        // normal x
+            put_i32(o + 0x04, 0);        // normal y
+            put_i32(o + 0x08, 65536);    // normal z = 1.0 in 16.16
+            put_i32(o + 0x0C, -65536 * static_cast<std::int32_t>(f + 1));
+            put_u32(o + 0x1C, 0x100u + f);              // attributes
+            payload[o + 0x12E] = s.facet_vertices;      // polygon size
+            for (std::uint8_t k = 0; k < s.facet_vertices; ++k) {
+                // Cycle through the model's own vertices.
+                put_u16(o + 0x20 + k * 2u,
+                        static_cast<std::uint16_t>((f + k) % s.vertex_count));
+                put_u16(o + 0x48 + k * 2u, static_cast<std::uint16_t>(10 * k));
+                put_u16(o + 0x70 + k * 2u, static_cast<std::uint16_t>(20 * k));
+            }
+        }
+        cursor += s.facet_count * kModelFacetSize;
+        cursor += s.facet_count * kFacetOrderingEntrySize;
+        cursor += s.bsp_node_count * kModelBspNodeSize;
+
+        // Texture names: "texMxF", NUL-padded to 10 bytes.
+        for (std::uint32_t f = 0; f < s.facet_count; ++f) {
+            const std::string n = "tex" + std::to_string(mi) + "x" + std::to_string(f);
+            for (std::size_t i = 0; i < kFacetTextureNameSize; ++i) {
+                payload[cursor + f * kFacetTextureNameSize + i] =
+                    (i < n.size()) ? static_cast<std::uint8_t>(n[i]) : 0;
+            }
+        }
+        cursor += s.facet_count * kFacetTextureNameSize;
+    }
+
+    std::vector<std::uint8_t> compressed;
+    REQUIRE(zlib_compress(payload, compressed));
+    std::vector<std::byte> entry(kWrapperSize + compressed.size());
+    put_u32_le(entry, 0x00, static_cast<std::uint32_t>(payload.size()));
+    put_u32_le(entry, 0x04, static_cast<std::uint32_t>(payload.size()));
+    std::memcpy(&entry[kWrapperSize], compressed.data(), compressed.size());
+    return entry;
+}
+
+TEST_CASE("model meshes decode vertices, facets, and texture names", "[odm]") {
+    auto entry = make_odm_entry_with_meshes({{4, 2, 0, 4}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::None);
+    REQUIRE(meshes.size() == 1);
+    REQUIRE(meshes[0].vertices.size() == 4);
+    REQUIRE(meshes[0].facets.size() == 2);
+
+    REQUIRE(meshes[0].vertices[2].x == 2);
+    REQUIRE(meshes[0].vertices[2].y == 3);
+    REQUIRE(meshes[0].vertices[2].z == 4);
+
+    const OdmModelFacet& f0 = meshes[0].facets[0];
+    REQUIRE(f0.vertex_count == 4);
+    REQUIRE(f0.normal_z == 65536);
+    REQUIRE(f0.nz() == 1.0f);
+    REQUIRE(f0.plane_distance == -65536);
+    REQUIRE(f0.attributes == 0x100);
+    REQUIRE(f0.vertex_ids[0] == 0);
+    REQUIRE(f0.vertex_ids[3] == 3);
+    REQUIRE(f0.u[2] == 20);
+    REQUIRE(f0.v[2] == 40);
+    REQUIRE(f0.texture_name == "tex0x0");
+    REQUIRE(meshes[0].facets[1].texture_name == "tex0x1");
+    REQUIRE(meshes[0].facets[1].attributes == 0x101);
+}
+
+TEST_CASE("later models are reached past the preceding geometry", "[odm]") {
+    // The point of this slice: model 1 and 2 sit behind model 0's facets,
+    // ordering array and texture names, with no offset table to shortcut it.
+    auto entry = make_odm_entry_with_meshes({{4, 3, 0, 4}, {5, 2, 0, 3}, {6, 1, 0, 4}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::None);
+    REQUIRE(meshes.size() == 3);
+
+    REQUIRE(meshes[1].vertices.size() == 5);
+    REQUIRE(meshes[1].facets.size() == 2);
+    REQUIRE(meshes[1].vertices[0].x == 1000);   // model index encoded in the data
+    REQUIRE(meshes[1].facets[0].vertex_count == 3);
+    REQUIRE(meshes[1].facets[1].texture_name == "tex1x1");
+
+    REQUIRE(meshes[2].vertices.size() == 6);
+    REQUIRE(meshes[2].vertices[0].x == 2000);
+    REQUIRE(meshes[2].facets[0].texture_name == "tex2x0");
+}
+
+TEST_CASE("BSP nodes between facets and names are skipped", "[odm]") {
+    // No shipped map uses them, but the loader reserves 8 bytes per node
+    // between the ordering array and the texture names.
+    auto entry = make_odm_entry_with_meshes({{4, 2, 7, 4}, {4, 1, 0, 3}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::None);
+    REQUIRE(meshes.size() == 2);
+    REQUIRE(meshes[0].facets[0].texture_name == "tex0x0");
+    REQUIRE(meshes[1].facets[0].texture_name == "tex1x0");
+    REQUIRE(meshes[1].vertices[0].x == 1000);
+}
+
+TEST_CASE("zero models yields no meshes", "[odm]") {
+    auto entry = make_odm_entry_with_meshes({});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::None);
+    REQUIRE(meshes.empty());
+}
+
+TEST_CASE("a model with no facets is accepted", "[odm]") {
+    auto entry = make_odm_entry_with_meshes({{3, 0, 0, 4}, {4, 1, 0, 3}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::None);
+    REQUIRE(meshes[0].vertices.size() == 3);
+    REQUIRE(meshes[0].facets.empty());
+    REQUIRE(meshes[1].facets.size() == 1);   // the next block still lines up
+}
+
+TEST_CASE("a facet claiming more vertices than the record holds is rejected",
+          "[odm]") {
+    auto entry = make_odm_entry_with_meshes({{4, 1, 0, 4}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    const std::size_t facet0 =
+        kModelCountOffset + 4 + 1 * kModelRecordSize + 4 * kModelVertexSize;
+    m.payload[facet0 + 0x12E] = static_cast<std::uint8_t>(kFacetMaxVertices + 1);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
+}
+
+TEST_CASE("a facet referencing a vertex the model lacks is rejected", "[odm]") {
+    auto entry = make_odm_entry_with_meshes({{4, 1, 0, 4}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    const std::size_t facet0 =
+        kModelCountOffset + 4 + 1 * kModelRecordSize + 4 * kModelVertexSize;
+    m.payload[facet0 + 0x20] = 99;   // vertex id 99, but the model has 4
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
+}
+
+TEST_CASE("a geometry stream that runs past the payload is rejected", "[odm]") {
+    auto entry = make_odm_entry_with_meshes({{4, 1, 0, 4}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    // Drop the texture-name block off the end.
+    m.payload.resize(m.payload.size() - kFacetTextureNameSize);
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
+}
+
+TEST_CASE("a hostile facet count cannot wrap the size arithmetic", "[odm]") {
+    auto entry = make_odm_entry_with_meshes({{4, 1, 0, 4}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    const std::size_t rec = kModelCountOffset + 4;
+    m.payload[rec + 0x4C] = 0xFF;
+    m.payload[rec + 0x4D] = 0xFF;
+    m.payload[rec + 0x4E] = 0xFF;
+    m.payload[rec + 0x4F] = 0xFF;
+    std::vector<OdmModelMesh> meshes;
+    REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
+}
