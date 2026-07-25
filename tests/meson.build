@@ -79,3 +79,15 @@ test('map_event',
     dependencies : [openmm6_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('vid_archive',
+  executable('test_vid_archive', 'test_vid_archive.cpp',
+    dependencies : [openmm6_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
+test('smacker',
+  executable('test_smacker', 'test_smacker.cpp',
+    dependencies : [openmm6_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

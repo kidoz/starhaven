@@ -66,6 +66,10 @@ interoperability and compatibility with a legally purchased copy.
   the sprite's shared `palXXX` palette from `BITMAPS.LOD`, and honors
   per-line transparent spans plus index-0 transparency. Verified on real entries
   from `SPRITES.LOD`.
+- A reader for the `.vid` video container (`Anims1.vid`, `Anims2.vid`) and a
+  **Smacker video decoder**: header, Huffman trees, palette records and the
+  block-coded frame stream, decoded to RGBA. Verified on all 127 videos MM6
+  ships — every frame of every one. Video only; audio is located and skipped.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
@@ -80,6 +84,7 @@ interoperability and compatibility with a legally purchased copy.
   reports non-expressive statistics (sizes, populated percentage).
 - `view_bitmap`, a CLI that decodes one `.LOD` image or sprite entry and shows
   it in an SDL3 window (sprites auto-resolve their shared palette).
+- `play_smk`, a CLI that lists and plays the game's Smacker videos.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in
@@ -92,8 +97,10 @@ The format specs are documented from observed behavior in
 [`docs/formats/odm-model-facets.md`](docs/formats/odm-model-facets.md),
 [`docs/formats/dtile.md`](docs/formats/dtile.md),
 [`docs/formats/event-data.md`](docs/formats/event-data.md),
-[`docs/formats/bitmap.md`](docs/formats/bitmap.md), and
-[`docs/formats/sprite.md`](docs/formats/sprite.md).
+[`docs/formats/bitmap.md`](docs/formats/bitmap.md),
+[`docs/formats/sprite.md`](docs/formats/sprite.md),
+[`docs/formats/vid.md`](docs/formats/vid.md), and
+[`docs/formats/smacker.md`](docs/formats/smacker.md).
 
 ## Build
 
@@ -165,6 +172,14 @@ Walk a 3D, software-rasterized view of an outdoor map — terrain and buildings:
 ./buildDir/walk_odm Outa1.odm --boxes
 ```
 
+Play one of the game's videos (`--list` shows every name):
+
+```bash
+./buildDir/play_smk --list
+./buildDir/play_smk Bank --scale 2      # SPACE pauses, ESC quits
+./buildDir/play_smk 3dologo --frame 40 --screenshot logo.ppm
+```
+
 Decode and display an image entry in a window:
 
 ```bash
@@ -195,6 +210,8 @@ src/
     image/zlib_util.{hpp,cpp} shared zlib inflate helper
     world/odm_map.{hpp,cpp}   .odm parser (zlib, header, terrain, model meshes)
     world/tile_table.{hpp,cpp} DTILE.BIN ground tile table (index -> bitmap)
+    video/vid_archive.{hpp,cpp} .vid video container directory reader
+    video/smacker.{hpp,cpp}   Smacker video decoder (video only, no audio)
     world/map_event.{hpp,cpp} .ddm/.dlv event-data parser (zlib wrapper)
     render/math3d.hpp         Vec3/Vec4/Mat4, perspective, look-at, rotations
     render/rasterizer.{hpp,cpp} software z-buffered triangle rasterizer
@@ -209,6 +226,7 @@ tools/
   view_heightmap.cpp         render an .odm heightmap as grayscale in SDL3
   walk_odm.cpp               first-person 3D walker (terrain + model meshes)
   tile_probe.cpp             ground tileset research probe
+  play_smk.cpp               list and play the game's Smacker videos
   ddm_info.cpp               decompress one .ddm/.dlv event file, print stats
 tests/                       hermetic Catch2 unit tests (synthetic fixtures)
 docs/
@@ -232,8 +250,9 @@ docs/
 12. ~~Enumerate the first event table's records (type + name, 548-byte stride).~~ ✓
 13. ~~Resolve ground tile indices to real textures via `DTILE.BIN`.~~ ✓
 14. ~~Decode the model geometry stream (facets); render filled, textured props.~~ ✓ (this slice)
-15. Decode event-record bodies; sprites/decorations; mouse-look; collision.
-16. UI, audio, and gameplay systems.
+15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
+16. Decode event-record bodies; sprites/decorations; mouse-look; collision.
+17. Smacker audio, an audio output layer, UI, and gameplay systems.
 
 ## Contributing
 

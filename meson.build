@@ -36,6 +36,8 @@ openmm6_core_sources = files(
   'src/core/render/texture.cpp',
   'src/core/render/tile_set.cpp',
   'src/core/render/terrain_mesh.cpp',
+  'src/core/video/vid_archive.cpp',
+  'src/core/video/smacker.cpp',
   'src/core/platform/paths.cpp',
 )
 
@@ -91,6 +93,12 @@ executable('view_heightmap', 'tools/view_heightmap.cpp',
 
 # First-person walker: software-rasterizes an .odm terrain heightfield in 3D.
 executable('walk_odm', 'tools/walk_odm.cpp',
+  dependencies : [openmm6_dep, sdl3_dep],
+  install : true,
+)
+
+# Smacker player: decodes one video from the install's Anims/*.vid archives.
+executable('play_smk', 'tools/play_smk.cpp',
   dependencies : [openmm6_dep, sdl3_dep],
   install : true,
 )
