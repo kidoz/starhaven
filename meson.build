@@ -31,6 +31,7 @@ openmm6_core_sources = files(
   'src/core/image/zlib_util.cpp',
   'src/core/world/odm_map.cpp',
   'src/core/world/map_event.cpp',
+  'src/core/world/tile_table.cpp',
   'src/core/render/rasterizer.cpp',
   'src/core/render/texture.cpp',
   'src/core/render/tile_set.cpp',

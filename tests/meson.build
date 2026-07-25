@@ -62,6 +62,12 @@ test('tile_set',
   workdir : meson.current_build_dir(),
 )
 
+test('tile_table',
+  executable('test_tile_table', 'test_tile_table.cpp',
+    dependencies : [openmm6_dep, catch2_main, zlib_dep]),
+  workdir : meson.current_build_dir(),
+)
+
 test('terrain_mesh',
   executable('test_terrain_mesh', 'test_terrain_mesh.cpp',
     dependencies : [openmm6_dep, catch2_main]),
