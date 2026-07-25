@@ -38,8 +38,18 @@ struct TerrainMesh {
 
 // World-scale defaults. The MM6 grid is 128x128; one horizontal cell maps to
 // `cell_size` world units and one height unit to `height_scale` world units.
+//
+// cell_size is calibrated against model placement, which the ODM stores in
+// real world units: 512 is the smallest value that puts all of Outa1.odm's 23
+// models inside the grid (64, 128 and 256 leave 23, 22 and 3 of them off the
+// map respectively), and it makes the world exactly 128 * 512 = 65536 units
+// across. `observed`
+//
+// height_scale is weaker: 16 and 32 fit model base elevations about equally
+// well (mean error 758 vs 767 world units), because models are not flush with
+// the ground. 32 is retained pending better evidence. `inferred`
 struct TerrainScale {
-    float cell_size = 64.0f;
+    float cell_size = 512.0f;
     float height_scale = 32.0f;
 };
 

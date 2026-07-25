@@ -1,4 +1,5 @@
 // Tests for terrain mesh construction from an ODM heightmap.
+#include <algorithm>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -103,6 +104,28 @@ TEST_CASE("distinct tile indices get distinct colors", "[terrain_mesh]") {
     Vec3Color a = tile_type_color(50);
     Vec3Color b = tile_type_color(120);
     REQUIRE((a.r != b.r || a.g != b.g || a.b != b.b));
+}
+
+TEST_CASE("the default scale spans the full 2^16 MM6 world", "[terrain_mesh]") {
+    // Calibration guard. cell_size is not a free parameter: the ODM stores
+    // model positions in real world units, and 512 is the smallest value that
+    // places every model in Outa1.odm inside the grid. It also makes the map
+    // exactly 128 * 512 = 65536 units across. An 8x-too-small cell_size (the
+    // previous 64) compressed the terrain horizontally and rendered rolling
+    // hills as near-vertical spikes.
+    constexpr int dim = world::OdmTerrain::kGridDim;
+    const TerrainScale s{};
+    REQUIRE(s.cell_size == Approx(512.0f));
+    REQUIRE(static_cast<float>(dim) * s.cell_size == Approx(65536.0f));
+
+    auto mesh = build_terrain_mesh(flat_terrain(), {});
+    float min_x = mesh.vertices[0].x, max_x = mesh.vertices[0].x;
+    for (const Vec3& v : mesh.vertices) {
+        min_x = std::min(min_x, v.x);
+        max_x = std::max(max_x, v.x);
+    }
+    // (dim-1) cells between the first and last vertex.
+    REQUIRE(max_x - min_x == Approx(static_cast<float>(dim - 1) * 512.0f));
 }
 
 TEST_CASE("triangles wind CW from above so screen-space culling keeps them",
