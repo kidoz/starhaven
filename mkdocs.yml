@@ -29,6 +29,7 @@ nav:
       - Ground tiles: formats/dtile.md
       - Monster table: formats/dmonlist.md
       - Design data tables: formats/text-tables.md
+      - Sprite frame table: formats/dsft.md
       - VID containers: formats/vid.md
       - Smacker video: formats/smacker.md
       - Sound archive: formats/snd.md

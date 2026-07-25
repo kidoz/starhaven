@@ -66,14 +66,20 @@ The ids actually used are 121, 122, 123, 133, 134 and 135 — six values, all
 inside the contiguous `Peasant*` block at 120–143, none outside it. A wrong
 field would scatter across all 173. `observed`
 
-## Only the A variant's sprites ship
+## The A/B/C variants share one picture
 
-Monsters come in A/B/C triples (`ArcherA`/`ArcherB`/`ArcherC`), and **only 31
-of the 173 stand sprites exist in `SPRITES.LOD`**. `arc1sta0` is present;
-`arc2sta0` and `arc3sta0` are not. `observed`
+Monsters come in A/B/C triples (`ArcherA`/`ArcherB`/`ArcherC`). Completing a
+stand animation name with a blind view digit finds art for **only 31 of the
+173**: `arc1sta0` is present, `arc2sta0` and `arc3sta0` are not. `observed`
 
-The natural reading is that B and C are palette swaps of A, with the recolouring
-driven by something in the record's unknown bytes. That mechanism is `unknown`.
+That is a defect in the guess, not a gap in the data. These names are
+**animations**, and `DSFT.BIN` resolves them — going through the sprite frame
+table finds art for **173 of 173** (see [`dsft.md`](dsft.md)). It also settles
+the recolouring: `arc1sta`, `arc2sta` and `arc3sta` name the same picture,
+`ARC1STA0`, with palettes 150, 151 and 152, and all three palettes ship in
+`BITMAPS.LOD`. B and C are palette swaps of A, exactly as suspected, and the
+mechanism is a field in the frame table rather than anything in this record.
+`observed`
 
 What the variants *are* is no longer open: `MONSTERS.TXT` holds one row per
 variant, and text row *N* names binary record *N−1* across all 173 (see
@@ -83,13 +89,10 @@ Fireball spell. The three records being byte-identical here apart from their
 names is therefore expected — everything that distinguishes them lives in the
 text table. `observed`
 
-Falling back to the group's A sprite (`id - id % 3`) resolves 58 more, for 89
-of 173. The remaining 84 have no sprite under either rule — including some A
-variants — so this install's `SPRITES.LOD` genuinely lacks them, exactly as it
-lacks several decoration sprites. `observed`
-
-The renderer uses that fallback, which draws B and C variants in the wrong
-colours rather than not at all. It is a display choice, not a format claim.
+An earlier revision of this document concluded that 84 monsters had no art in
+this install. That was wrong, and wrong in an instructive way: the sprites were
+there under names the guess could not construct. Nothing was missing except the
+table that names them.
 
 ## Invalid-input behavior
 
@@ -104,5 +107,6 @@ The parser rejects, deterministically and without reading out of bounds:
 - The unknown bytes at +0x00 and +0x80. Statistics were the obvious guess, but
   the statistics turned out to live in `MONSTERS.TXT`, so this is more likely
   animation or rendering data. `unknown`
-- How B and C variants are recoloured. `unknown`
-- Why 84 monsters have no sprite in this install. `unknown`
+- Whether the record's unknown bytes carry animation or rendering data; the
+  statistics live in `MONSTERS.TXT` and the palettes in `DSFT.BIN`, so neither
+  is what they hold. `unknown`

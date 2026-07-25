@@ -91,12 +91,16 @@ Two caveats:
 - **Not every name resolves.** On `Outa1.odm`, `tree27`/`tree28`/`tree29`,
   `stump5a` and `ped06` exist in `SPRITES.LOD`, but `Cactus24`, `Cactus25`,
   `Cactus27`, `Rock03`, `Rock05` and `uacrwn` do not, under any casing. Those
-  cover 115 of the map's 727 placements. Where the art actually lives is
-  `unknown`.
-- **The world size of a sprite is not stated.** Neither the record nor the
-  `DDECLIST` entry gives one, and sprite pixels are plainly not world units — a
-  tree drawn 1 unit per pixel stands shorter than a cottage door. The renderer
-  uses a factor of 4, calibrated by eye against the models. `inferred`
+  cover 115 of the map's 727 placements. The sprite frame table does not
+  rescue them either — none of the `Cactus*` names is one of its 1,656 groups —
+  so where that art lives is still `unknown`.
+- **The world size of a sprite is partly stated.** Neither the record nor the
+  `DDECLIST` entry gives one, but the decoration name is usually an animation
+  name, and the sprite frame table carries a per-sprite multiplier: `tree01` is
+  2.1, `tree27` is 1.0, `ped01` is 0.7 (see [`dsft.md`](dsft.md)). That fixes
+  the sizes relative to each other. The absolute factor is still nowhere in the
+  data; the renderer multiplies by 4, calibrated by eye against the models.
+  `inferred`
 
 ## Invalid-input behavior
 

@@ -110,6 +110,12 @@ interoperability and compatibility with a legally purchased copy.
   and its 173 monsters line up one-to-one with `DMONLIST.BIN`. The walkers now
   show a map's real name — "Sweet Water", not `OutA1.Odm` — and play the music
   track the designers assigned it.
+- A decoder for the **sprite frame table** (`DSFT.BIN`) — the 6,455 frames in
+  1,656 animations that turn a name into the pictures to draw, in order, at the
+  right size and in the right colours. Monsters and torches now animate. It
+  also corrected a wrong conclusion: the B and C monster variants were never
+  missing art, they are one picture drawn through three palettes, and going
+  through the table raises monster sprite coverage from 31 of 173 to 173 of 173.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
@@ -132,6 +138,8 @@ interoperability and compatibility with a legally purchased copy.
   decorations such as torches — and lets you walk through it.
 - `data_info`, a CLI that lists the design tables, dumps any of them, and
   cross-checks `MONSTERS.TXT` against `DMONLIST.BIN`.
+- `sft_info`, a CLI that lists the sprite animations, dumps one, and verifies
+  the frame table against itself, `SPRITES.LOD` and `DMONLIST.BIN`.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in
