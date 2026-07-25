@@ -102,6 +102,14 @@ interoperability and compatibility with a legally purchased copy.
 - **Music playback**: the installation's fifteen MP3 tracks, decoded with the
   public-domain minimp3 (the project's only non-standard decoding dependency)
   and played through the same SDL3 sink as the sound effects.
+- A reader for the **design data tables** — thirty tab-separated spreadsheets
+  the developers left inside `icons.lod`, holding maps, monsters, items,
+  spells, quests and NPC dialogue. All thirty parse. `MapStats.txt` and
+  `MONSTERS.TXT` have typed views, and both join exactly to data already
+  decoded: the table's 67 map names are precisely the 67 maps in `Games.lod`,
+  and its 173 monsters line up one-to-one with `DMONLIST.BIN`. The walkers now
+  show a map's real name — "Sweet Water", not `OutA1.Odm` — and play the music
+  track the designers assigned it.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
@@ -122,6 +130,8 @@ interoperability and compatibility with a legally purchased copy.
   geometry statistics.
 - `walk_blv`, a CLI that renders a `.blv` indoor level in 3D — walls, floors and
   decorations such as torches — and lets you walk through it.
+- `data_info`, a CLI that lists the design tables, dumps any of them, and
+  cross-checks `MONSTERS.TXT` against `DMONLIST.BIN`.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in

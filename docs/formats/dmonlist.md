@@ -75,6 +75,14 @@ of the 173 stand sprites exist in `SPRITES.LOD`**. `arc1sta0` is present;
 The natural reading is that B and C are palette swaps of A, with the recolouring
 driven by something in the record's unknown bytes. That mechanism is `unknown`.
 
+What the variants *are* is no longer open: `MONSTERS.TXT` holds one row per
+variant, and text row *N* names binary record *N−1* across all 173 (see
+[`text-tables.md`](text-tables.md)). `ArcherA` is a level-9 Archer with 35 hit
+points; `ArcherC` is a level-29 Fire Archer with 171, a fire attack and a
+Fireball spell. The three records being byte-identical here apart from their
+names is therefore expected — everything that distinguishes them lives in the
+text table. `observed`
+
 Falling back to the group's A sprite (`id - id % 3`) resolves 58 more, for 89
 of 173. The remaining 84 have no sprite under either rule — including some A
 variants — so this install's `SPRITES.LOD` genuinely lacks them, exactly as it
@@ -93,6 +101,8 @@ The parser rejects, deterministically and without reading out of bounds:
 
 ## Open questions
 
-- The unknown bytes at +0x00 and +0x80 — statistics, most likely. `unknown`
+- The unknown bytes at +0x00 and +0x80. Statistics were the obvious guess, but
+  the statistics turned out to live in `MONSTERS.TXT`, so this is more likely
+  animation or rendering data. `unknown`
 - How B and C variants are recoloured. `unknown`
 - Why 84 monsters have no sprite in this install. `unknown`

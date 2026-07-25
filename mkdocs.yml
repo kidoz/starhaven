@@ -28,6 +28,7 @@ nav:
       - Outdoor decorations: formats/odm-decorations.md
       - Ground tiles: formats/dtile.md
       - Monster table: formats/dmonlist.md
+      - Design data tables: formats/text-tables.md
       - VID containers: formats/vid.md
       - Smacker video: formats/smacker.md
       - Sound archive: formats/snd.md
