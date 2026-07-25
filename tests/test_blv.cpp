@@ -180,6 +180,20 @@ TEST_CASE("a valid indoor map decodes header, vertices and faces", "[blv]") {
     REQUIRE(map.decoded_bytes == map.payload.size());
 }
 
+TEST_CASE("faces carry per-vertex texture coordinates", "[blv]") {
+    // Arrays 4 and 5 of each face's six are the u and v coordinates; the
+    // fixture fills array `a` with a*100 + k so the right ones are identifiable.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto entry = wrap(make_payload(kSquare, faces));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.faces[0].u == std::vector<std::int16_t>{400, 401, 402, 403});
+    REQUIRE(map.faces[0].v == std::vector<std::int16_t>{500, 501, 502, 503});
+    // One coordinate per vertex, not per stored array entry.
+    REQUIRE(map.faces[0].u.size() == map.faces[0].vertex_ids.size());
+}
+
 TEST_CASE("faces of differing sizes keep the index block aligned", "[blv]") {
     // Each face owns six arrays of (n + 1) entries, so a wrong stride would
     // misalign every later face and its texture name.

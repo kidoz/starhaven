@@ -24,6 +24,13 @@ constexpr std::uint32_t kIndexBlockBytesOff = 0x68;
 constexpr std::size_t kNameWidth = kName2Off - kNameOff;          // 76
 constexpr std::size_t kName2Width = kIndexBlockBytesOff - kName2Off;  // 24
 
+// Which of a face's six index arrays hold what. Array 0 is the vertex ids and
+// arrays 4 and 5 are texture coordinates; 1..3 carry small signed values
+// (-3..3) that are not needed for rendering.
+constexpr std::size_t kArrayVertexIds = 0;
+constexpr std::size_t kArrayU = 4;
+constexpr std::size_t kArrayV = 5;
+
 // Field offsets within an 80-byte face record.
 constexpr std::uint32_t kFacePlaneOff = 0x00;        // 4 x i32, 16.16
 constexpr std::uint32_t kFaceAttributesOff = 0x1C;   // u32
@@ -175,7 +182,12 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
             return BlvError::BadGeometry;
         }
 
-        if (!r.seek(static_cast<std::size_t>(index_cursor))) {
+        // The face's six arrays sit side by side, each `entries` wide.
+        const auto array_at = [&](std::size_t which) {
+            return index_cursor + which * entries * 2;
+        };
+
+        if (!r.seek(static_cast<std::size_t>(array_at(kArrayVertexIds)))) {
             return BlvError::Truncated;
         }
         f.vertex_ids.reserve(f.vertex_count);
@@ -186,6 +198,22 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
             }
             f.vertex_ids.push_back(id);
         }
+
+        if (!r.seek(static_cast<std::size_t>(array_at(kArrayU)))) {
+            return BlvError::Truncated;
+        }
+        f.u.reserve(f.vertex_count);
+        for (std::uint8_t k = 0; k < f.vertex_count; ++k) {
+            f.u.push_back(static_cast<std::int16_t>(r.read_u16_le()));
+        }
+        if (!r.seek(static_cast<std::size_t>(array_at(kArrayV)))) {
+            return BlvError::Truncated;
+        }
+        f.v.reserve(f.vertex_count);
+        for (std::uint8_t k = 0; k < f.vertex_count; ++k) {
+            f.v.push_back(static_cast<std::int16_t>(r.read_u16_le()));
+        }
+
         index_cursor += group_bytes;
 
         if (!r.seek(static_cast<std::size_t>(

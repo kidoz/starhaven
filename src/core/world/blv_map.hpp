@@ -62,6 +62,10 @@ struct BlvFace {
     // Indices into the map's vertex array, `vertex_count` of them.
     std::vector<std::uint16_t> vertex_ids;
 
+    // Per-vertex texture coordinates in texels, parallel to `vertex_ids`.
+    std::vector<std::int16_t> u;
+    std::vector<std::int16_t> v;
+
     // A BITMAPS.LOD entry name, or empty for a face carrying no texture.
     std::string texture_name;
 
