@@ -118,6 +118,7 @@ std::vector<MapActor> extract_actors(const MapEventFile& file,
         MapActor a;
         a.name = std::move(name);
         a.monster_id = p[static_cast<std::size_t>(base) + kActorMonsterIdOffset];
+        a.variant = p[static_cast<std::size_t>(base) + kActorVariantOffset];
         const std::size_t pos = static_cast<std::size_t>(base) + kActorPositionOffset;
         const auto i16_at = [&](std::size_t o) {
             return static_cast<std::int16_t>(

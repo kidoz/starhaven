@@ -69,6 +69,7 @@ enumerate_event_table(const MapEventFile& file, std::size_t max_records = 4096);
 struct MapActor {
     std::string name;                   // e.g. "Peasant"
     std::uint8_t monster_id = 0;        // index into DMONLIST.BIN
+    std::uint8_t variant = 0;           // 1..3 within the monster's A/B/C triple
     std::int16_t x = 0, y = 0, z = 0;   // world position, MM6 axes
 };
 
@@ -85,6 +86,7 @@ extract_actors(const MapEventFile& file, std::size_t max_records = 4096);
 // treated as a real entry.
 constexpr std::uint32_t kActorPositionOffset = 0x82;
 constexpr std::uint32_t kActorMonsterIdOffset = 0x38;
+constexpr std::uint32_t kActorVariantOffset = 0x39;
 constexpr std::size_t kActorMinNameLength = 2;
 
 }  // namespace starhaven::world

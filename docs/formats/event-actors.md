@@ -41,7 +41,10 @@ either live elsewhere in the payload or are absent. `unknown`
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 4 | i32 | unknown | unknown | 40 or 58 on the first record, 0 on the rest |
 | +0x04 | ≤32 | char[] | name | observed | NUL-terminated, e.g. `"Peasant"` |
-| +0x24 | 94 | — | unknown | unknown | stats and flags, unconfirmed |
+| +0x24 | 20 | — | unknown | unknown | |
+| +0x38 | 1 | u8 | monster_id | observed | index into `DMONLIST.BIN` |
+| +0x39 | 1 | u8 | variant | inferred | 1..3 within the monster's A/B/C triple |
+| +0x3A | 72 | — | unknown | unknown | stats and flags, unconfirmed |
 | +0x82 | 6 | i16[3] | position | observed | world x, y, z |
 | +0x88 | 14 | — | unknown | unknown | |
 | +0x96 | 6 | i16[3] | position copy | observed | |
@@ -65,6 +68,27 @@ at least two printable characters. That rule matters: several shipped files end
 with a slot holding a one-character name and a position of `(0, 0, 31744)`,
 which a looser rule reports as a real actor.
 
+## What the record holds
+
+Classifying every byte across the 266 actors — which are drawn from six monster
+types, so template data and instance data separate cleanly:
+
+| Group | Bytes | Where |
+| --- | --- | --- |
+| constant in every actor | 510 | most of the record |
+| varies only with the monster type | 12 | +0x2C, +0x38, +0x39, +0x3C, +0x60, +0x64, +0x68, +0xC0..+0xC8 |
+| varies per actor | 26 | +0x00, +0x24, +0x3B, +0x40, +0x6C, +0x7C, +0x7E, +0x82..+0xA1, +0xA3 |
+
+So an actor record is largely a **copy of its monster's template**, with the
+position as the main per-instance data. `observed`
+
+Two template groups are suggestive but unconfirmed. The byte at +0x68 takes the
+values 11, 24 and 39 across the three variants of a peasant, rising with the
+variant — plausibly hit points. The five `u16`s at +0xC0..+0xC8 hold five
+consecutive numbers (120–124 for female peasants, 160–164 for male), which look
+like a block of related ids. Both are `unknown`: with only peasants placed on
+the shipped maps, there is nothing to test either reading against.
+
 ## Verification
 
 Positions were checked against the terrain of the matching `.odm`:
@@ -76,8 +100,26 @@ Positions were checked against the terrain of the matching `.odm`:
 | neither | 14 |
 
 So **252 of 266** actors stand either on the ground or within a building.
-`observed` The remaining 14 may be on upper storeys or bridges, or may indicate
-that the coordinate reading is imperfect for some records. `unknown`
+`observed`
+
+### The position field is the right one
+
+The remaining 14 raised the question of whether +0x82 is really the position.
+It is. Scoring **every** offset in the record as a candidate `i16` triple —
+requiring the values to be spread across the map and mostly unique, as real
+positions are, and then measuring how many actors land on the ground — leaves
+exactly three offsets standing: +0x82, +0x96 and +0x9C, the three copies
+already known, all scoring identically. No other field does better. `observed`
+
+(Scoring without the spread requirement promotes +0x6F to a perfect 266/266,
+which is an artefact: unaligned reads there yield small numbers that map near
+the centre of the grid, where the terrain is low. A candidate position field
+has to look like positions, not merely produce small errors.)
+
+Per map, the median |z − terrain| is 64 to 448 units. The outliers cluster on
+`Outc1` (13 of 40) and `Outd3` (15 of 33) — the two building-dense towns —
+which is consistent with actors standing on building floors rather than with a
+misread field.
 
 ## Invalid-input behavior
 

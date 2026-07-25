@@ -268,3 +268,15 @@ TEST_CASE("actors carry the monster id that indexes DMONLIST", "[map_event]") {
     REQUIRE(actors.size() == 1);
     REQUIRE(actors[0].monster_id == 133);
 }
+
+TEST_CASE("actors carry the A/B/C variant number", "[map_event]") {
+    auto entry = make_event_entry_with_actors({{"Peasant", 1, 2, 3}});
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    file.payload[kEventTableOffset + kActorMonsterIdOffset] = 122;
+    file.payload[kEventTableOffset + kActorVariantOffset] = 2;
+    const auto actors = extract_actors(file);
+    REQUIRE(actors.size() == 1);
+    REQUIRE(actors[0].monster_id == 122);
+    REQUIRE(actors[0].variant == 2);
+}

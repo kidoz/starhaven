@@ -59,7 +59,7 @@ interoperability and compatibility with a legally purchased copy.
   resolves an `.odm` tilemap byte to a `BITMAPS.LOD` entry, so terrain is drawn
   with the game's own art rather than placeholder colors.
 - A decoder for map **actors** — the named monsters and NPCs placed on outdoor
-  maps, with their world positions and monster ids. 266 across 15 maps, of
+  maps, with their world positions, monster ids and variant numbers. 266 across 15 maps, of
   which 252 stand either on the terrain or inside a building footprint.
 - A decoder for `DMONLIST.BIN`, the **monster table** (173 records): each
   monster's name and its eight animation sprite base names. `walk_odm` draws
@@ -338,7 +338,8 @@ docs/
 23. ~~Decode the sound-effect archive and its IMA ADPCM waves.~~ ✓ (this slice)
 24. ~~Decode actor placements from the event files.~~ ✓ (this slice)
 25. ~~Resolve actors to sprites via `DMONLIST.BIN` and draw them.~~ ✓ (this slice)
-26. Actor statistics, monster palette variants, UI, music, and gameplay systems.
+26. ~~Verify the actor position field and map the record's fields.~~ ✓ (this slice)
+27. Actor statistics, monster palette variants, UI, music, and gameplay systems.
 
 ## Contributing
 
