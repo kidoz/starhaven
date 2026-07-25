@@ -18,6 +18,9 @@ namespace starhaven::assets {
 // Both walkers used to carry their own copy of this: open the archive, decode
 // the entry, build a texture, remember it. Doing it once means a name that
 // fails to resolve fails the same way everywhere.
+// Palette override meaning "use the sprite's own".
+inline constexpr int kSpritePaletteFromHeader = -1;
+
 class AssetCache {
 public:
     AssetCache() = default;
@@ -34,6 +37,12 @@ public:
     // A sprite from SPRITES.LOD, decoded through the shared palette its header
     // names. Returns an empty texture when the name does not resolve.
     [[nodiscard]] const render::Texture& sprite(const std::string& name);
+
+    // The same, but recoloured through a palette the caller names instead of
+    // the sprite's own. The sprite frame table uses this to give a monster's
+    // B and C variants their colours: all three share one picture and differ
+    // only in palette. Pass kSpritePaletteFromHeader for the default.
+    [[nodiscard]] const render::Texture& sprite(const std::string& name, int palette_override);
 
     // Whether SPRITES.LOD holds an entry, without decoding it. Used to probe
     // candidate names before committing to one.

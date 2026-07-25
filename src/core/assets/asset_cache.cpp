@@ -60,7 +60,16 @@ bool AssetCache::has_sprite(const std::string& name) {
 }
 
 const render::Texture& AssetCache::sprite(const std::string& name) {
-    if (const auto it = sprites_.find(name); it != sprites_.end()) {
+    return sprite(name, kSpritePaletteFromHeader);
+}
+
+const render::Texture& AssetCache::sprite(const std::string& name, int palette_override) {
+    // One sprite drawn through two palettes is two textures, so the palette is
+    // part of the key. Monster variants rely on this: ArcherA, ArcherB and
+    // ArcherC are one picture and three palettes.
+    const std::string key =
+        palette_override < 0 ? name : name + "#" + std::to_string(palette_override);
+    if (const auto it = sprites_.find(key); it != sprites_.end()) {
         return it->second;
     }
     render::Texture texture;
@@ -69,21 +78,24 @@ const render::Texture& AssetCache::sprite(const std::string& name) {
         sprite_archive_.payload(name, raw) == lod::LodArchive::PayloadError::None) {
         image::SpriteHeader header;
         if (image::read_sprite_header(raw, header) == image::SpriteError::None) {
+            const std::uint16_t palette_id = palette_override < 0
+                                                 ? header.palette_id
+                                                 : static_cast<std::uint16_t>(palette_override);
             // Sprites share palettes held in BITMAPS.LOD; decode each once.
             image::Palette palette;
             bool have_palette = false;
-            if (const auto cached = palettes_.find(header.palette_id); cached != palettes_.end()) {
+            if (const auto cached = palettes_.find(palette_id); cached != palettes_.end()) {
                 palette = cached->second;
                 have_palette = true;
             } else if (bitmaps_open_) {
                 std::span<const std::byte> pal_bytes;
-                if (bitmap_archive_.payload(image::palette_entry_name(header.palette_id),
-                                            pal_bytes) == lod::LodArchive::PayloadError::None &&
+                if (bitmap_archive_.payload(image::palette_entry_name(palette_id), pal_bytes) ==
+                        lod::LodArchive::PayloadError::None &&
                     // Palette entries are a 48-byte zero-image header followed
                     // by 768 RGB bytes.
                     image::extract_palette(pal_bytes, /*data_offset=*/48, palette) ==
                         image::PaletteError::None) {
-                    palettes_.emplace(header.palette_id, palette);
+                    palettes_.emplace(palette_id, palette);
                     have_palette = true;
                 }
             }
@@ -96,7 +108,7 @@ const render::Texture& AssetCache::sprite(const std::string& name) {
             }
         }
     }
-    return sprites_.emplace(name, std::move(texture)).first->second;
+    return sprites_.emplace(key, std::move(texture)).first->second;
 }
 
 }  // namespace starhaven::assets
