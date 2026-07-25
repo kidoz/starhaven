@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <span>
 #include <string>
@@ -38,6 +39,7 @@ void print_usage(const char* argv0) {
               << "  Shift      move faster\n"
               << "  Arrows     look left/right/up/down\n"
               << "  ESC/close  quit\n"
+              << "\n  --screenshot FILE  render one frame to a PPM and exit\n"
               << "\n"
               << "Set " << openmm6::platform::kInstallEnvVar
               << " to the install directory.\n";
@@ -148,11 +150,23 @@ bool project(const openmm6::render::Mat4& view_proj,
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    std::string map_name;
+    std::string screenshot;  // when set, render one frame to PPM and exit
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--screenshot" && i + 1 < argc) {
+            screenshot = argv[++i];
+        } else if (map_name.empty()) {
+            map_name = a;
+        } else {
+            print_usage(argv[0]);
+            return 2;
+        }
+    }
+    if (map_name.empty()) {
         print_usage(argv[0]);
         return 2;
     }
-    const std::string map_name = argv[1];
 
     namespace lod = openmm6::lod;
     namespace world = openmm6::world;
@@ -364,6 +378,21 @@ int main(int argc, char** argv) {
         SDL_RenderClear(sdl_renderer);
         SDL_RenderTexture(sdl_renderer, texture, nullptr, nullptr);
         SDL_RenderPresent(sdl_renderer);
+
+        // One-frame capture: lets the render be inspected without a live
+        // session, and makes visual checks reproducible.
+        if (!screenshot.empty()) {
+            std::ofstream out(screenshot, std::ios::binary);
+            out << "P6\n" << kWidth << " " << kHeight << "\n255\n";
+            const auto px = fb.color();
+            for (int i = 0; i < kWidth * kHeight; ++i) {
+                out.put(static_cast<char>(px[i * 4 + 0]));
+                out.put(static_cast<char>(px[i * 4 + 1]));
+                out.put(static_cast<char>(px[i * 4 + 2]));
+            }
+            std::cout << "wrote " << screenshot << "\n";
+            running = false;
+        }
     }
 
     SDL_DestroyTexture(texture);
