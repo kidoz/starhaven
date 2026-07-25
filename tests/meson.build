@@ -91,3 +91,9 @@ test('smacker',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('blv',
+  executable('test_blv', 'test_blv.cpp',
+    dependencies : [starhaven_dep, catch2_main, zlib_dep]),
+  workdir : meson.current_build_dir(),
+)

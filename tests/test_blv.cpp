@@ -1,0 +1,301 @@
+// Tests for the MM6 .blv indoor map parser.
+//
+// Fixtures are SYNTHETIC: a payload is assembled here from the layout in
+// docs/formats/blv.md, then zlib-compressed and wrapped. No bytes from the
+// game are involved.
+#include <catch2/catch_test_macros.hpp>
+
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include <zlib.h>
+
+#include "core/world/blv_map.hpp"
+
+using namespace starhaven::world;
+
+namespace {
+
+struct FaceSpec {
+    std::vector<std::uint16_t> ids;
+    std::uint32_t attributes = 0;
+    std::string texture;
+    // Plane, in 16.16. The default is the z = 0 plane, which the fixture's
+    // vertices lie on.
+    std::int32_t nx = 0, ny = 0, nz = 65536, d = 0;
+};
+
+void put_u32(std::vector<std::uint8_t>& v, std::size_t off, std::uint32_t x) {
+    v[off + 0] = static_cast<std::uint8_t>(x & 0xFF);
+    v[off + 1] = static_cast<std::uint8_t>((x >> 8) & 0xFF);
+    v[off + 2] = static_cast<std::uint8_t>((x >> 16) & 0xFF);
+    v[off + 3] = static_cast<std::uint8_t>((x >> 24) & 0xFF);
+}
+
+void push_u16(std::vector<std::uint8_t>& v, std::uint16_t x) {
+    v.push_back(static_cast<std::uint8_t>(x & 0xFF));
+    v.push_back(static_cast<std::uint8_t>((x >> 8) & 0xFF));
+}
+
+void push_u32(std::vector<std::uint8_t>& v, std::uint32_t x) {
+    push_u16(v, static_cast<std::uint16_t>(x & 0xFFFF));
+    push_u16(v, static_cast<std::uint16_t>((x >> 16) & 0xFFFF));
+}
+
+// Build a decompressed payload with the given vertices and faces.
+std::vector<std::uint8_t> make_payload(
+    const std::vector<std::array<std::int16_t, 3>>& vertices,
+    const std::vector<FaceSpec>& faces,
+    const std::string& name = "Test Level",
+    const std::string& name2 = "test") {
+    std::vector<std::uint8_t> p(kBlvHeaderSize, 0);
+    put_u32(p, 0x00, 1);
+    for (std::size_t i = 0; i < name.size(); ++i) p[0x04 + i] = static_cast<std::uint8_t>(name[i]);
+    for (std::size_t i = 0; i < name2.size(); ++i) p[0x50 + i] = static_cast<std::uint8_t>(name2[i]);
+
+    // The index block is six u16 arrays of (n + 1) entries per face.
+    std::uint32_t index_bytes = 0;
+    for (const auto& f : faces) {
+        index_bytes += static_cast<std::uint32_t>(
+            (f.ids.size() + 1) * 2 * kBlvFaceArrayCount);
+    }
+    put_u32(p, 0x68, index_bytes);
+    put_u32(p, 0x6C, 111);
+    put_u32(p, 0x70, 222);
+    put_u32(p, 0x74, 333);
+
+    put_u32(p, kBlvVertexCountOffset, static_cast<std::uint32_t>(vertices.size()));
+    for (const auto& v : vertices) {
+        push_u16(p, static_cast<std::uint16_t>(v[0]));
+        push_u16(p, static_cast<std::uint16_t>(v[1]));
+        push_u16(p, static_cast<std::uint16_t>(v[2]));
+    }
+
+    push_u32(p, static_cast<std::uint32_t>(faces.size()));
+    for (const auto& f : faces) {
+        const std::size_t base = p.size();
+        p.resize(base + kBlvFaceSize, 0);
+        put_u32(p, base + 0x00, static_cast<std::uint32_t>(f.nx));
+        put_u32(p, base + 0x04, static_cast<std::uint32_t>(f.ny));
+        put_u32(p, base + 0x08, static_cast<std::uint32_t>(f.nz));
+        put_u32(p, base + 0x0C, static_cast<std::uint32_t>(f.d));
+        put_u32(p, base + 0x1C, f.attributes);
+        p[base + 0x4D] = static_cast<std::uint8_t>(f.ids.size());
+    }
+
+    // Index arrays: six per face, the first being the vertex ids with a
+    // closing copy of the first entry.
+    for (const auto& f : faces) {
+        for (std::uint16_t id : f.ids) push_u16(p, id);
+        push_u16(p, f.ids.empty() ? 0 : f.ids.front());
+        for (std::size_t a = 1; a < kBlvFaceArrayCount; ++a) {
+            for (std::size_t k = 0; k < f.ids.size() + 1; ++k) {
+                push_u16(p, static_cast<std::uint16_t>(a * 100 + k));
+            }
+        }
+    }
+
+    for (const auto& f : faces) {
+        for (std::size_t i = 0; i < kBlvTextureNameSize; ++i) {
+            p.push_back(i < f.texture.size()
+                            ? static_cast<std::uint8_t>(f.texture[i])
+                            : std::uint8_t{0});
+        }
+    }
+    return p;
+}
+
+// Wrap a payload: 8-byte header then a zlib stream.
+std::vector<std::byte> wrap(const std::vector<std::uint8_t>& payload,
+                            bool corrupt_checksum = false,
+                            std::uint32_t declared_override = 0) {
+    uLongf bound = compressBound(static_cast<uLong>(payload.size()));
+    std::vector<std::uint8_t> compressed(bound);
+    uLongf len = bound;
+    REQUIRE(compress2(compressed.data(), &len, payload.data(),
+                      static_cast<uLong>(payload.size()),
+                      Z_DEFAULT_COMPRESSION) == Z_OK);
+    compressed.resize(len);
+    if (corrupt_checksum) {
+        // The Adler-32 trailer is the last four bytes.
+        compressed[compressed.size() - 1] ^= 0xFF;
+    }
+
+    std::vector<std::byte> entry(kBlvWrapperSize + compressed.size());
+    auto put = [&](std::size_t off, std::uint32_t x) {
+        entry[off + 0] = static_cast<std::byte>(x & 0xFF);
+        entry[off + 1] = static_cast<std::byte>((x >> 8) & 0xFF);
+        entry[off + 2] = static_cast<std::byte>((x >> 16) & 0xFF);
+        entry[off + 3] = static_cast<std::byte>((x >> 24) & 0xFF);
+    };
+    put(0x00, static_cast<std::uint32_t>(compressed.size()));
+    put(0x04, declared_override != 0 ? declared_override
+                                     : static_cast<std::uint32_t>(payload.size()));
+    std::memcpy(&entry[kBlvWrapperSize], compressed.data(), compressed.size());
+    return entry;
+}
+
+const std::vector<std::array<std::int16_t, 3>> kSquare = {
+    {0, 0, 0}, {256, 0, 0}, {256, 256, 0}, {0, 256, 0}, {128, 128, 0},
+};
+
+}  // namespace
+
+TEST_CASE("a valid indoor map decodes header, vertices and faces", "[blv]") {
+    const std::vector<FaceSpec> faces = {
+        {{0, 1, 2, 3}, 0x100, "WallA"},
+        {{0, 1, 4}, 0x201, ""},
+    };
+    auto entry = wrap(make_payload(kSquare, faces, "Dwarf Hold", "war1a"));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.header.kind == 1);
+    REQUIRE(map.header.name == "Dwarf Hold");
+    REQUIRE(map.header.name2 == "war1a");
+    REQUIRE(map.header.unknown_6c == 111);
+    REQUIRE(map.header.unknown_70 == 222);
+    REQUIRE(map.header.unknown_74 == 333);
+
+    REQUIRE(map.vertices.size() == 5);
+    REQUIRE(map.vertices[1].x == 256);
+    REQUIRE(map.vertices[2].y == 256);
+
+    REQUIRE(map.faces.size() == 2);
+    REQUIRE(map.faces[0].vertex_count == 4);
+    REQUIRE(map.faces[0].vertex_ids == std::vector<std::uint16_t>{0, 1, 2, 3});
+    REQUIRE(map.faces[0].texture_name == "WallA");
+    REQUIRE(map.faces[0].attributes == 0x100);
+    REQUIRE(map.faces[0].nz() == 1.0f);
+    REQUIRE_FALSE(map.faces[0].invisible());
+
+    // The second face is a triangle with no texture, flagged invisible.
+    REQUIRE(map.faces[1].vertex_count == 3);
+    REQUIRE(map.faces[1].texture_name.empty());
+    REQUIRE(map.faces[1].invisible());
+
+    REQUIRE(map.decoded_bytes == map.payload.size());
+}
+
+TEST_CASE("faces of differing sizes keep the index block aligned", "[blv]") {
+    // Each face owns six arrays of (n + 1) entries, so a wrong stride would
+    // misalign every later face and its texture name.
+    const std::vector<FaceSpec> faces = {
+        {{0, 1, 2}, 0, "A"},
+        {{0, 1, 2, 3}, 0, "B"},
+        {{0, 1, 2, 3, 4}, 0, "C"},
+        {{1, 2}, 0, "D"},
+    };
+    auto entry = wrap(make_payload(kSquare, faces));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.faces.size() == 4);
+    REQUIRE(map.faces[0].texture_name == "A");
+    REQUIRE(map.faces[1].texture_name == "B");
+    REQUIRE(map.faces[2].texture_name == "C");
+    REQUIRE(map.faces[3].texture_name == "D");
+    REQUIRE(map.faces[2].vertex_ids == std::vector<std::uint16_t>{0, 1, 2, 3, 4});
+    REQUIRE(map.faces[3].vertex_ids == std::vector<std::uint16_t>{1, 2});
+}
+
+TEST_CASE("a corrupt zlib checksum over intact data is accepted", "[blv]") {
+    // Two shipped maps do exactly this; the original engine never verified the
+    // Adler-32 trailer.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto entry = wrap(make_payload(kSquare, faces), /*corrupt_checksum*/ true);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.faces.size() == 1);
+    REQUIRE(map.faces[0].texture_name == "WallA");
+}
+
+TEST_CASE("a corrupt checksum with a wrong declared size is rejected", "[blv]") {
+    // The declared length is the only thing standing between "bad checksum,
+    // good data" and "genuinely truncated", so it must be enforced.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    auto entry = wrap(payload, /*corrupt_checksum*/ true,
+                      /*declared_override*/ static_cast<std::uint32_t>(payload.size() + 64));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::InflateFailed);
+}
+
+TEST_CASE("an entry too small for the wrapper is rejected", "[blv]") {
+    const std::vector<std::byte> tiny(4, std::byte{0});
+    BlvMap map;
+    REQUIRE(parse_blv(tiny, map) == BlvError::TooSmall);
+}
+
+TEST_CASE("corrupt compressed data is rejected", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto entry = wrap(make_payload(kSquare, faces));
+    for (std::size_t i = kBlvWrapperSize + 4; i < entry.size(); ++i) {
+        entry[i] = static_cast<std::byte>(0xAA);
+    }
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::InflateFailed);
+}
+
+TEST_CASE("a payload shorter than the header is rejected", "[blv]") {
+    const std::vector<std::uint8_t> stub(0x20, 0);
+    auto entry = wrap(stub);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::HeaderTooSmall);
+}
+
+TEST_CASE("a vertex array running past the payload is rejected", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    put_u32(payload, kBlvVertexCountOffset, 100000);  // far more than are stored
+    auto entry = wrap(payload);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::Truncated);
+}
+
+TEST_CASE("a face referencing a missing vertex is rejected", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 99}, 0, "WallA"}};
+    auto entry = wrap(make_payload(kSquare, faces));
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::BadGeometry);
+}
+
+TEST_CASE("an index block smaller than the faces need is rejected", "[blv]") {
+    // The header's block size and the per-face vertex counts must agree; if
+    // they do not, the texture names that follow would be misaligned.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    const std::uint32_t needed =
+        static_cast<std::uint32_t>((4 + 1) * 2 * kBlvFaceArrayCount);
+    put_u32(payload, 0x68, needed - 12);
+    auto entry = wrap(payload);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::BadGeometry);
+}
+
+TEST_CASE("an index block larger than the payload is rejected", "[blv]") {
+    // Over-declaring pushes the texture names past the end, which the section
+    // bounds catch before any geometry is read.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    const std::uint32_t needed =
+        static_cast<std::uint32_t>((4 + 1) * 2 * kBlvFaceArrayCount);
+    put_u32(payload, 0x68, needed + 4096);
+    auto entry = wrap(payload);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::Truncated);
+}
+
+TEST_CASE("a truncated texture-name block is rejected", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    payload.resize(payload.size() - 4);  // clip the last name
+    auto entry = wrap(payload);
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::Truncated);
+}

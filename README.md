@@ -66,6 +66,11 @@ interoperability and compatibility with a legally purchased copy.
   the sprite's shared `palXXX` palette from `BITMAPS.LOD`, and honors
   per-line transparent spans plus index-0 transparency. Verified on real entries
   from `SPRITES.LOD`.
+- A parser for `.blv` **indoor map** files — the 52 dungeons, temples and
+  building interiors, against 15 outdoor maps. Decodes the header, the vertex
+  array, the 80-byte face records (16.16 plane, attributes, polygon size), the
+  variable-length per-face index arrays and the per-face texture names.
+  Verified on all 52 maps: 114,833 vertices and 89,091 faces.
 - A reader for the `.vid` video container (`Anims1.vid`, `Anims2.vid`) and a
   **Smacker video decoder**: header, Huffman trees, palette records and the
   block-coded frame stream, decoded to RGBA. Verified on all 127 videos MM6
@@ -85,6 +90,8 @@ interoperability and compatibility with a legally purchased copy.
 - `view_bitmap`, a CLI that decodes one `.LOD` image or sprite entry and shows
   it in an SDL3 window (sprites auto-resolve their shared palette).
 - `play_smk`, a CLI that lists and plays the game's Smacker videos.
+- `blv_info`, a CLI that decompresses one `.blv` indoor map and prints its
+  geometry statistics.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in
@@ -99,6 +106,7 @@ The format specs are documented from observed behavior in
 [`docs/formats/event-data.md`](docs/formats/event-data.md),
 [`docs/formats/bitmap.md`](docs/formats/bitmap.md),
 [`docs/formats/sprite.md`](docs/formats/sprite.md),
+[`docs/formats/blv.md`](docs/formats/blv.md),
 [`docs/formats/vid.md`](docs/formats/vid.md), and
 [`docs/formats/smacker.md`](docs/formats/smacker.md).
 
@@ -151,6 +159,12 @@ Inspect an outdoor map's header (decompresses it on the fly):
 
 ```bash
 ./buildDir/odm_info Outa1.odm   # header, terrain stats, model/facet counts
+```
+
+Inspect an indoor map's geometry:
+
+```bash
+./buildDir/blv_info CD1.blv
 ```
 
 Render an outdoor map's heightmap as a grayscale image (visual terrain check):
@@ -210,6 +224,7 @@ src/
     image/zlib_util.{hpp,cpp} shared zlib inflate helper
     world/odm_map.{hpp,cpp}   .odm parser (zlib, header, terrain, model meshes)
     world/tile_table.{hpp,cpp} DTILE.BIN ground tile table (index -> bitmap)
+    world/blv_map.{hpp,cpp}   .blv indoor map parser (vertices + faces)
     video/vid_archive.{hpp,cpp} .vid video container directory reader
     video/smacker.{hpp,cpp}   Smacker video decoder (video only, no audio)
     world/map_event.{hpp,cpp} .ddm/.dlv event-data parser (zlib wrapper)
@@ -227,6 +242,7 @@ tools/
   walk_odm.cpp               first-person 3D walker (terrain + model meshes)
   tile_probe.cpp             ground tileset research probe
   play_smk.cpp               list and play the game's Smacker videos
+  blv_info.cpp               print one .blv indoor map's geometry stats
   ddm_info.cpp               decompress one .ddm/.dlv event file, print stats
 tests/                       hermetic Catch2 unit tests (synthetic fixtures)
 docs/
@@ -251,8 +267,10 @@ docs/
 13. ~~Resolve ground tile indices to real textures via `DTILE.BIN`.~~ ✓
 14. ~~Decode the model geometry stream (facets); render filled, textured props.~~ ✓ (this slice)
 15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
-16. Decode event-record bodies; sprites/decorations; mouse-look; collision.
-17. Smacker audio, an audio output layer, UI, and gameplay systems.
+16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
+17. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) and render indoor levels.
+18. Decode event-record bodies; sprites/decorations; mouse-look; collision.
+19. Smacker audio, an audio output layer, UI, and gameplay systems.
 
 ## Contributing
 

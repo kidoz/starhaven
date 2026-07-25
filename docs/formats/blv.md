@@ -1,0 +1,165 @@
+# BLV indoor map format (Might and Magic VI)
+
+Status: **draft, evidence-backed — geometry only.** The level geometry of the
+52 indoor maps is decoded and verified; the sections after it are not. Each
+claim is tagged `observed`, `inferred`, or `unknown`.
+
+## Scope
+
+Covers the zlib wrapper, the fixed header, the vertex array, the face array,
+the per-face index arrays and the face texture names — everything needed to
+build the level's polygon soup. Does **not** cover the rooms/sectors, BSP tree,
+lights, doors or sprites that follow, which are 19–38% of each payload.
+
+## Source provenance (non-expressive)
+
+| Field | Value |
+| --- | --- |
+| Product and edition | Might and Magic VI: The Mandate of Heaven (GOG.com edition) |
+| Map data | `data/Games.lod`, SHA-256 `28103a220212a0abed63f30d34d248203dbc78ec89b99629f631a65370964975` |
+| Maps verified | all 52 `.blv` entries: 114,833 vertices, 89,091 faces `observed` |
+
+Reproduce with:
+
+```bash
+export STARHAVEN_GAME_DIR=/path/to/MM6
+./buildDir/blv_info CD1.blv
+```
+
+## Outer structure
+
+A `.blv` entry uses the **same 8-byte wrapper as `.odm`** (see
+[`odm.md`](odm.md)): u32 stream size, u32 decompressed size, then a zlib
+stream. `observed`
+
+### Two shipped maps have a corrupt checksum
+
+`CD3.blv` and `d08.blv` fail a checksum-verifying inflate with "incorrect data
+check", yet inflating them as **raw deflate** — skipping the 2-byte header and
+ignoring the Adler-32 trailer — produces exactly the byte count the wrapper
+declares (739,920 and 274,472). The deflate data is intact; only the trailer is
+wrong, and the original engine plainly never verified it. `observed`
+
+A decoder should therefore fall back to raw deflate, but must still require the
+output length to match the declared size — otherwise a genuinely truncated
+stream would be accepted as a short map.
+
+## Header
+
+| Offset | Size | Type | Field | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 0x00 | 4 | u32 | kind | unknown | 1 on most maps, 6 on some |
+| 0x04 | ≤76 | char[] | name | observed | e.g. `"Dwarf Hold"`, `"No Name Level"` |
+| 0x50 | ≤24 | char[] | name2 | observed | e.g. `"war1a"`, `"test"` |
+| 0x68 | 4 | u32 | index_block_bytes | observed | total size of the per-face index arrays |
+| 0x6C | 4 | u32 | unknown | unknown | |
+| 0x70 | 4 | u32 | unknown | unknown | |
+| 0x74 | 4 | u32 | unknown | unknown | |
+| 0x78 | 16 | — | reserved | observed | zero in every observed map |
+| 0x88 | 4 | u32 | vertex_count | observed | |
+| 0x8C | count × 6 | Vertex[] | vertices | observed | |
+
+The two name fields' declared widths are `inferred`: the bytes between each
+name and the next known field are NUL in every observed map, so reading to the
+next field's offset is safe but may be wider than the real declaration.
+
+`index_block_bytes` is a genuine cross-check rather than a stored constant: it
+equals `Σ(vertex_count + 1) × 2 × 6` over all faces, **exactly**, on all 52
+maps. `observed`
+
+### Vertex (6 bytes)
+
+| Offset | Size | Type | Field | Status |
+| --- | --- | --- | --- | --- |
+| +0x00 | 2 | i16 | x | observed |
+| +0x02 | 2 | i16 | y | observed |
+| +0x04 | 2 | i16 | z | observed |
+
+Indoor coordinates are 16-bit, unlike the 32-bit coordinates of outdoor model
+meshes. As outdoors, **x and y are horizontal and z is up**: observed extents
+run to ±30,000 horizontally but only ±2,300 vertically. `observed`
+
+## Face array
+
+A `u32` face count follows the vertex array, then that many 80-byte records.
+
+| Offset | Size | Type | Field | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 0x00 | 4 | i32 | normal_x | observed | 16.16 fixed point |
+| 0x04 | 4 | i32 | normal_y | observed | |
+| 0x08 | 4 | i32 | normal_z | observed | |
+| 0x0C | 4 | i32 | plane_distance | observed | |
+| 0x10 | 12 | — | unknown | unknown | zero in most observed faces |
+| 0x1C | 4 | u32 | attributes | inferred | bit flags; see below |
+| 0x20 | 24 | u32[6] | array pointers | observed | runtime pointers, not file data |
+| 0x38 | 21 | — | unknown | unknown | |
+| 0x4D | 1 | u8 | vertex_count | observed | the polygon's size |
+| 0x4E | 2 | — | unknown | unknown | |
+
+The record size was found by requiring every face's leading four i32s to form a
+unit-length normal: **80 bytes is the only stride that satisfies that**, and it
+does so on all three maps first sampled and all 52 thereafter. `observed`
+
+The plane is verified the same way as the outdoor facets: `normal · v +
+plane_distance == 0` holds for **all 48,610** vertex-face pairs across the
+first three maps, worst residual 2.3 world units. `observed`
+
+### The six array pointers
+
+The six u32 slots at +0x20 are runtime pointers, overwritten by the loader.
+Their **on-disk values still encode the layout**: consecutive slots differ by
+exactly `2 × (vertex_count + 1)` in every one of the 11,710 faces sampled,
+which is what identifies each face as owning six `u16[vertex_count + 1]`
+arrays. `observed`
+
+Only the first array — the vertex ids — is decoded here. By analogy with the
+outdoor facet record the remaining five are plausibly texture coordinates and
+intercept displacements, but that is `unknown`.
+
+### Attributes
+
+Bit 0 marks a face the renderer should skip. Every one of the 335 untextured
+faces across the sampled maps sets it, and no untextured face lacks it; 20
+textured faces also carry it. `observed` — the natural reading is a
+portal or otherwise invisible face, which a portal-based indoor renderer needs.
+`inferred`
+
+Bits 0x100/0x200/0x400 dominate the rest, the same axis-selector pattern the
+outdoor facets show (see [`odm-model-facets.md`](odm-model-facets.md)).
+`inferred`
+
+## Per-face index arrays
+
+Immediately after the face array, and `index_block_bytes` long. Faces appear in
+order; each contributes its six arrays back to back, each array holding
+`vertex_count + 1` u16 entries. The extra entry repeats the first, closing the
+ring — the same convention the outdoor facets use. `observed`
+
+Because the arrays are variable-length and there is no offset table, walking
+them is the only way to reach the texture names that follow.
+
+## Face texture names
+
+After the index block: one 10-byte NUL-padded name per face, parallel to the
+face array, naming a `BITMAPS.LOD` entry. An empty name means the face carries
+no texture. `observed`
+
+## Invalid-input behavior
+
+The parser rejects, deterministically and without reading out of bounds:
+
+- an entry too small for the wrapper, or one whose stream will not inflate;
+- a raw-deflate fallback whose length does not match the declared size;
+- a payload shorter than the header;
+- vertex, face, index or name sections extending past the payload;
+- a face referencing a vertex the map does not have;
+- an index block that does not match the sum over the faces' vertex counts.
+
+## Open questions (next slice)
+
+- Everything after the texture names: rooms/sectors, the BSP tree, lights,
+  doors and sprite placements — 19–38% of each payload. `unknown`
+- The header fields at 0x00, 0x6C, 0x70 and 0x74. `unknown`
+- The five index arrays other than the vertex ids. `unknown`
+- The unknown spans inside the face record (+0x10, +0x38, +0x4E). `unknown`
+- Whether the `.dlv` files pair with `.blv` the way `.ddm` pairs with `.odm`.

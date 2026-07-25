@@ -32,6 +32,7 @@ starhaven_core_sources = files(
   'src/core/world/odm_map.cpp',
   'src/core/world/map_event.cpp',
   'src/core/world/tile_table.cpp',
+  'src/core/world/blv_map.cpp',
   'src/core/render/rasterizer.cpp',
   'src/core/render/texture.cpp',
   'src/core/render/tile_set.cpp',
@@ -100,6 +101,12 @@ executable('walk_odm', 'tools/walk_odm.cpp',
 # Smacker player: decodes one video from the install's Anims/*.vid archives.
 executable('play_smk', 'tools/play_smk.cpp',
   dependencies : [starhaven_dep, sdl3_dep],
+  install : true,
+)
+
+# Indoor-map inspector: decompresses one .blv and prints geometry stats.
+executable('blv_info', 'tools/blv_info.cpp',
+  dependencies : starhaven_dep,
   install : true,
 )
 
