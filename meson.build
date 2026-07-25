@@ -32,6 +32,7 @@ openmm6_core_sources = files(
   'src/core/world/odm_map.cpp',
   'src/core/world/map_event.cpp',
   'src/core/render/rasterizer.cpp',
+  'src/core/render/texture.cpp',
   'src/core/render/terrain_mesh.cpp',
   'src/core/platform/paths.cpp',
 )
