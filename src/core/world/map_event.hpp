@@ -1,0 +1,64 @@
+#ifndef OPENMM6_CORE_WORLD_MAP_EVENT_HPP
+#define OPENMM6_CORE_WORLD_MAP_EVENT_HPP
+
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <string>
+#include <vector>
+
+namespace openmm6::world {
+
+// A decompressed map event-data file (.ddm outdoor / .dlv indoor). The payload
+// is a large fixed-size structure holding the map's event tables; its internal
+// layout is decoded in a later slice. This type exposes the decompressed bytes.
+struct MapEventFile {
+    std::vector<std::uint8_t> payload;
+};
+
+// Outcome of parsing. Callers convert these into user-facing text; the parser
+// never throws.
+enum class MapEventError {
+    None,
+    // Input too small for the 8-byte wrapper.
+    TooSmall,
+    // zlib inflate failed.
+    InflateFailed,
+    // The inflated length does not match the wrapper's decompressedSize.
+    SizeMismatch,
+};
+
+// Parse a raw .ddm/.dlv entry (as read from Games.lod) into a MapEventFile.
+// Uses the same 8-byte zlib wrapper as the .odm parser (see
+// docs/formats/event-data.md).
+[[nodiscard]] MapEventError parse_map_event(std::span<const std::byte> entry,
+                                            MapEventFile& out);
+
+// Fixed wrapper size, exposed for tests and tools.
+constexpr std::uint32_t kEventWrapperSize = 8;
+
+// --- First event table (see docs/formats/event-tables.md) -----------------
+
+// One populated record from the first event table. Only the verified leading
+// fields are exposed; the 548-byte body is decoded in a later slice.
+struct EventTableRecord {
+    std::int32_t type = 0;   // record type (e.g. 20); 0 = empty slot
+    std::string name;        // NUL-padded ASCII at +4
+};
+
+// Verified layout constants for the first event table.
+constexpr std::uint32_t kEventTableOffset = 0x798;
+constexpr std::uint32_t kEventRecordSize = 548;     // 0x224
+constexpr std::uint32_t kEventRecordNameOffset = 4;
+constexpr std::uint32_t kEventRecordNameMax = 12;   // verified readable prefix
+
+// Enumerate the populated records of the first event table. A record counts as
+// populated if its type is nonzero OR its name field has any nonzero byte.
+// Stops at the end of the payload or after `max_records` (whichever comes
+// first); empty trailing slots are skipped.
+[[nodiscard]] std::vector<EventTableRecord>
+enumerate_event_table(const MapEventFile& file, std::size_t max_records = 4096);
+
+}  // namespace openmm6::world
+
+#endif  // OPENMM6_CORE_WORLD_MAP_EVENT_HPP

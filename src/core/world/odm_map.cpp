@@ -1,0 +1,266 @@
+#include "core/world/odm_map.hpp"
+
+#include "core/image/zlib_util.hpp"
+#include "core/io/byte_reader.hpp"
+
+#include <cstdint>
+#include <cstring>
+#include <string_view>
+#include <utility>
+
+namespace openmm6::world {
+
+using image::detail::inflate_all;
+
+namespace {
+
+// Verified field offsets within the decompressed payload (see docs/formats/odm.md).
+constexpr std::uint32_t kNameOff = 0x00;        // name[32]
+constexpr std::uint32_t kFileNameOff = 0x20;    // file_name[32]
+constexpr std::uint32_t kVersionOff = 0x40;     // version[31] + 1 pad byte
+constexpr std::uint32_t kGroundNameOff = 0x80;  // ground_name[32]
+constexpr std::uint32_t kTilesetsOff = 0xA0;    // 4 x (i16 group, i16 offset)
+
+// Recognized version prefix. Real MM6 maps use "MM6 Outdoor v1.11".
+constexpr std::string_view kExpectedVersionPrefix = "MM6 Outdoor";
+
+[[nodiscard]] bool version_supported(const std::string& version) {
+    // Accept any version beginning with the known MM6 outdoor prefix.
+    if (version.size() < kExpectedVersionPrefix.size()) {
+        return false;
+    }
+    return std::string_view{version}.substr(0, kExpectedVersionPrefix.size()) ==
+           kExpectedVersionPrefix;
+}
+
+}  // namespace
+
+OdmError parse_odm(std::span<const std::byte> entry, OdmMap& out) {
+    out = OdmMap{};
+
+    if (entry.size() < kWrapperSize) {
+        return OdmError::TooSmall;
+    }
+
+    io::ByteReader r{entry};
+    r.seek(0x00);
+    // u32 at 0x00 is the size of the zlib stream that follows (stored size - 8).
+    // u32 at 0x04 is the decompressed size. The decompressed size is the field
+    // we validate against the inflate result.
+    [[maybe_unused]] const std::uint32_t stream_size = r.read_u32_le();
+    r.seek(0x04);
+    const std::uint32_t decompressed_size = r.read_u32_le();
+    (void)stream_size;
+
+    // Inflate the zlib stream that starts at offset 8.
+    const std::span<const std::byte> zlib_block = entry.subspan(kWrapperSize);
+    if (!inflate_all(zlib_block, out.payload)) {
+        return OdmError::InflateFailed;
+    }
+
+    // The inflated length must match the declared decompressed size. (If the
+    // declared field is zero, treat as unknown and accept the inflated length.)
+    if (decompressed_size != 0 && out.payload.size() != decompressed_size) {
+        return OdmError::SizeMismatch;
+    }
+
+    if (out.payload.size() < kHeaderSize) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    // Read the fixed header fields from the decompressed payload. The payload is
+    // uint8_t; wrap it for the byte reader.
+    io::ByteReader h{std::span<const std::byte>{
+        reinterpret_cast<const std::byte*>(out.payload.data()), out.payload.size()}};
+
+    h.seek(kNameOff);
+    if (!h.read_fixed_string(kNameFieldSize, out.header.name)) {
+        return OdmError::HeaderTooSmall;
+    }
+    h.seek(kFileNameOff);
+    if (!h.read_fixed_string(kNameFieldSize, out.header.file_name)) {
+        return OdmError::HeaderTooSmall;
+    }
+    h.seek(kVersionOff);
+    if (!h.read_fixed_string(kNameFieldSize - 1, out.header.version)) {
+        return OdmError::HeaderTooSmall;
+    }
+    if (!version_supported(out.header.version)) {
+        return OdmError::UnsupportedVersion;
+    }
+    h.seek(kGroundNameOff);
+    if (!h.read_fixed_string(kNameFieldSize, out.header.ground_name)) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    // Four tileset definitions: each i16 group + i16 offset.
+    h.seek(kTilesetsOff);
+    for (std::size_t i = 0; i < out.header.tilesets.size(); ++i) {
+        out.header.tilesets[i].group = static_cast<std::int16_t>(h.read_u16_le());
+        out.header.tilesets[i].offset = static_cast<std::int16_t>(h.read_u16_le());
+    }
+
+    return OdmError::None;
+}
+
+// --- Terrain grids ---------------------------------------------------------
+
+namespace {
+
+// Verified terrain offsets within the decompressed payload
+// (see docs/formats/odm-terrain.md).
+constexpr std::uint32_t kHeightmapOff = 0xB0;
+constexpr std::uint32_t kTilemapOff = 0x40B0;  // kHeightmapOff + 16384
+
+[[nodiscard]] OdmError copy_grid(const std::vector<std::uint8_t>& payload,
+                                 std::uint32_t offset,
+                                 std::array<std::uint8_t, OdmTerrain::kGridBytes>& out) {
+    const std::uint64_t end =
+        static_cast<std::uint64_t>(offset) + OdmTerrain::kGridBytes;
+    if (payload.size() < end) {
+        return OdmError::HeaderTooSmall;  // payload too short for this grid
+    }
+    std::memcpy(out.data(), payload.data() + offset, OdmTerrain::kGridBytes);
+    return OdmError::None;
+}
+
+}  // namespace
+
+OdmError extract_terrain(const OdmMap& map, OdmTerrain& out) {
+    out = OdmTerrain{};
+    if (OdmError e = copy_grid(map.payload, kHeightmapOff, out.heightmap);
+        e != OdmError::None) {
+        return e;
+    }
+    return copy_grid(map.payload, kTilemapOff, out.tilemap);
+}
+
+OdmError parse_odm_terrain(std::span<const std::byte> entry,
+                           OdmMap& map_out, OdmTerrain& terrain_out) {
+    if (OdmError e = parse_odm(entry, map_out); e != OdmError::None) {
+        return e;
+    }
+    return extract_terrain(map_out, terrain_out);
+}
+
+// --- Placed models ---------------------------------------------------------
+
+OdmError extract_models(const OdmMap& map, std::vector<OdmModel>& out) {
+    out.clear();
+
+    const auto& p = map.payload;
+    if (p.size() < kModelCountOffset + 4) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    io::ByteReader r{std::span<const std::byte>{
+        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    r.seek(kModelCountOffset);
+    const std::uint32_t count = r.read_u32_le();
+
+    // The whole model array must fit.
+    const std::uint64_t array_end =
+        static_cast<std::uint64_t>(kModelCountOffset) + 4 +
+        static_cast<std::uint64_t>(count) * kModelRecordSize;
+    if (array_end > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    out.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        const std::uint64_t off =
+            kModelCountOffset + 4 + static_cast<std::uint64_t>(i) * kModelRecordSize;
+        OdmModel m;
+        r.seek(static_cast<std::size_t>(off));
+        if (!r.read_fixed_string(32, m.name)) {
+            return OdmError::HeaderTooSmall;
+        }
+        r.seek(static_cast<std::size_t>(off + 0x20));
+        if (!r.read_fixed_string(32, m.name2)) {
+            return OdmError::HeaderTooSmall;
+        }
+        // Position and bounding box (all i32, verified offsets).
+        r.seek(static_cast<std::size_t>(off + 0x70));
+        m.pos_x = r.read_i32_le();
+        m.pos_y = r.read_i32_le();
+        m.pos_z = r.read_i32_le();
+        m.min_x = r.read_i32_le();
+        m.min_y = r.read_i32_le();
+        m.min_z = r.read_i32_le();
+        m.max_x = r.read_i32_le();
+        m.max_y = r.read_i32_le();
+        m.max_z = r.read_i32_le();
+        out.push_back(std::move(m));
+    }
+    return OdmError::None;
+}
+
+// --- Model mesh vertices ---------------------------------------------------
+
+bool model_vertex_count(const OdmMap& map, std::size_t model_index,
+                        std::uint32_t& out) {
+    out = 0;
+    if (map.payload.size() < kModelCountOffset + 4) {
+        return false;
+    }
+    const std::uint32_t count =
+        (static_cast<std::uint32_t>(map.payload[kModelCountOffset])) |
+        (static_cast<std::uint32_t>(map.payload[kModelCountOffset + 1]) << 8) |
+        (static_cast<std::uint32_t>(map.payload[kModelCountOffset + 2]) << 16) |
+        (static_cast<std::uint32_t>(map.payload[kModelCountOffset + 3]) << 24);
+    if (model_index >= count) {
+        return false;
+    }
+    const std::size_t rec = kModelCountOffset + 4 + model_index * kModelRecordSize + 0x44;
+    if (rec + 4 > map.payload.size()) {
+        return false;
+    }
+    out = (static_cast<std::uint32_t>(map.payload[rec])) |
+          (static_cast<std::uint32_t>(map.payload[rec + 1]) << 8) |
+          (static_cast<std::uint32_t>(map.payload[rec + 2]) << 16) |
+          (static_cast<std::uint32_t>(map.payload[rec + 3]) << 24);
+    return true;
+}
+
+OdmError extract_first_model_vertices(const OdmMap& map,
+                                      std::vector<OdmModelVertex>& out) {
+    out.clear();
+
+    std::vector<OdmModel> models;
+    if (OdmError e = extract_models(map, models); e != OdmError::None) {
+        return e;
+    }
+    if (models.empty()) {
+        return OdmError::None;  // no models -> no vertices
+    }
+
+    std::uint32_t vcount = 0;
+    if (!model_vertex_count(map, 0, vcount)) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    // Geometry section starts right after the model array.
+    const std::uint64_t geo_start =
+        kModelCountOffset + 4 +
+        static_cast<std::uint64_t>(models.size()) * kModelRecordSize;
+    const std::uint64_t verts_end = geo_start +
+        static_cast<std::uint64_t>(vcount) * kModelVertexSize;
+    if (verts_end > map.payload.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    io::ByteReader r{std::span<const std::byte>{
+        reinterpret_cast<const std::byte*>(map.payload.data()), map.payload.size()}};
+    out.reserve(vcount);
+    for (std::uint32_t i = 0; i < vcount; ++i) {
+        r.seek(static_cast<std::size_t>(geo_start + i * kModelVertexSize));
+        OdmModelVertex v;
+        v.x = r.read_i32_le();
+        v.y = r.read_i32_le();
+        v.z = r.read_i32_le();
+        out.push_back(v);
+    }
+    return OdmError::None;
+}
+
+}  // namespace openmm6::world

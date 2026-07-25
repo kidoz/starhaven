@@ -1,0 +1,88 @@
+# Static analysis for openmm6.
+#
+# Bias: catch real defects in binary-format parsing (overflow, truncation,
+# narrowing, ignored error returns) without drowning the signal in style
+# opinions that .clang-format already governs.
+#
+# Run with `just tidy`. Requires buildDir/compile_commands.json.
+#
+# NOTE: `Checks` below is a YAML folded scalar. A `#` inside it is literal
+# text, not a comment, and silently corrupts the check list. Keep all
+# commentary out here.
+#
+# Disabled, and why:
+#   pro-bounds-avoid-unchecked-container-access  fires on nearly every `v[i]`
+#   misc-include-cleaner                         IWYU guessing; wrong on libc++
+#   readability-math-missing-parentheses         contradicts existing math code
+#   readability-uppercase-literal-suffix         codebase uses `1.0f`, not `1.0F`
+#   readability-braces-around-statements         clang-format governs layout
+#   modernize-use-trailing-return-type           not this codebase's style
+#   misc-use-anonymous-namespace,                artifacts of Catch2's
+#   cert-err58-cpp,                              TEST_CASE macro expansion
+#   bugprone-throwing-static-initialization      (reported at our line numbers)
+#   clang-diagnostic-c2y-extensions              Catch2's use of `__COUNTER__`
+---
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-designated-initializers,
+  -modernize-use-nodiscard,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-math-missing-parentheses,
+  -readability-uppercase-literal-suffix,
+  -readability-braces-around-statements,
+  -readability-use-concise-preprocessor-directives,
+  -readability-function-cognitive-complexity,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -misc-non-private-member-variables-in-classes,
+  -misc-include-cleaner,
+  -misc-use-anonymous-namespace,
+  -cert-err58-cpp,
+  -bugprone-throwing-static-initialization,
+  -bugprone-easily-swappable-parameters,
+  -clang-diagnostic-c2y-extensions
+
+WarningsAsErrors: ''
+
+# HeaderFilterRegex is unanchored, so `(src|...)` alone also matches
+# `subprojects/Catch2-3.14.0/src/...`. The exclude is what actually keeps
+# vendored headers out; without it Catch2 contributes ~3000 warnings.
+HeaderFilterRegex: '(src|tools|tests)/.*\.(hpp|h)$'
+ExcludeHeaderFilterRegex: '(subprojects|buildDir)/'
+
+FormatStyle: file
+
+CheckOptions:
+  # The codebase uses lower_snake_case for functions/variables, CamelCase for
+  # types, a trailing underscore for private members, and a `k` prefix for
+  # constexpr constants. Encode that so tidy reinforces the existing convention
+  # instead of inventing a new one.
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.FunctionCase: lower_case
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.PrivateMemberCase: lower_case
+  readability-identifier-naming.PrivateMemberSuffix: _
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ConstexprVariableCase: CamelCase
+  readability-identifier-naming.ConstexprVariablePrefix: k

@@ -1,0 +1,11 @@
+/tmp/
+/buildDir/
+/.idea/
+
+# Meson wrap outputs: only *.wrap files are committed.
+/subprojects/Catch2-*/
+/subprojects/catch2-*/
+/subprojects/SDL2-*/
+/subprojects/sdl2-*/
+/subprojects/packagecache/
+/subprojects/.wraplock

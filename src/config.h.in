@@ -1,0 +1,7 @@
+#ifndef OPENMM6_CONFIG_H
+#define OPENMM6_CONFIG_H
+
+// Filled in at configure time from meson.build.
+#define OPENMM6_VERSION @OPENMM6_VERSION@
+
+#endif  // OPENMM6_CONFIG_H

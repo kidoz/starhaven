@@ -1,0 +1,46 @@
+# Formatting rules for openmm6.
+#
+# Chosen to match the code that already exists rather than to impose a new
+# house style: 4-space indent, `Type* name` pointers, and a 100-column limit
+# that leaves the existing ~80-column prose alone while tolerating the handful
+# of longer lines in the parsers and rasterizer.
+#
+# This file is authoritative. Run `just fmt` instead of hand-aligning.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+Standard: c++20
+ColumnLimit: 100
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+# `SDL_Window* window`, matching the dominant style in src/ and tools/.
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+# Includes are grouped by hand (system, then third-party, then project) and
+# separated by blank lines. Sort within a group, but never merge groups.
+IncludeBlocks: Preserve
+SortIncludes: CaseSensitive
+
+# Keep trivial accessors such as `int width() const { return width_; }` on one
+# line, but never collapse a multi-statement body.
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# Binary-format code relies on aligned tables of constants staying readable.
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+
+SeparateDefinitionBlocks: Leave
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
