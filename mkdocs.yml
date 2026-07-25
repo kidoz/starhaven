@@ -24,12 +24,17 @@ nav:
       - Indoor maps: formats/blv.md
       - Event data: formats/event-data.md
       - Event tables: formats/event-tables.md
+      - Event actors: formats/event-actors.md
+      - Outdoor decorations: formats/odm-decorations.md
       - Ground tiles: formats/dtile.md
+      - Monster table: formats/dmonlist.md
       - VID containers: formats/vid.md
       - Smacker video: formats/smacker.md
+      - Sound archive: formats/snd.md
   - Rendering:
       - Software rasterizer: rendering/software-rasterizer.md
       - Terrain coloring: rendering/terrain-coloring.md
+      - Collision and movement: rendering/collision.md
 
 markdown_extensions:
   - toc:
