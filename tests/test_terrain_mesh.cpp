@@ -105,6 +105,61 @@ TEST_CASE("distinct tile indices get distinct colors", "[terrain_mesh]") {
     REQUIRE((a.r != b.r || a.g != b.g || a.b != b.b));
 }
 
+TEST_CASE("mesh carries one uv per vertex, in cell units", "[terrain_mesh]") {
+    auto mesh = build_terrain_mesh(flat_terrain(), {});
+    REQUIRE(mesh.uvs.size() == mesh.vertices.size());
+
+    constexpr int dim = world::OdmTerrain::kGridDim;
+    // The vertex at grid (x, y) carries uv (x, y).
+    REQUIRE(mesh.uvs[0].u == Approx(0.0f));
+    REQUIRE(mesh.uvs[0].v == Approx(0.0f));
+    REQUIRE(mesh.uvs[1].u == Approx(1.0f));
+    REQUIRE(mesh.uvs[1].v == Approx(0.0f));
+    REQUIRE(mesh.uvs[static_cast<std::size_t>(dim)].u == Approx(0.0f));
+    REQUIRE(mesh.uvs[static_cast<std::size_t>(dim)].v == Approx(1.0f));
+}
+
+TEST_CASE("each cell spans exactly one uv unit so Repeat lays one tile per cell",
+          "[terrain_mesh]") {
+    // This is the property that makes shared vertices work: no per-vertex
+    // assignment can give each cell its own 0..1 span, but in cell units the
+    // *difference* across any cell is exactly 1.
+    auto mesh = build_terrain_mesh(flat_terrain(), {});
+    constexpr int dim = world::OdmTerrain::kGridDim;
+
+    const auto at = [&](int x, int y) {
+        return mesh.uvs[static_cast<std::size_t>(y) * dim + x];
+    };
+    for (int cell : {0, 1, 57, dim - 2}) {
+        REQUIRE(at(cell + 1, 0).u - at(cell, 0).u == Approx(1.0f));
+        REQUIRE(at(0, cell + 1).v - at(0, cell).v == Approx(1.0f));
+    }
+}
+
+TEST_CASE("mesh carries one tile id per triangle, two per cell",
+          "[terrain_mesh]") {
+    world::OdmTerrain t = flat_terrain();
+    constexpr int dim = world::OdmTerrain::kGridDim;
+    // Give cell (0,0) and cell (3,2) distinctive tile indices.
+    t.tilemap[0] = 90;
+    t.tilemap[static_cast<std::size_t>(2) * dim + 3] = 190;
+
+    auto mesh = build_terrain_mesh(t, {});
+    REQUIRE(mesh.tile_ids.size() == mesh.indices.size() / 3);
+
+    // Cells are emitted row-major, two triangles each.
+    const auto cell_tri = [&](int x, int y) {
+        return static_cast<std::size_t>(y) * (dim - 1) * 2 +
+               static_cast<std::size_t>(x) * 2;
+    };
+    REQUIRE(mesh.tile_ids[cell_tri(0, 0)] == 90);
+    REQUIRE(mesh.tile_ids[cell_tri(0, 0) + 1] == 90);  // both triangles agree
+    REQUIRE(mesh.tile_ids[cell_tri(3, 2)] == 190);
+    REQUIRE(mesh.tile_ids[cell_tri(3, 2) + 1] == 190);
+    // An untouched cell keeps the fill value.
+    REQUIRE(mesh.tile_ids[cell_tri(5, 5)] == 0);
+}
+
 TEST_CASE("build_terrain_colors yields one color per vertex", "[terrain_mesh]") {
     auto t = flat_terrain(0);
     constexpr int dim = world::OdmTerrain::kGridDim;

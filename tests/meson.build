@@ -56,6 +56,12 @@ test('texture',
   workdir : meson.current_build_dir(),
 )
 
+test('tile_set',
+  executable('test_tile_set', 'test_tile_set.cpp',
+    dependencies : [openmm6_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('terrain_mesh',
   executable('test_terrain_mesh', 'test_terrain_mesh.cpp',
     dependencies : [openmm6_dep, catch2_main]),

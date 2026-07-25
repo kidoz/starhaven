@@ -68,8 +68,10 @@ TerrainMesh build_terrain_mesh(const world::OdmTerrain& terrain,
     TerrainMesh mesh;
     mesh.vertices.reserve(static_cast<std::size_t>(dim) * dim);
     mesh.normals.reserve(static_cast<std::size_t>(dim) * dim);
+    mesh.uvs.reserve(static_cast<std::size_t>(dim) * dim);
     mesh.indices.reserve(static_cast<std::size_t>(dim - 1) *
                          (dim - 1) * 6);
+    mesh.tile_ids.reserve(static_cast<std::size_t>(dim - 1) * (dim - 1) * 2);
 
     const float half = (dim - 1) * scale.cell_size * 0.5f;
 
@@ -84,10 +86,12 @@ TerrainMesh build_terrain_mesh(const world::OdmTerrain& terrain,
                     y * scale.cell_size - half};
     };
 
-    // Vertices.
+    // Vertices, and texture coordinates in cell units (see TerrainMesh::uvs).
     for (int y = 0; y < dim; ++y) {
         for (int x = 0; x < dim; ++x) {
             mesh.vertices.push_back(world_pos(x, y));
+            mesh.uvs.push_back(Vec2{static_cast<float>(x),
+                                    static_cast<float>(y)});
         }
     }
 
@@ -113,7 +117,7 @@ TerrainMesh build_terrain_mesh(const world::OdmTerrain& terrain,
     }
 
     // Two triangles per cell.
-    auto idx = [dim](int x, int y) {
+    auto idx = [](int x, int y) {
         return static_cast<std::uint32_t>(y * dim + x);
     };
     for (int y = 0; y < dim - 1; ++y) {
@@ -130,6 +134,14 @@ TerrainMesh build_terrain_mesh(const world::OdmTerrain& terrain,
             mesh.indices.push_back(b);
             mesh.indices.push_back(d);
             mesh.indices.push_back(c);
+
+            // Both triangles of the cell take the cell's own tile index, read
+            // at its top-left corner — the same convention build_terrain_colors
+            // uses, so texture and color paths agree on which tile a cell is.
+            const std::uint8_t tile =
+                terrain.tilemap[static_cast<std::size_t>(y) * dim + x];
+            mesh.tile_ids.push_back(tile);
+            mesh.tile_ids.push_back(tile);
         }
     }
 

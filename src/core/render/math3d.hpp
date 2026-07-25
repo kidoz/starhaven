@@ -11,6 +11,11 @@ namespace openmm6::render {
 // that `mat4 * vec4` is a sequence of column dots — the standard graphics
 // convention. Vectors are row vectors in memory (x,y,z,w).
 
+// A 2-component vector. Used for texture coordinates, where u runs left to
+// right and v runs top to bottom (matching the decoded image row order).
+struct Vec2 {
+    float u = 0, v = 0;
+};
 struct Vec3 {
     float x = 0, y = 0, z = 0;
 };

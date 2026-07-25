@@ -16,6 +16,24 @@ struct TerrainMesh {
     std::vector<Vec3> vertices;
     std::vector<Vec3> normals;  // per-vertex, normalized
     std::vector<std::uint32_t> indices;  // triangles: 3 indices each
+
+    // Per-vertex texture coordinates in *cell* units: the vertex at grid
+    // (x, y) gets uv (x, y).
+    //
+    // Terrain vertices are shared between adjacent cells, so no per-vertex
+    // assignment can give each cell its own 0..1 span. Cell units sidestep
+    // that: within any one cell the corners span exactly 1.0 in each axis, so
+    // sampling with WrapMode::Repeat lays one full tile across every cell
+    // while the vertices stay shared.
+    std::vector<Vec2> uvs;
+
+    // The tilemap index of the cell each triangle belongs to; one entry per
+    // triangle, so `tile_ids.size() == indices.size() / 3`. Both triangles of
+    // a cell carry the same id.
+    //
+    // Stored explicitly rather than recomputed as `triangle / 2` so that the
+    // mapping survives any future change to triangulation order.
+    std::vector<std::uint8_t> tile_ids;
 };
 
 // World-scale defaults. The MM6 grid is 128x128; one horizontal cell maps to
