@@ -126,6 +126,20 @@ meson compile -C buildDir
 meson test -C buildDir
 ```
 
+## Documentation
+
+Documentation tooling uses [uv](https://docs.astral.sh/uv/) with Python 3.14
+and the dependency versions locked in `uv.lock`.
+
+```bash
+uv sync --locked
+uv run --locked mkdocs serve
+uv run --locked mkdocs build --strict
+```
+
+The equivalent task shortcuts are `just docs-serve` and `just docs-check`.
+Generated HTML is written to the ignored `site/` directory.
+
 ## Use
 
 Point the engine at your legal game installation with an environment variable:

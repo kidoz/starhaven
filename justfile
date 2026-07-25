@@ -63,8 +63,20 @@ tidy-fix: build
     @find src tools tests -name '*.cpp' -print0 \
         | xargs -0 -n1 clang-tidy -p {{build_dir}} --quiet --fix {{sysroot_args}}
 
-# Formatting + analysis + tests. The pre-submit gate.
-check: fmt-check tidy test
+# Install the locked Python documentation environment.
+docs-setup:
+    uv sync --locked
+
+# Preview the documentation with live reload.
+docs-serve: docs-setup
+    uv run --locked mkdocs serve
+
+# Build documentation and fail on broken navigation, links, or anchors.
+docs-check: docs-setup
+    uv run --locked mkdocs build --strict
+
+# Formatting + analysis + tests + documentation. The pre-submit gate.
+check: fmt-check tidy test docs-check
 
 # Implements the engineer skill's "forced fallback" rule against wrap rot.
 # Verify the committed wraps still build SDL3 and Catch2 from source.
