@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string_view>
 
+#include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/text_table.hpp"
 
@@ -30,6 +31,11 @@ enum class GameDataError {
 // place rather than spelled out at each call site.
 [[nodiscard]] GameDataError load_map_stats(const std::filesystem::path& data_dir,
                                            MapStatsTable& out);
+
+// Load and parse `ITEMS.TXT` in one step. Item-instance ids index this table
+// directly, including id zero.
+[[nodiscard]] GameDataError load_item_stats(const std::filesystem::path& data_dir,
+                                            ItemStatsTable& out);
 
 }  // namespace starhaven::data
 

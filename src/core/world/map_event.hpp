@@ -89,7 +89,7 @@ struct MapSpriteObject {
     std::uint16_t facing = 0;
     std::uint16_t attributes = 0;
     std::uint16_t sprite_frame = 0;
-    std::uint32_t contained_item_id = 0;
+    std::uint32_t contained_item_id = 0;  // direct zero-based `ITEMS.TXT` id
     std::int32_t previous_x = 0, previous_y = 0, previous_z = 0;
 };
 
@@ -101,6 +101,7 @@ constexpr std::size_t kSpriteObjectFacingOffset = 0x16;
 constexpr std::size_t kSpriteObjectAttributesOffset = 0x1A;
 constexpr std::size_t kSpriteObjectFrameOffset = 0x1E;
 constexpr std::size_t kSpriteObjectItemOffset = 0x24;
+constexpr std::size_t kContainedItemRecordSize = 28;
 constexpr std::size_t kSpriteObjectPreviousPositionOffset = 0x58;
 
 // Returns no records when the outdoor section layout is malformed.

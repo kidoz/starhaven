@@ -6,9 +6,9 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the two tables this slice parses
-into typed rows — `MapStats.txt` and `MONSTERS.TXT`. The other 28 are readable
-through the same reader but not yet given typed views.
+Covers the container, the text format, and the three tables parsed into typed
+rows — `MapStats.txt`, `MONSTERS.TXT`, and `ITEMS.TXT`. The other 27 are
+readable through the same reader but not yet given typed views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -30,6 +30,7 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --list
 ./buildDir/data_info --maps
 ./buildDir/data_info --monsters ArcherB
+./buildDir/data_info --items 160
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -189,6 +190,14 @@ name identifies one exactly in 124 of the 138 cases, and the accompanying
 `Dif 1-5` column does not correlate with the letter — difficulty 5 picks
 variant A 34 times out of 34. `unknown`
 
+## `ITEMS.TXT`
+
+The 581 item ids form the exact contiguous range 0–580 and are addressable
+directly by id. Placed outdoor objects and chest slots embed a 28-byte item
+instance whose leading `u32` selects the row without an offset. The complete
+column map, binary join, and item-instance boundary are documented in
+[`items.md`](items.md). `observed`
+
 ## Invalid-input behavior
 
 The reader rejects, deterministically and without reading out of bounds:
@@ -208,7 +217,7 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   `unknown`
 - The semantics of the monster columns tagged `inferred` above — `Pref`,
   `Bonus`, `Hst`, `Rec` — and of the `Misc Special` column. `unknown`
-- The 28 tables without typed views: items, spells, quests, NPC dialogue and
-  shop behaviour are readable but not yet modelled. `unknown`
+- The 27 tables without typed views: spells, quests, NPC dialogue and shop
+  behaviour are readable but not yet modelled. `unknown`
 - Where `MONSTERS.TXT`'s treasure codes (`"5%6D20+L2Bow"`) are interpreted, and
   how they index `ITEMS.TXT`. `unknown`

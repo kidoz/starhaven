@@ -10,6 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <zlib.h>
 
+#include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
 #include "core/data/text_table.hpp"
@@ -290,4 +291,63 @@ TEST_CASE("monster names join across case and spacing", "[monster_stats]") {
     REQUIRE(monsters.find("dragoncave a")->name == "Fire Lizard");
     REQUIRE(monsters.find("Dragon Cave B") == nullptr);
     REQUIRE(normalize_picture("PeasantF1C") == normalize_picture("Peasantf1C"));
+}
+
+namespace {
+
+std::string items_body() {
+    std::string s;
+    s += "Items\r\n";
+    s += "Item #\tPic File\tName\tValue\tEquip Stat\tSkill Group\tMod1\tMod2\tmaterial"
+         "\tID/Rep/St\tNot identified name\tSprite Index\tShape\tEquip X\tEquip Y\tNotes\r\n";
+    s += "0\tblank\t\t0\t0\t0\t0\t0\t0\t0\t\t0\t0\t0\t0\tplaceholder\r\n";
+    s += "1\tsword01\tLong Sword\t100\tAttack\tSword\tMight\t2\tArtifact\t3\tFine blade"
+         "\t42\t2\t11\t12\tfixture note\r\n";
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("ITEMS rows parse into direct-id-addressable entries", "[item_stats]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(items_body(), table) == TextTableError::None);
+    ItemStatsTable items;
+    REQUIRE(ItemStatsTable::parse(table, items) == ItemStatsError::None);
+    REQUIRE(items.size() == 2);
+
+    const ItemStatsEntry* placeholder = items.at(0);
+    REQUIRE(placeholder != nullptr);
+    REQUIRE(placeholder->name.empty());
+
+    const ItemStatsEntry* sword = items.at(1);
+    REQUIRE(sword != nullptr);
+    REQUIRE(sword->picture == "sword01");
+    REQUIRE(sword->name == "Long Sword");
+    REQUIRE(sword->value == 100);
+    REQUIRE(sword->equip_stat == "Attack");
+    REQUIRE(sword->skill_group == "Sword");
+    REQUIRE(sword->modifier_1 == "Might");
+    REQUIRE(sword->modifier_2 == 2);
+    REQUIRE(sword->material == "Artifact");
+    REQUIRE(sword->id_rep_st == 3);
+    REQUIRE(sword->unidentified_name == "Fine blade");
+    REQUIRE(sword->sprite_index == 42);
+    REQUIRE(sword->shape == 2);
+    REQUIRE(sword->equip_x == 11);
+    REQUIRE(sword->equip_y == 12);
+    REQUIRE(sword->notes == "fixture note");
+    REQUIRE(items.at(2) == nullptr);
+}
+
+TEST_CASE("ITEMS rejects a missing header or non-contiguous ids", "[item_stats]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body("something\telse\r\n0\tblank\r\n", table) ==
+            TextTableError::None);
+    ItemStatsTable items;
+    REQUIRE(ItemStatsTable::parse(table, items) == ItemStatsError::NoHeader);
+
+    REQUIRE(TextTable::parse_body("Item #\tPic File\r\n0\tblank\r\n2\tsword01\r\n", table) ==
+            TextTableError::None);
+    REQUIRE(ItemStatsTable::parse(table, items) == ItemStatsError::BadId);
+    REQUIRE(items.size() == 0);
 }

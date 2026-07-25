@@ -32,6 +32,22 @@ The executable's outdoor loader reads the count at `0x798`, copies
 `actor_count × 548`, then repeats the same count-and-copy sequence for
 100-byte sprite objects and 4204-byte chests. `observed`
 
+## Chest record boundary
+
+The chest body is now structurally bounded:
+
+```text
+u32 unknown
+ItemInstance items[140]  // 28 bytes each
+i16 grid[140]
+```
+
+This accounts for all 4204 bytes exactly. The executable addresses the item
+array at chest `+4` with a 28-byte stride and the grid at chest `+3924`.
+The leading item word is a direct `ITEMS.TXT` id; see
+[`items.md`](items.md). Meanings of the chest's first word, grid values, and
+the six state words after each item id remain open. `observed`
+
 ## Correction to the earlier interpretation
 
 The `u32` at `0x798` is the actor count, not a field in actor record zero. The
@@ -51,5 +67,5 @@ The decoder rejects an outdoor layout when:
 ## Open questions
 
 - Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
-- The 4204-byte chest record body.
+- The first chest word and meanings of its 140 grid entries.
 - The corresponding section layout for indoor `.dlv` files.

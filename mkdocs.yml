@@ -27,6 +27,7 @@ nav:
       - Event actors: formats/event-actors.md
       - Event sprite objects: formats/event-objects.md
       - Object descriptor table: formats/dobjlist.md
+      - Items and item instances: formats/items.md
       - Outdoor decorations: formats/odm-decorations.md
       - Ground tiles: formats/dtile.md
       - Monster table: formats/dmonlist.md

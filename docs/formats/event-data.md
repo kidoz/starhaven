@@ -63,7 +63,7 @@ The decoder rejects, deterministically and without reading out of bounds:
 - zlib failure;
 - an inflated length not matching decompressedSize (when nonzero).
 
-## Open questions (next slice)
+## Open questions
 
-- The fields within actor and chest records.
+- The remaining fields within actor and chest records.
 - The counted section layout used by indoor `.dlv` files.

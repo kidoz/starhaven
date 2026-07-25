@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/data/game_data.hpp"
+#include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
 #include "core/data/text_table.hpp"
@@ -19,7 +20,8 @@ namespace {
 using namespace starhaven;
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <--list | --maps | --monsters [name] | --check"
+    std::cerr << "Usage: " << argv0
+              << " <--list | --maps | --monsters [name] | --items [id] | --check"
               << " | <Table.txt>>\n"
               << "\n"
               << "Reads the tab-separated design tables shipped inside your own\n"
@@ -28,6 +30,7 @@ void print_usage(const char* argv0) {
               << "  --list             list the tables and their sizes\n"
               << "  --maps             MapStats.txt as typed rows\n"
               << "  --monsters [name]  MONSTERS.TXT as typed rows, or one monster\n"
+              << "  --items [id]       ITEMS.TXT as typed rows, or one direct item id\n"
               << "  --check            cross-check MONSTERS.TXT against DMONLIST.BIN\n"
               << "  <Table.txt>        dump one table's cells\n"
               << "  --rows N           limit a dump to N rows\n"
@@ -173,6 +176,46 @@ int do_monsters(const std::filesystem::path& data_dir, const std::string& want) 
     return 0;
 }
 
+int do_items(const std::filesystem::path& data_dir, const std::string& want) {
+    data::ItemStatsTable items;
+    if (data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: could not load ITEMS.TXT\n";
+        return 1;
+    }
+
+    if (!want.empty()) {
+        char* end = nullptr;
+        const unsigned long id = std::strtoul(want.c_str(), &end, 10);
+        if (end == want.c_str() || *end != '\0') {
+            std::cerr << "error: item id must be a non-negative integer\n";
+            return 2;
+        }
+        const auto* item = items.at(static_cast<std::size_t>(id));
+        if (item == nullptr) {
+            std::cerr << "error: no item id " << id << "\n";
+            return 1;
+        }
+        std::cout << item->id << ": " << item->picture << " (" << data::cp1252_to_utf8(item->name)
+                  << ")\n"
+                  << "  value " << item->value << ", sprite " << item->sprite_index << ", shape "
+                  << item->shape << "\n"
+                  << "  equip " << item->equip_stat << ", skill " << item->skill_group
+                  << ", material " << item->material << "\n";
+        if (!item->unidentified_name.empty())
+            std::cout << "  unidentified: " << data::cp1252_to_utf8(item->unidentified_name)
+                      << "\n";
+        return 0;
+    }
+
+    std::cout << items.size() << " item ids\n";
+    for (const auto& item : items.entries()) {
+        std::cout << "  " << item.id << "\t" << item.picture << "\t"
+                  << data::cp1252_to_utf8(item.name) << "\tvalue " << item.value << "\tsprite "
+                  << item.sprite_index << "\n";
+    }
+    return 0;
+}
+
 // The join this slice makes possible: MONSTERS.TXT's "Picture" column against
 // the DMONLIST.BIN names an actor record's monster id indexes.
 int do_check(const std::filesystem::path& data_dir) {
@@ -266,6 +309,8 @@ int main(int argc, char** argv) {
         return do_maps(data_dir);
     if (command == "--monsters")
         return do_monsters(data_dir, argument);
+    if (command == "--items")
+        return do_items(data_dir, argument);
     if (command == "--check")
         return do_check(data_dir);
     if (command.rfind("--", 0) == 0) {

@@ -4,6 +4,8 @@
 #include <span>
 #include <string>
 
+#include "core/data/game_data.hpp"
+#include "core/data/item_stats.hpp"
 #include "core/lod/game_lod_archive.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
@@ -34,15 +36,15 @@ std::filesystem::path resolve_games_lod() {
     return "data/Games.lod";
 }
 
-std::filesystem::path resolve_icons_lod() {
+std::filesystem::path resolve_data_dir() {
     namespace fs = std::filesystem;
     if (auto install = starhaven::platform::install_from_env()) {
-        fs::path path = *install / "data" / "icons.lod";
-        if (fs::exists(path)) {
+        fs::path path = *install / "data";
+        if (fs::exists(path / "icons.lod")) {
             return path;
         }
     }
-    return "data/icons.lod";
+    return "data";
 }
 
 }  // namespace
@@ -109,8 +111,9 @@ int main(int argc, char** argv) {
     world::ObjectTable descriptors;
     lod::LodArchive icons;
     std::span<const std::byte> descriptor_entry;
+    const std::filesystem::path data_dir = resolve_data_dir();
     const bool have_descriptors =
-        lod::LodArchive::open(resolve_icons_lod(), icons) == lod::LodError::None &&
+        lod::LodArchive::open(data_dir / "icons.lod", icons) == lod::LodError::None &&
         icons.payload("DOBJLIST.BIN", descriptor_entry) == lod::LodArchive::PayloadError::None &&
         world::ObjectTable::parse(descriptor_entry, descriptors) == world::ObjectTableError::None;
 
@@ -124,6 +127,20 @@ int main(int argc, char** argv) {
         }
         std::cout << "  descriptor_joins: " << joined << "/" << objects.size() << "\n";
     }
+
+    starhaven::data::ItemStatsTable items;
+    const bool have_items =
+        starhaven::data::load_item_stats(data_dir, items) == starhaven::data::GameDataError::None;
+    if (have_items) {
+        std::size_t joined = 0;
+        for (const auto& object : objects) {
+            if (items.at(object.contained_item_id) != nullptr) {
+                ++joined;
+            }
+        }
+        std::cout << "  item_joins: " << joined << "/" << objects.size() << "\n";
+    }
+
     for (std::size_t i = 0; i < objects.size() && i < 3; ++i) {
         std::cout << "    object[" << i << "] id=" << objects[i].object_id
                   << " descriptor=" << objects[i].descriptor_index
@@ -133,6 +150,12 @@ int main(int argc, char** argv) {
             if (const auto* descriptor = descriptors.at(objects[i].descriptor_index)) {
                 std::cout << " \"" << descriptor->name
                           << "\" frame=" << descriptor->sprite_frame_index;
+            }
+        }
+        if (have_items) {
+            if (const auto* item = items.at(objects[i].contained_item_id)) {
+                std::cout << " item=\"" << starhaven::data::cp1252_to_utf8(item->name)
+                          << "\" picture=" << item->picture;
             }
         }
         std::cout << "\n";

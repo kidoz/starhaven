@@ -11,6 +11,7 @@ namespace {
 
 constexpr const char* kTableArchive = "icons.lod";
 constexpr const char* kMapStatsEntry = "MapStats.txt";
+constexpr const char* kItemStatsEntry = "ITEMS.TXT";
 
 }  // namespace
 
@@ -37,6 +38,18 @@ GameDataError load_map_stats(const std::filesystem::path& data_dir, MapStatsTabl
         return e;
     }
     if (MapStatsTable::parse(table, out) != MapStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_item_stats(const std::filesystem::path& data_dir, ItemStatsTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, kItemStatsEntry, table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (ItemStatsTable::parse(table, out) != ItemStatsError::None) {
         return GameDataError::BadTable;
     }
     return GameDataError::None;
