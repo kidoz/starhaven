@@ -445,4 +445,109 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
     return OdmError::None;
 }
 
+// --- Decorations -----------------------------------------------------------
+
+OdmError model_geometry_end(const OdmMap& map, std::uint64_t& out) {
+    out = 0;
+
+    const auto& p = map.payload;
+    if (p.size() < kModelCountOffset + 4) {
+        return OdmError::HeaderTooSmall;
+    }
+    io::ByteReader r{std::span<const std::byte>{
+        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(kModelCountOffset)) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t model_count = r.read_u32_le();
+
+    std::uint64_t cursor =
+        static_cast<std::uint64_t>(kModelCountOffset) + 4 +
+        static_cast<std::uint64_t>(model_count) * kModelRecordSize;
+    if (cursor > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    // Each model contributes the same five arrays the mesh decoder walks.
+    for (std::uint32_t i = 0; i < model_count; ++i) {
+        const std::uint64_t rec =
+            kModelCountOffset + 4 + static_cast<std::uint64_t>(i) * kModelRecordSize;
+        std::uint32_t vertex_count = 0;
+        std::uint32_t facet_count = 0;
+        std::uint32_t bsp_node_count = 0;
+        if (!read_model_counts(r, rec, vertex_count, facet_count, bsp_node_count)) {
+            return OdmError::HeaderTooSmall;
+        }
+        cursor += static_cast<std::uint64_t>(vertex_count) * kModelVertexSize;
+        cursor += static_cast<std::uint64_t>(facet_count) * kModelFacetSize;
+        cursor += static_cast<std::uint64_t>(facet_count) * kFacetOrderingEntrySize;
+        cursor += static_cast<std::uint64_t>(bsp_node_count) * kModelBspNodeSize;
+        cursor += static_cast<std::uint64_t>(facet_count) * kFacetTextureNameSize;
+        if (cursor > p.size()) {
+            return OdmError::HeaderTooSmall;
+        }
+    }
+    out = cursor;
+    return OdmError::None;
+}
+
+OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out) {
+    out.clear();
+
+    std::uint64_t start = 0;
+    if (const OdmError e = model_geometry_end(map, start); e != OdmError::None) {
+        return e;
+    }
+
+    const auto& p = map.payload;
+    if (start + 4 > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+    io::ByteReader r{std::span<const std::byte>{
+        reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(static_cast<std::size_t>(start))) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t count = r.read_u32_le();
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    // A record array and a parallel name array, both `count` long.
+    const std::uint64_t records = start + 4;
+    const std::uint64_t names =
+        records + static_cast<std::uint64_t>(count) * kDecorationRecordSize;
+    const std::uint64_t end =
+        names + static_cast<std::uint64_t>(count) * kDecorationNameSize;
+    if (end > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    out.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        OdmDecoration d;
+        if (!r.seek(static_cast<std::size_t>(
+                records + static_cast<std::uint64_t>(i) * kDecorationRecordSize))) {
+            return OdmError::HeaderTooSmall;
+        }
+        d.kind = r.read_u32_le();
+        d.x = r.read_i32_le();
+        d.y = r.read_i32_le();
+        d.z = r.read_i32_le();
+
+        if (!r.seek(static_cast<std::size_t>(
+                names + static_cast<std::uint64_t>(i) * kDecorationNameSize))) {
+            return OdmError::HeaderTooSmall;
+        }
+        if (!r.read_fixed_string(kDecorationNameSize, d.name)) {
+            return OdmError::HeaderTooSmall;
+        }
+        out.push_back(std::move(d));
+    }
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+    return OdmError::None;
+}
+
 }  // namespace starhaven::world

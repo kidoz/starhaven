@@ -488,6 +488,58 @@ std::vector<std::byte> make_odm_entry_with_meshes(const std::vector<MeshSpec>& s
     return entry;
 }
 
+// Build an entry whose model geometry is followed by a decoration array: a
+// count, then 28-byte records, then a parallel array of 32-byte names.
+std::vector<std::byte> make_odm_entry_with_decorations(
+    const std::vector<MeshSpec>& specs,
+    const std::vector<std::tuple<std::uint32_t, std::int32_t, std::int32_t,
+                                 std::int32_t, std::string>>& decos) {
+    auto entry = make_odm_entry_with_meshes(specs);
+    // Recover the payload so the decorations can be appended to it.
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<std::uint8_t> payload = m.payload;
+
+    auto push_u32 = [&](std::uint32_t v) {
+        payload.push_back(static_cast<std::uint8_t>(v & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 16) & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 24) & 0xFF));
+    };
+
+    push_u32(static_cast<std::uint32_t>(decos.size()));
+    for (const auto& [kind, x, y, z, name] : decos) {
+        const std::size_t base = payload.size();
+        payload.resize(base + kDecorationRecordSize, 0);
+        auto put = [&](std::size_t off, std::uint32_t v) {
+            payload[base + off + 0] = static_cast<std::uint8_t>(v & 0xFF);
+            payload[base + off + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+            payload[base + off + 2] = static_cast<std::uint8_t>((v >> 16) & 0xFF);
+            payload[base + off + 3] = static_cast<std::uint8_t>((v >> 24) & 0xFF);
+        };
+        put(0x00, kind);
+        put(0x04, static_cast<std::uint32_t>(x));
+        put(0x08, static_cast<std::uint32_t>(y));
+        put(0x0C, static_cast<std::uint32_t>(z));
+    }
+    for (const auto& [kind, x, y, z, name] : decos) {
+        (void)kind; (void)x; (void)y; (void)z;
+        const std::size_t base = payload.size();
+        payload.resize(base + kDecorationNameSize, 0);
+        for (std::size_t i = 0; i < name.size() && i + 1 < kDecorationNameSize; ++i) {
+            payload[base + i] = static_cast<std::uint8_t>(name[i]);
+        }
+    }
+
+    std::vector<std::uint8_t> compressed;
+    REQUIRE(zlib_compress(payload, compressed));
+    std::vector<std::byte> out(kWrapperSize + compressed.size());
+    put_u32_le(out, 0x00, static_cast<std::uint32_t>(payload.size()));
+    put_u32_le(out, 0x04, static_cast<std::uint32_t>(payload.size()));
+    std::memcpy(&out[kWrapperSize], compressed.data(), compressed.size());
+    return out;
+}
+
 TEST_CASE("model meshes decode vertices, facets, and texture names", "[odm]") {
     auto entry = make_odm_entry_with_meshes({{4, 2, 0, 4}});
     OdmMap m;
@@ -616,4 +668,63 @@ TEST_CASE("a hostile facet count cannot wrap the size arithmetic", "[odm]") {
     m.payload[rec + 0x4F] = 0xFF;
     std::vector<OdmModelMesh> meshes;
     REQUIRE(extract_model_meshes(m, meshes) == OdmError::HeaderTooSmall);
+}
+
+TEST_CASE("decorations decode after the model geometry", "[odm]") {
+    // The array sits at a computable offset: right after the last model's
+    // geometry, with its own count.
+    auto entry = make_odm_entry_with_decorations(
+        {{4, 2, 0, 4}, {5, 1, 0, 3}},
+        {{39, 3232, 9072, 320, "tree27"},
+         {40, -1000, 500, -64, "tree28"},
+         {2, 0, 0, 0, "Party Start"}});
+
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmDecoration> decos;
+    REQUIRE(extract_decorations(m, decos) == OdmError::None);
+    REQUIRE(decos.size() == 3);
+    REQUIRE(decos[0].kind == 39);
+    REQUIRE(decos[0].x == 3232);
+    REQUIRE(decos[0].y == 9072);
+    REQUIRE(decos[0].z == 320);
+    REQUIRE(decos[0].name == "tree27");
+    REQUIRE(decos[1].x == -1000);      // negative coordinates survive
+    REQUIRE(decos[1].z == -64);
+    REQUIRE(decos[2].name == "Party Start");
+}
+
+TEST_CASE("the geometry end is where the decorations begin", "[odm]") {
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}},
+                                                 {{1, 0, 0, 0, "tree27"}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::uint64_t end = 0;
+    REQUIRE(model_geometry_end(m, end) == OdmError::None);
+    // count + one record + one name accounts for the rest of the payload.
+    REQUIRE(end + 4 + kDecorationRecordSize + kDecorationNameSize ==
+            m.payload.size());
+}
+
+TEST_CASE("a decoration array running past the payload is rejected", "[odm]") {
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}},
+                                                 {{1, 0, 0, 0, "tree27"}});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::uint64_t end = 0;
+    REQUIRE(model_geometry_end(m, end) == OdmError::None);
+    // Claim far more decorations than the payload can hold.
+    m.payload[static_cast<std::size_t>(end)] = 0xFF;
+    m.payload[static_cast<std::size_t>(end) + 1] = 0xFF;
+    std::vector<OdmDecoration> decos;
+    REQUIRE(extract_decorations(m, decos) == OdmError::HeaderTooSmall);
+}
+
+TEST_CASE("a map with no decorations decodes as empty", "[odm]") {
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}}, {});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<OdmDecoration> decos;
+    REQUIRE(extract_decorations(m, decos) == OdmError::None);
+    REQUIRE(decos.empty());
 }

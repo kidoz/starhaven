@@ -50,6 +50,11 @@ interoperability and compatibility with a legally purchased copy.
   `BITMAPS.LOD` texture name. Verified across all 15 outdoor maps: 921 models,
   37,187 facets. `walk_odm` renders the props **filled and textured**, so real
   MM6 houses, bridges and obelisks stand on the terrain.
+- A decoder for `.odm` **decorations** — the placed sprites (trees, cacti,
+  rocks, pedestals, the party start marker). Found at a computed offset right
+  after the model geometry, with a parallel name array that cross-checks it:
+  all 15 maps, 6,210 placements, 85 type ids each mapping to exactly one name.
+  `walk_odm` draws them as camera-facing billboards.
 - **Real ground textures**: the `DTILE.BIN` global tile table (in `icons.lod`)
   resolves an `.odm` tilemap byte to a `BITMAPS.LOD` entry, so terrain is drawn
   with the game's own art rather than placeholder colors.
@@ -107,6 +112,7 @@ The format specs are documented from observed behavior in
 [`docs/formats/odm-models.md`](docs/formats/odm-models.md),
 [`docs/formats/odm-model-mesh.md`](docs/formats/odm-model-mesh.md),
 [`docs/formats/odm-model-facets.md`](docs/formats/odm-model-facets.md),
+[`docs/formats/odm-decorations.md`](docs/formats/odm-decorations.md),
 [`docs/formats/dtile.md`](docs/formats/dtile.md),
 [`docs/formats/event-data.md`](docs/formats/event-data.md),
 [`docs/formats/bitmap.md`](docs/formats/bitmap.md),
@@ -291,8 +297,9 @@ docs/
 16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
 17. ~~Render indoor levels (`walk_blv`), with per-face texture coordinates.~~ ✓ (this slice)
 18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) so decorations can be located by offset rather than by scanning.
-19. Decode event-record bodies; sprites/decorations; mouse-look; collision.
-20. Smacker audio, an audio output layer, UI, and gameplay systems.
+19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
+20. Decode event-record bodies; mouse-look; collision.
+21. Smacker audio, an audio output layer, UI, and gameplay systems.
 
 ## Contributing
 

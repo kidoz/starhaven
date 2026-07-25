@@ -154,5 +154,15 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "  meshes: geometry stream did not decode\n";
     }
+
+    std::vector<world::OdmDecoration> decorations;
+    if (world::extract_decorations(map, decorations) == world::OdmError::None) {
+        std::set<std::string> kinds;
+        for (const auto& d : decorations) kinds.insert(d.name);
+        std::cout << "  decorations: " << decorations.size() << " placed, "
+                  << kinds.size() << " distinct sprites\n";
+    } else {
+        std::cout << "  decorations: did not decode\n";
+    }
     return 0;
 }

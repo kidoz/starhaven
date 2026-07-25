@@ -14,6 +14,8 @@
 #include <SDL3/SDL.h>
 
 #include "core/image/bitmap.hpp"
+#include "core/image/palette.hpp"
+#include "core/image/sprite.hpp"
 #include "core/lod/game_lod_archive.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
@@ -166,6 +168,76 @@ int load_model_textures(const std::vector<starhaven::world::OdmModelMesh>& meshe
     return resolved;
 }
 
+// Decode the sprites the map's decorations reference, keyed by name. Sprites
+// live in SPRITES.LOD and share palettes held in BITMAPS.LOD.
+int load_decoration_sprites(
+    const std::vector<starhaven::world::OdmDecoration>& decorations,
+    std::map<std::string, starhaven::render::Texture>& out) {
+    namespace lod = starhaven::lod;
+    namespace img = starhaven::image;
+
+    const auto install = starhaven::platform::install_from_env();
+    if (!install) return -1;
+    const std::filesystem::path data = *install / "data";
+
+    lod::LodArchive sprites;
+    lod::LodArchive bitmaps;
+    if (lod::LodArchive::open(data / "SPRITES.LOD", sprites) != lod::LodError::None ||
+        lod::LodArchive::open(data / "BITMAPS.LOD", bitmaps) != lod::LodError::None) {
+        return -1;
+    }
+
+    // Palettes are shared between sprites, so decode each one once.
+    std::map<std::uint16_t, img::Palette> palettes;
+    auto palette_for = [&](std::uint16_t id, img::Palette& into) {
+        if (const auto it = palettes.find(id); it != palettes.end()) {
+            into = it->second;
+            return true;
+        }
+        std::span<const std::byte> bytes;
+        if (bitmaps.payload(img::palette_entry_name(id), bytes) !=
+            lod::LodArchive::PayloadError::None) {
+            return false;
+        }
+        img::Palette pal;
+        // Palette entries are a 48-byte zero-image header then 768 RGB bytes.
+        if (img::extract_palette(bytes, /*data_offset=*/48, pal) !=
+            img::PaletteError::None) {
+            return false;
+        }
+        palettes.emplace(id, pal);
+        into = pal;
+        return true;
+    };
+
+    int resolved = 0;
+    for (const auto& d : decorations) {
+        if (d.name.empty() || out.count(d.name) != 0) continue;
+
+        std::span<const std::byte> raw;
+        if (sprites.payload(d.name, raw) != lod::LodArchive::PayloadError::None) {
+            continue;
+        }
+        img::SpriteHeader header;
+        if (img::read_sprite_header(raw, header) != img::SpriteError::None) continue;
+        img::Palette palette;
+        if (!palette_for(header.palette_id, palette)) continue;
+
+        img::Sprite sprite;
+        if (img::decode_sprite(raw, palette, sprite) != img::SpriteError::None) {
+            continue;
+        }
+        starhaven::render::Texture tex;
+        if (!starhaven::render::Texture::create(sprite.width, sprite.height,
+                                                std::move(sprite.rgba), tex)) {
+            continue;
+        }
+        out.emplace(d.name, std::move(tex));
+        ++resolved;
+    }
+    return resolved;
+}
+
 // MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up. Model
 // geometry is stored in absolute world units on the same scale as the terrain
 // (verified in docs/formats/odm-model-facets.md), so placement is a pure axis
@@ -304,6 +376,17 @@ int main(int argc, char** argv) {
         std::cerr << "note: model geometry did not decode; drawing bounds only\n";
         meshes.clear();
     }
+    std::vector<world::OdmDecoration> decorations;
+    if (world::extract_decorations(map, decorations) != world::OdmError::None) {
+        decorations.clear();
+    }
+    std::map<std::string, render::Texture> decoration_sprites;
+    const int deco_loaded = load_decoration_sprites(decorations, decoration_sprites);
+    if (!decorations.empty()) {
+        std::cout << "loaded " << decorations.size() << " decorations, "
+                  << (deco_loaded > 0 ? deco_loaded : 0) << " sprites\n";
+    }
+
     std::map<std::string, render::Texture> model_textures;
     const int model_tex = load_model_textures(meshes, model_textures);
     if (!meshes.empty()) {
@@ -496,6 +579,43 @@ int main(int argc, char** argv) {
                                             render::WrapMode::Repeat, false);
                     }
                 }
+            }
+        }
+
+        // Decorations: camera-facing billboards standing on the ground. Drawn
+        // after the solid geometry so the z-buffer resolves them against it;
+        // the rasterizer skips fully transparent texels, which is what gives
+        // the sprites their cut-out silhouette.
+        {
+            const render::Vec3 bb_right = render::camera_right(yaw);
+            for (const auto& d : decorations) {
+                const auto it = decoration_sprites.find(d.name);
+                if (it == decoration_sprites.end() || it->second.empty()) continue;
+
+                // Sprite pixels are not world units and the decoration table
+                // states no size, so the factor is calibrated by eye against
+                // the models: at 1.0 a tree stands shorter than a cottage
+                // door, which is plainly wrong. `inferred`
+                constexpr float kSpriteScale = 4.0f;
+                const float w = static_cast<float>(it->second.width()) * kSpriteScale;
+                const float h = static_cast<float>(it->second.height()) * kSpriteScale;
+                const render::Vec3 base = to_render_space(d.x, d.y, d.z);
+                const render::Vec3 half = bb_right * (w * 0.5f);
+
+                // Corners: bottom-left, bottom-right, top-right, top-left.
+                const render::Vec3 bl = base - half;
+                const render::Vec3 br = base + half;
+                const render::Vec3 tr{br.x, br.y + h, br.z};
+                const render::Vec3 tl{bl.x, bl.y + h, bl.z};
+
+                const render::Vec3 t0[3] = {tl, bl, br};
+                const render::Vec2 u0[3] = {{0, 0}, {0, 1}, {1, 1}};
+                draw_world_triangle(t0, u0, 1.0f, it->second,
+                                    render::WrapMode::Clamp, false);
+                const render::Vec3 t1[3] = {tl, br, tr};
+                const render::Vec2 u1[3] = {{0, 0}, {1, 1}, {1, 0}};
+                draw_world_triangle(t1, u1, 1.0f, it->second,
+                                    render::WrapMode::Clamp, false);
             }
         }
 

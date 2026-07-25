@@ -187,6 +187,28 @@ struct OdmModelMesh {
 [[nodiscard]] OdmError extract_model_meshes(const OdmMap& map,
                                             std::vector<OdmModelMesh>& out);
 
+// --- Decorations (see docs/formats/odm-decorations.md) ---------------------
+
+// One placed decoration: a sprite standing in the world (tree, barrel, sign).
+struct OdmDecoration {
+    std::uint32_t kind = 0;   // type id; maps one-to-one onto `name`
+    std::int32_t x = 0, y = 0, z = 0;   // world position, MM6 axes
+    std::string name;         // a SPRITES.LOD entry name
+};
+
+// Extract the decoration array, which follows the model geometry stream.
+//
+// Unlike the indoor maps, this is fully deterministic: the geometry stream's
+// end is computable, and the count sits right there.
+[[nodiscard]] OdmError extract_decorations(const OdmMap& map,
+                                           std::vector<OdmDecoration>& out);
+
+// Byte offset one past the model geometry stream: where the decorations begin.
+[[nodiscard]] OdmError model_geometry_end(const OdmMap& map, std::uint64_t& out);
+
+constexpr std::uint32_t kDecorationRecordSize = 28;  // kind + 3 x i32 + padding
+constexpr std::uint32_t kDecorationNameSize = 32;
+
 // Sizes of the per-model geometry arrays (see docs/formats/odm-model-facets.md).
 constexpr std::uint32_t kModelFacetSize = 308;         // 0x134
 constexpr std::uint32_t kFacetOrderingEntrySize = 2;   // u16 per facet
