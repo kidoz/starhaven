@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_LOD_LOD_ARCHIVE_HPP
-#define OPENMM6_CORE_LOD_LOD_ARCHIVE_HPP
+#ifndef STARHAVEN_CORE_LOD_LOD_ARCHIVE_HPP
+#define STARHAVEN_CORE_LOD_LOD_ARCHIVE_HPP
 
 #include <cstdint>
 #include <filesystem>
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace openmm6::lod {
+namespace starhaven::lod {
 
 // The resource-archive variants distinguishable from the header. Only the MM6
 // standard format is parsed today; other variants are reported explicitly.
@@ -102,6 +102,6 @@ private:
     std::vector<LodEntry> entries_;
 };
 
-}  // namespace openmm6::lod
+}  // namespace starhaven::lod
 
-#endif  // OPENMM6_CORE_LOD_LOD_ARCHIVE_HPP
+#endif  // STARHAVEN_CORE_LOD_LOD_ARCHIVE_HPP

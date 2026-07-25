@@ -11,7 +11,7 @@
 
 #include "core/video/vid_archive.hpp"
 
-using namespace openmm6::video;
+using namespace starhaven::video;
 
 namespace {
 

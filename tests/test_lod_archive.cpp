@@ -15,7 +15,7 @@
 
 #include "core/lod/lod_archive.hpp"
 
-using namespace openmm6::lod;
+using namespace starhaven::lod;
 
 namespace {
 

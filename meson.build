@@ -1,4 +1,4 @@
-project('openmm6', 'cpp',
+project('starhaven', 'cpp',
         version : '0.1.0',
         default_options : ['warning_level=3', 'cpp_std=c++20'])
 
@@ -9,11 +9,11 @@ config_h = configure_file(
   input : 'src/config.h.in',
   output : 'config.h',
   configuration : configuration_data({
-    'OPENMM6_VERSION' : '"' + meson.project_version() + '"',
+    'STARHAVEN_VERSION' : '"' + meson.project_version() + '"',
   }),
 )
 
-openmm6_core_inc = include_directories('src', '.')
+starhaven_core_inc = include_directories('src', '.')
 
 # zlib decodes the zlib-compressed pixel data inside .LOD image entries
 # (see docs/formats/bitmap.md). It is standard zlib, not a proprietary scheme.
@@ -21,7 +21,7 @@ zlib_dep = dependency('zlib')
 
 # Core engine library. Reused by the application, tools, and tests so that
 # parser behavior is exercised by the same code path in every target.
-openmm6_core_sources = files(
+starhaven_core_sources = files(
   'src/core/io/byte_reader.cpp',
   'src/core/lod/lod_archive.cpp',
   'src/core/lod/game_lod_archive.cpp',
@@ -41,29 +41,29 @@ openmm6_core_sources = files(
   'src/core/platform/paths.cpp',
 )
 
-openmm6_core = static_library('openmm6_core',
-  openmm6_core_sources,
-  include_directories : openmm6_core_inc,
+starhaven_core = static_library('starhaven_core',
+  starhaven_core_sources,
+  include_directories : starhaven_core_inc,
   dependencies : [zlib_dep, dependency('threads', required : false)],
 )
 
-openmm6_dep = declare_dependency(
-  link_with : openmm6_core,
-  include_directories : openmm6_core_inc,
-  # Tests link openmm6_dep and also need zlib directly (test_bitmap compresses).
+starhaven_dep = declare_dependency(
+  link_with : starhaven_core,
+  include_directories : starhaven_core_inc,
+  # Tests link starhaven_dep and also need zlib directly (test_bitmap compresses).
   sources : [],
   dependencies : zlib_dep,
 )
 
-# Application launcher. Kept thin; real logic lives in openmm6_core.
-executable('openmm6', 'src/main.cpp',
-  dependencies : openmm6_dep,
+# Application launcher. Kept thin; real logic lives in starhaven_core.
+executable('starhaven', 'src/main.cpp',
+  dependencies : starhaven_dep,
   install : true,
 )
 
 # Standalone archive browser. Reads the user's own legal install in place.
 executable('lod_browser', 'tools/lod_browser.cpp',
-  dependencies : openmm6_dep,
+  dependencies : starhaven_dep,
   install : true,
 )
 
@@ -75,44 +75,44 @@ sdl3_dep = dependency('sdl3')
 # Bitmap viewer: decodes one .LOD image entry and shows it in an SDL3 window.
 # Only built when SDL3 is available.
 executable('view_bitmap', 'tools/view_bitmap.cpp',
-  dependencies : [openmm6_dep, sdl3_dep],
+  dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
 
 # ODM inspector: decompresses one .odm map from Games.lod and prints its header.
 executable('odm_info', 'tools/odm_info.cpp',
-  dependencies : openmm6_dep,
+  dependencies : starhaven_dep,
   install : true,
 )
 
 # Heightmap viewer: renders an .odm heightmap as grayscale in an SDL3 window.
 executable('view_heightmap', 'tools/view_heightmap.cpp',
-  dependencies : [openmm6_dep, sdl3_dep],
+  dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
 
 # First-person walker: software-rasterizes an .odm terrain heightfield in 3D.
 executable('walk_odm', 'tools/walk_odm.cpp',
-  dependencies : [openmm6_dep, sdl3_dep],
+  dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
 
 # Smacker player: decodes one video from the install's Anims/*.vid archives.
 executable('play_smk', 'tools/play_smk.cpp',
-  dependencies : [openmm6_dep, sdl3_dep],
+  dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
 
 # Event-data inspector: decompresses one .ddm/.dlv file and prints stats.
 executable('ddm_info', 'tools/ddm_info.cpp',
-  dependencies : openmm6_dep,
+  dependencies : starhaven_dep,
   install : true,
 )
 
 # Tile-table probe: surveys the user's install for the ground-tile lookup
 # chain. Read-only; reports names, sizes and counts, never pixel data.
 executable('tile_probe', 'tools/tile_probe.cpp',
-  dependencies : openmm6_dep,
+  dependencies : starhaven_dep,
   install : true,
 )
 

@@ -26,8 +26,8 @@
 #include "core/world/odm_map.hpp"
 
 namespace fs = std::filesystem;
-namespace lod = openmm6::lod;
-namespace world = openmm6::world;
+namespace lod = starhaven::lod;
+namespace world = starhaven::world;
 
 namespace {
 
@@ -44,7 +44,7 @@ void print_usage(const char* argv0) {
         << "                     (case-insensitive) across every archive\n"
         << "  --list ARCHIVE     list every entry name in one archive\n"
         << "\n"
-        << "Set " << openmm6::platform::kInstallEnvVar << " to the install dir.\n";
+        << "Set " << starhaven::platform::kInstallEnvVar << " to the install dir.\n";
 }
 
 std::string lower(std::string s) {
@@ -71,7 +71,7 @@ std::uint64_t fnv1a(const fs::path& p) {
 }
 
 fs::path data_dir() {
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         if (fs::exists(*install / "data")) return *install / "data";
         return *install;
     }
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     std::cout << "install data dir: " << dir << "\n";
     if (!fs::exists(dir)) {
         std::cerr << "error: data directory not found. Set "
-                  << openmm6::platform::kInstallEnvVar << ".\n";
+                  << starhaven::platform::kInstallEnvVar << ".\n";
         return 1;
     }
 

@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <cstring>
 
-namespace openmm6::image {
+namespace starhaven::image {
 
 using detail::inflate_all;
 
@@ -92,4 +92,4 @@ BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
     return BitmapError::None;
 }
 
-}  // namespace openmm6::image
+}  // namespace starhaven::image

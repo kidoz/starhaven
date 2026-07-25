@@ -12,7 +12,7 @@
 
 #include "core/lod/game_lod_archive.hpp"
 
-using namespace openmm6::lod;
+using namespace starhaven::lod;
 
 namespace {
 

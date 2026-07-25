@@ -24,7 +24,7 @@ void print_usage(const char* argv0) {
               << "\n"
               << "  --scale N   integer nearest-neighbor upscale factor (default 1)\n"
               << "\n"
-              << "Set " << openmm6::platform::kInstallEnvVar
+              << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory, or pass the full archive path.\n";
 }
 
@@ -34,7 +34,7 @@ std::filesystem::path resolve_archive(const std::string& arg) {
     if (p.is_absolute() && fs::exists(p)) {
         return p;
     }
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         for (fs::path candidate : {*install / arg, *install / "data" / arg}) {
             if (fs::exists(candidate)) {
                 return candidate;
@@ -55,10 +55,10 @@ struct DecodedImage {
 // Load a `palXXX` palette entry from BITMAPS.LOD given a numeric palette id.
 // Sprites reference their palette this way. Returns false if the palette cannot
 // be found or extracted.
-bool load_palette(std::uint16_t palette_id, openmm6::image::Palette& out) {
+bool load_palette(std::uint16_t palette_id, starhaven::image::Palette& out) {
     namespace fs = std::filesystem;
-    namespace lod = openmm6::lod;
-    namespace img = openmm6::image;
+    namespace lod = starhaven::lod;
+    namespace img = starhaven::image;
 
     const std::string pal_name = img::palette_entry_name(palette_id);
     fs::path bitmaps = resolve_archive("data/BITMAPS.LOD");
@@ -111,8 +111,8 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    namespace lod = openmm6::lod;
-    namespace img = openmm6::image;
+    namespace lod = starhaven::lod;
+    namespace img = starhaven::image;
 
     lod::LodArchive archive;
     const lod::LodError open_err =
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
 
     const int win_w = static_cast<int>(image.width) * scale;
     const int win_h = static_cast<int>(image.height) * scale;
-    const std::string title = "openmm6 — " + entry_name;
+    const std::string title = "StarHaven — " + entry_name;
 
     // SDL3 drops the x/y arguments (the window manager places the window) and
     // SDL_WINDOW_SHOWN, since windows are now shown unless SDL_WINDOW_HIDDEN.

@@ -1,4 +1,4 @@
-# Static analysis for openmm6.
+# Static analysis for starhaven.
 #
 # Bias: catch real defects in binary-format parsing (overflow, truncation,
 # narrowing, ignored error returns) without drowning the signal in style

@@ -6,7 +6,7 @@
 #include "core/image/zlib_util.hpp"
 #include "core/io/byte_reader.hpp"
 
-namespace openmm6::world {
+namespace starhaven::world {
 
 namespace {
 
@@ -74,4 +74,4 @@ const TileTableEntry* TileTable::at(std::uint8_t tile_index) const noexcept {
     return &entries_[i];
 }
 
-}  // namespace openmm6::world
+}  // namespace starhaven::world

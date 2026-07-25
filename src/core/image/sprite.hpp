@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_IMAGE_SPRITE_HPP
-#define OPENMM6_CORE_IMAGE_SPRITE_HPP
+#ifndef STARHAVEN_CORE_IMAGE_SPRITE_HPP
+#define STARHAVEN_CORE_IMAGE_SPRITE_HPP
 
 #include <cstdint>
 #include <span>
@@ -7,7 +7,7 @@
 
 #include "core/image/palette.hpp"
 
-namespace openmm6::image {
+namespace starhaven::image {
 
 // A decoded sprite: dimensions, the palette it references, and the per-scanline
 // visible spans expressed as an RGBA buffer (transparent outside the spans).
@@ -67,6 +67,6 @@ struct SpriteHeader {
 [[nodiscard]] SpriteError read_sprite_header(std::span<const std::byte> entry,
                                              SpriteHeader& out);
 
-}  // namespace openmm6::image
+}  // namespace starhaven::image
 
-#endif  // OPENMM6_CORE_IMAGE_SPRITE_HPP
+#endif  // STARHAVEN_CORE_IMAGE_SPRITE_HPP

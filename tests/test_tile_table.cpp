@@ -12,7 +12,7 @@
 
 #include "core/world/tile_table.hpp"
 
-using namespace openmm6::world;
+using namespace starhaven::world;
 
 namespace {
 

@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 Vec3Color tile_type_color(std::uint8_t tile_index) {
     // Fixed palette for the common base tiles so dominant ground reads natural.
@@ -153,4 +153,4 @@ TerrainMesh build_terrain_mesh(const world::OdmTerrain& terrain,
     return mesh;
 }
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render

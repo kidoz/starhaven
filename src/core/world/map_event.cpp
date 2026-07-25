@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace openmm6::world {
+namespace starhaven::world {
 
 using image::detail::inflate_all;
 
@@ -81,4 +81,4 @@ enumerate_event_table(const MapEventFile& file, std::size_t max_records) {
     return out;
 }
 
-}  // namespace openmm6::world
+}  // namespace starhaven::world

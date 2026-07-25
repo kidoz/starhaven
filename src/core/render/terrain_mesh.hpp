@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_RENDER_TERRAIN_MESH_HPP
-#define OPENMM6_CORE_RENDER_TERRAIN_MESH_HPP
+#ifndef STARHAVEN_CORE_RENDER_TERRAIN_MESH_HPP
+#define STARHAVEN_CORE_RENDER_TERRAIN_MESH_HPP
 
 #include <cstdint>
 #include <vector>
@@ -7,7 +7,7 @@
 #include "core/render/math3d.hpp"
 #include "core/world/odm_map.hpp"
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 // A terrain mesh built from an ODM heightmap. Vertices are positioned in world
 // space as (cell_x * cell_size, height * height_scale, cell_y * cell_size),
@@ -72,6 +72,6 @@ struct Vec3Color { float r = 0, g = 0, b = 0; };
 [[nodiscard]] std::vector<Vec3Color>
 build_terrain_colors(const world::OdmTerrain& terrain);
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render
 
-#endif  // OPENMM6_CORE_RENDER_TERRAIN_MESH_HPP
+#endif  // STARHAVEN_CORE_RENDER_TERRAIN_MESH_HPP

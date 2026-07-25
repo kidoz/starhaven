@@ -14,7 +14,7 @@
 #include "core/image/palette.hpp"
 #include "core/image/sprite.hpp"
 
-using namespace openmm6::image;
+using namespace starhaven::image;
 
 namespace {
 

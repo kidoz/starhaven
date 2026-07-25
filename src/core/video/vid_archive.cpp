@@ -7,7 +7,7 @@
 #include <cctype>
 #include <utility>
 
-namespace openmm6::video {
+namespace starhaven::video {
 
 namespace {
 
@@ -194,4 +194,4 @@ bool VidArchive::read(std::size_t index, std::vector<std::byte>& out) {
     return true;
 }
 
-}  // namespace openmm6::video
+}  // namespace starhaven::video

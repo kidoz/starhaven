@@ -3,7 +3,7 @@
 #include <cstring>
 #include <format>
 
-namespace openmm6::image {
+namespace starhaven::image {
 
 namespace {
 
@@ -33,4 +33,4 @@ std::string palette_entry_name(std::uint16_t palette_id) {
     return std::format("pal{:03}", palette_id);
 }
 
-}  // namespace openmm6::image
+}  // namespace starhaven::image

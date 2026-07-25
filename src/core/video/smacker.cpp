@@ -7,7 +7,7 @@
 #include <cstring>
 #include <utility>
 
-namespace openmm6::video {
+namespace starhaven::video {
 
 // --- BitReader -------------------------------------------------------------
 
@@ -747,4 +747,4 @@ void SmackerDecoder::decode_palette(std::span<const std::byte> data) {
     }
 }
 
-}  // namespace openmm6::video
+}  // namespace starhaven::video

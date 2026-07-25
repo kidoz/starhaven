@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_WORLD_ODM_MAP_HPP
-#define OPENMM6_CORE_WORLD_ODM_MAP_HPP
+#ifndef STARHAVEN_CORE_WORLD_ODM_MAP_HPP
+#define STARHAVEN_CORE_WORLD_ODM_MAP_HPP
 
 #include <array>
 #include <cstddef>
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace openmm6::world {
+namespace starhaven::world {
 
 // One ground tileset reference: a group id and an offset into the tileset
 // table (see docs/formats/odm.md). Four of these follow the header strings.
@@ -199,6 +199,6 @@ constexpr std::uint32_t kHeaderSize = 0xB0;  // name..dim_fields inclusive
 constexpr std::uint32_t kNameFieldSize = 32;
 constexpr std::uint32_t kDimFieldCount = 8;
 
-}  // namespace openmm6::world
+}  // namespace starhaven::world
 
-#endif  // OPENMM6_CORE_WORLD_ODM_MAP_HPP
+#endif  // STARHAVEN_CORE_WORLD_ODM_MAP_HPP

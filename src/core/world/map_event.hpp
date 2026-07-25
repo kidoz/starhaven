@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_WORLD_MAP_EVENT_HPP
-#define OPENMM6_CORE_WORLD_MAP_EVENT_HPP
+#ifndef STARHAVEN_CORE_WORLD_MAP_EVENT_HPP
+#define STARHAVEN_CORE_WORLD_MAP_EVENT_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace openmm6::world {
+namespace starhaven::world {
 
 // A decompressed map event-data file (.ddm outdoor / .dlv indoor). The payload
 // is a large fixed-size structure holding the map's event tables; its internal
@@ -59,6 +59,6 @@ constexpr std::uint32_t kEventRecordNameMax = 12;   // verified readable prefix
 [[nodiscard]] std::vector<EventTableRecord>
 enumerate_event_table(const MapEventFile& file, std::size_t max_records = 4096);
 
-}  // namespace openmm6::world
+}  // namespace starhaven::world
 
-#endif  // OPENMM6_CORE_WORLD_MAP_EVENT_HPP
+#endif  // STARHAVEN_CORE_WORLD_MAP_EVENT_HPP

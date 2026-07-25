@@ -12,7 +12,7 @@
 
 #include "core/render/texture.hpp"
 
-using namespace openmm6::render;
+using namespace starhaven::render;
 
 namespace {
 

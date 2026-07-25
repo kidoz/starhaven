@@ -3,11 +3,11 @@
 #include <cstdlib>
 #include <system_error>
 
-namespace openmm6::platform {
+namespace starhaven::platform {
 
 namespace {
 
-constexpr const char* kAppName = "openmm6";
+constexpr const char* kAppName = "starhaven";
 
 [[nodiscard]] std::optional<std::filesystem::path> from_env_var(const char* name) {
     if (const char* value = std::getenv(name)) {
@@ -49,4 +49,4 @@ std::optional<std::filesystem::path> user_data_dir() {
     return std::nullopt;
 }
 
-}  // namespace openmm6::platform
+}  // namespace starhaven::platform

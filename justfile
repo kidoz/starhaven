@@ -1,4 +1,4 @@
-# openmm6 task shortcuts. Run `just` to list everything.
+# StarHaven task shortcuts. Run `just` to list everything.
 #
 # Project conventions:
 #   - the configured build directory is `buildDir/`
@@ -34,7 +34,7 @@ test: build
 
 # Build and run the launcher.
 run *args: build
-    ./{{build_dir}}/openmm6 {{args}}
+    ./{{build_dir}}/starhaven {{args}}
 
 # Rewrite all owned sources in place per .clang-format.
 fmt:
@@ -69,10 +69,10 @@ check: fmt-check tidy test
 # Implements the engineer skill's "forced fallback" rule against wrap rot.
 # Verify the committed wraps still build SDL3 and Catch2 from source.
 check-wraps:
-    meson setup /tmp/openmm6-wrap-check --force-fallback-for=sdl3,catch2
-    meson compile -C /tmp/openmm6-wrap-check
-    meson test -C /tmp/openmm6-wrap-check
-    rm -rf /tmp/openmm6-wrap-check
+    meson setup /tmp/starhaven-wrap-check --force-fallback-for=sdl3,catch2
+    meson compile -C /tmp/starhaven-wrap-check
+    meson test -C /tmp/starhaven-wrap-check
+    rm -rf /tmp/starhaven-wrap-check
 
 # Remove the build directory.
 clean:

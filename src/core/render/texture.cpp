@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 bool Texture::create(int width, int height, std::vector<std::uint8_t> rgba,
                      Texture& out) {
@@ -86,4 +86,4 @@ Color Texture::sample(float u, float v, WrapMode wrap) const noexcept {
     return Color{rgba_[idx], rgba_[idx + 1], rgba_[idx + 2], rgba_[idx + 3]};
 }
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render

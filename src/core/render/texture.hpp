@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_RENDER_TEXTURE_HPP
-#define OPENMM6_CORE_RENDER_TEXTURE_HPP
+#ifndef STARHAVEN_CORE_RENDER_TEXTURE_HPP
+#define STARHAVEN_CORE_RENDER_TEXTURE_HPP
 
 #include <cstdint>
 #include <span>
@@ -7,7 +7,7 @@
 
 #include "core/render/color.hpp"
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 // How texture coordinates outside [0,1) are resolved.
 //
@@ -65,6 +65,6 @@ private:
     std::vector<std::uint8_t> rgba_;
 };
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render
 
-#endif  // OPENMM6_CORE_RENDER_TEXTURE_HPP
+#endif  // STARHAVEN_CORE_RENDER_TEXTURE_HPP

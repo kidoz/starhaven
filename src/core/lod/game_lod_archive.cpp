@@ -9,7 +9,7 @@
 #include <ranges>
 #include <system_error>
 
-namespace openmm6::lod {
+namespace starhaven::lod {
 
 namespace {
 
@@ -211,4 +211,4 @@ GameLodArchive::PayloadError GameLodArchive::payload(
     return PayloadError::None;
 }
 
-}  // namespace openmm6::lod
+}  // namespace starhaven::lod

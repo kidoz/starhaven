@@ -7,7 +7,7 @@
 #include <fstream>
 #include <ranges>
 
-namespace openmm6::lod {
+namespace starhaven::lod {
 
 namespace {
 
@@ -258,4 +258,4 @@ LodArchive::PayloadError LodArchive::payload(std::string_view name,
     return PayloadError::None;
 }
 
-}  // namespace openmm6::lod
+}  // namespace starhaven::lod

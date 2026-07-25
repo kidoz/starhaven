@@ -1,12 +1,12 @@
-#ifndef OPENMM6_CORE_RENDER_TILE_SET_HPP
-#define OPENMM6_CORE_RENDER_TILE_SET_HPP
+#ifndef STARHAVEN_CORE_RENDER_TILE_SET_HPP
+#define STARHAVEN_CORE_RENDER_TILE_SET_HPP
 
 #include <array>
 #include <cstdint>
 
 #include "core/render/texture.hpp"
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 // Ground textures indexed by the tilemap value stored in an .odm map.
 //
@@ -54,6 +54,6 @@ private:
     std::size_t filled_ = 0;
 };
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render
 
-#endif  // OPENMM6_CORE_RENDER_TILE_SET_HPP
+#endif  // STARHAVEN_CORE_RENDER_TILE_SET_HPP

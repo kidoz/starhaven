@@ -1,4 +1,4 @@
-# Formatting rules for openmm6.
+# Formatting rules for starhaven.
 #
 # Chosen to match the code that already exists rather than to impose a new
 # house style: 4-space indent, `Type* name` pointers, and a 100-column limit

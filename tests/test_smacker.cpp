@@ -11,7 +11,7 @@
 
 #include "core/video/smacker.hpp"
 
-using namespace openmm6::video;
+using namespace starhaven::video;
 
 namespace {
 

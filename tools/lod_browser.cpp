@@ -22,16 +22,16 @@ void print_usage(const char* argv0) {
               << "  extract <archive> <name>   write one entry's raw stored bytes to <name>.out\n"
               << "\n"
               << "The archive is read from your own legal game install. Set "
-              << openmm6::platform::kInstallEnvVar << " to the install directory,\n"
+              << starhaven::platform::kInstallEnvVar << " to the install directory,\n"
               << "or pass the full archive path directly.\n";
 }
 
-const char* kind_name(openmm6::lod::LodKind k) {
+const char* kind_name(starhaven::lod::LodKind k) {
     switch (k) {
-        case openmm6::lod::LodKind::Bitmaps: return "bitmaps";
-        case openmm6::lod::LodKind::Sprites:  return "sprites";
-        case openmm6::lod::LodKind::Icons:    return "icons";
-        case openmm6::lod::LodKind::Game:     return "game";
+        case starhaven::lod::LodKind::Bitmaps: return "bitmaps";
+        case starhaven::lod::LodKind::Sprites:  return "sprites";
+        case starhaven::lod::LodKind::Icons:    return "icons";
+        case starhaven::lod::LodKind::Game:     return "game";
         default:                              return "unknown";
     }
 }
@@ -51,7 +51,7 @@ bool is_games_lod(const std::filesystem::path& path) {
 // --- Games.lod commands -----------------------------------------------------
 
 int do_list_game(const std::filesystem::path& resolved) {
-    namespace lod = openmm6::lod;
+    namespace lod = starhaven::lod;
     lod::GameLodArchive a;
     const lod::GameLodError e = lod::GameLodArchive::open(resolved, a);
     if (e != lod::GameLodError::None) {
@@ -68,7 +68,7 @@ int do_list_game(const std::filesystem::path& resolved) {
 }
 
 int do_info_game(const std::filesystem::path& resolved, const std::string* name) {
-    namespace lod = openmm6::lod;
+    namespace lod = starhaven::lod;
     lod::GameLodArchive a;
     const lod::GameLodError e = lod::GameLodArchive::open(resolved, a);
     if (e != lod::GameLodError::None) {
@@ -95,7 +95,7 @@ int do_info_game(const std::filesystem::path& resolved, const std::string* name)
 }
 
 int do_extract_game(const std::filesystem::path& resolved, const std::string& name) {
-    namespace lod = openmm6::lod;
+    namespace lod = starhaven::lod;
     lod::GameLodArchive a;
     const lod::GameLodError e = lod::GameLodArchive::open(resolved, a);
     if (e != lod::GameLodError::None) {
@@ -136,7 +136,7 @@ std::filesystem::path resolve_archive(const std::string& arg) {
     if (p.is_absolute() && fs::exists(p)) {
         return p;
     }
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         fs::path resolved = *install / arg;
         if (fs::exists(resolved)) {
             return resolved;
@@ -154,7 +154,7 @@ int do_list(const std::string& archive_arg) {
     if (is_games_lod(resolved)) {
         return do_list_game(resolved);
     }
-    namespace lod = openmm6::lod;
+    namespace lod = starhaven::lod;
     lod::LodArchive a;
     const lod::LodError e = lod::LodArchive::open(resolved, a);
     if (e != lod::LodError::None) {
@@ -181,7 +181,7 @@ int do_info(const std::string& archive_arg, const std::string* name) {
     if (is_games_lod(resolved)) {
         return do_info_game(resolved, name);
     }
-    namespace lod = openmm6::lod;
+    namespace lod = starhaven::lod;
     lod::LodArchive a;
     const lod::LodError e = lod::LodArchive::open(resolved, a);
     if (e != lod::LodError::None) {
@@ -214,7 +214,7 @@ int do_extract(const std::string& archive_arg, const std::string& name) {
     if (is_games_lod(resolved)) {
         return do_extract_game(resolved, name);
     }
-    namespace lod = openmm6::lod;
+    namespace lod = starhaven::lod;
     lod::LodArchive a;
     const lod::LodError e = lod::LodArchive::open(resolved, a);
     if (e != lod::LodError::None) {

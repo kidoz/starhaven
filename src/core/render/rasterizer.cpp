@@ -4,7 +4,7 @@
 #include <cmath>
 #include <utility>
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 void Framebuffer::clear(Color c) {
     for (int i = 0, n = width_ * height_; i < n; ++i) {
@@ -350,4 +350,4 @@ void clip_near(const ViewVertex in[3], float near_z,
     emit_tri(out, *i1, *i2, p2);
 }
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render

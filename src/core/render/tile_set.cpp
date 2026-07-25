@@ -5,7 +5,7 @@
 
 #include "core/render/terrain_mesh.hpp"
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 namespace {
 
@@ -63,4 +63,4 @@ TileSet TileSet::make_placeholder(int tile_px) {
     return set;
 }
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render

@@ -10,7 +10,7 @@
 #include "core/render/texture.hpp"
 #include "core/render/tile_set.hpp"
 
-using namespace openmm6::render;
+using namespace starhaven::render;
 
 namespace {
 

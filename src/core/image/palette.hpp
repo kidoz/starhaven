@@ -1,12 +1,12 @@
-#ifndef OPENMM6_CORE_IMAGE_PALETTE_HPP
-#define OPENMM6_CORE_IMAGE_PALETTE_HPP
+#ifndef STARHAVEN_CORE_IMAGE_PALETTE_HPP
+#define STARHAVEN_CORE_IMAGE_PALETTE_HPP
 
 #include <array>
 #include <cstdint>
 #include <span>
 #include <string>
 
-namespace openmm6::image {
+namespace starhaven::image {
 
 // A 256-entry RGB palette, as carried by .LOD image and palette entries.
 struct Palette {
@@ -35,6 +35,6 @@ enum class PaletteError {
 // paletteId 2 -> "pal002". Used to look up a sprite's shared palette.
 [[nodiscard]] std::string palette_entry_name(std::uint16_t palette_id);
 
-}  // namespace openmm6::image
+}  // namespace starhaven::image
 
-#endif  // OPENMM6_CORE_IMAGE_PALETTE_HPP
+#endif  // STARHAVEN_CORE_IMAGE_PALETTE_HPP

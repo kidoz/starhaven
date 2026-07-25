@@ -8,7 +8,7 @@ using Catch::Approx;
 
 #include "core/render/math3d.hpp"
 
-using namespace openmm6::render;
+using namespace starhaven::render;
 
 constexpr float kEps = 1e-5f;
 

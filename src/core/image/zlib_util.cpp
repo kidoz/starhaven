@@ -4,7 +4,7 @@
 
 #include <zlib.h>
 
-namespace openmm6::image::detail {
+namespace starhaven::image::detail {
 
 bool inflate_all(std::span<const std::byte> src,
                  std::vector<std::uint8_t>& dst) {
@@ -45,4 +45,4 @@ bool inflate_all(std::span<const std::byte> src,
     return ok;
 }
 
-}  // namespace openmm6::image::detail
+}  // namespace starhaven::image::detail

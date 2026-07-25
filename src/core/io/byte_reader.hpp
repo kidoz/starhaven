@@ -1,12 +1,12 @@
-#ifndef OPENMM6_CORE_IO_BYTE_READER_HPP
-#define OPENMM6_CORE_IO_BYTE_READER_HPP
+#ifndef STARHAVEN_CORE_IO_BYTE_READER_HPP
+#define STARHAVEN_CORE_IO_BYTE_READER_HPP
 
 #include <array>
 #include <cstdint>
 #include <span>
 #include <string_view>
 
-namespace openmm6::io {
+namespace starhaven::io {
 
 // Error reasons reported by the reader. Callers decide how to surface them;
 // the reader never throws and never reads past its span.
@@ -77,6 +77,6 @@ private:
     ReadError error_ = ReadError::None;
 };
 
-}  // namespace openmm6::io
+}  // namespace starhaven::io
 
-#endif  // OPENMM6_CORE_IO_BYTE_READER_HPP
+#endif  // STARHAVEN_CORE_IO_BYTE_READER_HPP

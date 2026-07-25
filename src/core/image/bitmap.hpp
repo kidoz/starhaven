@@ -1,12 +1,12 @@
-#ifndef OPENMM6_CORE_IMAGE_BITMAP_HPP
-#define OPENMM6_CORE_IMAGE_BITMAP_HPP
+#ifndef STARHAVEN_CORE_IMAGE_BITMAP_HPP
+#define STARHAVEN_CORE_IMAGE_BITMAP_HPP
 
 #include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
 
-namespace openmm6::image {
+namespace starhaven::image {
 
 // A decoded paletted image from a .LOD entry, expanded to 8-bit RGBA.
 struct Bitmap {
@@ -45,6 +45,6 @@ enum class BitmapError {
 constexpr std::uint32_t kHeaderSize = 48;
 constexpr std::uint32_t kPaletteSize = 768;  // 256 * 3
 
-}  // namespace openmm6::image
+}  // namespace starhaven::image
 
-#endif  // OPENMM6_CORE_IMAGE_BITMAP_HPP
+#endif  // STARHAVEN_CORE_IMAGE_BITMAP_HPP

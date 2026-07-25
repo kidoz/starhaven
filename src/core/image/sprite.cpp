@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace openmm6::image {
+namespace starhaven::image {
 
 using detail::inflate_all;
 
@@ -150,4 +150,4 @@ SpriteError decode_sprite(std::span<const std::byte> entry,
     return SpriteError::None;
 }
 
-}  // namespace openmm6::image
+}  // namespace starhaven::image

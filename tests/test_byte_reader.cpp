@@ -13,7 +13,7 @@
 
 #include "core/io/byte_reader.hpp"
 
-using namespace openmm6::io;
+using namespace starhaven::io;
 
 namespace {
 

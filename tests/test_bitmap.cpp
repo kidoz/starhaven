@@ -14,7 +14,7 @@
 
 #include "core/image/bitmap.hpp"
 
-using namespace openmm6::image;
+using namespace starhaven::image;
 
 namespace {
 

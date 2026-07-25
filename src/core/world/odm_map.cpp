@@ -8,7 +8,7 @@
 #include <string_view>
 #include <utility>
 
-namespace openmm6::world {
+namespace starhaven::world {
 
 using image::detail::inflate_all;
 
@@ -445,4 +445,4 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
     return OdmError::None;
 }
 
-}  // namespace openmm6::world
+}  // namespace starhaven::world

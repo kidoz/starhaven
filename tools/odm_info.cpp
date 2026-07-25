@@ -20,14 +20,14 @@ void print_usage(const char* argv0) {
               << "install (Games.lod) and prints its header metadata. The tile\n"
               << "and geometry internals are not yet decoded.\n"
               << "\n"
-              << "Set " << openmm6::platform::kInstallEnvVar
+              << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory, or pass the full Games.lod-relative\n"
               << "map name (e.g. Outa1.odm).\n";
 }
 
 std::filesystem::path resolve_games_lod() {
     namespace fs = std::filesystem;
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         fs::path p = *install / "data" / "Games.lod";
         if (fs::exists(p)) {
             return p;
@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
     }
     const std::string map_name = argv[1];
 
-    namespace lod = openmm6::lod;
-    namespace world = openmm6::world;
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
 
     lod::GameLodArchive archive;
     const lod::GameLodError open_err =

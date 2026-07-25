@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-namespace openmm6::io {
+namespace starhaven::io {
 
 namespace {
 
@@ -124,4 +124,4 @@ bool ByteReader::read_fixed_string(std::size_t field_width, std::string& out) no
     return true;
 }
 
-}  // namespace openmm6::io
+}  // namespace starhaven::io

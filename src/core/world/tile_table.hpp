@@ -1,12 +1,12 @@
-#ifndef OPENMM6_CORE_WORLD_TILE_TABLE_HPP
-#define OPENMM6_CORE_WORLD_TILE_TABLE_HPP
+#ifndef STARHAVEN_CORE_WORLD_TILE_TABLE_HPP
+#define STARHAVEN_CORE_WORLD_TILE_TABLE_HPP
 
 #include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
 
-namespace openmm6::world {
+namespace starhaven::world {
 
 // One row of the global ground-tile table (`DTILE.BIN`). See
 // docs/formats/dtile.md.
@@ -53,6 +53,6 @@ private:
     std::vector<TileTableEntry> entries_;
 };
 
-}  // namespace openmm6::world
+}  // namespace starhaven::world
 
-#endif  // OPENMM6_CORE_WORLD_TILE_TABLE_HPP
+#endif  // STARHAVEN_CORE_WORLD_TILE_TABLE_HPP

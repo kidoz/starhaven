@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_VIDEO_VID_ARCHIVE_HPP
-#define OPENMM6_CORE_VIDEO_VID_ARCHIVE_HPP
+#ifndef STARHAVEN_CORE_VIDEO_VID_ARCHIVE_HPP
+#define STARHAVEN_CORE_VIDEO_VID_ARCHIVE_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace openmm6::video {
+namespace starhaven::video {
 
 // Outcome of parsing a `.vid` archive. Callers convert these into user-facing
 // text; the reader never throws.
@@ -82,6 +82,6 @@ private:
 constexpr std::uint32_t kVidNameSize = 40;
 constexpr std::uint32_t kVidEntrySize = 44;  // name[40] + u32 offset
 
-}  // namespace openmm6::video
+}  // namespace starhaven::video
 
-#endif  // OPENMM6_CORE_VIDEO_VID_ARCHIVE_HPP
+#endif  // STARHAVEN_CORE_VIDEO_VID_ARCHIVE_HPP

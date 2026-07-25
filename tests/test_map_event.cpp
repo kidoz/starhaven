@@ -12,7 +12,7 @@
 
 #include "core/world/map_event.hpp"
 
-using namespace openmm6::world;
+using namespace starhaven::world;
 
 namespace {
 

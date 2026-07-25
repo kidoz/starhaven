@@ -30,7 +30,7 @@ void print_usage(const char* argv0) {
               << "\n"
               << "Controls: SPACE pauses, ESC quits.\n"
               << "\n"
-              << "Set " << openmm6::platform::kInstallEnvVar
+              << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory.\n";
 }
 
@@ -38,7 +38,7 @@ void print_usage(const char* argv0) {
 std::vector<std::filesystem::path> resolve_archives() {
     namespace fs = std::filesystem;
     std::vector<fs::path> found;
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         for (const char* name : {"Anims1.vid", "Anims2.vid"}) {
             fs::path p = *install / "Anims" / name;
             if (fs::exists(p)) {
@@ -67,7 +67,7 @@ bool write_ppm(const std::string& path, std::span<const std::uint8_t> rgba,
 }  // namespace
 
 int main(int argc, char** argv) {
-    namespace video = openmm6::video;
+    namespace video = starhaven::video;
 
     std::string want;
     std::string screenshot;
@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
     }
     if (archives.empty()) {
         std::cerr << "error: no .vid archives found; set "
-                  << openmm6::platform::kInstallEnvVar << "\n";
+                  << starhaven::platform::kInstallEnvVar << "\n";
         return 1;
     }
 
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
         return 1;
     }
-    const std::string title = "openmm6 — " + want;
+    const std::string title = "StarHaven — " + want;
     SDL_Window* window = SDL_CreateWindow(title.c_str(),
                                           static_cast<int>(info.width) * scale,
                                           static_cast<int>(info.height) * scale, 0);

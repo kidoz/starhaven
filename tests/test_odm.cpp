@@ -13,7 +13,7 @@
 
 #include "core/world/odm_map.hpp"
 
-using namespace openmm6::world;
+using namespace starhaven::world;
 
 namespace {
 

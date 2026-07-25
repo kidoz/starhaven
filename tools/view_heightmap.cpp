@@ -23,13 +23,13 @@ void print_usage(const char* argv0) {
               << "image in an SDL3 window. Higher elevations are brighter.\n"
               << "Press ESC or close the window to quit.\n"
               << "\n"
-              << "Set " << openmm6::platform::kInstallEnvVar
+              << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory.\n";
 }
 
 std::filesystem::path resolve_games_lod() {
     namespace fs = std::filesystem;
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         fs::path p = *install / "data" / "Games.lod";
         if (fs::exists(p)) {
             return p;
@@ -63,8 +63,8 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    namespace lod = openmm6::lod;
-    namespace world = openmm6::world;
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
 
     lod::GameLodArchive archive;
     const lod::GameLodError open_err =
@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
         return 1;
     }
-    const std::string title = "openmm6 — heightmap — " + map_name;
+    const std::string title = "StarHaven — heightmap — " + map_name;
     // SDL3 drops the x/y arguments and SDL_WINDOW_SHOWN; nullptr picks the
     // default render backend.
     SDL_Window* window =

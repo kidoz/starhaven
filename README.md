@@ -1,4 +1,4 @@
-# openmm6
+# StarHaven
 
 An open-source engine for **Might and Magic VI: The Mandate of Heaven**,
 targeting macOS, Linux, and Windows. The goal is a portable reimplementation
@@ -11,7 +11,7 @@ UI, and gameplay come in later slices.
 
 ## Legal posture
 
-**openmm6 does not include any game data.** It is an original engine that reads
+**StarHaven does not include any game data.** It is an original engine that reads
 a copy of the game you already own. It does not bypass DRM, copy protection, or
 authentication, and it does not redistribute executables, archives, media,
 manuals, or any other content from the original game.
@@ -120,8 +120,8 @@ meson test -C buildDir
 Point the engine at your legal game installation with an environment variable:
 
 ```bash
-export OPENMM6_GAME_DIR=/path/to/your/MM6/install   # contains MM6.exe and data/
-./buildDir/openmm6
+export STARHAVEN_GAME_DIR=/path/to/your/MM6/install   # contains MM6.exe and data/
+./buildDir/starhaven
 ```
 
 Inspect an archive:
@@ -257,6 +257,6 @@ docs/
 ## Contributing
 
 C++20, Meson + Ninja, `warning_level=3`. Keep `src/main.cpp` thin; put logic in the
-`openmm6_core` library so the app, tools, and tests share one code path. Never
+`starhaven_core` library so the app, tools, and tests share one code path. Never
 commit game data, extracted assets, or any content from the original game —
 fixtures must be synthetic.

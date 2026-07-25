@@ -45,13 +45,13 @@ void print_usage(const char* argv0) {
               << "  --look YAW,PITCH    start orientation in degrees\n"
               << "  --boxes             overlay model bounding boxes\n"
               << "\n"
-              << "Set " << openmm6::platform::kInstallEnvVar
+              << "Set " << starhaven::platform::kInstallEnvVar
               << " to the install directory.\n";
 }
 
 std::filesystem::path resolve_games_lod() {
     namespace fs = std::filesystem;
-    if (auto install = openmm6::platform::install_from_env()) {
+    if (auto install = starhaven::platform::install_from_env()) {
         fs::path p = *install / "data" / "Games.lod";
         if (fs::exists(p)) {
             return p;
@@ -69,13 +69,13 @@ constexpr int kHeight = 480;
 //
 // Only the indices present in the tilemap are decoded: the global table has
 // 882 records, of which a single map typically uses fewer than a hundred.
-int load_ground_tiles(const openmm6::world::OdmTerrain& terrain,
-                      openmm6::render::TileSet& out) {
-    namespace lod = openmm6::lod;
-    namespace img = openmm6::image;
-    namespace world = openmm6::world;
+int load_ground_tiles(const starhaven::world::OdmTerrain& terrain,
+                      starhaven::render::TileSet& out) {
+    namespace lod = starhaven::lod;
+    namespace img = starhaven::image;
+    namespace world = starhaven::world;
 
-    const auto install = openmm6::platform::install_from_env();
+    const auto install = starhaven::platform::install_from_env();
     if (!install) return -1;
     const std::filesystem::path data = *install / "data";
 
@@ -115,8 +115,8 @@ int load_ground_tiles(const openmm6::world::OdmTerrain& terrain,
         img::Bitmap bmp;
         if (img::decode_bitmap(raw, bmp) != img::BitmapError::None) continue;
 
-        openmm6::render::Texture tex;
-        if (!openmm6::render::Texture::create(bmp.width, bmp.height,
+        starhaven::render::Texture tex;
+        if (!starhaven::render::Texture::create(bmp.width, bmp.height,
                                               std::move(bmp.rgba), tex)) {
             continue;
         }
@@ -128,12 +128,12 @@ int load_ground_tiles(const openmm6::world::OdmTerrain& terrain,
 // Decode the textures the map's model facets reference, keyed by the facet's
 // texture name. Returns the number of distinct textures resolved, or -1 if
 // BITMAPS.LOD could not be opened.
-int load_model_textures(const std::vector<openmm6::world::OdmModelMesh>& meshes,
-                        std::map<std::string, openmm6::render::Texture>& out) {
-    namespace lod = openmm6::lod;
-    namespace img = openmm6::image;
+int load_model_textures(const std::vector<starhaven::world::OdmModelMesh>& meshes,
+                        std::map<std::string, starhaven::render::Texture>& out) {
+    namespace lod = starhaven::lod;
+    namespace img = starhaven::image;
 
-    const auto install = openmm6::platform::install_from_env();
+    const auto install = starhaven::platform::install_from_env();
     if (!install) return -1;
 
     lod::LodArchive bitmaps;
@@ -154,8 +154,8 @@ int load_model_textures(const std::vector<openmm6::world::OdmModelMesh>& meshes,
             }
             img::Bitmap bmp;
             if (img::decode_bitmap(raw, bmp) != img::BitmapError::None) continue;
-            openmm6::render::Texture tex;
-            if (!openmm6::render::Texture::create(bmp.width, bmp.height,
+            starhaven::render::Texture tex;
+            if (!starhaven::render::Texture::create(bmp.width, bmp.height,
                                                   std::move(bmp.rgba), tex)) {
                 continue;
             }
@@ -170,17 +170,17 @@ int load_model_textures(const std::vector<openmm6::world::OdmModelMesh>& meshes,
 // geometry is stored in absolute world units on the same scale as the terrain
 // (verified in docs/formats/odm-model-facets.md), so placement is a pure axis
 // swap with no offset.
-openmm6::render::Vec3 to_render_space(std::int32_t x, std::int32_t y, std::int32_t z) {
+starhaven::render::Vec3 to_render_space(std::int32_t x, std::int32_t y, std::int32_t z) {
     return {static_cast<float>(x), static_cast<float>(z), static_cast<float>(y)};
 }
 
 // Transform one world-space vertex through view+projection, then to a screen
 // vertex. Returns false if the vertex is behind the near plane (caller should
 // have clipped already).
-bool project(const openmm6::render::Mat4& view_proj,
-             openmm6::render::Vec3 world, float r, float g, float b,
-             openmm6::render::Vec2 uv, openmm6::render::ScreenVertex& out) {
-    using namespace openmm6::render;
+bool project(const starhaven::render::Mat4& view_proj,
+             starhaven::render::Vec3 world, float r, float g, float b,
+             starhaven::render::Vec2 uv, starhaven::render::ScreenVertex& out) {
+    using namespace starhaven::render;
     const Vec4 clip = view_proj * Vec4{world.x, world.y, world.z, 1.0f};
     if (clip.w <= 0.0001f) {
         return false;  // behind/through the camera
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
     std::string screenshot;  // when set, render one frame to PPM and exit
     bool show_boxes = false;  // model bounding-box wireframe overlay
     // Camera defaults: above the map center, looking across it.
-    openmm6::render::Vec3 start_pos{0, 32.0f * 30.0f, 0};
+    starhaven::render::Vec3 start_pos{0, 32.0f * 30.0f, 0};
     float start_yaw = 0.6f, start_pitch = -0.3f;  // radians
 
     // Parse "a,b,c" into up to three floats; returns how many were read.
@@ -244,8 +244,8 @@ int main(int argc, char** argv) {
                 print_usage(argv[0]);
                 return 2;
             }
-            start_yaw = openmm6::render::radians(yp[0]);
-            start_pitch = openmm6::render::radians(yp[1]);
+            start_yaw = starhaven::render::radians(yp[0]);
+            start_pitch = starhaven::render::radians(yp[1]);
         } else if (map_name.empty()) {
             map_name = a;
         } else {
@@ -258,9 +258,9 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    namespace lod = openmm6::lod;
-    namespace world = openmm6::world;
-    namespace render = openmm6::render;
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace render = starhaven::render;
 
     lod::GameLodArchive archive;
     if (lod::GameLodArchive::open(resolve_games_lod(), archive) != lod::GameLodError::None) {
@@ -319,7 +319,7 @@ int main(int argc, char** argv) {
         std::cerr << "error: SDL_Init: " << SDL_GetError() << "\n";
         return 1;
     }
-    const std::string title = "openmm6 — walk — " + map_name;
+    const std::string title = "StarHaven — walk — " + map_name;
     // SDL3 drops the x/y arguments and SDL_WINDOW_SHOWN; nullptr picks the
     // default render backend.
     SDL_Window* window = SDL_CreateWindow(title.c_str(), kWidth, kHeight, 0);

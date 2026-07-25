@@ -1,10 +1,10 @@
-#ifndef OPENMM6_CORE_RENDER_MATH3D_HPP
-#define OPENMM6_CORE_RENDER_MATH3D_HPP
+#ifndef STARHAVEN_CORE_RENDER_MATH3D_HPP
+#define STARHAVEN_CORE_RENDER_MATH3D_HPP
 
 #include <array>
 #include <cmath>
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 // Minimal 3D math for the software rasterizer. Plain float, fixed-size, no
 // dependencies. Matrices are column-major (column c, row r at [c*4 + r]) so
@@ -143,6 +143,6 @@ inline Vec3 camera_right(float yaw) {
 constexpr float kPi = 3.14159265358979323846f;
 inline float radians(float deg) { return deg * kPi / 180.0f; }
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render
 
-#endif  // OPENMM6_CORE_RENDER_MATH3D_HPP
+#endif  // STARHAVEN_CORE_RENDER_MATH3D_HPP

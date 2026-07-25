@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_VIDEO_SMACKER_HPP
-#define OPENMM6_CORE_VIDEO_SMACKER_HPP
+#ifndef STARHAVEN_CORE_VIDEO_SMACKER_HPP
+#define STARHAVEN_CORE_VIDEO_SMACKER_HPP
 
 #include <array>
 #include <cstddef>
@@ -8,7 +8,7 @@
 #include <span>
 #include <vector>
 
-namespace openmm6::video {
+namespace starhaven::video {
 
 // Outcome of loading or decoding a Smacker video. The decoder never throws.
 enum class SmackerError {
@@ -74,7 +74,7 @@ struct SmackerInfo {
 // every entry in `Anims1.vid` / `Anims2.vid`. See docs/formats/smacker.md.
 //
 // This slice decodes **video only**. Audio track payloads are located and
-// skipped, not decoded — openmm6 has no audio output yet.
+// skipped, not decoded — starhaven has no audio output yet.
 //
 // Frames are inter-coded: frame N is a delta against the buffer left by frame
 // N-1, so `decode_frame` replays intervening frames when asked for a frame out
@@ -170,6 +170,6 @@ constexpr std::size_t kSmackerHeaderSize = 104;
 constexpr std::size_t kSmackerAudioTracks = 7;
 constexpr std::size_t kSmackerPaletteBytes = 768;
 
-}  // namespace openmm6::video
+}  // namespace starhaven::video
 
-#endif  // OPENMM6_CORE_VIDEO_SMACKER_HPP
+#endif  // STARHAVEN_CORE_VIDEO_SMACKER_HPP

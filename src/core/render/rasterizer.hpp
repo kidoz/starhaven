@@ -1,5 +1,5 @@
-#ifndef OPENMM6_CORE_RENDER_RASTERIZER_HPP
-#define OPENMM6_CORE_RENDER_RASTERIZER_HPP
+#ifndef STARHAVEN_CORE_RENDER_RASTERIZER_HPP
+#define STARHAVEN_CORE_RENDER_RASTERIZER_HPP
 
 #include <cstdint>
 #include <span>
@@ -9,7 +9,7 @@
 #include "core/render/math3d.hpp"
 #include "core/render/texture.hpp"
 
-namespace openmm6::render {
+namespace starhaven::render {
 
 // A renderable vertex after transform: screen-space x,y plus NDC z in [0,1]
 // and an interpolated color channel (linear RGB 0..1, premultiplied by shading).
@@ -101,6 +101,6 @@ struct ViewVertex {
 void clip_near(const ViewVertex in[3], float near_z,
                std::vector<ViewVertex>& out_tris);
 
-}  // namespace openmm6::render
+}  // namespace starhaven::render
 
-#endif  // OPENMM6_CORE_RENDER_RASTERIZER_HPP
+#endif  // STARHAVEN_CORE_RENDER_RASTERIZER_HPP

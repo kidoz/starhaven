@@ -8,8 +8,8 @@ using Catch::Approx;
 #include "core/render/terrain_mesh.hpp"
 #include "core/world/odm_map.hpp"
 
-using namespace openmm6;
-using namespace openmm6::render;
+using namespace starhaven;
+using namespace starhaven::render;
 
 namespace {
 
