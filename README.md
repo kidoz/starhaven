@@ -59,8 +59,11 @@ interoperability and compatibility with a legally purchased copy.
   resolves an `.odm` tilemap byte to a `BITMAPS.LOD` entry, so terrain is drawn
   with the game's own art rather than placeholder colors.
 - A decoder for map **actors** — the named monsters and NPCs placed on outdoor
-  maps, with their world positions. 266 across 15 maps, of which 252 stand
-  either on the terrain or inside a building footprint.
+  maps, with their world positions and monster ids. 266 across 15 maps, of
+  which 252 stand either on the terrain or inside a building footprint.
+- A decoder for `DMONLIST.BIN`, the **monster table** (173 records): each
+  monster's name and its eight animation sprite base names. `walk_odm` draws
+  actors as billboards, so MM6's townsfolk stand in the streets.
 - A decoder for `.ddm` (outdoor) and `.dlv` (indoor) **event-data files** — the
   map interaction scripts (triggers, spawns, actions). Same zlib wrapper as
   `.odm`. Also enumerates the first event table's populated records (type +
@@ -134,7 +137,8 @@ The format specs are documented from observed behavior in
 [`docs/formats/blv.md`](docs/formats/blv.md),
 [`docs/formats/vid.md`](docs/formats/vid.md),
 [`docs/formats/snd.md`](docs/formats/snd.md),
-[`docs/formats/event-actors.md`](docs/formats/event-actors.md), and
+[`docs/formats/event-actors.md`](docs/formats/event-actors.md),
+[`docs/formats/dmonlist.md`](docs/formats/dmonlist.md), and
 [`docs/formats/smacker.md`](docs/formats/smacker.md).
 
 ## Build
@@ -274,6 +278,7 @@ src/
     image/zlib_util.{hpp,cpp} shared zlib inflate helper
     world/odm_map.{hpp,cpp}   .odm parser (zlib, header, terrain, model meshes)
     world/tile_table.{hpp,cpp} DTILE.BIN ground tile table (index -> bitmap)
+    world/monster_list.{hpp,cpp} DMONLIST.BIN monster table (id -> sprites)
     world/blv_map.{hpp,cpp}   .blv indoor map parser (vertices + faces)
     world/collision.{hpp,cpp} static collision world: floor queries, wall slide
     audio/snd_archive.{hpp,cpp} Audio.snd sound-effect archive reader
@@ -332,7 +337,8 @@ docs/
 22. ~~Smacker DPCM audio and an SDL3 audio sink.~~ ✓ (this slice)
 23. ~~Decode the sound-effect archive and its IMA ADPCM waves.~~ ✓ (this slice)
 24. ~~Decode actor placements from the event files.~~ ✓ (this slice)
-25. Resolve actor names to sprites via `DMONLIST.BIN`; UI, music, and gameplay systems.
+25. ~~Resolve actors to sprites via `DMONLIST.BIN` and draw them.~~ ✓ (this slice)
+26. Actor statistics, monster palette variants, UI, music, and gameplay systems.
 
 ## Contributing
 

@@ -90,7 +90,8 @@ int main(int argc, char** argv) {
     const auto actors = world::extract_actors(ev);
     std::cout << "  actors: " << actors.size() << "\n";
     for (std::size_t i = 0; i < actors.size() && i < 3; ++i) {
-        std::cout << "    [" << i << "] " << actors[i].name << " at ("
+        std::cout << "    [" << i << "] " << actors[i].name << " (monster "
+                  << static_cast<int>(actors[i].monster_id) << ") at ("
                   << actors[i].x << "," << actors[i].y << "," << actors[i].z
                   << ")\n";
     }

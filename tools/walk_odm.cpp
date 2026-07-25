@@ -25,6 +25,8 @@
 #include "core/render/texture.hpp"
 #include "core/render/tile_set.hpp"
 #include "core/world/collision.hpp"
+#include "core/world/map_event.hpp"
+#include "core/world/monster_list.hpp"
 #include "core/world/odm_map.hpp"
 #include "core/world/tile_table.hpp"
 
@@ -178,11 +180,10 @@ int load_model_textures(const std::vector<starhaven::world::OdmModelMesh>& meshe
     return resolved;
 }
 
-// Decode the sprites the map's decorations reference, keyed by name. Sprites
-// live in SPRITES.LOD and share palettes held in BITMAPS.LOD.
-int load_decoration_sprites(
-    const std::vector<starhaven::world::OdmDecoration>& decorations,
-    std::map<std::string, starhaven::render::Texture>& out) {
+// Decode a set of named sprites into `out`. Sprites live in SPRITES.LOD and
+// share palettes held in BITMAPS.LOD.
+int load_sprites(const std::vector<std::string>& names,
+                 std::map<std::string, starhaven::render::Texture>& out) {
     namespace lod = starhaven::lod;
     namespace img = starhaven::image;
 
@@ -221,11 +222,11 @@ int load_decoration_sprites(
     };
 
     int resolved = 0;
-    for (const auto& d : decorations) {
-        if (d.name.empty() || out.count(d.name) != 0) continue;
+    for (const auto& name : names) {
+        if (name.empty() || out.count(name) != 0) continue;
 
         std::span<const std::byte> raw;
-        if (sprites.payload(d.name, raw) != lod::LodArchive::PayloadError::None) {
+        if (sprites.payload(name, raw) != lod::LodArchive::PayloadError::None) {
             continue;
         }
         img::SpriteHeader header;
@@ -242,10 +243,26 @@ int load_decoration_sprites(
                                                 std::move(sprite.rgba), tex)) {
             continue;
         }
-        out.emplace(d.name, std::move(tex));
+        out.emplace(name, std::move(tex));
         ++resolved;
     }
     return resolved;
+}
+
+// Whether SPRITES.LOD holds an entry of this name. Opened once and kept, so
+// probing many candidate names stays cheap.
+bool sprite_exists(const std::string& name) {
+    static starhaven::lod::LodArchive archive;
+    static bool opened = [] {
+        const auto install = starhaven::platform::install_from_env();
+        return install && starhaven::lod::LodArchive::open(
+                              *install / "data" / "SPRITES.LOD", archive) ==
+                              starhaven::lod::LodError::None;
+    }();
+    if (!opened) return false;
+    std::span<const std::byte> raw;
+    return archive.payload(name, raw) ==
+           starhaven::lod::LodArchive::PayloadError::None;
 }
 
 // MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up. Model
@@ -419,7 +436,10 @@ int main(int argc, char** argv) {
         decorations.clear();
     }
     std::map<std::string, render::Texture> decoration_sprites;
-    const int deco_loaded = load_decoration_sprites(decorations, decoration_sprites);
+    std::vector<std::string> deco_names;
+    deco_names.reserve(decorations.size());
+    for (const auto& d : decorations) deco_names.push_back(d.name);
+    const int deco_loaded = load_sprites(deco_names, decoration_sprites);
     if (!decorations.empty()) {
         std::cout << "loaded " << decorations.size() << " decorations, "
                   << (deco_loaded > 0 ? deco_loaded : 0) << " sprites\n";
@@ -443,6 +463,75 @@ int main(int argc, char** argv) {
         }
     }
     std::cout << "collision polygons: " << collision.size() << "\n";
+
+    // Actors: the map's event file names the monsters standing on it, and the
+    // monster table turns each id into sprite base names.
+    std::vector<world::MapActor> actors;
+    std::map<std::string, render::Texture> actor_sprites;
+    std::map<std::size_t, std::string> actor_sprite_name;
+    {
+        // The event file shares the map's stem with a .ddm extension.
+        std::string stem = map_name;
+        const std::size_t dot = stem.rfind('.');
+        if (dot != std::string::npos) stem = stem.substr(0, dot);
+        std::span<const std::byte> ev_entry;
+        world::MapEventFile ev;
+        if (archive.payload(stem + ".ddm", ev_entry) ==
+                lod::GameLodArchive::PayloadError::None &&
+            world::parse_map_event(ev_entry, ev) == world::MapEventError::None) {
+            actors = world::extract_actors(ev);
+        }
+
+        world::MonsterList monsters;
+        if (const auto install = starhaven::platform::install_from_env()) {
+            lod::LodArchive icons;
+            std::span<const std::byte> raw;
+            if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) ==
+                    lod::LodError::None &&
+                icons.payload("DMONLIST.BIN", raw) ==
+                    lod::LodArchive::PayloadError::None) {
+                if (world::MonsterList::parse(raw, monsters) !=
+                    world::MonsterListError::None) {
+                    monsters = world::MonsterList{};
+                }
+            }
+        }
+
+        // Draw the standing pose, front view. MM6 sprites carry a view digit
+        // 0..4; picking the angle-correct one is a later refinement.
+        //
+        // Monsters come in A/B/C triples and only the A variant's sprite ships
+        // in SPRITES.LOD — B and C are presumably palette swaps, a mechanism
+        // that is not decoded. Falling back to the group's A sprite draws them
+        // in the wrong colours rather than not at all.
+        std::vector<std::string> names;
+        for (std::size_t i = 0; i < actors.size(); ++i) {
+            const std::size_t id = actors[i].monster_id;
+            const auto* m = monsters.at(id);
+            if (m == nullptr) continue;
+
+            auto sprite_for = [&](const world::MonsterListEntry* e) {
+                const std::string& base = e->animation(world::MonsterAnimation::Stand);
+                return base.empty() ? std::string{} : base + "0";
+            };
+            std::string sprite = sprite_for(m);
+            if (!sprite.empty() && !sprite_exists(sprite)) {
+                const auto* a_variant = monsters.at(id - (id % 3));
+                if (a_variant != nullptr) {
+                    const std::string alt = sprite_for(a_variant);
+                    if (!alt.empty() && sprite_exists(alt)) sprite = alt;
+                }
+            }
+            if (sprite.empty() || !sprite_exists(sprite)) continue;
+            actor_sprite_name[i] = sprite;
+            names.push_back(sprite);
+        }
+        const int actor_loaded = load_sprites(names, actor_sprites);
+        if (!actors.empty()) {
+            std::cout << "loaded " << actors.size() << " actors, "
+                      << (actor_loaded > 0 ? actor_loaded : 0) << " sprites\n";
+        }
+    }
 
     std::map<std::string, render::Texture> model_textures;
     const int model_tex = load_model_textures(meshes, model_textures);
@@ -705,6 +794,41 @@ int main(int argc, char** argv) {
                 const render::Vec3 half = bb_right * (w * 0.5f);
 
                 // Corners: bottom-left, bottom-right, top-right, top-left.
+                const render::Vec3 bl = base - half;
+                const render::Vec3 br = base + half;
+                const render::Vec3 tr{br.x, br.y + h, br.z};
+                const render::Vec3 tl{bl.x, bl.y + h, bl.z};
+
+                const render::Vec3 t0[3] = {tl, bl, br};
+                const render::Vec2 u0[3] = {{0, 0}, {0, 1}, {1, 1}};
+                draw_world_triangle(t0, u0, 1.0f, it->second,
+                                    render::WrapMode::Clamp, false);
+                const render::Vec3 t1[3] = {tl, br, tr};
+                const render::Vec2 u1[3] = {{0, 0}, {1, 1}, {1, 0}};
+                draw_world_triangle(t1, u1, 1.0f, it->second,
+                                    render::WrapMode::Clamp, false);
+            }
+        }
+
+        // Actors, drawn the same way as decorations.
+        {
+            const render::Vec3 bb_right = render::camera_right(yaw);
+            for (std::size_t i = 0; i < actors.size(); ++i) {
+                const auto named = actor_sprite_name.find(i);
+                if (named == actor_sprite_name.end()) continue;
+                const auto it = actor_sprites.find(named->second);
+                if (it == actor_sprites.end() || it->second.empty()) continue;
+
+                // Actor sprites are drawn near 1:1: a standing peasant is 255
+                // pixels tall and should stand about 300 world units, which is
+                // roughly the party's own eye height. Decoration sprites need a
+                // much larger factor, so the two are not shared. `inferred`
+                constexpr float kActorScale = 1.2f;
+                const float w = static_cast<float>(it->second.width()) * kActorScale;
+                const float h = static_cast<float>(it->second.height()) * kActorScale;
+                const render::Vec3 base =
+                    to_render_space(actors[i].x, actors[i].y, actors[i].z);
+                const render::Vec3 half = bb_right * (w * 0.5f);
                 const render::Vec3 bl = base - half;
                 const render::Vec3 br = base + half;
                 const render::Vec3 tr{br.x, br.y + h, br.z};

@@ -115,3 +115,9 @@ test('snd_archive',
     dependencies : [starhaven_dep, catch2_main, zlib_dep]),
   workdir : meson.current_build_dir(),
 )
+
+test('monster_list',
+  executable('test_monster_list', 'test_monster_list.cpp',
+    dependencies : [starhaven_dep, catch2_main, zlib_dep]),
+  workdir : meson.current_build_dir(),
+)

@@ -257,3 +257,14 @@ TEST_CASE("a non-printable name ends the array", "[map_event]") {
     file.payload[second + kEventRecordNameOffset + 1] = 0x02;
     REQUIRE(extract_actors(file).size() == 1);
 }
+
+TEST_CASE("actors carry the monster id that indexes DMONLIST", "[map_event]") {
+    auto entry = make_event_entry_with_actors({{"Peasant", 1, 2, 3}});
+    MapEventFile file;
+    REQUIRE(parse_map_event(entry, file) == MapEventError::None);
+    // Stamp a monster id into the first record.
+    file.payload[kEventTableOffset + kActorMonsterIdOffset] = 133;
+    const auto actors = extract_actors(file);
+    REQUIRE(actors.size() == 1);
+    REQUIRE(actors[0].monster_id == 133);
+}
