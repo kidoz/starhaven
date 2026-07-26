@@ -192,6 +192,55 @@ Both invariants — the face index being in range and the `0xffff` marker — ho
 across **all 52 maps and all 35,485 records**, and the parser enforces them.
 The marker is what makes a misaligned read impossible to miss. `observed`
 
+The array is in **ascending face order on every map**, and a face may be named
+more than once: 17 faces across the 52 maps carry two records. `observed`
+
+### Attribute bit 0x80000000 says a face has an extra
+
+The face's own attribute word announces it. Across all 52 maps:
+
+| | faces |
+| --- | ---: |
+| flagged and described | 35,433 |
+| flagged with no record | **0** |
+| described without the flag | 35 |
+| neither | 53,623 |
+
+The 35 exceptions are one per map and are all **face index 0** — the sentinel
+record every array begins with, whose other fields are zero. Setting the
+exception aside, the bit and the record agree exactly, in both directions.
+`observed`
+
+Reproduce with `blv_info <map>.blv`, which reports the comparison.
+
+### The three live fields
+
+Twelve of the record's 36 bytes are zero in every record, and the four at +0x10
+and twenty at +0x1C are almost always zero. What is left is three `u16`s, and
+each is **associated with a further attribute bit on the face it names** —
+associated, not equivalent, which is why they are still named for their
+offsets:
+
+| Field | Nonzero in | Accompanying bit | Nonzero values carrying the bit |
+| --- | ---: | --- | --- |
+| +0x14 | 29,732 | `0x00001000` | 97.7% |
+| +0x16 | 29,658 | `0x00000008` | 99.1% |
+| +0x1A | 5,560 | `0x02000000` | 85.7% |
+
+A bit set with a zero value is not a counterexample — an offset of zero is a
+legitimate value — so only the other direction is measured here. `observed`
+
+`+0x1A` is the most distinctive: it takes 81 distinct values across the whole
+game, runs 0 to 295, and repeats within a map, so several faces share one
+value. Of the 934 values shared by more than one face, 501 name a run of
+**consecutive** face indices and the median span is 4, which is what a door or
+a trigger built from a handful of adjacent faces would look like. That is
+suggestive, not a decode. `inferred`
+
+The other two are dominated by multiples of 64, 128 and 256 and include values
+that read as negative when taken as `i16` (−1, −128), which fits a texture
+offset better than an id. `unknown`
+
 ## Face-extra names
 
 The face-extra array is followed by one **10-byte name per extra**, the same
