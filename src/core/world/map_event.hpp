@@ -71,6 +71,13 @@ enum class OutdoorEventLayoutError : std::uint8_t {
 constexpr std::size_t kIndoorActorCountOffset = 883;
 constexpr std::size_t kIndoorActorArrayOffset = 887;
 
+// Immediately after the chest array, every indoor payload carries a fixed
+// 200-entry array of 80-byte records — not a counted section. Each record's
+// fields at +0x24..+0x40 are eight pointers into the writing process's heap.
+constexpr std::size_t kIndoorStateSlotCount = 200;
+constexpr std::size_t kIndoorStateSlotSize = 80;
+constexpr std::size_t kIndoorStateBlockSize = kIndoorStateSlotCount * kIndoorStateSlotSize;
+
 enum class MapEventKind : std::uint8_t {
     Unknown,
     Outdoor,
@@ -88,9 +95,13 @@ struct EventLayout {
     std::size_t chests_offset = 0;
 
     // What follows the chest array: outdoor's fixed 256-byte trailer, or the
-    // indoor block of saved runtime state, whose size is not modelled.
+    // indoor block of saved runtime state.
     std::size_t tail_offset = 0;
     std::size_t tail_size = 0;
+
+    // Indoor only: the fixed 200-slot record array at the start of the tail.
+    std::size_t state_offset = 0;
+    std::size_t state_size = 0;
 };
 
 enum class EventLayoutError : std::uint8_t {
@@ -99,6 +110,8 @@ enum class EventLayoutError : std::uint8_t {
     TooSmall,
     // A count-times-stride section runs past the payload.
     BadSectionSize,
+    // An indoor payload has no room for its fixed state block and trailer.
+    BadStateBlock,
 };
 
 // Decode either layout, choosing between them by trying the outdoor one first.

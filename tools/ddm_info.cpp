@@ -98,7 +98,12 @@ int main(int argc, char** argv) {
 
     std::cout << "  layout: " << (layout.kind == world::MapEventKind::Indoor ? "indoor" : "outdoor")
               << "  sections at " << layout.actors_offset << ", tail " << layout.tail_size
-              << " bytes\n";
+              << " bytes";
+    if (layout.kind == world::MapEventKind::Indoor) {
+        std::cout << " (" << layout.state_size << " of fixed state, "
+                  << (layout.tail_size - layout.state_size) << " of the rest)";
+    }
+    std::cout << "\n";
     std::cout << "  actors: " << layout.actor_count << "\n";
     std::cout << "  sprite_objects: " << layout.sprite_object_count << "\n";
     std::cout << "  chests: " << layout.chest_count << "\n";

@@ -166,11 +166,19 @@ EventLayoutError parse_event_layout(const MapEventFile& file, EventLayout& out) 
     }
 
     // What follows is saved runtime state, not a counted section: it still
-    // holds the stale heap pointers the original process wrote. Its size is
-    // therefore recorded, not required to be anything.
-    out.kind = MapEventKind::Indoor;
+    // holds the stale heap pointers the original process wrote. Its total size
+    // is content-determined and so is only recorded — but it always begins
+    // with the fixed 200-slot block and always ends with a 256-byte trailer,
+    // and requiring room for both is what keeps this layout from accepting an
+    // arbitrary chain that happens to fit.
     out.tail_offset = cursor;
     out.tail_size = p.size() - cursor;
+    if (out.tail_size < kIndoorStateBlockSize + kOutdoorEventTrailerSize) {
+        return EventLayoutError::BadStateBlock;
+    }
+    out.kind = MapEventKind::Indoor;
+    out.state_offset = cursor;
+    out.state_size = kIndoorStateBlockSize;
     return EventLayoutError::None;
 }
 

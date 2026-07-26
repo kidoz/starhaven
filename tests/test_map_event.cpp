@@ -152,10 +152,10 @@ make_outdoor_payload(const std::vector<ActorSpec>& actors, const std::vector<Obj
 
 // Indoor files put the same sections at a different, unaligned offset and end
 // in saved runtime state of no fixed size.
-std::vector<std::uint8_t> make_indoor_payload(const std::vector<ActorSpec>& actors,
-                                              const std::vector<ObjectSpec>& objects,
-                                              std::uint32_t chest_count = 20,
-                                              std::size_t tail_size = 4096) {
+std::vector<std::uint8_t>
+make_indoor_payload(const std::vector<ActorSpec>& actors, const std::vector<ObjectSpec>& objects,
+                    std::uint32_t chest_count = 20,
+                    std::size_t tail_size = kIndoorStateBlockSize + kOutdoorEventTrailerSize) {
     return make_event_payload(actors, objects, chest_count, tail_size, kIndoorActorArrayOffset);
 }
 
@@ -345,7 +345,8 @@ TEST_CASE("object extraction rejects malformed layout and honors its limit", "[m
 }
 
 TEST_CASE("indoor section counts follow the shorter prefix", "[map_event]") {
-    MapEventFile file{make_indoor_payload({{"Snergle"}}, {{127, 105}}, 20, 4096)};
+    MapEventFile file{make_indoor_payload({{"Snergle"}}, {{127, 105}}, 20,
+                                          kIndoorStateBlockSize + kOutdoorEventTrailerSize + 44)};
     EventLayout layout;
     REQUIRE(parse_event_layout(file, layout) == EventLayoutError::None);
     REQUIRE(layout.kind == MapEventKind::Indoor);
@@ -353,7 +354,17 @@ TEST_CASE("indoor section counts follow the shorter prefix", "[map_event]") {
     REQUIRE(layout.actors_offset == kIndoorActorArrayOffset);
     REQUIRE(layout.sprite_object_count == 1);
     REQUIRE(layout.chest_count == 20);
-    REQUIRE(layout.tail_size == 4096);
+    REQUIRE(layout.state_offset == layout.tail_offset);
+    REQUIRE(layout.state_size == kIndoorStateBlockSize);
+    REQUIRE(layout.tail_size == kIndoorStateBlockSize + kOutdoorEventTrailerSize + 44);
+}
+
+TEST_CASE("an indoor tail too short for the fixed state block is rejected", "[map_event]") {
+    // Without this the indoor layout would accept any chain that merely fits,
+    // since the payload does not end on a fixed trailer.
+    MapEventFile file{make_indoor_payload({}, {}, 20, kIndoorStateBlockSize)};
+    EventLayout layout;
+    REQUIRE(parse_event_layout(file, layout) == EventLayoutError::BadStateBlock);
 }
 
 TEST_CASE("an outdoor payload is not read as an indoor one", "[map_event]") {
