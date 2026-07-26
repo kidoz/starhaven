@@ -49,6 +49,11 @@ struct BlvVertex {
     std::int16_t x = 0, y = 0, z = 0;
 };
 
+// The attribute bit that says a face has an extra record. It is an exact
+// discriminator: across the 52 shipped maps 35,433 faces set it and every one
+// has an extra, while no face without it has one.
+inline constexpr std::uint32_t kBlvFaceHasExtra = 0x80000000u;
+
 // One face (polygon) of the level.
 struct BlvFace {
     // The face plane in 16.16 fixed point. The normal is unit length and
@@ -73,6 +78,9 @@ struct BlvFace {
     // untextured face in the shipped maps sets it (see docs/formats/blv.md).
     [[nodiscard]] bool invisible() const noexcept { return (attributes & 1u) != 0; }
 
+    // Whether a face-extra record describes this face.
+    [[nodiscard]] bool has_extra() const noexcept { return (attributes & kBlvFaceHasExtra) != 0; }
+
     [[nodiscard]] float nx() const noexcept { return static_cast<float>(normal_x) / 65536.0f; }
     [[nodiscard]] float ny() const noexcept { return static_cast<float>(normal_y) / 65536.0f; }
     [[nodiscard]] float nz() const noexcept { return static_cast<float>(normal_z) / 65536.0f; }
@@ -83,6 +91,11 @@ struct BlvFace {
 // per-face *extra* data rather than a parallel array.
 struct BlvFaceExtra {
     std::uint16_t face_index = 0;  // always a valid index into `faces`
+
+    // Three live fields whose meaning is not established. Each is strongly
+    // associated with an attribute bit on the face it names — see
+    // docs/formats/blv.md — but none of the associations is exact, so they are
+    // still named for their offsets.
     std::uint16_t unknown_14 = 0;  // usually non-zero; multiples of 128 are common
     std::uint16_t unknown_16 = 0;  // usually non-zero
     std::uint16_t unknown_1a = 0;  // sparse; non-zero on about 1 record in 6
@@ -100,6 +113,10 @@ struct BlvMap {
     std::vector<BlvFace> faces;
     std::vector<BlvFaceExtra> face_extras;
     std::vector<std::uint8_t> payload;  // the whole decompressed payload
+
+    // Where the face-extra array starts in `payload`. Most of each 36-byte
+    // record is still unidentified, so the raw bytes stay reachable.
+    std::uint64_t face_extras_offset = 0;
 
     // How far into the payload this slice decodes. Everything after is the
     // room/BSP/light/door data a later slice will cover.

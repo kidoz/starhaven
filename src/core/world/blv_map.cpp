@@ -255,6 +255,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
         return BlvError::Truncated;
     }
 
+    out.face_extras_offset = extras_start;
     out.face_extras.reserve(extra_count);
     for (std::uint32_t i = 0; i < extra_count; ++i) {
         const std::uint64_t base = extras_start + static_cast<std::uint64_t>(i) * kBlvFaceExtraSize;

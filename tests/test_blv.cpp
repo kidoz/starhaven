@@ -476,3 +476,24 @@ TEST_CASE("a truncated face-extra name array is rejected", "[blv]") {
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::Truncated);
 }
+
+TEST_CASE("attribute bit 0x80000000 says a face has an extra", "[blv]") {
+    // The bit and the record agree in both directions across every shipped
+    // map, apart from each array's face-zero sentinel; see docs/formats/blv.md.
+    REQUIRE(kBlvFaceHasExtra == 0x80000000u);
+
+    BlvFace flagged;
+    flagged.attributes = kBlvFaceHasExtra;
+    REQUIRE(flagged.has_extra());
+    REQUIRE_FALSE(flagged.invisible());
+
+    BlvFace plain;
+    plain.attributes = 0x1100u;
+    REQUIRE_FALSE(plain.has_extra());
+
+    // The two bits are independent: an invisible face may still be described.
+    BlvFace both;
+    both.attributes = kBlvFaceHasExtra | 1u;
+    REQUIRE(both.has_extra());
+    REQUIRE(both.invisible());
+}
