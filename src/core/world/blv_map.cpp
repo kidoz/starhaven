@@ -92,7 +92,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
     out.header.index_block_bytes = r.read_u32_le();
     out.header.unknown_6c = r.read_u32_le();
     out.header.unknown_70 = r.read_u32_le();
-    out.header.unknown_74 = r.read_u32_le();
+    out.header.event_state_bytes = r.read_u32_le();
 
     // --- vertices ---
     if (!r.seek(kBlvVertexCountOffset)) {

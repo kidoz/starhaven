@@ -209,7 +209,7 @@ TEST_CASE("a valid indoor map decodes header, vertices and faces", "[blv]") {
     REQUIRE(map.header.name2 == "war1a");
     REQUIRE(map.header.unknown_6c == 111);
     REQUIRE(map.header.unknown_70 == 222);
-    REQUIRE(map.header.unknown_74 == 333);
+    REQUIRE(map.header.event_state_bytes == 333);
 
     REQUIRE(map.vertices.size() == 5);
     REQUIRE(map.vertices[1].x == 256);

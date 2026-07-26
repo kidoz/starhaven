@@ -14,7 +14,7 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <map.blv> [--extras|--faces|--uv]\n"
+    std::cerr << "Usage: " << argv0 << " <map.blv> [--extras|--faces|--uv|--tail]\n"
               << "\n"
               << "Decompresses one .blv indoor map from your own legal game\n"
               << "install's Games.lod and prints non-expressive statistics.\n"
@@ -46,6 +46,8 @@ int main(int argc, char** argv) {
     const bool dump_extras = argc == 3 && std::string(argv[2]) == "--extras";
     const bool dump_faces = argc == 3 && std::string(argv[2]) == "--faces";
     const bool dump_uv = argc == 3 && std::string(argv[2]) == "--uv";
+    // Research mode: the still-undecoded region after the face extras, raw.
+    const bool dump_tail = argc == 3 && std::string(argv[2]) == "--tail";
 
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
@@ -80,6 +82,13 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    if (dump_tail) {
+        const auto start = static_cast<std::size_t>(map.decoded_bytes);
+        std::cout.write(reinterpret_cast<const char*>(map.payload.data() + start),
+                        static_cast<std::streamsize>(map.payload.size() - start));
+        return 0;
+    }
+
     if (dump_uv) {
         for (std::size_t i = 0; i < map.faces.size(); ++i) {
             const auto& f = map.faces[i];
@@ -107,6 +116,8 @@ int main(int argc, char** argv) {
     std::cout << "  name: \"" << map.header.name << "\"  name2: \"" << map.header.name2
               << "\"  kind=" << map.header.kind << "\n";
     std::cout << "  stored=" << entry.size() << "  decompressed=" << map.payload.size() << "\n";
+    std::cout << "  header counts: " << map.header.unknown_6c << " " << map.header.unknown_70
+              << "  event state bytes: " << map.header.event_state_bytes << "\n";
     std::cout << "  vertices: " << map.vertices.size() << "\n";
 
     // Coordinate extents give a feel for the level's size without reproducing

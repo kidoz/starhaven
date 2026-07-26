@@ -39,10 +39,16 @@ struct BlvHeader {
     // must equal sum(vertex_count + 1) * 2 * 6 over all faces.
     std::uint32_t index_block_bytes = 0;
 
-    // Three further counts whose meaning is not yet established.
+    // Two further counts whose meaning is not yet established.
     std::uint32_t unknown_6c = 0;
     std::uint32_t unknown_70 = 0;
-    std::uint32_t unknown_74 = 0;
+
+    // How many bytes of saved state the paired `.dlv` event file carries after
+    // its fixed 200-slot block and before its 256-byte trailer. The level
+    // declares it here, in the other file — which is what makes the event
+    // file's size structural rather than incidental. Holds on all 52 maps;
+    // see docs/formats/blv.md.
+    std::uint32_t event_state_bytes = 0;
 };
 
 // One vertex of the level geometry. Indoor coordinates are 16-bit, unlike the

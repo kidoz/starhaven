@@ -9,6 +9,7 @@
 #include "core/lod/game_lod_archive.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
+#include "core/world/blv_map.hpp"
 #include "core/world/map_event.hpp"
 #include "core/world/object_table.hpp"
 
@@ -104,6 +105,25 @@ int main(int argc, char** argv) {
                   << (layout.tail_size - layout.state_size) << " of the rest)";
     }
     std::cout << "\n";
+
+    // The paired level declares how much saved state this file carries. It is
+    // the only size in the event file that is not self-describing.
+    if (layout.kind == world::MapEventKind::Indoor) {
+        std::string stem = name;
+        if (const std::size_t dot = stem.rfind('.'); dot != std::string::npos) {
+            stem = stem.substr(0, dot);
+        }
+        std::span<const std::byte> level;
+        world::BlvMap map;
+        if (archive.payload(stem + ".blv", level) == lod::GameLodArchive::PayloadError::None &&
+            world::parse_blv(level, map) == world::BlvError::None) {
+            const std::size_t declared = map.header.event_state_bytes;
+            const std::size_t actual = layout.tail_size - layout.state_size - 256;
+            std::cout << "  state bytes: " << actual << " here, " << declared << " declared by "
+                      << stem << ".blv" << (actual == declared ? "  (agree)" : "  (DISAGREE)")
+                      << "\n";
+        }
+    }
     std::cout << "  actors: " << layout.actor_count << "\n";
     std::cout << "  sprite_objects: " << layout.sprite_object_count << "\n";
     std::cout << "  chests: " << layout.chest_count << "\n";
