@@ -12,6 +12,9 @@ namespace {
 constexpr const char* kTableArchive = "icons.lod";
 constexpr const char* kMapStatsEntry = "MapStats.txt";
 constexpr const char* kItemStatsEntry = "ITEMS.TXT";
+constexpr const char* kRandomItemsEntry = "RNDITEMS.TXT";
+constexpr const char* kStandardBonusesEntry = "STDITEMS.TXT";
+constexpr const char* kSpecialBonusesEntry = "SPCITEMS.TXT";
 
 }  // namespace
 
@@ -50,6 +53,43 @@ GameDataError load_item_stats(const std::filesystem::path& data_dir, ItemStatsTa
         return e;
     }
     if (ItemStatsTable::parse(table, out) != ItemStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_random_items(const std::filesystem::path& data_dir, RandomItemTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, kRandomItemsEntry, table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (RandomItemTable::parse(table, out) != RandomItemError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_standard_bonuses(const std::filesystem::path& data_dir,
+                                    StandardBonusTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, kStandardBonusesEntry, table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (StandardBonusTable::parse(table, out) != StandardBonusError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_special_bonuses(const std::filesystem::path& data_dir, SpecialBonusTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, kSpecialBonusesEntry, table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (SpecialBonusTable::parse(table, out) != SpecialBonusError::None) {
         return GameDataError::BadTable;
     }
     return GameDataError::None;

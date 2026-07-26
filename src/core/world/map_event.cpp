@@ -42,6 +42,21 @@ std::int32_t i32_at(const std::vector<std::uint8_t>& bytes, std::size_t offset) 
     return static_cast<std::int32_t>(u32_at(bytes, offset));
 }
 
+MapItemInstance item_at(const std::vector<std::uint8_t>& bytes, std::size_t offset) {
+    MapItemInstance item;
+    item.item_id = i32_at(bytes, offset);
+    item.standard_bonus_or_potion_power = i32_at(bytes, offset + 4);
+    item.standard_bonus_strength = i32_at(bytes, offset + 8);
+    item.special_bonus_or_gold_amount = i32_at(bytes, offset + 12);
+    item.charges = i32_at(bytes, offset + 16);
+    item.flags = u32_at(bytes, offset + 20);
+    item.equipped_slot = bytes[offset + 24];
+    for (std::size_t i = 0; i < item.reserved.size(); ++i) {
+        item.reserved[i] = bytes[offset + 25 + i];
+    }
+    return item;
+}
+
 }  // namespace
 
 MapEventError parse_map_event(std::span<const std::byte> entry, MapEventFile& out) {
@@ -155,11 +170,38 @@ std::vector<MapSpriteObject> extract_sprite_objects(const MapEventFile& file,
         object.facing = u16_at(file.payload, base + kSpriteObjectFacingOffset);
         object.attributes = u16_at(file.payload, base + kSpriteObjectAttributesOffset);
         object.sprite_frame = u16_at(file.payload, base + kSpriteObjectFrameOffset);
-        object.contained_item_id = u32_at(file.payload, base + kSpriteObjectItemOffset);
+        object.contained_item = item_at(file.payload, base + kSpriteObjectItemOffset);
         object.previous_x = i32_at(file.payload, base + kSpriteObjectPreviousPositionOffset);
         object.previous_y = i32_at(file.payload, base + kSpriteObjectPreviousPositionOffset + 4);
         object.previous_z = i32_at(file.payload, base + kSpriteObjectPreviousPositionOffset + 8);
         out.push_back(object);
+    }
+    return out;
+}
+
+std::vector<MapChestItem> extract_chest_items(const MapEventFile& file, std::size_t max_records) {
+    OutdoorEventLayout layout;
+    if (parse_outdoor_event_layout(file, layout) != OutdoorEventLayoutError::None) {
+        return {};
+    }
+
+    std::vector<MapChestItem> out;
+    out.reserve(std::min<std::size_t>(
+        static_cast<std::size_t>(layout.chest_count) * kChestItemCount, max_records));
+    for (std::size_t chest = 0; chest < layout.chest_count; ++chest) {
+        const std::size_t chest_base = layout.chests_offset + chest * kChestRecordSize;
+        for (std::size_t slot = 0; slot < kChestItemCount; ++slot) {
+            const std::size_t offset =
+                chest_base + kChestItemArrayOffset + slot * kContainedItemRecordSize;
+            const MapItemInstance item = item_at(file.payload, offset);
+            if (item.empty()) {
+                continue;
+            }
+            if (out.size() == max_records) {
+                return out;
+            }
+            out.push_back({chest, slot, item});
+        }
     }
     return out;
 }

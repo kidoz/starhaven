@@ -134,7 +134,8 @@ int main(int argc, char** argv) {
     if (have_items) {
         std::size_t joined = 0;
         for (const auto& object : objects) {
-            if (items.at(object.contained_item_id) != nullptr) {
+            if (object.contained_item.item_id >= 0 &&
+                items.at(static_cast<std::size_t>(object.contained_item.item_id)) != nullptr) {
                 ++joined;
             }
         }
@@ -144,7 +145,7 @@ int main(int argc, char** argv) {
     for (std::size_t i = 0; i < objects.size() && i < 3; ++i) {
         std::cout << "    object[" << i << "] id=" << objects[i].object_id
                   << " descriptor=" << objects[i].descriptor_index
-                  << " item=" << objects[i].contained_item_id << " at (" << objects[i].x << ","
+                  << " item=" << objects[i].contained_item.item_id << " at (" << objects[i].x << ","
                   << objects[i].y << "," << objects[i].z << ")";
         if (have_descriptors) {
             if (const auto* descriptor = descriptors.at(objects[i].descriptor_index)) {
@@ -152,14 +153,52 @@ int main(int argc, char** argv) {
                           << "\" frame=" << descriptor->sprite_frame_index;
             }
         }
-        if (have_items) {
-            if (const auto* item = items.at(objects[i].contained_item_id)) {
+        if (have_items && objects[i].contained_item.item_id >= 0) {
+            if (const auto* item =
+                    items.at(static_cast<std::size_t>(objects[i].contained_item.item_id))) {
                 std::cout << " item=\"" << starhaven::data::cp1252_to_utf8(item->name)
                           << "\" picture=" << item->picture;
             }
         }
+        const auto& state = objects[i].contained_item;
+        if (state.standard_bonus_or_potion_power != 0 || state.standard_bonus_strength != 0 ||
+            state.special_bonus_or_gold_amount != 0 || state.charges != 0 || state.flags != 0 ||
+            state.equipped_slot != 0) {
+            std::cout << " state=(" << state.standard_bonus_or_potion_power << ","
+                      << state.standard_bonus_strength << "," << state.special_bonus_or_gold_amount
+                      << ",charges=" << state.charges << ",flags=0x" << std::hex << state.flags
+                      << std::dec << ",slot=" << static_cast<int>(state.equipped_slot) << ")";
+        }
         std::cout << "\n";
     }
+
+    const auto chest_items = world::extract_chest_items(ev);
+    std::size_t random_placeholders = 0;
+    std::size_t fixed_items = 0;
+    std::size_t fixed_joins = 0;
+    std::size_t invalid_negative = 0;
+    for (const auto& chest_item : chest_items) {
+        const int level = chest_item.item.random_treasure_level();
+        if (level != 0) {
+            ++random_placeholders;
+        } else if (chest_item.item.item_id > 0) {
+            ++fixed_items;
+            if (have_items &&
+                items.at(static_cast<std::size_t>(chest_item.item.item_id)) != nullptr) {
+                ++fixed_joins;
+            }
+        } else {
+            ++invalid_negative;
+        }
+    }
+    std::cout << "  chest_items: " << chest_items.size()
+              << " random_placeholders=" << random_placeholders;
+    if (have_items) {
+        std::cout << " fixed_item_joins=" << fixed_joins << "/" << fixed_items;
+    } else {
+        std::cout << " fixed_items=" << fixed_items;
+    }
+    std::cout << " invalid_negative=" << invalid_negative << "\n";
 
     return 0;
 }

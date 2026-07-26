@@ -30,7 +30,7 @@ The executable copies each record into a 1000-slot runtime pool. A zero
 | `+0x1C` | 2 | u16 | sector id | inferred | updated during spatial queries |
 | `+0x1E` | 2 | u16 | sprite frame/time | inferred | participates in frame resolution |
 | `+0x20` | 4 | bytes | spell-owner state | unknown | two runtime words |
-| `+0x24` | 28 | bytes | [contained item](items.md) | observed | direct `ITEMS.TXT` id is the leading u32 |
+| `+0x24` | 28 | bytes | [contained item](items.md) | observed | direct `ITEMS.TXT` id is the leading i32 |
 | `+0x40` | 24 | bytes | projectile/spell state | inferred | executable accesses; meanings incomplete |
 | `+0x58` | 12 | i32[3] | previous/origin position | observed | copied from current position on spawn |
 
@@ -62,6 +62,5 @@ optional caller limit.
 ## Open questions
 
 - Exact meanings of the words at `+0x18..+0x22`.
-- The six item-state words after the contained-item id, and the complete
-  projectile-state field layout.
+- The complete projectile-state field layout.
 - Which attribute bits distinguish loot, missiles, and transient effects.

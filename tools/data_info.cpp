@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -20,8 +21,9 @@ namespace {
 using namespace starhaven;
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0
-              << " <--list | --maps | --monsters [name] | --items [id] | --check"
+    std::cerr << "Usage: " << argv0 << " <--list | --maps | --monsters [name] | --items [id]"
+              << " | --random-items [id] | --standard-bonuses [id]"
+              << " | --special-bonuses [id] | --check"
               << " | <Table.txt>>\n"
               << "\n"
               << "Reads the tab-separated design tables shipped inside your own\n"
@@ -31,6 +33,9 @@ void print_usage(const char* argv0) {
               << "  --maps             MapStats.txt as typed rows\n"
               << "  --monsters [name]  MONSTERS.TXT as typed rows, or one monster\n"
               << "  --items [id]       ITEMS.TXT as typed rows, or one direct item id\n"
+              << "  --random-items [id] RNDITEMS.TXT weights, or one direct item id\n"
+              << "  --standard-bonuses [id] STDITEMS.TXT selectors and strength ranges\n"
+              << "  --special-bonuses [id] SPCITEMS.TXT one-based selectors\n"
               << "  --check            cross-check MONSTERS.TXT against DMONLIST.BIN\n"
               << "  <Table.txt>        dump one table's cells\n"
               << "  --rows N           limit a dump to N rows\n"
@@ -216,6 +221,128 @@ int do_items(const std::filesystem::path& data_dir, const std::string& want) {
     return 0;
 }
 
+bool requested_id(const std::string& text, std::size_t& out) {
+    if (text.empty()) {
+        return false;
+    }
+    const char* begin = text.data();
+    const char* end = begin + text.size();
+    const auto result = std::from_chars(begin, end, out);
+    return result.ec == std::errc{} && result.ptr == end;
+}
+
+void print_weights(const auto& weights) {
+    for (const int weight : weights) {
+        std::cout << " " << weight;
+    }
+}
+
+int do_random_items(const std::filesystem::path& data_dir, const std::string& want) {
+    data::RandomItemTable random_items;
+    if (data::load_random_items(data_dir, random_items) != data::GameDataError::None) {
+        std::cerr << "error: could not load RNDITEMS.TXT\n";
+        return 1;
+    }
+
+    if (!want.empty()) {
+        std::size_t id = 0;
+        if (!requested_id(want, id)) {
+            std::cerr << "error: random item id must be a non-negative integer\n";
+            return 2;
+        }
+        const auto* entry = random_items.at(id);
+        if (entry == nullptr) {
+            std::cerr << "error: no random item id " << id << "\n";
+            return 1;
+        }
+        std::cout << entry->id << ": " << entry->picture << "\n  level weights:";
+        print_weights(entry->weights);
+        std::cout << "\n";
+        return 0;
+    }
+
+    std::cout << random_items.size() << " random item ids\n";
+    for (const auto& entry : random_items.entries()) {
+        std::cout << "  " << entry.id << "\t" << entry.picture << "\tweights";
+        print_weights(entry.weights);
+        std::cout << "\n";
+    }
+    return 0;
+}
+
+int do_standard_bonuses(const std::filesystem::path& data_dir, const std::string& want) {
+    data::StandardBonusTable bonuses;
+    if (data::load_standard_bonuses(data_dir, bonuses) != data::GameDataError::None) {
+        std::cerr << "error: could not load STDITEMS.TXT\n";
+        return 1;
+    }
+
+    if (!want.empty()) {
+        std::size_t id = 0;
+        if (!requested_id(want, id)) {
+            std::cerr << "error: standard bonus id must be a non-negative integer\n";
+            return 2;
+        }
+        const auto* entry = bonuses.at(id);
+        if (entry == nullptr) {
+            std::cerr << "error: no standard bonus id " << id << "\n";
+            return 1;
+        }
+        std::cout << entry->id << ": " << data::cp1252_to_utf8(entry->stat) << " ("
+                  << data::cp1252_to_utf8(entry->name_suffix) << ")\n  item-type weights:";
+        print_weights(entry->chance_by_item_type);
+        std::cout << "\n";
+        return 0;
+    }
+
+    std::cout << bonuses.size() << " one-based standard bonuses\n";
+    for (const auto& entry : bonuses.entries()) {
+        std::cout << "  " << entry.id << "\t" << data::cp1252_to_utf8(entry.stat) << "\t"
+                  << data::cp1252_to_utf8(entry.name_suffix) << "\n";
+    }
+    for (std::size_t level = 1; level <= data::kTreasureLevelCount; ++level) {
+        const auto* range = bonuses.range(level);
+        std::cout << "  level " << level << " strength " << range->minimum << ".." << range->maximum
+                  << "\n";
+    }
+    return 0;
+}
+
+int do_special_bonuses(const std::filesystem::path& data_dir, const std::string& want) {
+    data::SpecialBonusTable bonuses;
+    if (data::load_special_bonuses(data_dir, bonuses) != data::GameDataError::None) {
+        std::cerr << "error: could not load SPCITEMS.TXT\n";
+        return 1;
+    }
+
+    if (!want.empty()) {
+        std::size_t id = 0;
+        if (!requested_id(want, id)) {
+            std::cerr << "error: special bonus id must be a non-negative integer\n";
+            return 2;
+        }
+        const auto* entry = bonuses.at(id);
+        if (entry == nullptr) {
+            std::cerr << "error: no special bonus id " << id << "\n";
+            return 1;
+        }
+        std::cout << entry->id << ": " << data::cp1252_to_utf8(entry->name_affix) << "\n"
+                  << "  " << data::cp1252_to_utf8(entry->effect) << "\n"
+                  << "  value " << entry->value << ", treasure class " << entry->treasure_class
+                  << "\n  item-type weights:";
+        print_weights(entry->chance_by_item_type);
+        std::cout << "\n";
+        return 0;
+    }
+
+    std::cout << bonuses.size() << " one-based special bonuses\n";
+    for (const auto& entry : bonuses.entries()) {
+        std::cout << "  " << entry.id << "\t" << data::cp1252_to_utf8(entry.name_affix)
+                  << "\tclass " << entry.treasure_class << "\tvalue " << entry.value << "\n";
+    }
+    return 0;
+}
+
 // The join this slice makes possible: MONSTERS.TXT's "Picture" column against
 // the DMONLIST.BIN names an actor record's monster id indexes.
 int do_check(const std::filesystem::path& data_dir) {
@@ -311,6 +438,12 @@ int main(int argc, char** argv) {
         return do_monsters(data_dir, argument);
     if (command == "--items")
         return do_items(data_dir, argument);
+    if (command == "--random-items")
+        return do_random_items(data_dir, argument);
+    if (command == "--standard-bonuses")
+        return do_standard_bonuses(data_dir, argument);
+    if (command == "--special-bonuses")
+        return do_special_bonuses(data_dir, argument);
     if (command == "--check")
         return do_check(data_dir);
     if (command.rfind("--", 0) == 0) {

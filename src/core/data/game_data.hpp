@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string_view>
 
+#include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/text_table.hpp"
@@ -36,6 +37,13 @@ enum class GameDataError {
 // directly, including id zero.
 [[nodiscard]] GameDataError load_item_stats(const std::filesystem::path& data_dir,
                                             ItemStatsTable& out);
+
+[[nodiscard]] GameDataError load_random_items(const std::filesystem::path& data_dir,
+                                              RandomItemTable& out);
+[[nodiscard]] GameDataError load_standard_bonuses(const std::filesystem::path& data_dir,
+                                                  StandardBonusTable& out);
+[[nodiscard]] GameDataError load_special_bonuses(const std::filesystem::path& data_dir,
+                                                 SpecialBonusTable& out);
 
 }  // namespace starhaven::data
 

@@ -10,6 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <zlib.h>
 
+#include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
@@ -350,4 +351,116 @@ TEST_CASE("ITEMS rejects a missing header or non-contiguous ids", "[item_stats]"
             TextTableError::None);
     REQUIRE(ItemStatsTable::parse(table, items) == ItemStatsError::BadId);
     REQUIRE(items.size() == 0);
+}
+
+namespace {
+
+std::string random_items_body() {
+    return "Random items\r\n"
+           "Item #\tPic File\t1\t2\t3\t4\t5\t6\r\n"
+           "0\tblank\t0\t0\t0\t0\t0\t0\r\n"
+           "1\tblade1\t5\t10\t2\t0\t0\t0\r\n";
+}
+
+std::string standard_bonuses_body() {
+    std::string s;
+    s += "Standard bonuses\r\n";
+    s += "Bonus Stat\tOf Name\tArm\tShld\tHelm\tBelt\tCape\tGaunt\tBoot\tRing\tAmul\r\n";
+    s += "\r\n";
+    s += "Might\tof Might\t5\t0\t10\t10\t10\t10\t5\t10\t10\r\n";
+    s += "Luck\tof Luck\t5\t0\t10\t10\t10\t10\t10\t10\t10\r\n";
+    s += "\r\n";
+    s += "\tBonus range\r\n";
+    s += "\tlvl\tmin\tmax\r\n";
+    s += "\t1\t0\t0\r\n";
+    s += "\t2\t1\t5\r\n";
+    s += "\t3\t3\t8\r\n";
+    s += "\t4\t6\t12\r\n";
+    s += "\t5\t10\t17\r\n";
+    s += "\t6\t15\t25\r\n";
+    return s;
+}
+
+std::string special_bonuses_body() {
+    std::string s;
+    s += "Special bonuses\r\n";
+    s += "Bonus Stat\tName Add\tW1\tW2\tMiss\tArm\tShld\tHelm\tBelt\tCape\tGaunt\tBoot"
+         "\tRing\tAmul\tValue\tLvl\tDescription\r\n";
+    s += "\r\n";
+    s += "Protects the wearer\tof Protection\t0\t0\t0\t10\t10\t10\t0\t10\t0\t0"
+         "\t10\t10\t1000\tB\tfixture protection\r\n";
+    s += "Drains a target\tVampiric\t5\t5\t5\t0\t0\t0\t0\t0\t0\t0\t0\t0"
+         "\tX 2\tD\tfixture drain\r\n";
+    s += "\r\n";
+    s += "footer\tmust not parse\r\n";
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("RNDITEMS rows keep direct ids and six treasure weights", "[item_generation]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(random_items_body(), table) == TextTableError::None);
+    RandomItemTable random_items;
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::None);
+    REQUIRE(random_items.size() == 2);
+    REQUIRE(random_items.at(0)->picture == "blank");
+    REQUIRE(random_items.at(1)->picture == "blade1");
+    REQUIRE(random_items.at(1)->weights == std::array<int, 6>{5, 10, 2, 0, 0, 0});
+    REQUIRE(random_items.at(2) == nullptr);
+}
+
+TEST_CASE("RNDITEMS rejects missing headers and non-contiguous ids", "[item_generation]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body("other\theader\r\n", table) == TextTableError::None);
+    RandomItemTable random_items;
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::NoHeader);
+
+    REQUIRE(TextTable::parse_body("Item #\tPic File\r\n0\tblank\r\n2\tblade\r\n", table) ==
+            TextTableError::None);
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::BadId);
+}
+
+TEST_CASE("STDITEMS selectors and strength ranges are one-based", "[item_generation]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(standard_bonuses_body(), table) == TextTableError::None);
+    StandardBonusTable bonuses;
+    REQUIRE(StandardBonusTable::parse(table, bonuses) == StandardBonusError::None);
+    REQUIRE(bonuses.size() == 2);
+    REQUIRE(bonuses.at(0) == nullptr);
+    REQUIRE(bonuses.at(1)->stat == "Might");
+    REQUIRE(bonuses.at(1)->name_suffix == "of Might");
+    REQUIRE(bonuses.at(1)->chance_by_item_type[0] == 5);
+    REQUIRE(bonuses.at(2)->stat == "Luck");
+    REQUIRE(bonuses.at(3) == nullptr);
+    REQUIRE(bonuses.range(0) == nullptr);
+    REQUIRE(bonuses.range(2)->minimum == 1);
+    REQUIRE(bonuses.range(2)->maximum == 5);
+    REQUIRE(bonuses.range(6)->minimum == 15);
+    REQUIRE(bonuses.range(7) == nullptr);
+}
+
+TEST_CASE("STDITEMS rejects incomplete strength ranges", "[item_generation]") {
+    TextTable table;
+    std::string body = standard_bonuses_body();
+    body.erase(body.find("\t6\t15\t25\r\n"));
+    REQUIRE(TextTable::parse_body(body, table) == TextTableError::None);
+    StandardBonusTable bonuses;
+    REQUIRE(StandardBonusTable::parse(table, bonuses) == StandardBonusError::BadLevel);
+}
+
+TEST_CASE("SPCITEMS selectors stop before footer rows", "[item_generation]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(special_bonuses_body(), table) == TextTableError::None);
+    SpecialBonusTable bonuses;
+    REQUIRE(SpecialBonusTable::parse(table, bonuses) == SpecialBonusError::None);
+    REQUIRE(bonuses.size() == 2);
+    REQUIRE(bonuses.at(0) == nullptr);
+    REQUIRE(bonuses.at(1)->name_affix == "of Protection");
+    REQUIRE(bonuses.at(1)->chance_by_item_type[3] == 10);
+    REQUIRE(bonuses.at(1)->value == "1000");
+    REQUIRE(bonuses.at(1)->treasure_class == "B");
+    REQUIRE(bonuses.at(2)->name_affix == "Vampiric");
+    REQUIRE(bonuses.at(2)->value == "X 2");
+    REQUIRE(bonuses.at(3) == nullptr);
 }

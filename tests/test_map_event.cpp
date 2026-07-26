@@ -80,7 +80,13 @@ struct ObjectSpec {
     std::uint16_t facing = 0;
     std::uint16_t attributes = 0;
     std::uint16_t sprite_frame = 0;
-    std::uint32_t item_id = 0;
+    std::int32_t item_id = 0;
+    std::int32_t standard_bonus_or_potion_power = 0;
+    std::int32_t standard_bonus_strength = 0;
+    std::int32_t special_bonus_or_gold_amount = 0;
+    std::int32_t charges = 0;
+    std::uint32_t item_flags = 0;
+    std::uint8_t equipped_slot = 0;
     std::int32_t previous_x = 0, previous_y = 0, previous_z = 0;
 };
 
@@ -122,7 +128,13 @@ make_outdoor_payload(const std::vector<ActorSpec>& actors, const std::vector<Obj
         put_u16(payload, base + kSpriteObjectFacingOffset, object.facing);
         put_u16(payload, base + kSpriteObjectAttributesOffset, object.attributes);
         put_u16(payload, base + kSpriteObjectFrameOffset, object.sprite_frame);
-        put_u32(payload, base + kSpriteObjectItemOffset, object.item_id);
+        put_i32(payload, base + kSpriteObjectItemOffset, object.item_id);
+        put_i32(payload, base + kSpriteObjectItemOffset + 4, object.standard_bonus_or_potion_power);
+        put_i32(payload, base + kSpriteObjectItemOffset + 8, object.standard_bonus_strength);
+        put_i32(payload, base + kSpriteObjectItemOffset + 12, object.special_bonus_or_gold_amount);
+        put_i32(payload, base + kSpriteObjectItemOffset + 16, object.charges);
+        put_u32(payload, base + kSpriteObjectItemOffset + 20, object.item_flags);
+        payload[base + kSpriteObjectItemOffset + 24] = object.equipped_slot;
         put_i32(payload, base + kSpriteObjectPreviousPositionOffset, object.previous_x);
         put_i32(payload, base + kSpriteObjectPreviousPositionOffset + 4, object.previous_y);
         put_i32(payload, base + kSpriteObjectPreviousPositionOffset + 8, object.previous_z);
@@ -235,6 +247,12 @@ TEST_CASE("sprite objects decode identity, motion, item, and previous position",
         .attributes = 0x7C00,
         .sprite_frame = 7,
         .item_id = 160,
+        .standard_bonus_or_potion_power = 4,
+        .standard_bonus_strength = 12,
+        .special_bonus_or_gold_amount = 9,
+        .charges = 6,
+        .item_flags = kItemFlagIdentified | kItemFlagBroken,
+        .equipped_slot = 3,
         .previous_x = 123000,
         .previous_y = -654000,
         .previous_z = 80,
@@ -253,10 +271,55 @@ TEST_CASE("sprite objects decode identity, motion, item, and previous position",
     REQUIRE(objects[0].facing == 1536);
     REQUIRE(objects[0].attributes == 0x7C00);
     REQUIRE(objects[0].sprite_frame == 7);
-    REQUIRE(objects[0].contained_item_id == 160);
+    REQUIRE(objects[0].contained_item.item_id == 160);
+    REQUIRE(objects[0].contained_item.standard_bonus_or_potion_power == 4);
+    REQUIRE(objects[0].contained_item.standard_bonus_strength == 12);
+    REQUIRE(objects[0].contained_item.special_bonus_or_gold_amount == 9);
+    REQUIRE(objects[0].contained_item.charges == 6);
+    REQUIRE(objects[0].contained_item.identified());
+    REQUIRE(objects[0].contained_item.broken());
+    REQUIRE(objects[0].contained_item.equipped_slot == 3);
     REQUIRE(objects[0].previous_x == 123000);
     REQUIRE(objects[0].previous_y == -654000);
     REQUIRE(objects[0].previous_z == 80);
+}
+
+TEST_CASE("chests expose fixed items and random treasure placeholders", "[map_event]") {
+    MapEventFile file{make_outdoor_payload({}, {}, 2)};
+    OutdoorEventLayout layout;
+    REQUIRE(parse_outdoor_event_layout(file, layout) == OutdoorEventLayoutError::None);
+
+    const std::size_t fixed = layout.chests_offset + kChestItemArrayOffset;
+    put_i32(file.payload, fixed, 42);
+    put_i32(file.payload, fixed + 4, 2);
+    put_i32(file.payload, fixed + 8, 5);
+    put_i32(file.payload, fixed + 12, 7);
+    put_i32(file.payload, fixed + 16, 11);
+    put_u32(file.payload, fixed + 20, kItemFlagIdentified);
+    file.payload[fixed + 24] = 9;
+
+    const std::size_t deferred = layout.chests_offset + kChestRecordSize + kChestItemArrayOffset +
+                                 17 * kContainedItemRecordSize;
+    put_i32(file.payload, deferred, -6);
+
+    const auto items = extract_chest_items(file);
+    REQUIRE(items.size() == 2);
+    REQUIRE(items[0].chest_index == 0);
+    REQUIRE(items[0].slot_index == 0);
+    REQUIRE(items[0].item.item_id == 42);
+    REQUIRE(items[0].item.standard_bonus_or_potion_power == 2);
+    REQUIRE(items[0].item.standard_bonus_strength == 5);
+    REQUIRE(items[0].item.special_bonus_or_gold_amount == 7);
+    REQUIRE(items[0].item.charges == 11);
+    REQUIRE(items[0].item.identified());
+    REQUIRE(items[0].item.equipped_slot == 9);
+    REQUIRE(items[0].item.random_treasure_level() == 0);
+
+    REQUIRE(items[1].chest_index == 1);
+    REQUIRE(items[1].slot_index == 17);
+    REQUIRE(items[1].item.item_id == -6);
+    REQUIRE(items[1].item.random_treasure_level() == 6);
+    REQUIRE(extract_chest_items(file, 1).size() == 1);
 }
 
 TEST_CASE("object extraction rejects malformed layout and honors its limit", "[map_event]") {
