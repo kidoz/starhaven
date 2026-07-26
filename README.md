@@ -190,6 +190,20 @@ meson compile -C buildDir
 meson test -C buildDir
 ```
 
+`buildDir` is a **debug** build (`-O0 -g`) — the right default for development,
+but seven times slower than an optimised one, so do not time anything there.
+For an optimised build and the renderer benchmark:
+
+```bash
+just release                 # buildRelease/, --buildtype=release
+just bench CD1.Blv           # frame timings for one map
+just bench-all               # every map, slowest ten
+```
+
+The worst map in the game runs at 82 fps and the mean is 335, with every face
+drawn every frame and no visibility culling; see
+[`docs/rendering/performance.md`](docs/rendering/performance.md).
+
 ## Documentation
 
 Documentation tooling uses [uv](https://docs.astral.sh/uv/) with Python 3.14

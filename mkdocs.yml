@@ -41,6 +41,7 @@ nav:
       - Software rasterizer: rendering/software-rasterizer.md
       - Terrain coloring: rendering/terrain-coloring.md
       - Collision and movement: rendering/collision.md
+      - Renderer performance: rendering/performance.md
 
 markdown_extensions:
   - toc:
