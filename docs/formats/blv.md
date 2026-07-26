@@ -54,7 +54,7 @@ stream would be accepted as a short map.
 | 0x68 | 4 | u32 | index_block_bytes | observed | total size of the per-face index arrays |
 | 0x6C | 4 | u32 | unknown | unknown | |
 | 0x70 | 4 | u32 | unknown | unknown | |
-| 0x74 | 4 | u32 | unknown | unknown | |
+| 0x74 | 4 | u32 | eventStateBytes | observed | the saved-state size of the paired `.dlv`; see below |
 | 0x78 | 16 | — | reserved | observed | zero in every observed map |
 | 0x88 | 4 | u32 | vertex_count | observed | |
 | 0x8C | count × 6 | Vertex[] | vertices | observed | |
@@ -103,6 +103,20 @@ does so on all three maps first sampled and all 52 thereafter. `observed`
 The plane is verified the same way as the outdoor facets: `normal · v +
 plane_distance == 0` holds for **all 48,610** vertex-face pairs across the
 first three maps, worst residual 2.3 world units. `observed`
+
+### The header declares the event file's state size
+
+The `u32` at `+0x74` is not about the level at all: it is **the number of bytes
+of saved state the paired `.dlv` event file carries**, after that file's fixed
+200-slot block and before its 256-byte trailer (see
+[`event-tables.md`](event-tables.md)).
+
+It agrees on **all 52 maps**, from 0 on the small `zddb*` levels to 8,028 on
+the largest. `ddm_info <map>.dlv` opens the level and reports the comparison.
+`observed`
+
+This is the only size in the event file that the event file does not describe
+itself, which is why an earlier attempt to model it from the inside failed.
 
 ### The six array pointers
 
@@ -368,7 +382,7 @@ is `unknown`. The API keeps this separate from `parse_blv` for that reason.
      forward but did not make the count-prefixed model work for what follows.
 - Whatever follows the decoration array — 32 KB on `d01.blv`, 70 KB on
   `CD1.blv`. `unknown`
-- The header fields at 0x00, 0x6C, 0x70 and 0x74. `unknown`
+- The header fields at 0x00, 0x6C and 0x70. `unknown`
 - What arrays 1-3 of each face's six actually mean. `unknown`
 - The unknown spans inside the face record (+0x10, +0x38, +0x4E). `unknown`
 - Whether the `.dlv` files pair with `.blv` the way `.ddm` pairs with `.odm`.

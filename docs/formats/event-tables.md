@@ -89,17 +89,27 @@ The decoder requires room for both. Without that the indoor test would accept
 any chain that merely fits, since — unlike outdoor — the payload does not end
 on a trailer at a computable offset.
 
-### Why the tail's size cannot be modelled
+### The tail's size is declared — in the other file
 
-It is not structural. **In all 52 files the payload ends exactly 256 or 257
-zero bytes after its last nonzero byte** (303 for the ten minimal maps, whose
-last data sits inside the fixed block). The writer trims the buffer to its
-populated extent and appends the trailer, so `decompressedSize` records how far
-the state happened to reach — not a count of anything. `observed`
+The state between the fixed block and the trailer is **exactly as many bytes as
+the paired `.blv` says**, in the `u32` at header offset `+0x74`. It agrees on
+**all 52 maps**, from 0 bytes on the small `zddb*` levels to 8,028 on the
+largest. `observed`
 
-This closes the question rather than leaving it open: there is no size model to
-find, and attempts to fit one against face, room or door counts were looking
-for something that is not there.
+Reproduce with `ddm_info <map>.dlv`, which opens the level and compares:
+
+```text
+layout: indoor  sections at 887, tail 22044 bytes (16000 of fixed state, 6044 of the rest)
+state bytes: 5788 here, 5788 declared by D01.blv  (agree)
+```
+
+**This corrects an earlier revision of this document**, which concluded that the
+size was not structural — that "the writer trims the buffer to its populated
+extent" — on the evidence that every payload ends 256 or 257 zero bytes after
+its last nonzero byte. That observation is correct and the conclusion drawn
+from it was wrong. The trailing zeros are the trailer; the size that precedes
+them is declared. The mistake was looking for the declaration inside the file
+that uses it, and concluding it was absent from both.
 
 ### Distinguishing the two layouts
 
