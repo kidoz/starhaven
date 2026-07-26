@@ -287,34 +287,11 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Does this animation have art in this install? The frame table names
-        // the entries, so ask it rather than guessing at a view digit.
-        auto drawable = [&](const std::string& animation) {
-            const auto frames = sprite_frames.group(animation);
-            if (frames.empty())
-                return cache.has_sprite(animation);
-            return cache.has_sprite(world::SpriteFrameTable::sprite_entry(frames.front(), 0));
-        };
-
-        // Monsters come in A/B/C triples and only the A variant's sprites ship;
-        // B and C are presumably palette swaps, which is not decoded. Falling
-        // back to the group's A animation draws them in the wrong colours
-        // rather than not at all. See docs/formats/dmonlist.md.
         for (std::size_t i = 0; i < actors.size(); ++i) {
-            const std::size_t id = actors[i].monster_id;
-            const auto* m = monsters.at(id);
-            if (m == nullptr)
-                continue;
-            std::string animation = m->animation(world::MonsterAnimation::Stand);
-            if (!animation.empty() && !drawable(animation)) {
-                if (const auto* a = monsters.at(id - (id % 3)); a != nullptr) {
-                    const std::string& alt = a->animation(world::MonsterAnimation::Stand);
-                    if (!alt.empty() && drawable(alt))
-                        animation = alt;
-                }
-            }
-            if (!animation.empty() && drawable(animation)) {
-                actor_animation[i] = animation;
+            std::string animation =
+                tools::actor_animation(monsters, sprite_frames, cache, actors[i].monster_id);
+            if (!animation.empty()) {
+                actor_animation[i] = std::move(animation);
             }
         }
     }

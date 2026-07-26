@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <span>
 #include <string>
 #include <vector>
@@ -17,6 +18,9 @@
 #include "core/render/scene.hpp"
 #include "core/world/blv_map.hpp"
 #include "core/world/collision.hpp"
+#include "core/world/map_event.hpp"
+#include "core/world/monster_list.hpp"
+#include "core/world/object_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
 #include "walker_common.hpp"
@@ -33,6 +37,8 @@ constexpr int kHeight = 480;
 
 // Decoration sprites are drawn well above 1:1; see docs/formats/odm-decorations.md.
 constexpr float kSpriteScale = 4.0f;
+constexpr float kActorScale = 1.2f;
+constexpr float kObjectScale = 2.0f;
 
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0 << " <map.blv>\n"
@@ -143,13 +149,51 @@ int main(int argc, char** argv) {
     // Torches and braziers are animations, not pictures; the frame table says
     // which sprite each shows now (docs/formats/dsft.md).
     world::SpriteFrameTable sprite_frames;
+    world::MonsterList monsters;
+    world::ObjectTable descriptors;
     if (const auto install = platform::install_from_env()) {
         lod::LodArchive icons;
-        std::span<const std::byte> raw;
-        if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None &&
-            icons.payload("DSFT.BIN", raw) == lod::LodArchive::PayloadError::None &&
-            world::SpriteFrameTable::parse(raw, sprite_frames) != world::SpriteFrameError::None) {
-            sprite_frames = world::SpriteFrameTable{};
+        if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None) {
+            std::span<const std::byte> raw;
+            if (icons.payload("DSFT.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::SpriteFrameTable::parse(raw, sprite_frames) !=
+                    world::SpriteFrameError::None) {
+                sprite_frames = world::SpriteFrameTable{};
+            }
+            if (icons.payload("DMONLIST.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::MonsterList::parse(raw, monsters) != world::MonsterListError::None) {
+                monsters = world::MonsterList{};
+            }
+            if (icons.payload("DOBJLIST.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::ObjectTable::parse(raw, descriptors) != world::ObjectTableError::None) {
+                descriptors = world::ObjectTable{};
+            }
+        }
+    }
+
+    // The level's event file names the monsters standing in it and the loot
+    // lying on its floor (docs/formats/event-tables.md).
+    std::vector<world::MapActor> actors;
+    std::vector<world::MapSpriteObject> objects;
+    std::map<std::size_t, std::string> actor_animation;
+    {
+        std::string stem = map_name;
+        if (const std::size_t dot = stem.rfind('.'); dot != std::string::npos) {
+            stem = stem.substr(0, dot);
+        }
+        std::span<const std::byte> ev_entry;
+        world::MapEventFile ev;
+        if (archive.payload(stem + ".dlv", ev_entry) == lod::GameLodArchive::PayloadError::None &&
+            world::parse_map_event(ev_entry, ev) == world::MapEventError::None) {
+            actors = world::extract_actors(ev);
+            objects = world::extract_sprite_objects(ev);
+        }
+        for (std::size_t i = 0; i < actors.size(); ++i) {
+            std::string animation =
+                tools::actor_animation(monsters, sprite_frames, cache, actors[i].monster_id);
+            if (!animation.empty()) {
+                actor_animation[i] = std::move(animation);
+            }
         }
     }
 
@@ -164,7 +208,8 @@ int main(int argc, char** argv) {
         std::cout << " \"" << identity.display_name << "\"";
     std::cout << ": header \"" << map.header.name << "\"  " << map.vertices.size() << " vertices, "
               << map.faces.size() << " faces, " << collision.size() << " collision polygons, "
-              << decorations.size() << " decorations\n";
+              << decorations.size() << " decorations, " << actors.size() << " actors ("
+              << actor_animation.size() << " with sprites), " << objects.size() << " objects\n";
 
     // Without a start position, prefer the level's own "Party Start" marker:
     // that is where the game itself puts the party.
@@ -336,6 +381,40 @@ int main(int argc, char** argv) {
                 continue;
             const float size = kSpriteScale * pick.scale;
             scene.draw_billboard(tools::to_render_space(d.x, d.y, d.z),
+                                 static_cast<float>(tex.width()) * size,
+                                 static_cast<float>(tex.height()) * size, tex);
+        }
+
+        // Monsters standing in the level.
+        for (const auto& [index, animation] : actor_animation) {
+            const tools::SpriteChoice pick = tools::choose_sprite(sprite_frames, animation, ticks);
+            const render::Texture& tex = cache.sprite(pick.entry, pick.palette);
+            if (tex.empty())
+                continue;
+            const auto& a = actors[index];
+            const float size = kActorScale * pick.scale;
+            scene.draw_billboard(tools::to_render_space(a.x, a.y, a.z),
+                                 static_cast<float>(tex.width()) * size,
+                                 static_cast<float>(tex.height()) * size, tex);
+        }
+
+        // Loot lying on the floor. The object's descriptor names an animation
+        // rather than a picture.
+        for (const auto& o : objects) {
+            const auto* descriptor = descriptors.at(o.descriptor_index);
+            if (descriptor == nullptr)
+                continue;
+            const tools::SpriteChoice pick =
+                tools::choose_object_sprite(sprite_frames, *descriptor, ticks);
+            if (pick.entry.empty())
+                continue;
+            const render::Texture& tex = cache.sprite(pick.entry, pick.palette);
+            if (tex.empty())
+                continue;
+            const float size = kObjectScale * pick.scale;
+            scene.draw_billboard(tools::to_render_space(static_cast<int>(o.x),
+                                                        static_cast<int>(o.y),
+                                                        static_cast<int>(o.z)),
                                  static_cast<float>(tex.width()) * size,
                                  static_cast<float>(tex.height()) * size, tex);
         }

@@ -10,6 +10,8 @@
 #include <string>
 
 #include "core/assets/asset_cache.hpp"
+#include "core/world/monster_list.hpp"
+#include "core/world/object_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
 namespace starhaven::tools {
@@ -44,6 +46,60 @@ inline SpriteChoice choose_sprite(const world::SpriteFrameTable& frames, const s
                 static_cast<int>(f->palette_id)};
     }
     return {name, 1.0f, assets::kSpritePaletteFromHeader};
+}
+
+// The animation to draw for an actor, or an empty string when nothing
+// resolves.
+//
+// An actor record's monster id is **1-based**: it is the id in `MONSTERS.TXT`,
+// which is the `DMONLIST.BIN` index plus one. Across the 266 outdoor actors
+// the record's own name matches `MONSTERS.TXT[id]` 266 times and the binary
+// table's name matches at `id - 1` for all 173 monsters, so indexing
+// `DMONLIST` with the raw id draws the next monster's sprite.
+inline std::string actor_animation(const world::MonsterList& monsters,
+                                   const world::SpriteFrameTable& frames, assets::AssetCache& cache,
+                                   int monster_id) {
+    auto drawable = [&](const std::string& animation) {
+        if (animation.empty())
+            return false;
+        const auto group = frames.group(animation);
+        if (group.empty())
+            return cache.has_sprite(animation);
+        return cache.has_sprite(world::SpriteFrameTable::sprite_entry(group.front(), 0));
+    };
+    if (monster_id <= 0) {
+        return {};
+    }
+    const auto index = static_cast<std::size_t>(monster_id - 1);
+    const auto* entry = monsters.at(index);
+    if (entry == nullptr) {
+        return {};
+    }
+    std::string animation = entry->animation(world::MonsterAnimation::Stand);
+    // Monsters come in A/B/C triples; with 1-based ids the A variant of id is
+    // id - ((id - 1) % 3). Falling back to it draws a variant whose own art is
+    // missing rather than drawing nothing.
+    if (!drawable(animation)) {
+        const auto a_index = static_cast<std::size_t>(monster_id - 1 - ((monster_id - 1) % 3));
+        if (const auto* a = monsters.at(a_index); a != nullptr) {
+            const std::string& alt = a->animation(world::MonsterAnimation::Stand);
+            if (drawable(alt))
+                return alt;
+        }
+    }
+    return drawable(animation) ? animation : std::string{};
+}
+
+// What to draw for a placed sprite object. Its descriptor names the first
+// frame of an animation group rather than a picture.
+inline SpriteChoice choose_object_sprite(const world::SpriteFrameTable& frames,
+                                         const world::ObjectDescriptor& descriptor,
+                                         std::uint32_t ticks) {
+    const std::size_t index = descriptor.sprite_frame_index;
+    if (index >= frames.size() || frames.frames()[index].group_name.empty()) {
+        return {};
+    }
+    return choose_sprite(frames, frames.frames()[index].group_name, ticks);
 }
 
 }  // namespace starhaven::tools
