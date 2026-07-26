@@ -1,10 +1,9 @@
-#ifndef STARHAVEN_TOOLS_WALKER_COMMON_HPP
-#define STARHAVEN_TOOLS_WALKER_COMMON_HPP
+#ifndef STARHAVEN_GAME_PLAYER_HPP
+#define STARHAVEN_GAME_PLAYER_HPP
 
-// Pieces both first-person walkers need: the player's proportions, the
-// movement step, and the small argument helpers. Kept here rather than in the
-// engine because these are viewer policy, not engine behaviour — the numbers
-// are chosen to feel right, not read from the game.
+// The player's proportions and how they move. These are engine policy rather
+// than decoded facts — the numbers are chosen to feel right, not read from the
+// game — so they live apart from the format parsers.
 
 #include <algorithm>
 #include <cstdlib>
@@ -14,8 +13,9 @@
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
 #include "core/world/collision.hpp"
+#include "core/world/map_session.hpp"
 
-namespace starhaven::tools {
+namespace starhaven::game {
 
 // Player proportions, in MM6 world units. A terrain cell is 512 across, so a
 // body a little under a third of a cell wide walks through doorways.
@@ -30,11 +30,6 @@ inline constexpr float kLookSpeed = 1.5f;  // radians per second, arrow keys
 // A capture taken on the first frame shows the camera before gravity has
 // settled it, which misrepresents where the player actually stands.
 inline constexpr int kSettleFrames = 90;
-
-// MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up.
-inline render::Vec3 to_render_space(int x, int y, int z) {
-    return {static_cast<float>(x), static_cast<float>(z), static_cast<float>(y)};
-}
 
 // Where the player wants to go this frame, before collision.
 struct MoveInput {
@@ -125,6 +120,6 @@ inline std::filesystem::path resolve_games_lod() {
     return "data/Games.lod";
 }
 
-}  // namespace starhaven::tools
+}  // namespace starhaven::game
 
-#endif  // STARHAVEN_TOOLS_WALKER_COMMON_HPP
+#endif  // STARHAVEN_GAME_PLAYER_HPP

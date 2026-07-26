@@ -50,6 +50,7 @@ starhaven_core_sources = files(
   'src/core/world/sound_table.cpp',
   'src/core/world/decoration_table.cpp',
   'src/core/world/blv_map.cpp',
+  'src/core/world/map_session.cpp',
   'src/core/world/collision.cpp',
   'src/core/render/rasterizer.cpp',
   'src/core/render/texture.cpp',
@@ -80,9 +81,15 @@ starhaven_dep = declare_dependency(
   dependencies : zlib_dep,
 )
 
-# Application launcher. Kept thin; real logic lives in starhaven_core.
+# SDL3 for the engine and its tools. Prefer a system install; the committed
+# subprojects/sdl3.wrap declares `dependency_names = sdl3`, so Meson falls back
+# to the wrap automatically when no system SDL3 is found.
+sdl3_dep = dependency('sdl3')
+
+# The engine itself: loads any map and renders it as a walkable world. The
+# SDL-dependent parts live under src/game; everything below it is SDL-free.
 executable('starhaven', 'src/main.cpp',
-  dependencies : starhaven_dep,
+  dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
 
@@ -91,11 +98,6 @@ executable('lod_browser', 'tools/lod_browser.cpp',
   dependencies : starhaven_dep,
   install : true,
 )
-
-# SDL3 for the viewer tools. Prefer a system install; the committed
-# subprojects/sdl3.wrap declares `dependency_names = sdl3`, so Meson falls back
-# to the wrap automatically when no system SDL3 is found.
-sdl3_dep = dependency('sdl3')
 
 
 # Bitmap viewer: decodes one .LOD image entry and shows it in an SDL3 window.
@@ -113,18 +115,6 @@ executable('odm_info', 'tools/odm_info.cpp',
 
 # Heightmap viewer: renders an .odm heightmap as grayscale in an SDL3 window.
 executable('view_heightmap', 'tools/view_heightmap.cpp',
-  dependencies : [starhaven_dep, sdl3_dep],
-  install : true,
-)
-
-# First-person walker: software-rasterizes an .odm terrain heightfield in 3D.
-executable('walk_odm', 'tools/walk_odm.cpp',
-  dependencies : [starhaven_dep, sdl3_dep],
-  install : true,
-)
-
-# Indoor walker: software-rasterizes a .blv level in 3D.
-executable('walk_blv', 'tools/walk_blv.cpp',
   dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )

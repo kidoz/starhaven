@@ -1,9 +1,8 @@
-#ifndef STARHAVEN_TOOLS_WALKER_MUSIC_HPP
-#define STARHAVEN_TOOLS_WALKER_MUSIC_HPP
+#ifndef STARHAVEN_GAME_MUSIC_PLAYER_HPP
+#define STARHAVEN_GAME_MUSIC_PLAYER_HPP
 
-// What a walker needs to know about the map it just loaded, beyond geometry:
-// the name the designers gave it and the music that plays there. Both come out
-// of `MapStats.txt` (see docs/formats/text-tables.md).
+// The music that plays on a map. Which track is `MapStats.txt`'s business and
+// arrives on the loaded session; this only plays it.
 
 #include <cstdint>
 #include <filesystem>
@@ -14,37 +13,9 @@
 #include <SDL3/SDL.h>
 
 #include "core/audio/mp3.hpp"
-#include "core/data/game_data.hpp"
-#include "core/data/map_stats.hpp"
 #include "core/platform/paths.hpp"
 
-namespace starhaven::tools {
-
-// A map's entry in the design table, or empty values when the installation has
-// no table or does not list this map.
-struct MapIdentity {
-    std::string display_name;
-    int music_track = 0;
-};
-
-inline MapIdentity identify_map(const std::string& map_file_name) {
-    MapIdentity out;
-    const auto install = platform::install_from_env();
-    if (!install) {
-        return out;
-    }
-    data::MapStatsTable maps;
-    if (data::load_map_stats(*install / "data", maps) != data::GameDataError::None) {
-        return out;
-    }
-    const data::MapStatsEntry* e = maps.find(map_file_name);
-    if (e == nullptr) {
-        return out;
-    }
-    out.display_name = data::cp1252_to_utf8(e->name);
-    out.music_track = e->music_track;
-    return out;
-}
+namespace starhaven::game {
 
 // Plays one music track on a loop while a walker runs.
 //
@@ -119,6 +90,6 @@ private:
     std::vector<std::int16_t> samples_;
 };
 
-}  // namespace starhaven::tools
+}  // namespace starhaven::game
 
-#endif  // STARHAVEN_TOOLS_WALKER_MUSIC_HPP
+#endif  // STARHAVEN_GAME_MUSIC_PLAYER_HPP

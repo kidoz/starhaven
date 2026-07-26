@@ -1,5 +1,5 @@
-#ifndef STARHAVEN_TOOLS_WALKER_SPRITES_HPP
-#define STARHAVEN_TOOLS_WALKER_SPRITES_HPP
+#ifndef STARHAVEN_GAME_SPRITES_HPP
+#define STARHAVEN_GAME_SPRITES_HPP
 
 // Turning a name into the sprite to draw this frame. Decorations and monster
 // animations both name an entry in the sprite frame table rather than a
@@ -14,7 +14,7 @@
 #include "core/world/object_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
-namespace starhaven::tools {
+namespace starhaven::game {
 
 // The frame table counts animation time in units it does not name. Fifteen per
 // second puts a torch's ten-tick flicker at two thirds of a second and an
@@ -102,6 +102,6 @@ inline SpriteChoice choose_object_sprite(const world::SpriteFrameTable& frames,
     return choose_sprite(frames, frames.frames()[index].group_name, ticks);
 }
 
-}  // namespace starhaven::tools
+}  // namespace starhaven::game
 
-#endif  // STARHAVEN_TOOLS_WALKER_SPRITES_HPP
+#endif  // STARHAVEN_GAME_SPRITES_HPP

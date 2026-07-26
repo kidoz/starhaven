@@ -1,5 +1,5 @@
-#ifndef STARHAVEN_TOOLS_WALKER_AMBIENT_HPP
-#define STARHAVEN_TOOLS_WALKER_AMBIENT_HPP
+#ifndef STARHAVEN_GAME_AMBIENT_MIXER_HPP
+#define STARHAVEN_GAME_AMBIENT_MIXER_HPP
 
 // The sounds a place makes. A few decoration types name an ambient sound in
 // `DDECLIST.BIN`, which `DSOUNDS.BIN` resolves to an entry of `Audio.snd`; a
@@ -19,7 +19,7 @@
 #include "core/render/math3d.hpp"
 #include "core/world/sound_table.hpp"
 
-namespace starhaven::tools {
+namespace starhaven::game {
 
 // How far an ambient sound carries, in world units. A terrain cell is 512
 // across, so this is a handful of cells — chosen by ear, not read from the
@@ -138,6 +138,6 @@ private:
     std::map<std::uint32_t, Voice> voices_;
 };
 
-}  // namespace starhaven::tools
+}  // namespace starhaven::game
 
-#endif  // STARHAVEN_TOOLS_WALKER_AMBIENT_HPP
+#endif  // STARHAVEN_GAME_AMBIENT_MIXER_HPP
