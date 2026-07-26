@@ -68,14 +68,38 @@ not end on a fixed trailer. Content does:
   `ITEMS.TXT`**, and 269 of 269 fixed chest items resolve too, with no invalid
   negative placeholder. `observed`
 
-### The tail is state, not a section
+### The tail: a fixed block, then trimmed state
 
-What follows the chest array is 16,256 to 30,434 bytes and does **not** close
-arithmetically. It is saved runtime state: it contains values such as
-`0x0307CDA0` in long runs — heap pointers from the process that wrote the file.
-Ten of the small `zddb*` maps share a floor value of exactly 16,256 bytes. No
-model of its size is offered, and the decoder records its length rather than
-requiring anything of it. `observed`
+What follows the chest array is 16,256 to 30,434 bytes. It is saved runtime
+state — it contains values such as `0x0307CDA0` in long runs, which are heap
+pointers from the process that wrote the file — but it is not shapeless.
+
+**It begins with a fixed 200-entry array of 80-byte records.** The evidence is
+exact: across the 52 maps, all 56,000 pointer-shaped values in the first 16,000
+bytes fall in fields 9 to 16 of an 80-byte stride, and each of those eight
+fields holds exactly 7,000 of them — 200 records × the 35 maps whose state
+carries pointers at all. Not one lands anywhere else. `observed`
+
+`200 × 80 + 256 = 16,256`, which is exactly the smallest tail any map has, and
+ten of the small `zddb*` maps have precisely that. So a minimal indoor payload
+is the fixed block plus the same 256-byte trailer the outdoor layout ends with.
+`observed`
+
+The decoder requires room for both. Without that the indoor test would accept
+any chain that merely fits, since — unlike outdoor — the payload does not end
+on a trailer at a computable offset.
+
+### Why the tail's size cannot be modelled
+
+It is not structural. **In all 52 files the payload ends exactly 256 or 257
+zero bytes after its last nonzero byte** (303 for the ten minimal maps, whose
+last data sits inside the fixed block). The writer trims the buffer to its
+populated extent and appends the trailer, so `decompressedSize` records how far
+the state happened to reach — not a count of anything. `observed`
+
+This closes the question rather than leaving it open: there is no size model to
+find, and attempts to fit one against face, room or door counts were looking
+for something that is not there.
 
 ### Distinguishing the two layouts
 
@@ -140,4 +164,7 @@ The decoder rejects an outdoor layout when:
 - Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
 - The first chest word and meanings of its 140 grid entries.
 - The indoor prefix's 883 bytes, and why the count lands unaligned.
-- The structure of the indoor tail beyond "saved runtime state".
+- What the fixed 200-slot array holds. Eight pointer fields per record and
+  200 slots regardless of level size suggest a capped table the engine fills
+  at load — doors are the obvious candidate — but nothing here names it, and
+  the slots carry defaults rather than a usable occupancy count.

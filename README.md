@@ -120,7 +120,9 @@ interoperability and compatibility with a legally purchased copy.
   populated: the same actor, loot and chest arrays the outdoor files use, after
   a shorter prefix. All 52 indoor maps decode — 76 monsters, 219 loot objects
   and 1,040 chests — with every actor standing inside the level's own geometry
-  and every item id resolving in `ITEMS.TXT`. `walk_blv` draws them.
+  and every item id resolving in `ITEMS.TXT`. `walk_blv` draws them. The state
+  that follows is partly mapped too: a fixed 200-slot record array, then a
+  region the writer trims to whatever it happened to fill.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
