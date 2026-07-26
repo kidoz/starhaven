@@ -182,8 +182,8 @@ attached to selected faces rather than a parallel array.
 | +0x0C | 2 | u16 | face_index | observed | always a valid face index |
 | +0x0E | 2 | u16 | marker | observed | **0xffff in all 35,485 records** |
 | +0x10 | 4 | — | unknown | unknown | |
-| +0x14 | 2 | u16 | unknown | unknown | usually non-zero; 128/256/384 common |
-| +0x16 | 2 | u16 | unknown | unknown | usually non-zero |
+| +0x14 | 2 | i16 | texture origin u | observed | −min(u) of the face |
+| +0x16 | 2 | i16 | texture origin v | observed | −min(v) of the face |
 | +0x18 | 2 | — | unknown | unknown | |
 | +0x1A | 2 | u16 | unknown | unknown | non-zero on ~1 record in 6 |
 | +0x1C | 20 | — | unknown | unknown | zero in all but 3 observed records |
@@ -213,33 +213,50 @@ exception aside, the bit and the record agree exactly, in both directions.
 
 Reproduce with `blv_info <map>.blv`, which reports the comparison.
 
-### The three live fields
+### The texture origin at +0x14 and +0x16
 
-Twelve of the record's 36 bytes are zero in every record, and the four at +0x10
-and twenty at +0x1C are almost always zero. What is left is three `u16`s, and
-each is **associated with a further attribute bit on the face it names** —
-associated, not equivalent, which is why they are still named for their
-offsets:
+These two are **the face's texture origin**: signed offsets that bring its
+lowest texture coordinate to zero. Where the field is set,
 
-| Field | Nonzero in | Accompanying bit | Nonzero values carrying the bit |
-| --- | ---: | --- | --- |
-| +0x14 | 29,732 | `0x00001000` | 97.7% |
-| +0x16 | 29,658 | `0x00000008` | 99.1% |
-| +0x1A | 5,560 | `0x02000000` | 85.7% |
+- `+0x14 == −min(u)` in **28,877 of 29,731** records (97.1%)
+- `+0x16 == −min(v)` in **29,360 of 29,657** records (99.0%)
 
-A bit set with a zero value is not a counterexample — an offset of zero is a
-legitimate value — so only the other direction is measured here. `observed`
+taking each as `i16`. Read unsigned they are nonsense: most faces have a
+positive minimum, so most origins are negative, and −1 reads as 65,535.
+`observed`
 
-`+0x1A` is the most distinctive: it takes 81 distinct values across the whole
-game, runs 0 to 295, and repeats within a map, so several faces share one
-value. Of the 934 values shared by more than one face, 501 name a run of
-**consecutive** face indices and the median span is 4, which is what a door or
-a trigger built from a handful of adjacent faces would look like. That is
-suggestive, not a decode. `inferred`
+A zero field is **not** an origin of zero — it is a record that carries none,
+and 5,751 do. Measured over the whole array instead, agreement falls to 82%,
+which is what an earlier revision of this document reported.
 
-The other two are dominated by multiples of 64, 128 and 256 and include values
-that read as negative when taken as `i16` (−1, −128), which fits a texture
-offset better than an id. `unknown`
+Of the ~1,000 records that do not match exactly, most differ by a whole
+multiple of 64, consistent with the offset being taken modulo a texture
+dimension. `inferred`
+
+`blv_info <map>.blv` reports the comparison; over all 52 maps it is
+**58,237 of 59,388** (98.1%).
+
+**StarHaven does not apply these to its texture coordinates.** Dividing the raw
+`u`/`v` by the texture's dimensions already tiles walls, floors and ceilings
+correctly, and shifting each face's origin to zero would change that alignment.
+The value is much more likely to be what the original renderer used to size a
+texture-space span or lightmap. Recording what the field *is* does not settle
+what it was *for*.
+
+### The sparse field at +0x1A
+
+Non-zero on about one record in six. It takes 81 distinct values across the
+whole game, runs 0 to 295, and repeats within a map, so several faces share
+one. Of the 934 values shared by more than one face, 501 name a run of
+**consecutive** face indices, and the median index span is 4 — which is what a
+door or a trigger built from a handful of adjacent faces would look like, and
+also what several other things would look like. `inferred`
+
+It is **not** a room id: a room id would run 1..N densely, and only 6 of the 52
+maps have values forming a contiguous range from 1. `observed`
+
+Its presence is associated with face attribute bit `0x02000000` — 85.7% of
+records with a non-zero value name a face carrying that bit. `observed`
 
 ## Face-extra names
 
