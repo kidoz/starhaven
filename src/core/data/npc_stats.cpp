@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstddef>
+#include <map>
 
 namespace starhaven::data {
 
@@ -147,6 +148,75 @@ const NpcProfessionEntry* NpcProfessionTable::at(int id) const noexcept {
         }
     }
     return nullptr;
+}
+
+NpcStatsError NpcDialogueTable::parse(const TextTable& topics, const TextTable& texts,
+                                      NpcDialogueTable& out) {
+    out.entries_.clear();
+
+    const std::size_t topic_header = find_header(topics, 1, "Topic");
+    const std::size_t text_header = find_header(texts, 1, "Text");
+    if (topic_header == topics.row_count() || text_header == texts.row_count()) {
+        return NpcStatsError::NoHeader;
+    }
+
+    std::map<int, std::string> words;
+    for (std::size_t r = text_header + 1; r < texts.row_count(); ++r) {
+        const int id = texts.cell_int(r, 0, -1);
+        std::string text = cell_text(texts, r, 1);
+        if (id <= 0 || text.empty()) {
+            continue;
+        }
+        words.emplace(id, std::move(text));
+    }
+
+    for (std::size_t r = topic_header + 1; r < topics.row_count(); ++r) {
+        const int id = topics.cell_int(r, 0, -1);
+        std::string topic = cell_text(topics, r, 1);
+        if (id <= 0 || topic.empty()) {
+            continue;
+        }
+        NpcDialogueEntry e;
+        e.id = id;
+        e.topic = std::move(topic);
+        if (const auto it = words.find(id); it != words.end()) {
+            e.text = it->second;
+        }
+        out.entries_.push_back(std::move(e));
+    }
+    return NpcStatsError::None;
+}
+
+const NpcDialogueEntry* NpcDialogueTable::at(int id) const noexcept {
+    for (const auto& e : entries_) {
+        if (e.id == id) {
+            return &e;
+        }
+    }
+    return nullptr;
+}
+
+NpcStatsError NpcNewsTable::parse(const TextTable& table, NpcNewsTable& out) {
+    out.entries_.clear();
+
+    const std::size_t header = find_header(table, 1, "Map");
+    if (header == table.row_count()) {
+        return NpcStatsError::NoHeader;
+    }
+    for (std::size_t r = header + 1; r < table.row_count(); ++r) {
+        const int id = table.cell_int(r, 0, -1);
+        std::string text = cell_text(table, r, 3);
+        if (id <= 0 || text.empty()) {
+            continue;
+        }
+        NpcNewsEntry e;
+        e.id = id;
+        e.map_value = table.cell_int(r, 1);
+        e.topic = cell_text(table, r, 2);
+        e.text = std::move(text);
+        out.entries_.push_back(std::move(e));
+    }
+    return NpcStatsError::None;
 }
 
 }  // namespace starhaven::data

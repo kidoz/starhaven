@@ -61,6 +61,11 @@ enum class GameDataError {
 [[nodiscard]] GameDataError load_npc_professions(const std::filesystem::path& data_dir,
                                                  NpcProfessionTable& out);
 
+// Load and merge `npctopic.txt` with `npctext.txt`, and load `NPCNews.txt`.
+[[nodiscard]] GameDataError load_npc_dialogue(const std::filesystem::path& data_dir,
+                                              NpcDialogueTable& out);
+[[nodiscard]] GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable& out);
+
 // Load one of the name-and-prose tables: `Class.txt`, `stats.txt`,
 // `SkillDes.txt`. `name` is the archive entry.
 [[nodiscard]] GameDataError load_descriptions(const std::filesystem::path& data_dir,

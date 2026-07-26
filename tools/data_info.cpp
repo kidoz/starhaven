@@ -40,6 +40,8 @@ void print_usage(const char* argv0) {
               << "  --buildings [map]  2DEvents.txt, or one map's establishments\n"
               << "  --npcs [name]      NPCdata.txt, or one person\n"
               << "  --professions      npcprof.txt\n"
+              << "  --dialogue [id]    npctopic.txt + npctext.txt\n"
+              << "  --news             NPCNews.txt\n"
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
               << "  --skills           SkillDes.txt\n"
@@ -591,6 +593,71 @@ int do_npcs(const std::filesystem::path& data_dir, const std::string& want) {
     return 0;
 }
 
+int do_dialogue(const std::filesystem::path& data_dir, const std::string& want) {
+    data::NpcDialogueTable dialogue;
+    if (data::load_npc_dialogue(data_dir, dialogue) != data::GameDataError::None) {
+        std::cerr << "error: could not load the dialogue tables\n";
+        return 1;
+    }
+    if (!want.empty()) {
+        const int id = std::atoi(want.c_str());
+        const auto* e = dialogue.at(id);
+        if (e == nullptr) {
+            std::cerr << "error: no dialogue with id " << id << "\n";
+            return 1;
+        }
+        std::cout << e->id << "  " << data::cp1252_to_utf8(e->topic) << "\n"
+                  << "  " << data::cp1252_to_utf8(e->text) << "\n";
+        return 0;
+    }
+
+    // How many NPC event references land on a topic, and how many of those
+    // topics actually have words.
+    data::NpcTable npcs;
+    std::size_t referenced = 0;
+    std::size_t resolved = 0;
+    std::size_t spoken = 0;
+    if (data::load_npcs(data_dir, npcs) == data::GameDataError::None) {
+        for (const auto& n : npcs.entries()) {
+            for (const int id : n.events) {
+                if (id <= 0) {
+                    continue;
+                }
+                ++referenced;
+                if (const auto* e = dialogue.at(id); e != nullptr) {
+                    ++resolved;
+                    spoken += !e->text.empty();
+                }
+            }
+        }
+    }
+    std::size_t wordless = 0;
+    for (const auto& e : dialogue.entries()) {
+        wordless += e.text.empty();
+    }
+    std::cout << dialogue.size() << " topics, " << wordless << " with no words\n";
+    std::cout << resolved << "/" << referenced << " NPC references resolve, " << spoken
+              << " of them have words\n";
+    for (const auto& e : dialogue.entries()) {
+        std::cout << "  " << e.id << "\t" << data::cp1252_to_utf8(e.topic) << "\n";
+    }
+    return 0;
+}
+
+int do_news(const std::filesystem::path& data_dir) {
+    data::NpcNewsTable news;
+    if (data::load_npc_news(data_dir, news) != data::GameDataError::None) {
+        std::cerr << "error: could not load NPCNews.txt\n";
+        return 1;
+    }
+    std::cout << news.size() << " regional rumours\n";
+    for (const auto& n : news.entries()) {
+        std::cout << "  " << n.id << "\t[" << n.map_value << "]\t" << data::cp1252_to_utf8(n.topic)
+                  << "\t" << data::cp1252_to_utf8(n.text).substr(0, 70) << "\n";
+    }
+    return 0;
+}
+
 int do_professions(const std::filesystem::path& data_dir) {
     data::NpcProfessionTable professions;
     if (data::load_npc_professions(data_dir, professions) != data::GameDataError::None) {
@@ -734,6 +801,10 @@ int main(int argc, char** argv) {
         return do_buildings(data_dir, argument);
     if (command == "--npcs")
         return do_npcs(data_dir, argument);
+    if (command == "--dialogue")
+        return do_dialogue(data_dir, argument);
+    if (command == "--news")
+        return do_news(data_dir);
     if (command == "--professions")
         return do_professions(data_dir);
     if (command == "--classes")

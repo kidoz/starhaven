@@ -118,3 +118,82 @@ TEST_CASE("tables without their headers are refused", "[npc]") {
     NpcProfessionTable jobs;
     REQUIRE(NpcProfessionTable::parse(table, jobs) == NpcStatsError::NoHeader);
 }
+
+namespace {
+
+std::string topic_body() {
+    std::string s;
+    s += "Text Number From NPC Events.Doc\t\tNotes\r\n";
+    s += "#\tTopic\t\r\n";
+    s += "1\tThe Letter\t\r\n";
+    s += "2\tThe Seal\t\r\n";
+    s += "3\tA Rumour\t\r\n";
+    return s;
+}
+
+std::string text_body() {
+    std::string s;
+    s += "Text Number From NPC Events.Doc\t\t\r\n";
+    s += "#\tText\tNotes\r\n";
+    s += "1\tHere is your money.\t\r\n";
+    s += "2\tThe seal is broken.\t\r\n";
+    return s;
+}
+
+NpcDialogueTable dialogue() {
+    TextTable topics;
+    TextTable texts;
+    REQUIRE(TextTable::parse_body(topic_body(), topics) == TextTableError::None);
+    REQUIRE(TextTable::parse_body(text_body(), texts) == TextTableError::None);
+    NpcDialogueTable out;
+    REQUIRE(NpcDialogueTable::parse(topics, texts, out) == NpcStatsError::None);
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("topics and texts merge on their shared numbering", "[npc]") {
+    const auto said = dialogue();
+    REQUIRE(said.size() == 3);
+    REQUIRE(said.at(1)->topic == "The Letter");
+    REQUIRE(said.at(1)->text == "Here is your money.");
+    REQUIRE(said.at(2)->topic == "The Seal");
+}
+
+TEST_CASE("a topic with no words is kept, not dropped", "[npc]") {
+    // Nineteen of the shipped topics have a label and nothing to say. Dropping
+    // them would break the numbering the NPC event columns rely on.
+    const auto said = dialogue();
+    REQUIRE(said.at(3) != nullptr);
+    REQUIRE(said.at(3)->topic == "A Rumour");
+    REQUIRE(said.at(3)->text.empty());
+    REQUIRE(said.at(99) == nullptr);
+}
+
+TEST_CASE("news keeps its map column as written", "[npc]") {
+    // The column is headed "Map" but its values do not line up with the map
+    // list, so it is not resolved to one.
+    std::string body = "Regional News\t\t\t\r\n"
+                       "#\tMap\tTopic\tNews Text\r\n"
+                       "1\t40\tGoblinwatch\tThe keep is full of goblins.\r\n"
+                       "2\t1\tSweet Water\tThe town was beautiful once.\r\n";
+    TextTable table;
+    REQUIRE(TextTable::parse_body(body, table) == TextTableError::None);
+    NpcNewsTable news;
+    REQUIRE(NpcNewsTable::parse(table, news) == NpcStatsError::None);
+
+    REQUIRE(news.size() == 2);
+    REQUIRE(news.entries()[0].map_value == 40);
+    REQUIRE(news.entries()[0].topic == "Goblinwatch");
+    REQUIRE(news.entries()[1].map_value == 1);
+}
+
+TEST_CASE("dialogue tables without their headers are refused", "[npc]") {
+    TextTable empty;
+    REQUIRE(TextTable::parse_body("a\tb\r\n1\t2\r\n", empty) == TextTableError::None);
+
+    NpcDialogueTable said;
+    REQUIRE(NpcDialogueTable::parse(empty, empty, said) == NpcStatsError::NoHeader);
+    NpcNewsTable news;
+    REQUIRE(NpcNewsTable::parse(empty, news) == NpcStatsError::NoHeader);
+}
