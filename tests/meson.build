@@ -175,3 +175,9 @@ test('font',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('inspect',
+  executable('test_inspect', 'test_inspect.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

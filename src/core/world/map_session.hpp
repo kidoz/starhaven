@@ -41,6 +41,7 @@ struct SessionDecoration {
 struct SessionActor {
     std::string animation;  // empty when this install has no art for it
     std::string name;       // the MONSTERS.TXT name for the actor's monster id
+    int monster_id = 0;     // 1-based; indexes MONSTERS.TXT directly
     render::Vec3 position;
 };
 
@@ -48,6 +49,7 @@ struct SessionActor {
 struct SessionObject {
     std::uint16_t descriptor_index = 0;
     std::string name;  // the ITEMS.TXT name of what it is, when it is an item
+    int item_id = 0;   // indexes ITEMS.TXT; 0 when the object is not an item
     render::Vec3 position;
 };
 

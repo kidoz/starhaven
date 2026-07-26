@@ -188,7 +188,7 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::filesyste
             actor.monster_id <= monster_stats.entries().size()) {
             name = monster_stats.entries()[actor.monster_id - 1].name;
         }
-        out.actors.push_back({std::move(animation), data::cp1252_to_utf8(name),
+        out.actors.push_back({std::move(animation), data::cp1252_to_utf8(name), actor.monster_id,
                               to_render_space(actor.x, actor.y, actor.z)});
     }
     for (const auto& object : extract_sprite_objects(file)) {
@@ -199,7 +199,7 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::filesyste
             }
         }
         out.objects.push_back(
-            {object.descriptor_index, std::move(name),
+            {object.descriptor_index, std::move(name), object.contained_item.item_id,
              to_render_space(static_cast<int>(object.x), static_cast<int>(object.y),
                              static_cast<int>(object.z))});
     }
