@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "core/world/face_flags.hpp"
+
 namespace starhaven::world {
 
 // One ground tileset reference: a group id and an offset into the tileset
@@ -149,6 +151,12 @@ struct OdmModelFacet {
 
     std::uint32_t attributes = 0;   // bit flags; see the spec (partly unknown)
     std::uint8_t vertex_count = 0;  // the polygon's size; indexes the arrays below
+
+    // The plane this facet is projected onto for two-dimensional work. Indoor
+    // faces declare it in the same three bits (see docs/formats/blv.md).
+    [[nodiscard]] ProjectionPlane projection() const noexcept {
+        return projection_plane(attributes);
+    }
 
     // Indices into the owning mesh's `vertices`. Only the first
     // `vertex_count` entries are meaningful.

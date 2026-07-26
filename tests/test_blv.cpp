@@ -510,3 +510,26 @@ TEST_CASE("a texture origin is signed", "[blv]") {
     REQUIRE(map.face_extras.size() == 1);
     REQUIRE(map.face_extras[0].texture_origin_u == -100);
 }
+
+TEST_CASE("bits 0x100/0x200/0x400 select the projection plane", "[blv]") {
+    // Exactly one is set on every shipped polygon, and it is always the plane
+    // perpendicular to the normal's largest component, ties going to z then y.
+    REQUIRE(projection_plane(kFaceProjectXY) == ProjectionPlane::XY);
+    REQUIRE(projection_plane(kFaceProjectXZ) == ProjectionPlane::XZ);
+    REQUIRE(projection_plane(kFaceProjectYZ) == ProjectionPlane::YZ);
+
+    // A floor or ceiling projects onto XY, a wall onto whichever of XZ or YZ
+    // its normal points along.
+    REQUIRE(projection_plane_for(0.0f, 0.0f, 1.0f) == ProjectionPlane::XY);
+    REQUIRE(projection_plane_for(0.0f, 0.0f, -1.0f) == ProjectionPlane::XY);
+    REQUIRE(projection_plane_for(0.1f, 0.9f, 0.2f) == ProjectionPlane::XZ);
+    REQUIRE(projection_plane_for(-0.9f, 0.1f, 0.2f) == ProjectionPlane::YZ);
+
+    // Ties resolve towards z, then y — which is what makes the rule exact.
+    REQUIRE(projection_plane_for(1.0f, 1.0f, 1.0f) == ProjectionPlane::XY);
+    REQUIRE(projection_plane_for(1.0f, 1.0f, 0.0f) == ProjectionPlane::XZ);
+
+    BlvFace face;
+    face.attributes = kFaceProjectXZ;
+    REQUIRE(face.projection() == ProjectionPlane::XZ);
+}

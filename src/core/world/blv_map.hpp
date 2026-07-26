@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "core/world/face_flags.hpp"
+
 namespace starhaven::world {
 
 // Outcome of parsing a `.blv` indoor map. The parser never throws.
@@ -80,6 +82,11 @@ struct BlvFace {
 
     // Whether a face-extra record describes this face.
     [[nodiscard]] bool has_extra() const noexcept { return (attributes & kBlvFaceHasExtra) != 0; }
+
+    // The plane this face is projected onto for two-dimensional work.
+    [[nodiscard]] ProjectionPlane projection() const noexcept {
+        return projection_plane(attributes);
+    }
 
     [[nodiscard]] float nx() const noexcept { return static_cast<float>(normal_x) / 65536.0f; }
     [[nodiscard]] float ny() const noexcept { return static_cast<float>(normal_y) / 65536.0f; }

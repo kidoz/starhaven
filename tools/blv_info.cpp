@@ -97,8 +97,8 @@ int main(int argc, char** argv) {
     if (dump_faces) {
         for (std::size_t i = 0; i < map.faces.size(); ++i) {
             const auto& f = map.faces[i];
-            std::cout << i << "\t" << f.attributes << "\t"
-                      << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
+            std::cout << i << "\t" << f.attributes << "\t" << f.nx() << "\t" << f.ny() << "\t"
+                      << f.nz() << "\t" << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
         }
         return 0;
     }

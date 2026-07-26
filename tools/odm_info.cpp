@@ -39,11 +39,13 @@ std::filesystem::path resolve_games_lod() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    if (argc < 2 || argc > 3) {
         print_usage(argv[0]);
         return 2;
     }
     const std::string map_name = argv[1];
+    // Research mode: one line per model facet, attributes and plane normal.
+    const bool dump_facets = argc == 3 && std::string(argv[2]) == "--facets";
 
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
@@ -131,6 +133,16 @@ int main(int argc, char** argv) {
     // Model meshes (non-expressive: counts only).
     std::vector<world::OdmModelMesh> meshes;
     if (world::extract_model_meshes(map, meshes) == world::OdmError::None) {
+        if (dump_facets) {
+            for (const auto& mesh : meshes) {
+                for (const auto& f : mesh.facets) {
+                    std::cout << f.attributes << "\t" << f.nx() << "\t" << f.ny() << "\t" << f.nz()
+                              << "\n";
+                }
+            }
+            return 0;
+        }
+
         std::size_t verts = 0, facets = 0, tris = 0;
         std::set<std::string> textures;
         for (const auto& mesh : meshes) {
