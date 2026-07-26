@@ -559,6 +559,8 @@ int main(int argc, char** argv) {
     }
     data::ItemStatsTable item_stats;
     (void)data::load_item_stats(data_dir, item_stats);
+    data::SpellStatsTable spell_stats;
+    (void)data::load_spell_stats(data_dir, spell_stats);
 
     render::SceneRenderer scene(kWidth, kHeight);
 
@@ -621,9 +623,9 @@ int main(int argc, char** argv) {
         if (show_labels) {
             draw_labels(scene, session, font, camera.position);
         }
-        draw_panel(
-            scene, font,
-            game::inspect(session, monster_stats, item_stats, camera.position, camera.forward()));
+        draw_panel(scene, font,
+                   game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,
+                                 camera.forward()));
 
         // The map's name, drawn with the game's own font.
         if (font.glyph_count() > 0) {

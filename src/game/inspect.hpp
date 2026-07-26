@@ -10,6 +10,7 @@
 
 #include "core/data/item_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/spell_stats.hpp"
 #include "core/render/math3d.hpp"
 #include "core/world/map_session.hpp"
 
@@ -51,9 +52,34 @@ inline std::string resistance_text(const data::MonsterStatsEntry& m, const char*
 
 }  // namespace detail
 
+// The monster table writes a spell as "Name,Mastery,Skill" — sometimes several
+// separated by semicolons. Only the names are wanted here, and only those the
+// spell table knows.
+inline std::string spell_names(const data::SpellStatsTable& spells, std::string_view field) {
+    std::string out;
+    std::size_t start = 0;
+    while (start <= field.size()) {
+        const std::size_t end = std::min(field.find(';', start), field.size());
+        std::string_view one = field.substr(start, end - start);
+        const std::size_t comma = one.find(',');
+        if (comma != std::string_view::npos) {
+            one = one.substr(0, comma);
+        }
+        one = data::trim(one);
+        if (!one.empty() && spells.find(one) != nullptr) {
+            if (!out.empty()) {
+                out += ", ";
+            }
+            out += std::string(one);
+        }
+        start = end + 1;
+    }
+    return out;
+}
+
 // Describe a monster row the way a player would want it: what it is, how hard
 // it hits, and what it shrugs off.
-inline Inspected describe(const data::MonsterStatsEntry& m) {
+inline Inspected describe(const data::MonsterStatsEntry& m, const data::SpellStatsTable& spells) {
     Inspected out;
     out.title = m.name;
     out.lines.push_back("level " + std::to_string(m.level) + ", " + std::to_string(m.hit_points) +
@@ -71,7 +97,10 @@ inline Inspected describe(const data::MonsterStatsEntry& m) {
         out.lines.push_back(line);
     }
     if (!m.spells.empty() && m.spells != "0") {
-        out.lines.push_back("casts " + m.spells);
+        // Prefer the spell table's names; fall back to the raw field when it
+        // recognises none, so nothing is silently dropped.
+        const std::string named = spell_names(spells, m.spells);
+        out.lines.push_back("casts " + (named.empty() ? m.spells : named));
     }
 
     out.lines.push_back(detail::resistance_text(m, "fire", data::Resistance::Fire) + ", " +
@@ -99,8 +128,8 @@ inline Inspected describe(const data::ItemStatsEntry& item) {
 // how directly the thing is being looked at, not by distance, so a monster
 // behind a nearer one can still be picked by aiming past it.
 inline Inspected inspect(const world::MapSession& session, const data::MonsterStatsTable& monsters,
-                         const data::ItemStatsTable& items, const render::Vec3& eye,
-                         const render::Vec3& forward) {
+                         const data::ItemStatsTable& items, const data::SpellStatsTable& spells,
+                         const render::Vec3& eye, const render::Vec3& forward) {
     float best = kInspectAim;
     Inspected found;
 
@@ -115,7 +144,7 @@ inline Inspected inspect(const world::MapSession& session, const data::MonsterSt
             continue;
         }
         best = score;
-        found = describe(monsters.entries()[static_cast<std::size_t>(a.monster_id) - 1]);
+        found = describe(monsters.entries()[static_cast<std::size_t>(a.monster_id) - 1], spells);
     }
 
     for (const auto& o : session.objects) {

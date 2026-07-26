@@ -59,7 +59,7 @@ data::MonsterStatsTable monsters_with(const data::MonsterStatsEntry& m) {
 }  // namespace
 
 TEST_CASE("a monster row becomes readable lines", "[inspect]") {
-    const game::Inspected d = game::describe(archer());
+    const game::Inspected d = game::describe(archer(), data::SpellStatsTable{});
     REQUIRE(d.title == "Archer");
     REQUIRE_FALSE(d.empty());
 
@@ -72,7 +72,7 @@ TEST_CASE("a monster row becomes readable lines", "[inspect]") {
 
 TEST_CASE("an immune resistance says so rather than printing its sentinel", "[inspect]") {
     // kResistanceImmune is -1; showing that would read as a negative percent.
-    const game::Inspected d = game::describe(archer());
+    const game::Inspected d = game::describe(archer(), data::SpellStatsTable{});
     bool found = false;
     for (const auto& line : d.lines) {
         if (line.find("cold immune") != std::string::npos) {
@@ -86,7 +86,7 @@ TEST_CASE("an immune resistance says so rather than printing its sentinel", "[in
 TEST_CASE("an empty attack slot is not described", "[inspect]") {
     // The second slot is "0" in most rows; printing it would give every
     // monster a phantom attack.
-    const game::Inspected d = game::describe(archer());
+    const game::Inspected d = game::describe(archer(), data::SpellStatsTable{});
     int attacks = 0;
     for (const auto& line : d.lines) {
         if (line.rfind("attack:", 0) == 0) {
@@ -118,7 +118,8 @@ TEST_CASE("looking at nothing inspects nothing", "[inspect]") {
     const data::ItemStatsTable items;
 
     // Facing +z, away from both.
-    const game::Inspected d = inspect(session, monsters, items, {0, 0, 0}, {0, 0, 1});
+    const game::Inspected d =
+        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, 1});
     REQUIRE(d.empty());
 }
 
@@ -127,7 +128,8 @@ TEST_CASE("looking at a monster inspects it", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d = inspect(session, monsters, items, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d =
+        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
     REQUIRE(d.title == "Archer");
 }
 
@@ -137,7 +139,8 @@ TEST_CASE("something too far away is not inspected", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d = inspect(session, monsters, items, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d =
+        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
     REQUIRE(d.empty());
 }
 
@@ -147,7 +150,8 @@ TEST_CASE("something off to the side is not inspected", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d = inspect(session, monsters, items, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d =
+        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
     REQUIRE(d.title != "Longsword");
 }
 
@@ -159,6 +163,49 @@ TEST_CASE("a monster with no table row is skipped", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d = inspect(session, monsters, items, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d =
+        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
     REQUIRE(d.empty());
+}
+
+TEST_CASE("a monster's spell field is named, not printed raw", "[inspect]") {
+    // MONSTERS.TXT writes "Fireball,N,5"; a player wants "Fireball".
+    data::MonsterStatsEntry m = archer();
+    m.spells = "Fireball,N,5";
+
+    // The heading row names the school in the column the spell rows use for
+    // the number within it.
+    std::string body =
+        "#\tFire Spells\t\tRes\tShort Name\tA\tX\tM\tSpell Description\tNormal\tExpert"
+        "\tMaster\r\n"
+        "6\t6\tFireball\tFire\tFireball\t8\t8\t8\tBursts into flame.\tslow\tfast"
+        "\tfastest\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::SpellStatsTable spells;
+    REQUIRE(data::SpellStatsTable::parse(table, spells) == data::SpellStatsError::None);
+    REQUIRE(spells.size() == 1);
+
+    const game::Inspected d = game::describe(m, spells);
+    bool found = false;
+    for (const auto& line : d.lines) {
+        if (line == "casts Fireball") {
+            found = true;
+        }
+    }
+    REQUIRE(found);
+}
+
+TEST_CASE("an unrecognised spell field is shown rather than dropped", "[inspect]") {
+    data::MonsterStatsEntry m = archer();
+    m.spells = "Something,N,5";
+
+    const game::Inspected d = game::describe(m, data::SpellStatsTable{});
+    bool found = false;
+    for (const auto& line : d.lines) {
+        if (line.find("Something") != std::string::npos) {
+            found = true;
+        }
+    }
+    REQUIRE(found);
 }
