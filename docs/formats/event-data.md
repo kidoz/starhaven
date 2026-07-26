@@ -41,9 +41,9 @@ The decompressed payload is a **large, mostly-zero fixed-size structure**
 - `outa1.ddm`: 86292 bytes, only ~handful nonzero (a nearly-empty starting map).
 - `outb2.ddm`: 97552 bytes, 1244 nonzero bytes (a populated town region).
 
-The outdoor payload's counted actors, sprite objects, and chests are documented
-in [`event-tables.md`](event-tables.md). Indoor `.dlv` sectioning remains
-unknown.
+Both payloads' counted actors, sprite objects, and chests are documented in
+[`event-tables.md`](event-tables.md). The two layouts differ only in the size
+of the fixed prefix and in what follows the chest array.
 
 ## Decoding (this slice)
 
@@ -66,4 +66,5 @@ The decoder rejects, deterministically and without reading out of bounds:
 ## Open questions
 
 - The remaining fields within actor and chest records.
-- The counted section layout used by indoor `.dlv` files.
+- The contents of the indoor payload's 883-byte prefix and of the saved
+  runtime state that follows its chest array.
