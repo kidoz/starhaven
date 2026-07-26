@@ -6,11 +6,11 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the ten tables parsed into typed
+Covers the container, the text format, and the eleven tables parsed into typed
 rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
 `STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
-`SkillDes.txt`. The other 20 are readable through the same reader but not yet
-given typed views.
+`SkillDes.txt` and `2DEvents.txt`. The other 19 are readable through the same
+reader but not yet given typed views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -39,6 +39,7 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --generate-item 6:1
 ./buildDir/data_info --spells Fireball
 ./buildDir/data_info --classes
+./buildDir/data_info --buildings OutE3.Odm
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -249,6 +250,39 @@ Three tables of the same shape: a name and one or more columns of prose. 18
 classes, 25 statistics and 31 skills. Each opens with a heading row of labels
 built exactly like a data row, so it is skipped by position rather than by
 inspecting it. `observed`
+
+## `2DEvents.txt`
+
+556 establishments — shops, temples, taverns, guilds, training halls, stables —
+each with a type, a proprietor and a title, three columns of stock or service,
+and opening and closing hours. `observed`
+
+| Column | Field | Status |
+| --- | --- | --- |
+| 0 | id, 1-based | observed |
+| 1 | a second number, restarting within each type | observed |
+| 2 | type — "Weapon Shop", "Tavern", "Temple" | observed |
+| 3 | map code | observed |
+| 5–7 | name, proprietor, title | observed |
+| 13–15 | what it stocks, at three levels | inferred |
+| 16 | notes | observed |
+| 18–19 | hour it opens and closes | observed |
+
+### The map column
+
+A code of a letter and a digit — `A1` through `E3` — naming one of the fifteen
+outdoor maps: `E3` is `OutE3.Odm`, New Sorpigal. **536 of the 556 rows carry
+exactly one such code**; Free Haven has 95 establishments, Silver Cove 69, New
+Sorpigal 46. `observed`
+
+The other 20 do not. Some name several maps (`D2,C3,B1`), some are prose
+(`From 153 (D3)`, `Oracle1 (C2)`), one is `na`. **Which map those belong to is
+`unknown`**, so they are returned for none of them rather than for a guessed
+one.
+
+Nothing in the table places a building anywhere *within* its map. The interiors
+are a separate screen the original drew in two dimensions, which is what the
+file's name refers to.
 
 ## Invalid-input behavior
 

@@ -143,6 +143,10 @@ interoperability and compatibility with a legally purchased copy.
   monster's level, hit points, armour, experience, attacks and resistances, or
   an item's type, damage and value. Spells are named rather than printed as
   table codes — `Fireball`, not `Fireball,N,5`.
+- A typed view over the **town establishments** (`2DEvents.txt`): 556 shops,
+  temples, taverns and guilds with proprietors, titles, stock and opening
+  hours, joined to the map each stands on — 95 in Free Haven, 46 in New
+  Sorpigal. **Tab** lists them while you walk.
 - Typed views over the **character tables**: `Spells.txt` (99 spells across
   nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
   and `SkillDes.txt`. `data_info --spells Fireball` prints one.
