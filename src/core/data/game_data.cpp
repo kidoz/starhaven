@@ -172,6 +172,43 @@ GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable&
     return GameDataError::None;
 }
 
+namespace {
+
+GameDataError load_journal(const std::filesystem::path& data_dir, const char* entry,
+                           std::size_t text_column, std::size_t category_column,
+                           std::size_t notes_column, std::size_t alternate_column,
+                           JournalTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, entry, table); e != GameDataError::None) {
+        return e;
+    }
+    if (JournalTable::parse(table, text_column, category_column, notes_column, alternate_column,
+                            out) != JournalError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+}  // namespace
+
+GameDataError load_quests(const std::filesystem::path& data_dir, JournalTable& out) {
+    // "Q Bit | Actual Quest Note Text | Notes | Old Quest Note Text"
+    return load_journal(data_dir, "Quests.txt", 1, JournalTable::kNoColumn, 2, 3, out);
+}
+
+GameDataError load_awards(const std::filesystem::path& data_dir, JournalTable& out) {
+    // "A Bit | Awards | Notes"
+    return load_journal(data_dir, "Awards.txt", 1, JournalTable::kNoColumn, 2,
+                        JournalTable::kNoColumn, out);
+}
+
+GameDataError load_autonotes(const std::filesystem::path& data_dir, JournalTable& out) {
+    // "Note bit | Autonote Text | Category". Autonotes.txt is an earlier and
+    // shorter copy of the same table; this loads the current one.
+    return load_journal(data_dir, "Autonote.txt", 1, 2, JournalTable::kNoColumn,
+                        JournalTable::kNoColumn, out);
+}
+
 GameDataError load_descriptions(const std::filesystem::path& data_dir, std::string_view name,
                                 DescriptionTable& out) {
     TextTable table;

@@ -42,6 +42,9 @@ void print_usage(const char* argv0) {
               << "  --professions      npcprof.txt\n"
               << "  --dialogue [id]    npctopic.txt + npctext.txt\n"
               << "  --news             NPCNews.txt\n"
+              << "  --quests [bit]     Quests.txt\n"
+              << "  --awards           Awards.txt\n"
+              << "  --autonotes        Autonote.txt\n"
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
               << "  --skills           SkillDes.txt\n"
@@ -658,6 +661,42 @@ int do_news(const std::filesystem::path& data_dir) {
     return 0;
 }
 
+// The three bit-keyed journal tables print the same way.
+int do_journal(const std::string& label, const data::JournalTable& table, const std::string& want) {
+    if (!want.empty()) {
+        const int bit = std::atoi(want.c_str());
+        const auto* e = table.at(bit);
+        if (e == nullptr) {
+            std::cerr << "error: " << label << " has no bit " << bit << "\n";
+            return 1;
+        }
+        std::cout << e->bit << "  " << data::cp1252_to_utf8(e->text) << "\n";
+        if (!e->category.empty()) {
+            std::cout << "  category: " << data::cp1252_to_utf8(e->category) << "\n";
+        }
+        if (!e->alternate.empty()) {
+            std::cout << "  older wording: " << data::cp1252_to_utf8(e->alternate) << "\n";
+        }
+        if (!e->notes.empty()) {
+            std::cout << "  designers' note: " << data::cp1252_to_utf8(e->notes) << "\n";
+        }
+        return 0;
+    }
+
+    std::cout << table.size() << " " << label << ", " << table.written() << " with text\n";
+    for (const auto& e : table.entries()) {
+        if (!e.has_text()) {
+            continue;
+        }
+        std::cout << "  " << e.bit << "\t";
+        if (!e.category.empty()) {
+            std::cout << "[" << data::cp1252_to_utf8(e.category) << "]\t";
+        }
+        std::cout << data::cp1252_to_utf8(e.text).substr(0, 90) << "\n";
+    }
+    return 0;
+}
+
 int do_professions(const std::filesystem::path& data_dir) {
     data::NpcProfessionTable professions;
     if (data::load_npc_professions(data_dir, professions) != data::GameDataError::None) {
@@ -805,6 +844,18 @@ int main(int argc, char** argv) {
         return do_dialogue(data_dir, argument);
     if (command == "--news")
         return do_news(data_dir);
+    if (command == "--quests" || command == "--awards" || command == "--autonotes") {
+        data::JournalTable table;
+        const data::GameDataError e = command == "--quests" ? data::load_quests(data_dir, table)
+                                      : command == "--awards"
+                                          ? data::load_awards(data_dir, table)
+                                          : data::load_autonotes(data_dir, table);
+        if (e != data::GameDataError::None) {
+            std::cerr << "error: could not load " << command.substr(2) << "\n";
+            return 1;
+        }
+        return do_journal(command.substr(2), table, argument);
+    }
     if (command == "--professions")
         return do_professions(data_dir);
     if (command == "--classes")

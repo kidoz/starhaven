@@ -193,3 +193,9 @@ test('npc_stats',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('journal',
+  executable('test_journal', 'test_journal.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

@@ -7,6 +7,7 @@
 #include "core/data/building_stats.hpp"
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
+#include "core/data/journal.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/npc_stats.hpp"
 #include "core/data/spell_stats.hpp"
@@ -65,6 +66,12 @@ enum class GameDataError {
 [[nodiscard]] GameDataError load_npc_dialogue(const std::filesystem::path& data_dir,
                                               NpcDialogueTable& out);
 [[nodiscard]] GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable& out);
+
+// The three bit-keyed journal tables. Each knows its own column layout.
+[[nodiscard]] GameDataError load_quests(const std::filesystem::path& data_dir, JournalTable& out);
+[[nodiscard]] GameDataError load_awards(const std::filesystem::path& data_dir, JournalTable& out);
+[[nodiscard]] GameDataError load_autonotes(const std::filesystem::path& data_dir,
+                                           JournalTable& out);
 
 // Load one of the name-and-prose tables: `Class.txt`, `stats.txt`,
 // `SkillDes.txt`. `name` is the archive entry.
