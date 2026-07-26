@@ -399,9 +399,43 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
     if (const std::string code = data::map_code_of(out.file_name); !code.empty()) {
         data::BuildingStatsTable buildings;
         if (data::load_building_stats(data_dir, buildings) == data::GameDataError::None) {
+            data::NpcTable npcs;
+            data::NpcProfessionTable professions;
+            data::NpcDialogueTable dialogue;
+            (void)data::load_npcs(data_dir, npcs);
+            (void)data::load_npc_professions(data_dir, professions);
+            (void)data::load_npc_dialogue(data_dir, dialogue);
+
             for (const auto* b : buildings.on_map(code)) {
-                out.buildings.push_back({data::cp1252_to_utf8(b->name), b->type,
-                                         data::cp1252_to_utf8(b->proprietor), b->opens, b->closes});
+                SessionBuilding entry{data::cp1252_to_utf8(b->name),
+                                      b->type,
+                                      data::cp1252_to_utf8(b->proprietor),
+                                      b->opens,
+                                      b->closes,
+                                      {}};
+                for (const auto* n : npcs.in_building(b->id)) {
+                    std::string who = data::cp1252_to_utf8(n->name);
+                    if (const auto* p = professions.at(n->profession_id); p != nullptr) {
+                        who += ", " + p->name;
+                    }
+                    // What they can be asked about, from their event columns.
+                    std::string topics;
+                    for (const int event : n->events) {
+                        const auto* said = dialogue.at(event);
+                        if (said == nullptr) {
+                            continue;
+                        }
+                        if (!topics.empty()) {
+                            topics += "/";
+                        }
+                        topics += data::cp1252_to_utf8(said->topic);
+                    }
+                    if (!topics.empty()) {
+                        who += " (" + topics + ")";
+                    }
+                    entry.occupants.push_back(std::move(who));
+                }
+                out.buildings.push_back(std::move(entry));
             }
         }
     }
