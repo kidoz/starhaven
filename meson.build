@@ -47,6 +47,8 @@ starhaven_core_sources = files(
   'src/core/world/monster_list.cpp',
   'src/core/world/object_table.cpp',
   'src/core/world/sprite_frame_table.cpp',
+  'src/core/world/sound_table.cpp',
+  'src/core/world/decoration_table.cpp',
   'src/core/world/blv_map.cpp',
   'src/core/world/collision.cpp',
   'src/core/render/rasterizer.cpp',

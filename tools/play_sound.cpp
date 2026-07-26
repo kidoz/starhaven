@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -11,7 +12,10 @@
 
 #include "core/audio/snd_archive.hpp"
 #include "core/audio/wav.hpp"
+#include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
+#include "core/world/decoration_table.hpp"
+#include "core/world/sound_table.hpp"
 
 namespace {
 
@@ -22,11 +26,42 @@ void print_usage(const char* argv0) {
               << "Sounds/Audio.snd archive.\n"
               << "\n"
               << "  --list             list every sound in the archive\n"
+              << "  --table            list DSOUNDS.BIN and check its joins\n"
+              << "  --id N             play the sound DSOUNDS.BIN gives id N\n"
               << "  --archive FILE     use a specific .snd file\n"
               << "  --dump FILE        write the decoded audio to a WAV\n"
               << "  --info             print the sound's format and stop\n"
               << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
+}
+
+// The global sound table and the two tables that reference it. Loading it is
+// separate from playback because a sound id, not a name, is what the rest of
+// the game data carries.
+bool load_sound_table(starhaven::world::SoundTable& sounds,
+                      starhaven::world::DecorationTable& decorations) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    const auto install = starhaven::platform::install_from_env();
+    if (!install) {
+        std::cerr << "error: set " << starhaven::platform::kInstallEnvVar << "\n";
+        return false;
+    }
+    lod::LodArchive icons;
+    if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) != lod::LodError::None) {
+        std::cerr << "error: could not open icons.lod\n";
+        return false;
+    }
+    std::span<const std::byte> raw;
+    if (icons.payload("DSOUNDS.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::SoundTable::parse(raw, sounds) != world::SoundTableError::None) {
+        std::cerr << "error: could not parse DSOUNDS.BIN\n";
+        return false;
+    }
+    if (icons.payload("DDECLIST.BIN", raw) == lod::LodArchive::PayloadError::None) {
+        (void)world::DecorationTable::parse(raw, decorations);
+    }
+    return true;
 }
 
 std::filesystem::path resolve_archive() {
@@ -75,16 +110,23 @@ bool write_wav(const std::string& path, const starhaven::audio::WavAudio& audio)
 
 int main(int argc, char** argv) {
     namespace audio = starhaven::audio;
+    namespace world = starhaven::world;
 
     std::string want;
     std::string archive_path;
     std::string dump;
     bool list = false;
+    bool table = false;
+    long sound_id = -1;
     bool info_only = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
-        if (a == "--list") {
+        if (a == "--table") {
+            table = true;
+        } else if (a == "--id" && i + 1 < argc) {
+            sound_id = static_cast<long>(std::strtol(argv[++i], nullptr, 10));
+        } else if (a == "--list") {
             list = true;
         } else if (a == "--info") {
             info_only = true;
@@ -99,7 +141,7 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
-    if (!list && want.empty()) {
+    if (!list && !table && sound_id < 0 && want.empty()) {
         print_usage(argv[0]);
         return 2;
     }
@@ -112,6 +154,57 @@ int main(int argc, char** argv) {
         std::cerr << "error: could not open " << path.string() << " (code " << static_cast<int>(e)
                   << ")\n";
         return 1;
+    }
+
+    if (table) {
+        world::SoundTable sounds;
+        world::DecorationTable decorations;
+        if (!load_sound_table(sounds, decorations)) {
+            return 1;
+        }
+        std::size_t joined = 0;
+        std::size_t named = 0;
+        for (const auto& e : sounds.entries()) {
+            if (e.name.empty())
+                continue;
+            ++named;
+            if (archive.find(e.name) != archive.size())
+                ++joined;
+        }
+        std::cout << sounds.size() << " sound records, " << named << " named\n";
+        std::cout << "names that are Audio.snd entries: " << joined << "/" << named << "\n";
+
+        std::size_t with_sound = 0;
+        std::size_t resolved = 0;
+        for (const auto& d : decorations.entries()) {
+            if (d.sound_id == 0)
+                continue;
+            ++with_sound;
+            const auto* s = sounds.find(d.sound_id);
+            if (s != nullptr)
+                ++resolved;
+            std::cout << "  decoration " << d.name << " -> sound " << d.sound_id << " "
+                      << (s != nullptr ? s->name : std::string{"(no such id)"}) << "\n";
+        }
+        std::cout << "decorations naming a sound: " << resolved << "/" << with_sound
+                  << " resolve\n";
+        return 0;
+    }
+
+    if (sound_id >= 0) {
+        world::SoundTable sounds;
+        world::DecorationTable decorations;
+        if (!load_sound_table(sounds, decorations)) {
+            return 1;
+        }
+        const auto* entry = sounds.find(static_cast<std::uint32_t>(sound_id));
+        if (entry == nullptr) {
+            std::cerr << "error: no sound has id " << sound_id << "\n";
+            return 1;
+        }
+        std::cout << "id " << sound_id << " is " << entry->name << " (group " << entry->group
+                  << ")\n";
+        want = entry->name;
     }
 
     if (list) {
