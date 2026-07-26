@@ -21,12 +21,14 @@
 #include "config.h"
 #include "core/assets/asset_cache.hpp"
 #include "core/data/game_data.hpp"
+#include "core/data/monster_stats.hpp"
 #include "core/image/font.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
 #include "core/world/map_session.hpp"
 #include "game/ambient_mixer.hpp"
+#include "game/inspect.hpp"
 #include "game/music_player.hpp"
 #include "game/player.hpp"
 #include "game/sprites.hpp"
@@ -261,6 +263,51 @@ void draw_labels(render::SceneRenderer& scene, const world::MapSession& session,
     }
     for (const auto& o : session.objects) {
         label(o.name, o.position, render::Color{200, 230, 255, 255});
+    }
+}
+
+// A panel in the corner naming what the player is looking at, with a dark
+// backing so the text reads against any world behind it.
+void draw_panel(render::SceneRenderer& scene, const image::Font& font,
+                const game::Inspected& what) {
+    if (what.empty() || font.glyph_count() == 0) {
+        return;
+    }
+    const int line_height = font.height() + 2;
+    int widest = font.text_width(what.title);
+    for (const auto& line : what.lines) {
+        widest = std::max(widest, font.text_width(line));
+    }
+
+    constexpr int kPad = 6;
+    const int rows = 1 + static_cast<int>(what.lines.size());
+    const int box_w = widest + kPad * 2;
+    const int box_h = rows * line_height + kPad * 2;
+    const int x0 = kWidth - box_w - 8;
+    const int y0 = kHeight - box_h - 8;
+
+    auto pixels = scene.framebuffer().color();
+    for (int y = y0; y < y0 + box_h; ++y) {
+        for (int x = x0; x < x0 + box_w; ++x) {
+            if (x < 0 || y < 0 || x >= kWidth || y >= kHeight) {
+                continue;
+            }
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            // Darken rather than overwrite, so the panel sits in the scene.
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 4);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 4);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 4);
+        }
+    }
+
+    int y = y0 + kPad;
+    game::draw_text(scene.framebuffer(), font, x0 + kPad, y, what.title,
+                    render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
+    y += line_height;
+    for (const auto& line : what.lines) {
+        game::draw_text(scene.framebuffer(), font, x0 + kPad, y, line,
+                        render::Color{220, 220, 220, 255}, render::Color{0, 0, 0, 255});
+        y += line_height;
     }
 }
 
@@ -501,6 +548,18 @@ int main(int argc, char** argv) {
 
     const image::Font font = load_font(data_dir, "Lucida.fnt");
 
+    // The tables the inspect panel reads. Both are already decoded; this is
+    // the first thing that shows them.
+    data::MonsterStatsTable monster_stats;
+    {
+        data::TextTable table;
+        if (data::load_text_table(data_dir, "MONSTERS.TXT", table) == data::GameDataError::None) {
+            (void)data::MonsterStatsTable::parse(table, monster_stats);
+        }
+    }
+    data::ItemStatsTable item_stats;
+    (void)data::load_item_stats(data_dir, item_stats);
+
     render::SceneRenderer scene(kWidth, kHeight);
 
     float fall_speed = 0.0f;
@@ -562,6 +621,9 @@ int main(int argc, char** argv) {
         if (show_labels) {
             draw_labels(scene, session, font, camera.position);
         }
+        draw_panel(
+            scene, font,
+            game::inspect(session, monster_stats, item_stats, camera.position, camera.forward()));
 
         // The map's name, drawn with the game's own font.
         if (font.glyph_count() > 0) {

@@ -139,6 +139,9 @@ interoperability and compatibility with a legally purchased copy.
   loot object in the world from `MONSTERS.TXT` and `ITEMS.TXT`. In New Sorpigal
   that is 38 of 38 monsters and 42 of 42 objects named — the joins those tables
   were decoded for, drawn where they belong rather than counted in a test.
+  Looking directly at one raises an **inspect panel** with its statistics: a
+  monster's level, hit points, armour, experience, attacks and resistances, or
+  an item's type, damage and value.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - **`starhaven`, the engine itself**: `--maps` lists all 67 maps, and naming
