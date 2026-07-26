@@ -241,6 +241,10 @@ void draw_labels(render::SceneRenderer& scene, const world::MapSession& session,
     // Beyond this the text is unreadable clutter rather than information.
     constexpr float kRange = 4096.0f;
     constexpr float kLift = 200.0f;  // roughly a body height above the feet
+    // A billboard writes its own depth, and a sprite's centre sits marginally
+    // nearer than the point it is anchored at. This tolerance keeps a thing
+    // from occluding itself.
+    constexpr float kDepthSlack = 0.0005f;
 
     auto label = [&](const std::string& text, const render::Vec3& at, render::Color colour) {
         if (text.empty()) {
@@ -252,6 +256,16 @@ void draw_labels(render::SceneRenderer& scene, const world::MapSession& session,
         }
         render::ScreenVertex p;
         if (!scene.project_point({at.x, at.y + kLift, at.z}, p)) {
+            return;
+        }
+        // The subject itself is drawn as a billboard, so the depth already at
+        // its pixel is the subject's own unless a wall is in front. Comparing
+        // against the point being labelled — not the raised label position —
+        // keeps a monster's own sprite from hiding its name.
+        render::ScreenVertex feet;
+        if (scene.project_point(at, feet) &&
+            scene.framebuffer().depth_at(static_cast<int>(feet.x), static_cast<int>(feet.y)) <
+                feet.z - kDepthSlack) {
             return;
         }
         const int x = static_cast<int>(p.x) - font.text_width(text) / 2;
@@ -675,9 +689,18 @@ int main(int argc, char** argv) {
         if (show_directory) {
             draw_directory(scene, font, session);
         }
+        // A thing behind a wall is not being looked at, whatever the aim says.
+        auto visible = [&](const render::Vec3& at) {
+            render::ScreenVertex p;
+            if (!scene.project_point(at, p)) {
+                return false;
+            }
+            return scene.framebuffer().depth_at(static_cast<int>(p.x), static_cast<int>(p.y)) >=
+                   p.z - 0.0005f;
+        };
         draw_panel(scene, font,
                    game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,
-                                 camera.forward()));
+                                 camera.forward(), visible));
 
         // The map's name, drawn with the game's own font.
         if (font.glyph_count() > 0) {

@@ -127,16 +127,21 @@ inline Inspected describe(const data::ItemStatsEntry& item) {
 // What the player is looking at on this map, or nothing. Ties are broken by
 // how directly the thing is being looked at, not by distance, so a monster
 // behind a nearer one can still be picked by aiming past it.
+//
+// `visible` decides whether a point can actually be seen. The caller supplies
+// it because the test belongs to the renderer — this layer has no framebuffer
+// — and a caller with no way to answer can pass one that always says yes.
+template <typename VisibleFn>
 inline Inspected inspect(const world::MapSession& session, const data::MonsterStatsTable& monsters,
                          const data::ItemStatsTable& items, const data::SpellStatsTable& spells,
-                         const render::Vec3& eye, const render::Vec3& forward) {
+                         const render::Vec3& eye, const render::Vec3& forward, VisibleFn visible) {
     float best = kInspectAim;
     Inspected found;
 
     for (const auto& a : session.actors) {
         float distance = 0.0f;
         const float score = detail::aim_score(eye, forward, a.position, distance);
-        if (score <= best || distance > kInspectRange) {
+        if (score <= best || distance > kInspectRange || !visible(a.position)) {
             continue;
         }
         if (a.monster_id <= 0 ||
@@ -150,7 +155,7 @@ inline Inspected inspect(const world::MapSession& session, const data::MonsterSt
     for (const auto& o : session.objects) {
         float distance = 0.0f;
         const float score = detail::aim_score(eye, forward, o.position, distance);
-        if (score <= best || distance > kInspectRange || o.item_id <= 0) {
+        if (score <= best || distance > kInspectRange || o.item_id <= 0 || !visible(o.position)) {
             continue;
         }
         const auto* row = items.at(static_cast<std::size_t>(o.item_id));
@@ -162,6 +167,12 @@ inline Inspected inspect(const world::MapSession& session, const data::MonsterSt
     }
     return found;
 }
+
+// Everything is visible. For callers with nothing to test against, and for
+// tests that are not about occlusion.
+struct AlwaysVisible {
+    bool operator()(const render::Vec3&) const noexcept { return true; }
+};
 
 }  // namespace starhaven::game
 

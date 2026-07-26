@@ -118,8 +118,8 @@ TEST_CASE("looking at nothing inspects nothing", "[inspect]") {
     const data::ItemStatsTable items;
 
     // Facing +z, away from both.
-    const game::Inspected d =
-        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, 1});
+    const game::Inspected d = inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0},
+                                      {0, 0, 1}, game::AlwaysVisible{});
     REQUIRE(d.empty());
 }
 
@@ -128,8 +128,8 @@ TEST_CASE("looking at a monster inspects it", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d =
-        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d = inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0},
+                                      {0, 0, -1}, game::AlwaysVisible{});
     REQUIRE(d.title == "Archer");
 }
 
@@ -139,8 +139,8 @@ TEST_CASE("something too far away is not inspected", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d =
-        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d = inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0},
+                                      {0, 0, -1}, game::AlwaysVisible{});
     REQUIRE(d.empty());
 }
 
@@ -150,8 +150,8 @@ TEST_CASE("something off to the side is not inspected", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d =
-        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d = inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0},
+                                      {0, 0, -1}, game::AlwaysVisible{});
     REQUIRE(d.title != "Longsword");
 }
 
@@ -163,8 +163,8 @@ TEST_CASE("a monster with no table row is skipped", "[inspect]") {
     const auto monsters = monsters_with(archer());
     const data::ItemStatsTable items;
 
-    const game::Inspected d =
-        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1});
+    const game::Inspected d = inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0},
+                                      {0, 0, -1}, game::AlwaysVisible{});
     REQUIRE(d.empty());
 }
 
@@ -208,4 +208,21 @@ TEST_CASE("an unrecognised spell field is shown rather than dropped", "[inspect]
         }
     }
     REQUIRE(found);
+}
+
+TEST_CASE("something behind a wall is not inspected", "[inspect]") {
+    // Aim alone is not enough: the caller decides what can be seen, and a
+    // subject it rejects must not be described.
+    const auto session = two_things();
+    const auto monsters = monsters_with(archer());
+    const data::ItemStatsTable items;
+
+    const game::Inspected visible = inspect(session, monsters, items, data::SpellStatsTable{},
+                                            {0, 0, 0}, {0, 0, -1}, game::AlwaysVisible{});
+    REQUIRE(visible.title == "Archer");
+
+    const game::Inspected hidden =
+        inspect(session, monsters, items, data::SpellStatsTable{}, {0, 0, 0}, {0, 0, -1},
+                [](const starhaven::render::Vec3&) { return false; });
+    REQUIRE(hidden.empty());
 }
