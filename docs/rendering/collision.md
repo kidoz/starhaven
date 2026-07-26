@@ -83,10 +83,35 @@ Both walkers simulate 90 frames before writing a capture. A frame-one
 screenshot shows the camera wherever `--pos` put it, which is usually mid-air
 and misrepresents where a player actually stands.
 
+## Terrain has a rise limit
+
+Terrain is sampled rather than collided, so nothing stops the player being
+placed at whatever height the destination has. Until this was fixed, walking
+into a vertical cliff **teleported the player to the top of it** — not "steep
+slopes are climbable", as an earlier revision of this page put it, but no rise
+limit at all, at any speed.
+
+A destination whose ground stands more than `kStepHeight` above the current
+one is refused. The move is then retried along each axis separately, so a cliff
+can be walked *along* rather than only away from — refusing the whole move
+would pin the player against it.
+
+## The step up is smoothed
+
+Arriving on a ledge raises the feet at `kStepRate` — 600 units per second, so a
+96-unit stair takes about a sixth of a second. Falling is unaffected: gravity
+has already moved the feet down by the time this runs, and it only ever moves
+them up.
+
+## The body is swept
+
+A move is divided into pieces no longer than half a body radius and collided
+piece by piece. Testing only the endpoints lets a fast step straddle a thin
+wall completely: at 20,000 units per second a single frame covers 333 units,
+which is wider than most walls are thick.
+
 ## Known limitations
 
-- No step-up *smoothing*: the player snaps to the new floor height.
-- The cylinder is tested at two heights, not swept as a volume, so a very fast
-  step past a thin wall's edge can still slip by.
-- Outdoor terrain has no wall behaviour: steep slopes are climbable at any
-  angle, because the heightfield is sampled rather than treated as polygons.
+- The rise limit uses the sampled height at the destination, so a thin spike
+  between two walkable points is not seen.
+- Vertical movement is not swept; only the horizontal component is.
