@@ -226,3 +226,57 @@ TEST_CASE("something behind a wall is not inspected", "[inspect]") {
                 [](const starhaven::render::Vec3&) { return false; });
     REQUIRE(hidden.empty());
 }
+
+namespace {
+
+// A map with one decoration ahead, listed against the tile it stands on the
+// way the shipped maps list theirs.
+world::MapSession one_tree() {
+    world::MapSession s;
+    s.kind = world::MapKind::Outdoor;
+    // Render space is (x, up, z) and the map's y is the renderer's z.
+    s.decorations.push_back({"tree27", {0, 0, -1000}, 0});
+
+    constexpr int kTiles = world::OdmTileIndex::kDim * world::OdmTileIndex::kDim;
+    s.tile_index.entries.clear();
+    s.tile_index.starts.assign(static_cast<std::size_t>(kTiles), 0);
+    const int listed = world::OdmTileIndex::tile_y_of(-1000.0f) * world::OdmTileIndex::kDim +
+                       world::OdmTileIndex::tile_x_of(0.0f);
+    for (int t = 0; t < kTiles; ++t) {
+        s.tile_index.starts[static_cast<std::size_t>(t)] =
+            static_cast<std::uint32_t>(s.tile_index.entries.size());
+        if (t == listed) {
+            s.tile_index.entries.push_back(world::kPidDecoration);  // id 0
+        }
+        s.tile_index.entries.push_back(0);
+    }
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("a decoration the tile index lists can be looked at", "[inspect]") {
+    const auto session = one_tree();
+    const auto found =
+        inspect(session, monsters_with(archer()), data::ItemStatsTable{}, data::SpellStatsTable{},
+                {0, 0, 0}, {0, 0, -1}, game::AlwaysVisible{});
+    REQUIRE(found.title == "tree27");
+}
+
+TEST_CASE("a decoration the index does not list is not found", "[inspect]") {
+    // The search is the map's own list, not a scan: a decoration standing
+    // somewhere the index says nothing about is not a subject.
+    auto session = one_tree();
+    session.tile_index.entries.clear();
+    session.tile_index.starts.clear();
+    const auto found =
+        inspect(session, monsters_with(archer()), data::ItemStatsTable{}, data::SpellStatsTable{},
+                {0, 0, 0}, {0, 0, -1}, game::AlwaysVisible{});
+    REQUIRE(found.empty());
+}
+
+TEST_CASE("an indoor map has no tile index and keeps its decorations to itself", "[inspect]") {
+    auto session = one_tree();
+    session.kind = world::MapKind::Indoor;
+    REQUIRE(session.decorations_near(0.0f, -1000.0f).empty());
+}

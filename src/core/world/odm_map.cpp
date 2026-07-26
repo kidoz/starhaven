@@ -3,6 +3,7 @@
 #include "core/image/zlib_util.hpp"
 #include "core/io/byte_reader.hpp"
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <string_view>
@@ -533,6 +534,172 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
             return OdmError::HeaderTooSmall;
         }
         out.push_back(std::move(d));
+    }
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+    return OdmError::None;
+}
+
+std::span<const std::uint16_t> OdmTileIndex::at(int tile_x, int tile_y) const noexcept {
+    if (tile_x < 0 || tile_x >= kDim || tile_y < 0 || tile_y >= kDim) {
+        return {};
+    }
+    const std::size_t tile =
+        static_cast<std::size_t>(tile_y) * kDim + static_cast<std::size_t>(tile_x);
+    if (tile >= starts.size()) {
+        return {};
+    }
+    const std::size_t begin = starts[tile];
+    const std::size_t end = tile + 1 < starts.size() ? starts[tile + 1] : entries.size();
+    if (begin >= end || end > entries.size()) {
+        return {};
+    }
+    // Every run ends with a zero terminator, which is not an identifier.
+    return std::span<const std::uint16_t>{entries.data() + begin, end - begin - 1};
+}
+
+int OdmTileIndex::tile_x_of(float world_x) noexcept {
+    return static_cast<int>(std::floor(world_x / 512.0f)) + 64;
+}
+
+int OdmTileIndex::tile_y_of(float world_y) noexcept {
+    return 64 - static_cast<int>(std::floor(world_y / 512.0f));
+}
+
+OdmError decoration_section_end(const OdmMap& map, std::uint64_t& out) {
+    std::uint64_t start = 0;
+    if (const OdmError e = model_geometry_end(map, start); e != OdmError::None) {
+        return e;
+    }
+    const auto& p = map.payload;
+    if (start + 4 > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(static_cast<std::size_t>(start))) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t count = r.read_u32_le();
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint64_t end =
+        start + 4 +
+        static_cast<std::uint64_t>(count) * (kDecorationRecordSize + kDecorationNameSize);
+    if (end > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+    out = end;
+    return OdmError::None;
+}
+
+namespace {
+
+// Where the spawn point array begins: past the tile index, whose own size is
+// declared by the count that opens it.
+OdmError spawn_section_start(const OdmMap& map, std::uint64_t& out) {
+    std::uint64_t start = 0;
+    if (const OdmError e = decoration_section_end(map, start); e != OdmError::None) {
+        return e;
+    }
+    const auto& p = map.payload;
+    if (start + 4 > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(static_cast<std::size_t>(start))) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t count = r.read_u32_le();
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+    constexpr std::uint64_t kTiles = static_cast<std::uint64_t>(OdmTileIndex::kDim) *
+                                     static_cast<std::uint64_t>(OdmTileIndex::kDim);
+    out = start + 4 + static_cast<std::uint64_t>(count) * 2 + kTiles * 4;
+    return out <= p.size() ? OdmError::None : OdmError::HeaderTooSmall;
+}
+
+}  // namespace
+
+OdmError extract_tile_index(const OdmMap& map, OdmTileIndex& out) {
+    out.entries.clear();
+    out.starts.clear();
+
+    std::uint64_t start = 0;
+    if (const OdmError e = decoration_section_end(map, start); e != OdmError::None) {
+        return e;
+    }
+    const auto& p = map.payload;
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(static_cast<std::size_t>(start))) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t count = r.read_u32_le();
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+    constexpr std::size_t kTiles =
+        static_cast<std::size_t>(OdmTileIndex::kDim) * static_cast<std::size_t>(OdmTileIndex::kDim);
+    const std::uint64_t end =
+        start + 4 + static_cast<std::uint64_t>(count) * 2 + static_cast<std::uint64_t>(kTiles) * 4;
+    if (count == 0 || end > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    out.entries.resize(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        out.entries[i] = r.read_u16_le();
+    }
+    out.starts.resize(kTiles);
+    for (std::size_t i = 0; i < kTiles; ++i) {
+        out.starts[i] = r.read_u32_le();
+        // A start past the end would make every run on that tile unreadable.
+        if (out.starts[i] >= count) {
+            return OdmError::HeaderTooSmall;
+        }
+    }
+    if (!r.ok()) {
+        return OdmError::HeaderTooSmall;
+    }
+    return OdmError::None;
+}
+
+OdmError extract_spawn_points(const OdmMap& map, std::vector<OdmSpawnPoint>& out) {
+    out.clear();
+
+    std::uint64_t start = 0;
+    if (const OdmError e = spawn_section_start(map, start); e != OdmError::None) {
+        return e;
+    }
+    const auto& p = map.payload;
+    if (start + 4 > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+    io::ByteReader r{
+        std::span<const std::byte>{reinterpret_cast<const std::byte*>(p.data()), p.size()}};
+    if (!r.seek(static_cast<std::size_t>(start))) {
+        return OdmError::HeaderTooSmall;
+    }
+    const std::uint32_t count = r.read_u32_le();
+    if (!r.ok() || start + 4 + static_cast<std::uint64_t>(count) * kSpawnPointSize > p.size()) {
+        return OdmError::HeaderTooSmall;
+    }
+
+    out.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        OdmSpawnPoint s;
+        s.x = r.read_i32_le();
+        s.y = r.read_i32_le();
+        s.z = r.read_i32_le();
+        s.radius = r.read_u16_le();
+        s.kind = r.read_u16_le();
+        s.index = r.read_u32_le();
+        out.push_back(s);
     }
     if (!r.ok()) {
         return OdmError::HeaderTooSmall;

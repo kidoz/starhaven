@@ -20,7 +20,9 @@ It does **not** yet cover:
 
 - the tile map (128×128 tile indices) and height map (128×128 heights);
 - the vertex, facet, and model geometry (the 3D mesh of the terrain and props);
-- decorations, spawns, and event hooks.
+- decorations, spawns, and event hooks (see
+  [`odm-tile-index.md`](odm-tile-index.md) for the per-tile index and the spawn
+  point array that end the payload).
 
 These are the subject of follow-up slices. The geometry in particular is a
 large format (each ODM decompresses to ~570 KB) and will need its own slice.

@@ -96,6 +96,8 @@ struct MapSession {
     render::TileSet tiles;
     std::vector<OdmModelMesh> meshes;
     std::vector<OdmModel> models;
+    OdmTileIndex tile_index;                    // what stands near each terrain tile
+    std::vector<OdmSpawnPoint> monster_spawns;  // where the map puts monsters
 
     // Indoor geometry.
     BlvMap blv;
@@ -126,6 +128,12 @@ struct MapSession {
     // Height of the outdoor terrain under a point, interpolated across the
     // cell. Returns 0 for an indoor map, which has no heightfield.
     [[nodiscard]] float terrain_height_at(float x, float z) const;
+
+    // The decorations the map lists against the tile under a render-space
+    // point, as indices into `decorations`. This is the map's own answer, not
+    // a search: outdoor maps ship the list. Indoor maps have no such index and
+    // get an empty answer, so callers keep whatever they did before.
+    [[nodiscard]] std::vector<std::size_t> decorations_near(float x, float z) const;
 };
 
 // Load a map by its Games.lod entry name, e.g. "OutA1.Odm" or "D01.blv".

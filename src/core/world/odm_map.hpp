@@ -211,6 +211,62 @@ struct OdmDecoration {
 // Byte offset one past the model geometry stream: where the decorations begin.
 [[nodiscard]] OdmError model_geometry_end(const OdmMap& map, std::uint64_t& out);
 
+// Byte offset one past the decoration array: where the tile index begins.
+[[nodiscard]] OdmError decoration_section_end(const OdmMap& map, std::uint64_t& out);
+
+// The map's own object identifiers, as they appear in the tile index: an id
+// and a three-bit type. Only decorations occur in the shipped outdoor maps.
+// See docs/formats/odm-tile-index.md.
+constexpr std::uint16_t kPidTypeMask = 7;
+constexpr std::uint16_t kPidDecoration = 5;
+
+[[nodiscard]] constexpr std::uint16_t pid_type(std::uint16_t pid) noexcept {
+    return pid & kPidTypeMask;
+}
+[[nodiscard]] constexpr std::uint16_t pid_id(std::uint16_t pid) noexcept {
+    return static_cast<std::uint16_t>(pid >> 3);
+}
+
+// What is near each terrain tile. One run of identifiers per tile, each ending
+// in a zero the map writes as a terminator.
+struct OdmTileIndex {
+    static constexpr int kDim = 128;
+
+    std::vector<std::uint16_t> entries;
+    std::vector<std::uint32_t> starts;  // kDim * kDim, indexing `entries`
+
+    // The identifiers listed against one tile, without the terminator. Out of
+    // range asks for an empty run rather than failing: tiles at the map's edge
+    // are asked about constantly.
+    [[nodiscard]] std::span<const std::uint16_t> at(int tile_x, int tile_y) const noexcept;
+
+    // The tile a world position falls in. Tiles are 512 units across and the
+    // grid is centred, with rows running the opposite way to world y.
+    [[nodiscard]] static int tile_x_of(float world_x) noexcept;
+    [[nodiscard]] static int tile_y_of(float world_y) noexcept;
+};
+
+// One place the map spawns monsters. All 848 in the shipped maps are kind 3.
+struct OdmSpawnPoint {
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+    std::int32_t z = 0;  // zero on 793 of the 848: the ground is used instead
+    std::uint16_t radius = 0;
+    std::uint16_t kind = 0;   // 3 on every shipped spawn point
+    std::uint32_t index = 0;  // 1..12; what it selects is not established
+};
+
+// Extract the per-tile object index, which follows the decoration array.
+[[nodiscard]] OdmError extract_tile_index(const OdmMap& map, OdmTileIndex& out);
+
+// Extract the spawn points, which follow the tile index and end the payload.
+[[nodiscard]] OdmError extract_spawn_points(const OdmMap& map, std::vector<OdmSpawnPoint>& out);
+
+// How far from a tile's centre a decoration is still listed against it. The
+// shipped maps reproduce exactly at this radius; see the format doc.
+constexpr float kTileIndexRadius = 1024.0f;
+constexpr std::uint32_t kSpawnPointSize = 20;
+
 constexpr std::uint32_t kDecorationRecordSize = 28;  // kind + 3 x i32 + padding
 constexpr std::uint32_t kDecorationNameSize = 32;
 

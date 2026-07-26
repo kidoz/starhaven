@@ -5,6 +5,7 @@
 // are decoded and typed (docs/formats/text-tables.md); this turns a row of
 // either into lines of text for a panel.
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,11 @@ inline constexpr float kInspectAim = 0.978f;
 
 // And how far. Beyond this a monster is a smudge, not a subject.
 inline constexpr float kInspectRange = 3000.0f;
+
+// How far apart to sample the map's tile index along the view ray. Half the
+// radius a tile's list covers, so nothing between the eye and the range can
+// fall between two samples.
+inline constexpr float kTileIndexStep = 512.0f;
 
 namespace detail {
 
@@ -124,6 +130,22 @@ inline Inspected describe(const data::ItemStatsEntry& item) {
     return out;
 }
 
+// And one of the map's decorations: a tree, a rock, a campfire. The global
+// table is what knows anything about it beyond its name.
+inline Inspected describe(const world::SessionDecoration& d, const world::DecorationTable& types) {
+    Inspected out;
+    out.title = d.name;
+    if (const auto* type = types.find(d.name); type != nullptr) {
+        if (!type->group.empty()) {
+            out.lines.push_back(type->group);
+        }
+        if (type->sound_id != 0) {
+            out.lines.push_back("makes a sound");
+        }
+    }
+    return out;
+}
+
 // What the player is looking at on this map, or nothing. Ties are broken by
 // how directly the thing is being looked at, not by distance, so a monster
 // behind a nearer one can still be picked by aiming past it.
@@ -150,6 +172,30 @@ inline Inspected inspect(const world::MapSession& session, const data::MonsterSt
         }
         best = score;
         found = describe(monsters.entries()[static_cast<std::size_t>(a.monster_id) - 1], spells);
+    }
+
+    // Decorations are not searched: the outdoor maps ship a list of what
+    // stands near each terrain tile, so the view ray is walked through that
+    // index instead. A tile's neighbourhood is 1024 units across, so stepping
+    // by half that cannot skip one.
+    std::vector<std::size_t> candidates;
+    for (float t = 0.0f; t <= kInspectRange; t += kTileIndexStep) {
+        for (const std::size_t id :
+             session.decorations_near(eye.x + forward.x * t, eye.z + forward.z * t)) {
+            if (std::find(candidates.begin(), candidates.end(), id) == candidates.end()) {
+                candidates.push_back(id);
+            }
+        }
+    }
+    for (const std::size_t id : candidates) {
+        const auto& d = session.decorations[id];
+        float distance = 0.0f;
+        const float score = detail::aim_score(eye, forward, d.position, distance);
+        if (score <= best || distance > kInspectRange || !visible(d.position)) {
+            continue;
+        }
+        best = score;
+        found = describe(d, session.decoration_types);
     }
 
     for (const auto& o : session.objects) {

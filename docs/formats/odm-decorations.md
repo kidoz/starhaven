@@ -7,8 +7,8 @@ rocks, stumps, pedestals and the party's start marker. Each claim is tagged
 ## Scope
 
 Covers the decoration array that follows the model geometry stream, and the
-`DDECLIST.BIN` table its type ids index. Does not cover the ~100 KB that
-follows the decorations in each payload.
+`DDECLIST.BIN` table its type ids index. What follows the decorations is
+covered by [`odm-tile-index.md`](odm-tile-index.md).
 
 ## Source provenance (non-expressive)
 

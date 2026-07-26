@@ -502,6 +502,9 @@ int main(int argc, char** argv) {
     if (!session.buildings.empty()) {
         std::cout << ", " << session.buildings.size() << " establishments";
     }
+    if (!session.monster_spawns.empty()) {
+        std::cout << ", " << session.monster_spawns.size() << " spawn points";
+    }
     std::cout << "\n";
 
     std::vector<game::AmbientSource> ambient_sources;

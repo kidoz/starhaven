@@ -721,3 +721,156 @@ TEST_CASE("a map with no decorations decodes as empty", "[odm]") {
     REQUIRE(extract_decorations(m, decos) == OdmError::None);
     REQUIRE(decos.empty());
 }
+
+namespace {
+
+std::vector<std::byte> make_odm_entry_with_tail(
+    const std::vector<
+        std::tuple<std::uint32_t, std::int32_t, std::int32_t, std::int32_t, std::string>>& decos,
+    int at_tile, const std::vector<std::uint16_t>& pids, const std::vector<OdmSpawnPoint>& spawns) {
+    auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}}, decos);
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    std::vector<std::uint8_t> payload = m.payload;
+
+    auto push_u16 = [&](std::uint16_t v) {
+        payload.push_back(static_cast<std::uint8_t>(v & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+    };
+    auto push_u32 = [&](std::uint32_t v) {
+        payload.push_back(static_cast<std::uint8_t>(v & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 16) & 0xFF));
+        payload.push_back(static_cast<std::uint8_t>((v >> 24) & 0xFF));
+    };
+
+    constexpr int kTiles = OdmTileIndex::kDim * OdmTileIndex::kDim;
+    std::vector<std::uint16_t> entries;
+    std::vector<std::uint32_t> starts(kTiles, 0);
+    for (int t = 0; t < kTiles; ++t) {
+        starts[static_cast<std::size_t>(t)] = static_cast<std::uint32_t>(entries.size());
+        if (t == at_tile) {
+            entries.insert(entries.end(), pids.begin(), pids.end());
+        }
+        entries.push_back(0);  // the terminator every tile's run ends with
+    }
+
+    push_u32(static_cast<std::uint32_t>(entries.size()));
+    for (const std::uint16_t e : entries) {
+        push_u16(e);
+    }
+    for (const std::uint32_t st : starts) {
+        push_u32(st);
+    }
+    push_u32(static_cast<std::uint32_t>(spawns.size()));
+    for (const auto& s : spawns) {
+        push_u32(static_cast<std::uint32_t>(s.x));
+        push_u32(static_cast<std::uint32_t>(s.y));
+        push_u32(static_cast<std::uint32_t>(s.z));
+        push_u16(s.radius);
+        push_u16(s.kind);
+        push_u32(s.index);
+    }
+
+    std::vector<std::uint8_t> compressed;
+    REQUIRE(zlib_compress(payload, compressed));
+    std::vector<std::byte> out(kWrapperSize + compressed.size());
+    put_u32_le(out, 0x00, static_cast<std::uint32_t>(payload.size()));
+    put_u32_le(out, 0x04, static_cast<std::uint32_t>(payload.size()));
+    std::memcpy(&out[kWrapperSize], compressed.data(), compressed.size());
+    return out;
+}
+
+constexpr int kMiddleTile = 64 * OdmTileIndex::kDim + 64;
+
+}  // namespace
+
+TEST_CASE("the tile index lists what stands near a tile", "[odm]") {
+    auto entry = make_odm_entry_with_tail({{1, 0, 0, 0, "tree27"}, {1, 0, 0, 0, "tree28"}},
+                                          kMiddleTile, {5, 13}, {});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+
+    OdmTileIndex index;
+    REQUIRE(extract_tile_index(m, index) == OdmError::None);
+
+    const auto run = index.at(64, 64);
+    REQUIRE(run.size() == 2);
+    REQUIRE(pid_type(run[0]) == kPidDecoration);
+    REQUIRE(pid_id(run[0]) == 0);
+    REQUIRE(pid_id(run[1]) == 1);
+}
+
+TEST_CASE("the terminator is not one of the identifiers", "[odm]") {
+    // Every tile's run ends with a zero, including the empty ones. Returning it
+    // would make each tile appear to hold a decoration with id 0.
+    auto entry = make_odm_entry_with_tail({{1, 0, 0, 0, "tree27"}}, kMiddleTile, {5}, {});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    OdmTileIndex index;
+    REQUIRE(extract_tile_index(m, index) == OdmError::None);
+
+    REQUIRE(index.at(64, 64).size() == 1);
+    REQUIRE(index.at(63, 64).empty());
+    REQUIRE(index.at(0, 0).empty());
+}
+
+TEST_CASE("a tile outside the grid has nothing on it", "[odm]") {
+    auto entry = make_odm_entry_with_tail({{1, 0, 0, 0, "tree27"}}, kMiddleTile, {5}, {});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+    OdmTileIndex index;
+    REQUIRE(extract_tile_index(m, index) == OdmError::None);
+
+    REQUIRE(index.at(-1, 0).empty());
+    REQUIRE(index.at(0, -1).empty());
+    REQUIRE(index.at(OdmTileIndex::kDim, 0).empty());
+    REQUIRE(index.at(0, OdmTileIndex::kDim).empty());
+}
+
+TEST_CASE("world positions map onto the grid", "[odm]") {
+    // The grid is centred and its rows run against world y, so the tile a
+    // position falls in is not the same arithmetic on both axes.
+    REQUIRE(OdmTileIndex::tile_x_of(0.0f) == 64);
+    REQUIRE(OdmTileIndex::tile_y_of(0.0f) == 64);
+    REQUIRE(OdmTileIndex::tile_x_of(511.0f) == 64);
+    REQUIRE(OdmTileIndex::tile_x_of(512.0f) == 65);
+    REQUIRE(OdmTileIndex::tile_x_of(-1.0f) == 63);
+    REQUIRE(OdmTileIndex::tile_y_of(512.0f) == 63);
+    REQUIRE(OdmTileIndex::tile_y_of(-1.0f) == 65);
+    // Sweet Water's first decoration, which the shipped index puts on tile 47.
+    REQUIRE(OdmTileIndex::tile_x_of(3232.0f) == 70);
+    REQUIRE(OdmTileIndex::tile_y_of(9072.0f) == 47);
+}
+
+TEST_CASE("spawn points decode after the tile index", "[odm]") {
+    const std::vector<OdmSpawnPoint> spawns{{6992, 11824, 0, 32, 3, 2}, {-1000, 500, 300, 0, 3, 1}};
+    auto entry = make_odm_entry_with_tail({{1, 0, 0, 0, "tree27"}}, kMiddleTile, {5}, spawns);
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+
+    std::vector<OdmSpawnPoint> out;
+    REQUIRE(extract_spawn_points(m, out) == OdmError::None);
+    REQUIRE(out.size() == 2);
+    REQUIRE(out[0].x == 6992);
+    REQUIRE(out[0].y == 11824);
+    REQUIRE(out[0].radius == 32);
+    REQUIRE(out[0].kind == 3);
+    REQUIRE(out[0].index == 2);
+    REQUIRE(out[1].x == -1000);
+    REQUIRE(out[1].z == 300);
+}
+
+TEST_CASE("a tail that runs past the payload is rejected", "[odm]") {
+    auto entry = make_odm_entry_with_tail({{1, 0, 0, 0, "tree27"}}, kMiddleTile, {5}, {});
+    OdmMap m;
+    REQUIRE(parse_odm(entry, m) == OdmError::None);
+
+    // Truncating the payload leaves the declared index longer than what is
+    // there, which has to fail rather than read past the end.
+    m.payload.resize(m.payload.size() - 16);
+    OdmTileIndex index;
+    REQUIRE(extract_tile_index(m, index) == OdmError::HeaderTooSmall);
+    std::vector<OdmSpawnPoint> spawns;
+    REQUIRE(extract_spawn_points(m, spawns) == OdmError::HeaderTooSmall);
+}

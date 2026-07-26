@@ -154,6 +154,13 @@ interoperability and compatibility with a legally purchased copy.
   profession resolving to `npcprof.txt`. Each person's conversation topics are
   listed beside them, from `npctopic.txt` and `npctext.txt` — all 298 of the
   NPC table's references resolve, and all 298 have words.
+- A decoder for the **outdoor tile index** — the last undescribed part of the
+  `.odm` format, and the largest: a list, per terrain tile, of what stands near
+  it, plus the map's spawn points. All fifteen maps are now consumed byte for
+  byte. The index is the map's own answer to "what is near here", and the
+  engine uses it rather than searching: looking at a tree names it. Its rule
+  reproduces exactly — a decoration is listed against the tiles whose centre is
+  within 1024 units, on 6,210 of 6,210 decorations.
 - Typed views over **how NPCs react**: `npcbtb.txt` says which of begging,
   bribing and threatening works on each personality, and how each phrases the
   twenty-four things it can say. All twelve personalities the professions name
@@ -205,6 +212,7 @@ The format specs are documented from observed behavior in
 [`docs/formats/odm-model-mesh.md`](docs/formats/odm-model-mesh.md),
 [`docs/formats/odm-model-facets.md`](docs/formats/odm-model-facets.md),
 [`docs/formats/odm-decorations.md`](docs/formats/odm-decorations.md),
+[`docs/formats/odm-tile-index.md`](docs/formats/odm-tile-index.md),
 [`docs/formats/dtile.md`](docs/formats/dtile.md),
 [`docs/formats/event-data.md`](docs/formats/event-data.md),
 [`docs/formats/bitmap.md`](docs/formats/bitmap.md),

@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <span>
@@ -39,13 +40,16 @@ std::filesystem::path resolve_games_lod() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 3) {
+    if (argc < 2 || argc > 4) {
         print_usage(argv[0]);
         return 2;
     }
     const std::string map_name = argv[1];
     // Research mode: one line per model facet, attributes and plane normal.
     const bool dump_facets = argc == 3 && std::string(argv[2]) == "--facets";
+    const bool dump_tail = argc >= 3 && std::string(argv[2]) == "--tail";
+    const bool check_index = argc >= 3 && std::string(argv[2]) == "--index";
+    const std::string tail_path = (dump_tail && argc >= 4) ? argv[3] : std::string();
 
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
@@ -161,6 +165,113 @@ int main(int argc, char** argv) {
                   << " distinct textures\n";
     } else {
         std::cout << "  meshes: geometry stream did not decode\n";
+    }
+
+    // The region after the decorations: see docs/formats/odm-spans.md.
+    if (dump_tail) {
+        std::uint64_t geometry_end = 0;
+        if (world::model_geometry_end(map, geometry_end) != world::OdmError::None) {
+            std::cerr << "error: geometry stream did not decode\n";
+            return 1;
+        }
+        std::vector<world::OdmDecoration> decs;
+        if (world::extract_decorations(map, decs) != world::OdmError::None) {
+            std::cerr << "error: decorations did not decode\n";
+            return 1;
+        }
+        const std::uint64_t start = geometry_end + 4 +
+                                    static_cast<std::uint64_t>(decs.size()) *
+                                        (world::kDecorationRecordSize + world::kDecorationNameSize);
+        std::cout << "  tail: [" << start << ".." << map.payload.size()
+                  << ") = " << (map.payload.size() - start) << " bytes\n";
+        if (!tail_path.empty()) {
+            std::ofstream out(tail_path, std::ios::binary);
+            out.write(reinterpret_cast<const char*>(map.payload.data() + start),
+                      static_cast<std::streamsize>(map.payload.size() - start));
+            std::cout << "  written to " << tail_path << "\n";
+        }
+        return 0;
+    }
+
+    // Research mode: check the index against the rule it is built by.
+    if (check_index) {
+        world::OdmTileIndex index;
+        std::vector<world::OdmDecoration> decs;
+        if (world::extract_tile_index(map, index) != world::OdmError::None ||
+            world::extract_decorations(map, decs) != world::OdmError::None) {
+            std::cerr << "error: the tail did not decode\n";
+            return 1;
+        }
+        std::size_t exact = 0;
+        for (std::size_t d = 0; d < decs.size(); ++d) {
+            std::set<int> listed;
+            std::set<int> predicted;
+            for (int ty = 0; ty < world::OdmTileIndex::kDim; ++ty) {
+                const float cy = static_cast<float>((64 - ty) * 512 + 256);
+                for (int tx = 0; tx < world::OdmTileIndex::kDim; ++tx) {
+                    const float cx = static_cast<float>((tx - 64) * 512 + 256);
+                    const float dx = cx - static_cast<float>(decs[d].x);
+                    const float dy = cy - static_cast<float>(decs[d].y);
+                    if (dx * dx + dy * dy <= world::kTileIndexRadius * world::kTileIndexRadius) {
+                        predicted.insert(ty * world::OdmTileIndex::kDim + tx);
+                    }
+                    for (const std::uint16_t pid : index.at(tx, ty)) {
+                        if (world::pid_type(pid) == world::kPidDecoration &&
+                            world::pid_id(pid) == d) {
+                            listed.insert(ty * world::OdmTileIndex::kDim + tx);
+                        }
+                    }
+                }
+            }
+            exact += listed == predicted ? 1 : 0;
+        }
+        std::cout << "  " << exact << "/" << decs.size()
+                  << " decorations listed exactly where their distance to the tile centre is "
+                  << "within " << static_cast<int>(world::kTileIndexRadius) << "\n";
+        return 0;
+    }
+
+    world::OdmTileIndex index;
+    if (world::extract_tile_index(map, index) == world::OdmError::None) {
+        std::size_t listed = 0;
+        std::size_t terminators = 0;
+        std::size_t occupied = 0;
+        std::set<int> ids;
+        for (int ty = 0; ty < world::OdmTileIndex::kDim; ++ty) {
+            for (int tx = 0; tx < world::OdmTileIndex::kDim; ++tx) {
+                const auto run = index.at(tx, ty);
+                listed += run.size();
+                occupied += run.empty() ? 0 : 1;
+                for (const std::uint16_t pid : run) {
+                    ids.insert(world::pid_id(pid));
+                }
+            }
+        }
+        for (const std::uint16_t e : index.entries) {
+            terminators += e == 0 ? 1 : 0;
+        }
+        std::cout << "  tile index: " << index.entries.size() << " entries, " << listed
+                  << " references to " << ids.size() << " decorations, " << occupied
+                  << " tiles occupied, " << terminators << " terminators\n";
+    }
+
+    std::vector<world::OdmSpawnPoint> spawns;
+    if (world::extract_spawn_points(map, spawns) == world::OdmError::None) {
+        std::set<int> kinds;
+        std::set<int> indices;
+        for (const auto& s : spawns) {
+            kinds.insert(s.kind);
+            indices.insert(static_cast<int>(s.index));
+        }
+        std::cout << "  spawn points: " << spawns.size() << ", kinds";
+        for (const int k : kinds) {
+            std::cout << " " << k;
+        }
+        std::cout << ", indices";
+        for (const int i : indices) {
+            std::cout << " " << i;
+        }
+        std::cout << "\n";
     }
 
     std::vector<world::OdmDecoration> decorations;

@@ -233,6 +233,16 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
                                    type == nullptr ? std::uint16_t{0} : type->sound_id});
     }
 
+    // The map's own index of what stands near each tile, and where it spawns
+    // monsters. Both are optional: a map that lost its tail still loads.
+    if (extract_tile_index(out.odm, out.tile_index) != OdmError::None) {
+        out.tile_index.entries.clear();
+        out.tile_index.starts.clear();
+    }
+    if (extract_spawn_points(out.odm, out.monster_spawns) != OdmError::None) {
+        out.monster_spawns.clear();
+    }
+
     // Collision: the models' own facets. Terrain is sampled instead, which is
     // both cheaper and exactly right.
     std::vector<render::Vec3> corners;
@@ -330,6 +340,25 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
 }
 
 }  // namespace
+
+std::vector<std::size_t> MapSession::decorations_near(float x, float z) const {
+    std::vector<std::size_t> out;
+    if (!outdoor()) {
+        return out;
+    }
+    // The renderer's z is the map's y; see to_render_space.
+    const auto run = tile_index.at(OdmTileIndex::tile_x_of(x), OdmTileIndex::tile_y_of(z));
+    for (const std::uint16_t pid : run) {
+        if (pid_type(pid) != kPidDecoration) {
+            continue;
+        }
+        const std::size_t id = pid_id(pid);
+        if (id < decorations.size()) {
+            out.push_back(id);
+        }
+    }
+    return out;
+}
 
 float MapSession::terrain_height_at(float x, float z) const {
     if (!outdoor()) {
