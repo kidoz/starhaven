@@ -20,12 +20,15 @@
 #include "core/render/terrain_mesh.hpp"
 #include "core/render/tile_set.hpp"
 #include "core/world/collision.hpp"
+#include "core/world/decoration_table.hpp"
 #include "core/world/map_event.hpp"
 #include "core/world/monster_list.hpp"
 #include "core/world/odm_map.hpp"
+#include "core/world/sound_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 #include "core/world/tile_table.hpp"
 
+#include "walker_ambient.hpp"
 #include "walker_common.hpp"
 #include "walker_music.hpp"
 #include "walker_sprites.hpp"
@@ -249,13 +252,26 @@ int main(int argc, char** argv) {
     // and the size to draw them at (docs/formats/dsft.md). Decorations and
     // monsters both name animations rather than pictures.
     world::SpriteFrameTable sprite_frames;
+    world::SoundTable sound_table;
+    world::DecorationTable decoration_table;
     if (const auto install = platform::install_from_env()) {
         lod::LodArchive icons;
-        std::span<const std::byte> raw;
-        if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None &&
-            icons.payload("DSFT.BIN", raw) == lod::LodArchive::PayloadError::None &&
-            world::SpriteFrameTable::parse(raw, sprite_frames) != world::SpriteFrameError::None) {
-            sprite_frames = world::SpriteFrameTable{};
+        if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None) {
+            std::span<const std::byte> raw;
+            if (icons.payload("DSFT.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::SpriteFrameTable::parse(raw, sprite_frames) !=
+                    world::SpriteFrameError::None) {
+                sprite_frames = world::SpriteFrameTable{};
+            }
+            if (icons.payload("DSOUNDS.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::SoundTable::parse(raw, sound_table) != world::SoundTableError::None) {
+                sound_table = world::SoundTable{};
+            }
+            if (icons.payload("DDECLIST.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::DecorationTable::parse(raw, decoration_table) !=
+                    world::DecorationTableError::None) {
+                decoration_table = world::DecorationTable{};
+            }
         }
     }
 
@@ -315,6 +331,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    // A few decoration types make a noise; DDECLIST names which sound
+    // (docs/formats/dsounds.md).
+    std::vector<tools::AmbientSource> ambient_sources;
+    for (const auto& d : decorations) {
+        const auto* type = decoration_table.at(d.kind);
+        if (type == nullptr || type->sound_id == 0)
+            continue;
+        ambient_sources.push_back({tools::to_render_space(d.x, d.y, d.z), type->sound_id});
+    }
+
     // The design table names the map and picks its music (docs/formats/text-tables.md).
     const tools::MapIdentity identity = tools::identify_map(map_name);
 
@@ -345,6 +371,18 @@ int main(int argc, char** argv) {
 
     // A one-frame capture ends before a note sounds, so do not start audio for
     // it at all.
+    tools::AmbientMixer ambient;
+    if (!ambient_sources.empty()) {
+        std::cout << ambient_sources.size() << " decorations make a sound\n";
+        // A one-frame capture ends before anything is heard, so do not open a
+        // device for it.
+        if (screenshot.empty()) {
+            if (const auto install = platform::install_from_env()) {
+                (void)ambient.open(*install);
+            }
+        }
+    }
+
     tools::MusicPlayer music;
     if (music_wanted && screenshot.empty() && identity.music_track > 0) {
         if (const auto install = platform::install_from_env()) {
@@ -363,6 +401,7 @@ int main(int argc, char** argv) {
     while (running) {
         ++frame;
         music.update();
+        ambient.update(camera.position, ambient_sources, sound_table);
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {

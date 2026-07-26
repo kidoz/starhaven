@@ -18,11 +18,14 @@
 #include "core/render/scene.hpp"
 #include "core/world/blv_map.hpp"
 #include "core/world/collision.hpp"
+#include "core/world/decoration_table.hpp"
 #include "core/world/map_event.hpp"
 #include "core/world/monster_list.hpp"
 #include "core/world/object_table.hpp"
+#include "core/world/sound_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
+#include "walker_ambient.hpp"
 #include "walker_common.hpp"
 #include "walker_music.hpp"
 #include "walker_sprites.hpp"
@@ -151,6 +154,8 @@ int main(int argc, char** argv) {
     world::SpriteFrameTable sprite_frames;
     world::MonsterList monsters;
     world::ObjectTable descriptors;
+    world::SoundTable sound_table;
+    world::DecorationTable decoration_table;
     if (const auto install = platform::install_from_env()) {
         lod::LodArchive icons;
         if (lod::LodArchive::open(*install / "data" / "icons.lod", icons) == lod::LodError::None) {
@@ -168,7 +173,26 @@ int main(int argc, char** argv) {
                 world::ObjectTable::parse(raw, descriptors) != world::ObjectTableError::None) {
                 descriptors = world::ObjectTable{};
             }
+            if (icons.payload("DSOUNDS.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::SoundTable::parse(raw, sound_table) != world::SoundTableError::None) {
+                sound_table = world::SoundTable{};
+            }
+            if (icons.payload("DDECLIST.BIN", raw) == lod::LodArchive::PayloadError::None &&
+                world::DecorationTable::parse(raw, decoration_table) !=
+                    world::DecorationTableError::None) {
+                decoration_table = world::DecorationTable{};
+            }
         }
+    }
+
+    // Indoor decorations carry only a name, so the type is looked up by it
+    // rather than by an id (docs/formats/dsounds.md).
+    std::vector<tools::AmbientSource> ambient_sources;
+    for (const auto& d : decorations) {
+        const auto* type = decoration_table.find(d.name);
+        if (type == nullptr || type->sound_id == 0)
+            continue;
+        ambient_sources.push_back({tools::to_render_space(d.x, d.y, d.z), type->sound_id});
     }
 
     // The level's event file names the monsters standing in it and the loot
@@ -284,6 +308,16 @@ int main(int argc, char** argv) {
 
     // A one-frame capture ends before a note sounds, so do not start audio for
     // it at all.
+    tools::AmbientMixer ambient;
+    if (!ambient_sources.empty()) {
+        std::cout << ambient_sources.size() << " decorations make a sound\n";
+        if (screenshot.empty()) {
+            if (const auto install = platform::install_from_env()) {
+                (void)ambient.open(*install);
+            }
+        }
+    }
+
     tools::MusicPlayer music;
     if (music_wanted && screenshot.empty() && identity.music_track > 0) {
         if (const auto install = platform::install_from_env()) {
@@ -303,6 +337,7 @@ int main(int argc, char** argv) {
     while (running) {
         ++frame;
         music.update();
+        ambient.update(camera.position, ambient_sources, sound_table);
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
