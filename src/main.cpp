@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,8 @@
 #include "config.h"
 #include "core/assets/asset_cache.hpp"
 #include "core/data/game_data.hpp"
+#include "core/image/font.hpp"
+#include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
 #include "core/world/map_session.hpp"
@@ -27,6 +30,7 @@
 #include "game/music_player.hpp"
 #include "game/player.hpp"
 #include "game/sprites.hpp"
+#include "game/text.hpp"
 
 namespace {
 
@@ -207,6 +211,19 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
         }
         draw(frame.group_name, o.position, kObjectScale);
     }
+}
+
+// The game's own interface font. A missing font is not fatal: the world still
+// renders, without the overlay.
+image::Font load_font(const std::filesystem::path& data_dir, const char* name) {
+    lod::LodArchive icons;
+    image::Font font;
+    std::span<const std::byte> raw;
+    if (lod::LodArchive::open(data_dir / "icons.lod", icons) == lod::LodError::None &&
+        icons.payload(name, raw) == lod::LodArchive::PayloadError::None) {
+        (void)image::Font::parse(raw, font);
+    }
+    return font;
 }
 
 void draw_boxes(render::SceneRenderer& scene, const world::MapSession& session) {
@@ -436,6 +453,8 @@ int main(int argc, char** argv) {
     const render::Color sky =
         session.outdoor() ? render::Color{135, 180, 220, 255} : render::Color{16, 16, 24, 255};
 
+    const image::Font font = load_font(data_dir, "Lucida.fnt");
+
     render::SceneRenderer scene(kWidth, kHeight);
 
     float fall_speed = 0.0f;
@@ -492,6 +511,12 @@ int main(int argc, char** argv) {
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()));
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
+        }
+
+        // The map's name, drawn with the game's own font.
+        if (font.glyph_count() > 0) {
+            game::draw_text(scene.framebuffer(), font, 8, 6, session.title(),
+                            render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }
 
         SDL_UpdateTexture(screen, nullptr, scene.framebuffer().color().data(), kWidth * 4);
