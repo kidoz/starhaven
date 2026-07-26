@@ -107,6 +107,18 @@ GameDataError load_spell_stats(const std::filesystem::path& data_dir, SpellStats
     return GameDataError::None;
 }
 
+GameDataError load_building_stats(const std::filesystem::path& data_dir, BuildingStatsTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "2DEvents.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (BuildingStatsTable::parse(table, out) != BuildingStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_descriptions(const std::filesystem::path& data_dir, std::string_view name,
                                 DescriptionTable& out) {
     TextTable table;

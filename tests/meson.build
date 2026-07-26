@@ -181,3 +181,9 @@ test('inspect',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('building_stats',
+  executable('test_building_stats', 'test_building_stats.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

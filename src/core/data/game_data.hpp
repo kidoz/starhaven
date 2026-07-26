@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string_view>
 
+#include "core/data/building_stats.hpp"
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
@@ -49,6 +50,10 @@ enum class GameDataError {
 // Load and parse `Spells.txt` in one step.
 [[nodiscard]] GameDataError load_spell_stats(const std::filesystem::path& data_dir,
                                              SpellStatsTable& out);
+
+// Load and parse `2DEvents.txt` in one step.
+[[nodiscard]] GameDataError load_building_stats(const std::filesystem::path& data_dir,
+                                                BuildingStatsTable& out);
 
 // Load one of the name-and-prose tables: `Class.txt`, `stats.txt`,
 // `SkillDes.txt`. `name` is the archive entry.

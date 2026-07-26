@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
@@ -35,6 +36,7 @@ void print_usage(const char* argv0) {
               << "  --maps             MapStats.txt as typed rows\n"
               << "  --monsters [name]  MONSTERS.TXT as typed rows, or one monster\n"
               << "  --spells [name]    Spells.txt as typed rows, or one spell\n"
+              << "  --buildings [map]  2DEvents.txt, or one map's establishments\n"
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
               << "  --skills           SkillDes.txt\n"
@@ -478,6 +480,51 @@ int do_spells(const std::filesystem::path& data_dir, const std::string& want) {
     return 0;
 }
 
+int do_buildings(const std::filesystem::path& data_dir, const std::string& want) {
+    data::BuildingStatsTable buildings;
+    if (data::load_building_stats(data_dir, buildings) != data::GameDataError::None) {
+        std::cerr << "error: could not load 2DEvents.txt\n";
+        return 1;
+    }
+    auto print = [](const data::BuildingStatsEntry& b) {
+        std::cout << "  " << b.id << "\t" << b.map << "\t" << b.type << "\t"
+                  << data::cp1252_to_utf8(b.name);
+        if (!b.proprietor.empty() && b.proprietor != "0") {
+            std::cout << "\t" << data::cp1252_to_utf8(b.proprietor);
+            if (!b.title.empty() && b.title != "0") {
+                std::cout << " the " << b.title;
+            }
+        }
+        std::cout << "\t" << b.opens << ":00-" << b.closes << ":00\n";
+    };
+
+    if (!want.empty()) {
+        // Accept either a map code or a Games.lod entry name.
+        std::string code = data::map_code_of(want);
+        if (code.empty()) {
+            code = want;
+        }
+        const auto here = buildings.on_map(code);
+        std::cout << here.size() << " establishments on " << code << "\n";
+        for (const auto* b : here) {
+            print(*b);
+        }
+        return 0;
+    }
+
+    std::size_t placed = 0;
+    for (const auto& b : buildings.entries()) {
+        if (!b.map_code().empty()) {
+            ++placed;
+        }
+    }
+    std::cout << buildings.size() << " establishments, " << placed << " on a single named map\n";
+    for (const auto& b : buildings.entries()) {
+        print(b);
+    }
+    return 0;
+}
+
 int do_descriptions(const std::filesystem::path& data_dir, const char* entry) {
     data::DescriptionTable table;
     if (data::load_descriptions(data_dir, entry, table) != data::GameDataError::None) {
@@ -599,6 +646,8 @@ int main(int argc, char** argv) {
         return do_generate_item(data_dir, argument);
     if (command == "--spells")
         return do_spells(data_dir, argument);
+    if (command == "--buildings")
+        return do_buildings(data_dir, argument);
     if (command == "--classes")
         return do_descriptions(data_dir, "Class.txt");
     if (command == "--stats")
