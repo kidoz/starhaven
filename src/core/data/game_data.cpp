@@ -95,4 +95,26 @@ GameDataError load_special_bonuses(const std::filesystem::path& data_dir, Specia
     return GameDataError::None;
 }
 
+GameDataError load_spell_stats(const std::filesystem::path& data_dir, SpellStatsTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "Spells.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (SpellStatsTable::parse(table, out) != SpellStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_descriptions(const std::filesystem::path& data_dir, std::string_view name,
+                                DescriptionTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, name, table); e != GameDataError::None) {
+        return e;
+    }
+    DescriptionTable::parse(table, out);
+    return GameDataError::None;
+}
+
 }  // namespace starhaven::data

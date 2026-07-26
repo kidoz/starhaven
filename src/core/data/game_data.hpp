@@ -7,6 +7,7 @@
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
+#include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 
 namespace starhaven::data {
@@ -44,6 +45,15 @@ enum class GameDataError {
                                                   StandardBonusTable& out);
 [[nodiscard]] GameDataError load_special_bonuses(const std::filesystem::path& data_dir,
                                                  SpecialBonusTable& out);
+
+// Load and parse `Spells.txt` in one step.
+[[nodiscard]] GameDataError load_spell_stats(const std::filesystem::path& data_dir,
+                                             SpellStatsTable& out);
+
+// Load one of the name-and-prose tables: `Class.txt`, `stats.txt`,
+// `SkillDes.txt`. `name` is the archive entry.
+[[nodiscard]] GameDataError load_descriptions(const std::filesystem::path& data_dir,
+                                              std::string_view name, DescriptionTable& out);
 
 }  // namespace starhaven::data
 

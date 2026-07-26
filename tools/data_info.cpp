@@ -12,6 +12,7 @@
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
@@ -33,6 +34,10 @@ void print_usage(const char* argv0) {
               << "  --list             list the tables and their sizes\n"
               << "  --maps             MapStats.txt as typed rows\n"
               << "  --monsters [name]  MONSTERS.TXT as typed rows, or one monster\n"
+              << "  --spells [name]    Spells.txt as typed rows, or one spell\n"
+              << "  --classes          Class.txt\n"
+              << "  --stats            stats.txt\n"
+              << "  --skills           SkillDes.txt\n"
               << "  --items [id]       ITEMS.TXT as typed rows, or one direct item id\n"
               << "  --random-items [id] RNDITEMS.TXT weights, or one direct item id\n"
               << "  --standard-bonuses [id] STDITEMS.TXT selectors and strength ranges\n"
@@ -436,6 +441,59 @@ int do_generate_item(const std::filesystem::path& data_dir, const std::string& r
     return 0;
 }
 
+int do_spells(const std::filesystem::path& data_dir, const std::string& want) {
+    data::SpellStatsTable spells;
+    if (data::load_spell_stats(data_dir, spells) != data::GameDataError::None) {
+        std::cerr << "error: could not load Spells.txt\n";
+        return 1;
+    }
+    if (!want.empty()) {
+        const auto* s = spells.find(want);
+        if (s == nullptr) {
+            std::cerr << "error: no spell named " << want << "\n";
+            return 1;
+        }
+        std::cout << data::cp1252_to_utf8(s->name) << "  (" << data::school_name(s->school) << " "
+                  << s->number << ", id " << s->id << ")\n"
+                  << "  costs " << s->cost_normal << "/" << s->cost_expert << "/" << s->cost_master
+                  << " at normal/expert/master";
+        if (!s->element.empty() && s->element != "none") {
+            std::cout << ", resisted as " << s->element;
+        }
+        std::cout << "\n  " << data::cp1252_to_utf8(s->description) << "\n";
+        for (const auto& [label, text] :
+             {std::pair{"normal", s->normal}, {"expert", s->expert}, {"master", s->master}}) {
+            if (!text.empty()) {
+                std::cout << "  " << label << ": " << data::cp1252_to_utf8(text) << "\n";
+            }
+        }
+        return 0;
+    }
+    std::cout << spells.size() << " spells\n";
+    for (const auto& s : spells.entries()) {
+        std::cout << "  " << s.id << "\t" << data::school_name(s.school) << " " << s.number << "\t"
+                  << data::cp1252_to_utf8(s.name) << "\tcost " << s.cost_normal << "/"
+                  << s.cost_expert << "/" << s.cost_master << "\n";
+    }
+    return 0;
+}
+
+int do_descriptions(const std::filesystem::path& data_dir, const char* entry) {
+    data::DescriptionTable table;
+    if (data::load_descriptions(data_dir, entry, table) != data::GameDataError::None) {
+        std::cerr << "error: could not load " << entry << "\n";
+        return 1;
+    }
+    std::cout << table.size() << " entries in " << entry << "\n";
+    for (const auto& e : table.entries()) {
+        std::cout << "  " << data::cp1252_to_utf8(e.name) << "\n";
+        for (const auto& text : e.text) {
+            std::cout << "      " << data::cp1252_to_utf8(text) << "\n";
+        }
+    }
+    return 0;
+}
+
 // The join this slice makes possible: MONSTERS.TXT's "Picture" column against
 // the DMONLIST.BIN names an actor record's monster id indexes.
 int do_check(const std::filesystem::path& data_dir) {
@@ -539,6 +597,14 @@ int main(int argc, char** argv) {
         return do_special_bonuses(data_dir, argument);
     if (command == "--generate-item")
         return do_generate_item(data_dir, argument);
+    if (command == "--spells")
+        return do_spells(data_dir, argument);
+    if (command == "--classes")
+        return do_descriptions(data_dir, "Class.txt");
+    if (command == "--stats")
+        return do_descriptions(data_dir, "stats.txt");
+    if (command == "--skills")
+        return do_descriptions(data_dir, "SKILLDES.TXT");
     if (command == "--check")
         return do_check(data_dir);
     if (command.rfind("--", 0) == 0) {

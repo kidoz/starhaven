@@ -14,6 +14,7 @@
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 
 using namespace starhaven::data;
@@ -759,4 +760,92 @@ TEST_CASE("chest placeholder and map classes resolve treasure-level ranges", "[i
     Mm6Random invalid_random(1);
     REQUIRE_FALSE(roll_chest_treasure_level(0, 0, invalid_random).has_value());
     REQUIRE(invalid_random.state() == 1);
+}
+
+namespace {
+
+// Spells.txt is nine sections, each opened by a heading naming the school.
+std::string spells_body() {
+    std::string s;
+    s += "\t\t\t\r\n";
+    s += "#\tFire Spells\t\tRes\tShort Name\tA\tX\tM\tSpell Description\tNormal\tExpert\tMaster"
+         "\r\n";
+    s += "1\t1\tTorch Light\tnone\tTorch Light\t1\t1\t1\tLights the way.\tone hour\tbrighter"
+         "\tbrightest\r\n";
+    s += "2\t2\tFlame Arrow\tFire\tFlame Arrow\t2\t1\t0\tFires an arrow.\tslow\tfast\tfastest"
+         "\r\n";
+    s += "#\tDark Spells\t\tRes\tShort Name\tA\tX\tM\tSpell Description\tNormal\tExpert\tMaster"
+         "\r\n";
+    s += "89\t1\tReanimate\tnone\tReanimate\t20\t20\t20\tRaises the fallen.\ta\tb\tc\r\n";
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("spells carry the school their heading names", "[spell_stats]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(spells_body(), table) == TextTableError::None);
+    SpellStatsTable spells;
+    REQUIRE(SpellStatsTable::parse(table, spells) == SpellStatsError::None);
+
+    REQUIRE(spells.size() == 3);
+    REQUIRE(spells.entries()[0].school == SpellSchool::Fire);
+    REQUIRE(spells.entries()[1].school == SpellSchool::Fire);
+    // The school is not repeated on the rows, so it has to carry down past the
+    // second heading.
+    REQUIRE(spells.entries()[2].school == SpellSchool::Dark);
+    REQUIRE(spells.entries()[2].number == 1);
+    REQUIRE(spells.entries()[2].id == 89);
+}
+
+TEST_CASE("a spell resolves by id and by name", "[spell_stats]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(spells_body(), table) == TextTableError::None);
+    SpellStatsTable spells;
+    REQUIRE(SpellStatsTable::parse(table, spells) == SpellStatsError::None);
+
+    REQUIRE(spells.at(2)->name == "Flame Arrow");
+    REQUIRE(spells.at(999) == nullptr);
+    REQUIRE(spells.find("flame arrow")->id == 2);
+    REQUIRE(spells.find("nosuch") == nullptr);
+}
+
+TEST_CASE("a spell's cost never rises with mastery", "[spell_stats]") {
+    // Across the shipped 99 rows the three costs are non-increasing, which is
+    // what identifies them as a cost per mastery rather than three unrelated
+    // numbers.
+    TextTable table;
+    REQUIRE(TextTable::parse_body(spells_body(), table) == TextTableError::None);
+    SpellStatsTable spells;
+    REQUIRE(SpellStatsTable::parse(table, spells) == SpellStatsError::None);
+
+    for (const auto& s : spells.entries()) {
+        REQUIRE(s.cost_normal >= s.cost_expert);
+        REQUIRE(s.cost_expert >= s.cost_master);
+    }
+    REQUIRE(spells.find("Flame Arrow")->cost_master == 0);
+}
+
+TEST_CASE("a table with no school heading is refused", "[spell_stats]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body("a\tb\r\n1\t2\r\n", table) == TextTableError::None);
+    SpellStatsTable spells;
+    REQUIRE(SpellStatsTable::parse(table, spells) == SpellStatsError::NoSchools);
+}
+
+TEST_CASE("a description table drops its heading row", "[spell_stats]") {
+    // Class.txt, stats.txt and SkillDes.txt all open with a row of labels
+    // shaped exactly like a data row.
+    TextTable table;
+    REQUIRE(TextTable::parse_body("Class\tDescriptions\r\nKnight\tA fighter.\r\n"
+                                  "Cavalier\tA promoted knight.\r\n",
+                                  table) == TextTableError::None);
+    DescriptionTable descriptions;
+    DescriptionTable::parse(table, descriptions);
+
+    REQUIRE(descriptions.size() == 2);
+    REQUIRE(descriptions.entries()[0].name == "Knight");
+    REQUIRE(descriptions.entries()[0].text[0] == "A fighter.");
+    REQUIRE(descriptions.find("cavalier") != nullptr);
+    REQUIRE(descriptions.find("Class") == nullptr);
 }
