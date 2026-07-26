@@ -141,7 +141,11 @@ interoperability and compatibility with a legally purchased copy.
   were decoded for, drawn where they belong rather than counted in a test.
   Looking directly at one raises an **inspect panel** with its statistics: a
   monster's level, hit points, armour, experience, attacks and resistances, or
-  an item's type, damage and value.
+  an item's type, damage and value. Spells are named rather than printed as
+  table codes — `Fireball`, not `Fireball,N,5`.
+- Typed views over the **character tables**: `Spells.txt` (99 spells across
+  nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
+  and `SkillDes.txt`. `data_info --spells Fireball` prints one.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - **`starhaven`, the engine itself**: `--maps` lists all 67 maps, and naming

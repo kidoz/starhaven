@@ -6,10 +6,11 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the six tables parsed into typed
+Covers the container, the text format, and the ten tables parsed into typed
 rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
-`STDITEMS.TXT`, and `SPCITEMS.TXT`. The other 24 are readable through the same
-reader but not yet given typed views.
+`STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
+`SkillDes.txt`. The other 20 are readable through the same reader but not yet
+given typed views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -36,6 +37,8 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --standard-bonuses 1
 ./buildDir/data_info --special-bonuses 16
 ./buildDir/data_info --generate-item 6:1
+./buildDir/data_info --spells Fireball
+./buildDir/data_info --classes
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -210,6 +213,42 @@ class-to-level matrix, and deterministic generation using the shared random
 sequence. The complete column maps, binary joins, probability branches, and
 item-instance layout are documented in
 [`items.md`](items.md). `observed`
+
+## `Spells.txt`
+
+Nine sections of eleven spells, 99 in all. Each section opens with a **heading
+row** naming its school in the column the spell rows use for the number within
+that school — `Fire Spells`, `Air Spells`, … `Dark Spells`. The school is not
+repeated on the spell rows, so a reader has to carry it down from the heading.
+`observed`
+
+| Column | Field | Status |
+| --- | --- | --- |
+| 0 | id, 1..99, unique across schools | observed |
+| 1 | number within the school, 1..11 | observed |
+| 2 | name | observed |
+| 3 | element it is resisted as (`Fire`, `Elec`, `none`) | observed |
+| 4 | short name, for a narrow interface | observed |
+| 5–7 | headed `A`, `X`, `M` — see below | inferred |
+| 8 | description | observed |
+| 9–11 | what it does at normal, expert and master | observed |
+
+### The three numbers are a cost per mastery
+
+Columns 5 to 7 are **non-increasing on all 99 rows**, and 94 rows have all
+three equal. They also track the spell's rank: the first spell of every school
+costs 1, the second 2, the tenth 25 and the eleventh 30. That is a spell point
+cost that never rises with mastery, and five spells get cheaper. `inferred`
+
+The letters `A`, `X`, `M` are the table's own; the mastery names in columns 9
+to 11 are Normal, Expert and Master.
+
+## `Class.txt`, `stats.txt` and `SkillDes.txt`
+
+Three tables of the same shape: a name and one or more columns of prose. 18
+classes, 25 statistics and 31 skills. Each opens with a heading row of labels
+built exactly like a data row, so it is skipped by position rather than by
+inspecting it. `observed`
 
 ## Invalid-input behavior
 
