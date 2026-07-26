@@ -8,6 +8,7 @@
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
+#include "core/data/npc_stats.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 
@@ -54,6 +55,11 @@ enum class GameDataError {
 // Load and parse `2DEvents.txt` in one step.
 [[nodiscard]] GameDataError load_building_stats(const std::filesystem::path& data_dir,
                                                 BuildingStatsTable& out);
+
+// Load and parse `NPCdata.txt` and `npcprof.txt`.
+[[nodiscard]] GameDataError load_npcs(const std::filesystem::path& data_dir, NpcTable& out);
+[[nodiscard]] GameDataError load_npc_professions(const std::filesystem::path& data_dir,
+                                                 NpcProfessionTable& out);
 
 // Load one of the name-and-prose tables: `Class.txt`, `stats.txt`,
 // `SkillDes.txt`. `name` is the archive entry.

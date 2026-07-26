@@ -68,7 +68,11 @@ BuildingStatsError BuildingStatsTable::parse(const TextTable& table, BuildingSta
     for (std::size_t r = header + 1; r < table.row_count(); ++r) {
         const int id = table.cell_int(r, kColId, -1);
         std::string type = cell_text(table, r, kColType);
-        if (id <= 0 || type.empty()) {
+        std::string name = cell_text(table, r, kColName);
+        // One shipped row — id 479, a house in New Sorpigal — has no type but
+        // does have a name, and eighteen people live in it. Requiring a type
+        // would drop them all.
+        if (id <= 0 || (type.empty() && name.empty())) {
             continue;
         }
 
@@ -77,7 +81,7 @@ BuildingStatsError BuildingStatsTable::parse(const TextTable& table, BuildingSta
         e.type_id = table.cell_int(r, kColTypeId);
         e.type = std::move(type);
         e.map = cell_text(table, r, kColMap);
-        e.name = cell_text(table, r, kColName);
+        e.name = std::move(name);
         e.proprietor = cell_text(table, r, kColProprietor);
         e.title = cell_text(table, r, kColTitle);
         e.stock_a = cell_text(table, r, kColStockA);

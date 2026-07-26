@@ -119,6 +119,30 @@ GameDataError load_building_stats(const std::filesystem::path& data_dir, Buildin
     return GameDataError::None;
 }
 
+GameDataError load_npcs(const std::filesystem::path& data_dir, NpcTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "NPCdata.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (NpcTable::parse(table, out) != NpcStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_npc_professions(const std::filesystem::path& data_dir, NpcProfessionTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "npcprof.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (NpcProfessionTable::parse(table, out) != NpcStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_descriptions(const std::filesystem::path& data_dir, std::string_view name,
                                 DescriptionTable& out) {
     TextTable table;

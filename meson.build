@@ -43,6 +43,7 @@ starhaven_core_sources = files(
   'src/core/data/monster_stats.cpp',
   'src/core/data/spell_stats.cpp',
   'src/core/data/building_stats.cpp',
+  'src/core/data/npc_stats.cpp',
   'src/core/data/game_data.cpp',
   'src/core/world/odm_map.cpp',
   'src/core/world/map_event.cpp',

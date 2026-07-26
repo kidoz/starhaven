@@ -13,6 +13,7 @@
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/npc_stats.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 #include "core/lod/lod_archive.hpp"
@@ -37,6 +38,8 @@ void print_usage(const char* argv0) {
               << "  --monsters [name]  MONSTERS.TXT as typed rows, or one monster\n"
               << "  --spells [name]    Spells.txt as typed rows, or one spell\n"
               << "  --buildings [map]  2DEvents.txt, or one map's establishments\n"
+              << "  --npcs [name]      NPCdata.txt, or one person\n"
+              << "  --professions      npcprof.txt\n"
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
               << "  --skills           SkillDes.txt\n"
@@ -525,6 +528,87 @@ int do_buildings(const std::filesystem::path& data_dir, const std::string& want)
     return 0;
 }
 
+int do_npcs(const std::filesystem::path& data_dir, const std::string& want) {
+    data::NpcTable npcs;
+    data::NpcProfessionTable professions;
+    data::BuildingStatsTable buildings;
+    if (data::load_npcs(data_dir, npcs) != data::GameDataError::None) {
+        std::cerr << "error: could not load NPCdata.txt\n";
+        return 1;
+    }
+    (void)data::load_npc_professions(data_dir, professions);
+    (void)data::load_building_stats(data_dir, buildings);
+
+    auto building_of = [&](int id) -> const data::BuildingStatsEntry* {
+        for (const auto& b : buildings.entries()) {
+            if (b.id == id) {
+                return &b;
+            }
+        }
+        return nullptr;
+    };
+
+    std::size_t placed = 0;
+    std::size_t placed_ok = 0;
+    std::size_t employed = 0;
+    std::size_t employed_ok = 0;
+    for (const auto& n : npcs.entries()) {
+        if (n.placed()) {
+            ++placed;
+            placed_ok += building_of(n.building_id) != nullptr;
+        }
+        if (n.profession_id != 0) {
+            ++employed;
+            employed_ok += professions.at(n.profession_id) != nullptr;
+        }
+    }
+
+    if (want.empty()) {
+        std::cout << npcs.size() << " people; " << placed_ok << "/" << placed
+                  << " stand in an establishment that exists, " << employed_ok << "/" << employed
+                  << " hold a profession that exists\n";
+    }
+
+    for (const auto& n : npcs.entries()) {
+        if (!want.empty() && n.name.find(want) == std::string::npos) {
+            continue;
+        }
+        std::cout << "  " << n.id << "\t" << data::cp1252_to_utf8(n.name);
+        if (const auto* p = professions.at(n.profession_id); p != nullptr) {
+            std::cout << ", " << p->name;
+        }
+        if (const auto* b = building_of(n.building_id); b != nullptr) {
+            std::cout << "\tat " << data::cp1252_to_utf8(b->name) << " (" << b->map << ")";
+        }
+        if (n.can_join) {
+            std::cout << "\tjoins";
+        }
+        if (n.has_news) {
+            std::cout << "\thas news";
+        }
+        std::cout << "\n";
+    }
+    return 0;
+}
+
+int do_professions(const std::filesystem::path& data_dir) {
+    data::NpcProfessionTable professions;
+    if (data::load_npc_professions(data_dir, professions) != data::GameDataError::None) {
+        std::cerr << "error: could not load npcprof.txt\n";
+        return 1;
+    }
+    std::cout << professions.size() << " professions\n";
+    for (const auto& p : professions.entries()) {
+        std::cout << "  " << p.id << "\t" << p.name << "\t" << p.hire_cost << " a week\t"
+                  << p.personality;
+        if (!p.party_benefit.empty()) {
+            std::cout << "\t" << data::cp1252_to_utf8(p.party_benefit);
+        }
+        std::cout << "\n";
+    }
+    return 0;
+}
+
 int do_descriptions(const std::filesystem::path& data_dir, const char* entry) {
     data::DescriptionTable table;
     if (data::load_descriptions(data_dir, entry, table) != data::GameDataError::None) {
@@ -648,6 +732,10 @@ int main(int argc, char** argv) {
         return do_spells(data_dir, argument);
     if (command == "--buildings")
         return do_buildings(data_dir, argument);
+    if (command == "--npcs")
+        return do_npcs(data_dir, argument);
+    if (command == "--professions")
+        return do_professions(data_dir);
     if (command == "--classes")
         return do_descriptions(data_dir, "Class.txt");
     if (command == "--stats")
