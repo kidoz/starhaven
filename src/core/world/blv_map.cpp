@@ -271,8 +271,8 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
         if (!r.seek(static_cast<std::size_t>(base + 0x14))) {
             return BlvError::Truncated;
         }
-        e.unknown_14 = r.read_u16_le();
-        e.unknown_16 = r.read_u16_le();
+        e.texture_origin_u = static_cast<std::int16_t>(r.read_u16_le());
+        e.texture_origin_v = static_cast<std::int16_t>(r.read_u16_le());
         if (!r.seek(static_cast<std::size_t>(base + 0x1A))) {
             return BlvError::Truncated;
         }

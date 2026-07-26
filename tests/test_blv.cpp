@@ -426,8 +426,8 @@ TEST_CASE("face extras are decoded after the texture names", "[blv]") {
     REQUIRE(parse_blv(entry, map) == BlvError::None);
     REQUIRE(map.face_extras.size() == 2);
     REQUIRE(map.face_extras[0].face_index == 1);
-    REQUIRE(map.face_extras[0].unknown_14 == 10);
-    REQUIRE(map.face_extras[0].unknown_16 == 11);
+    REQUIRE(map.face_extras[0].texture_origin_u == 10);
+    REQUIRE(map.face_extras[0].texture_origin_v == 11);
     REQUIRE(map.face_extras[0].unknown_1a == 12);
     REQUIRE(map.face_extras[1].face_index == 0);
     REQUIRE(map.decoded_bytes == map.payload.size());
@@ -496,4 +496,17 @@ TEST_CASE("attribute bit 0x80000000 says a face has an extra", "[blv]") {
     both.attributes = kBlvFaceHasExtra | 1u;
     REQUIRE(both.has_extra());
     REQUIRE(both.invisible());
+}
+
+TEST_CASE("a texture origin is signed", "[blv]") {
+    // The origin is the negation of the face's lowest texture coordinate, so
+    // it is negative wherever that coordinate is positive — which is most
+    // faces. Reading it unsigned turns -1 into 65535.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto entry = wrap(make_payload(kSquare, faces, "Test Level", "test", {{0, 0xFF9C}}));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.face_extras.size() == 1);
+    REQUIRE(map.face_extras[0].texture_origin_u == -100);
 }

@@ -92,13 +92,15 @@ struct BlvFace {
 struct BlvFaceExtra {
     std::uint16_t face_index = 0;  // always a valid index into `faces`
 
-    // Three live fields whose meaning is not established. Each is strongly
-    // associated with an attribute bit on the face it names — see
-    // docs/formats/blv.md — but none of the associations is exact, so they are
-    // still named for their offsets.
-    std::uint16_t unknown_14 = 0;  // usually non-zero; multiples of 128 are common
-    std::uint16_t unknown_16 = 0;  // usually non-zero
-    std::uint16_t unknown_1a = 0;  // sparse; non-zero on about 1 record in 6
+    // The face's texture origin: the offset that brings its lowest texture
+    // coordinate to zero. Where the field is set it equals -min(u) in 97.1% of
+    // records and -min(v) in 99.0% (see docs/formats/blv.md). Zero means the
+    // record carries no origin, which is not the same as an origin of zero.
+    std::int16_t texture_origin_u = 0;
+    std::int16_t texture_origin_v = 0;
+
+    // Sparse; non-zero on about one record in six. Meaning unknown.
+    std::uint16_t unknown_1a = 0;
 
     // A 10-byte name, parallel to the extras exactly as face texture names are
     // parallel to faces. Almost always empty: 12,184 of the 12,198 slots across

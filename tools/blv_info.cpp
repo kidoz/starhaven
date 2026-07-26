@@ -14,7 +14,7 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <map.blv> [--extras|--faces]\n"
+    std::cerr << "Usage: " << argv0 << " <map.blv> [--extras|--faces|--uv]\n"
               << "\n"
               << "Decompresses one .blv indoor map from your own legal game\n"
               << "install's Games.lod and prints non-expressive statistics.\n"
@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
     // 36 bytes are still unidentified.
     const bool dump_extras = argc == 3 && std::string(argv[2]) == "--extras";
     const bool dump_faces = argc == 3 && std::string(argv[2]) == "--faces";
+    const bool dump_uv = argc == 3 && std::string(argv[2]) == "--uv";
 
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
@@ -75,6 +76,20 @@ int main(int argc, char** argv) {
                 std::cout << "0123456789abcdef"[byte >> 4] << "0123456789abcdef"[byte & 0xF];
             }
             std::cout << "\n";
+        }
+        return 0;
+    }
+
+    if (dump_uv) {
+        for (std::size_t i = 0; i < map.faces.size(); ++i) {
+            const auto& f = map.faces[i];
+            if (f.u.empty()) {
+                continue;
+            }
+            const auto [min_u, max_u] = std::minmax_element(f.u.begin(), f.u.end());
+            const auto [min_v, max_v] = std::minmax_element(f.v.begin(), f.v.end());
+            std::cout << i << "\t" << *min_u << "\t" << *max_u << "\t" << *min_v << "\t" << *max_v
+                      << "\n";
         }
         return 0;
     }
@@ -152,6 +167,33 @@ int main(int argc, char** argv) {
             ++only_flag;
         }
     }
+    // The texture origin should be the negation of the face's lowest texture
+    // coordinate; see docs/formats/blv.md.
+    std::size_t origins = 0;
+    std::size_t origins_match = 0;
+    for (const auto& e : map.face_extras) {
+        const auto& f = map.faces[e.face_index];
+        if (f.u.empty()) {
+            continue;
+        }
+        const auto min_u = *std::min_element(f.u.begin(), f.u.end());
+        const auto min_v = *std::min_element(f.v.begin(), f.v.end());
+        if (e.texture_origin_u != 0) {
+            ++origins;
+            if (e.texture_origin_u + min_u == 0) {
+                ++origins_match;
+            }
+        }
+        if (e.texture_origin_v != 0) {
+            ++origins;
+            if (e.texture_origin_v + min_v == 0) {
+                ++origins_match;
+            }
+        }
+    }
+
+    std::cout << "  texture origins: " << origins_match << "/" << origins
+              << " equal the face's negated minimum u or v\n";
     std::cout << "  face extras: " << map.face_extras.size() << " (" << flagged
               << " faces flagged; " << agree << " agree, " << only_extra
               << " described without the flag, " << only_flag << " flagged without a record)\n";
