@@ -139,7 +139,9 @@ interoperability and compatibility with a legally purchased copy.
   loot object in the world from `MONSTERS.TXT` and `ITEMS.TXT`. In New Sorpigal
   that is 38 of 38 monsters and 42 of 42 objects named — the joins those tables
   were decoded for, drawn where they belong rather than counted in a test.
-  Looking directly at one raises an **inspect panel** with its statistics: a
+  Both respect the depth buffer, so nothing behind a wall is named or described
+  through it. Looking directly at one raises an **inspect panel** with its
+  statistics: a
   monster's level, hit points, armour, experience, attacks and resistances, or
   an item's type, damage and value. Spells are named rather than printed as
   table codes — `Fireball`, not `Fireball,N,5`.

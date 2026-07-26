@@ -6,6 +6,17 @@ OpenGL dependency: the single SDL2 renderer backend receives a CPU-filled
 texture each frame. This keeps the build portable and matches the
 software-rendered look of the original game.
 
+## The depth buffer is readable
+
+`Framebuffer::depth()` and `depth_at(x, y)` expose the z-buffer, in the same
+[0,1] NDC depth `project_point` reports. Overlays use it: a name or an inspect
+panel is suppressed when the world has already drawn something nearer than the
+thing being annotated, so nothing is described through a wall.
+
+The comparison carries a small tolerance. A billboard writes its own depth, and
+a sprite's centre sits marginally nearer than the world point it is anchored
+at, so an exact test makes a monster occlude its own label.
+
 ## Layers
 
 - **`src/core/render/math3d.hpp`** — `Vec3`/`Vec4`/`Mat4` (column-major), with
