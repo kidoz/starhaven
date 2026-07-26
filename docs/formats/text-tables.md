@@ -202,8 +202,11 @@ instance whose leading positive `i32` selects the row without an offset;
 negative chest values −1…−6 request deferred random generation.
 `RNDITEMS.TXT` exposes 400 direct-id base-item weight rows, while
 `STDITEMS.TXT` and `SPCITEMS.TXT` expose 14 and 59 one-based bonus selectors.
-The complete column maps, binary joins, and item-instance layout are
-documented in [`items.md`](items.md). `observed`
+Its footer also supplies the three six-level bonus-chance arrays; the typed
+views expose standard strength ranges, special treasure-class eligibility,
+and deterministic weighted selection. The complete column maps, binary joins,
+probability branches, and item-instance layout are documented in
+[`items.md`](items.md). `observed`
 
 ## Invalid-input behavior
 

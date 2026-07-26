@@ -359,7 +359,13 @@ std::string random_items_body() {
     return "Random items\r\n"
            "Item #\tPic File\t1\t2\t3\t4\t5\t6\r\n"
            "0\tblank\t0\t0\t0\t0\t0\t0\r\n"
-           "1\tblade1\t5\t10\t2\t0\t0\t0\r\n";
+           "1\tblade1\t5\t10\t2\t0\t0\t0\r\n"
+           "2\tblade2\t2\t0\t0\t0\t0\t0\r\n"
+           "\r\n"
+           "Bonus chance by level %\t\t1\t2\t3\t4\t5\t6\r\n"
+           "\tStandard\t0\t40\t40\t40\t40\t75\r\n"
+           "\tSpecial\t0\t0\t10\t15\t20\t25\r\n"
+           "Weapons\tSpecial %\t0\t0\t10\t20\t30\t50\r\n";
 }
 
 std::string standard_bonuses_body() {
@@ -403,11 +409,23 @@ TEST_CASE("RNDITEMS rows keep direct ids and six treasure weights", "[item_gener
     REQUIRE(TextTable::parse_body(random_items_body(), table) == TextTableError::None);
     RandomItemTable random_items;
     REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::None);
-    REQUIRE(random_items.size() == 2);
+    REQUIRE(random_items.size() == 3);
     REQUIRE(random_items.at(0)->picture == "blank");
     REQUIRE(random_items.at(1)->picture == "blade1");
     REQUIRE(random_items.at(1)->weights == std::array<int, 6>{5, 10, 2, 0, 0, 0});
-    REQUIRE(random_items.at(2) == nullptr);
+    REQUIRE(random_items.at(2)->picture == "blade2");
+    REQUIRE(random_items.at(3) == nullptr);
+
+    const auto& chances = random_items.bonus_chances();
+    REQUIRE(chances.standard == std::array<int, 6>{0, 40, 40, 40, 40, 75});
+    REQUIRE(chances.special == std::array<int, 6>{0, 0, 10, 15, 20, 25});
+    REQUIRE(chances.weapon_special == std::array<int, 6>{0, 0, 10, 20, 30, 50});
+    REQUIRE(random_items.total_weight(0) == 0);
+    REQUIRE(random_items.total_weight(1) == 7);
+    REQUIRE(random_items.select_for_roll(1, 0)->id == 1);
+    REQUIRE(random_items.select_for_roll(1, 5)->id == 1);
+    REQUIRE(random_items.select_for_roll(1, 6)->id == 2);
+    REQUIRE(random_items.select_for_roll(1, 7) == nullptr);
 }
 
 TEST_CASE("RNDITEMS rejects missing headers and non-contiguous ids", "[item_generation]") {
@@ -419,6 +437,40 @@ TEST_CASE("RNDITEMS rejects missing headers and non-contiguous ids", "[item_gene
     REQUIRE(TextTable::parse_body("Item #\tPic File\r\n0\tblank\r\n2\tblade\r\n", table) ==
             TextTableError::None);
     REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::BadId);
+
+    REQUIRE(TextTable::parse_body("Item #\tPic File\r\n0\tblank\r\n", table) ==
+            TextTableError::None);
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::NoBonusChanceHeader);
+}
+
+TEST_CASE("RNDITEMS rejects malformed bonus chances", "[item_generation]") {
+    TextTable table;
+    std::string body = random_items_body();
+    body[body.find("\tSpecial\t0\t0\t10") + 13] = '7';
+    REQUIRE(TextTable::parse_body(body, table) == TextTableError::None);
+    RandomItemTable random_items;
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::BadBonusChances);
+}
+
+TEST_CASE("item bonus chances reproduce weapon and equipment branches", "[item_generation]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(random_items_body(), table) == TextTableError::None);
+    RandomItemTable random_items;
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::None);
+    const auto& chances = random_items.bonus_chances();
+
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Equipment, 3, 39) ==
+            ItemBonusKind::Standard);
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Equipment, 3, 40) ==
+            ItemBonusKind::Special);
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Equipment, 3, 49) ==
+            ItemBonusKind::Special);
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Equipment, 3, 50) == ItemBonusKind::None);
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Weapon, 6, 49) == ItemBonusKind::Special);
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Weapon, 6, 50) == ItemBonusKind::None);
+    REQUIRE(classify_item_bonus(chances, ItemBonusTarget::Other, 6, 0) == ItemBonusKind::None);
+    REQUIRE_FALSE(classify_item_bonus(chances, ItemBonusTarget::Equipment, 0, 0));
+    REQUIRE_FALSE(classify_item_bonus(chances, ItemBonusTarget::Equipment, 1, 100));
 }
 
 TEST_CASE("STDITEMS selectors and strength ranges are one-based", "[item_generation]") {
@@ -438,6 +490,13 @@ TEST_CASE("STDITEMS selectors and strength ranges are one-based", "[item_generat
     REQUIRE(bonuses.range(2)->maximum == 5);
     REQUIRE(bonuses.range(6)->minimum == 15);
     REQUIRE(bonuses.range(7) == nullptr);
+    REQUIRE(bonuses.total_weight(0) == 10);
+    REQUIRE(bonuses.total_weight(1) == 0);
+    REQUIRE(bonuses.select_for_roll(0, 0)->id == 1);
+    REQUIRE(bonuses.select_for_roll(0, 5)->id == 1);
+    REQUIRE(bonuses.select_for_roll(0, 6)->id == 2);
+    REQUIRE(bonuses.select_for_roll(0, 10) == nullptr);
+    REQUIRE(bonuses.select_for_roll(1, 0) == nullptr);
 }
 
 TEST_CASE("STDITEMS rejects incomplete strength ranges", "[item_generation]") {
@@ -459,8 +518,27 @@ TEST_CASE("SPCITEMS selectors stop before footer rows", "[item_generation]") {
     REQUIRE(bonuses.at(1)->name_affix == "of Protection");
     REQUIRE(bonuses.at(1)->chance_by_item_type[3] == 10);
     REQUIRE(bonuses.at(1)->value == "1000");
-    REQUIRE(bonuses.at(1)->treasure_class == "B");
+    REQUIRE(bonuses.at(1)->treasure_class == SpecialBonusTreasureClass::B);
     REQUIRE(bonuses.at(2)->name_affix == "Vampiric");
     REQUIRE(bonuses.at(2)->value == "X 2");
+    REQUIRE(bonuses.at(2)->treasure_class == SpecialBonusTreasureClass::D);
     REQUIRE(bonuses.at(3) == nullptr);
+    REQUIRE(bonuses.eligible(*bonuses.at(1), 3));
+    REQUIRE_FALSE(bonuses.eligible(*bonuses.at(2), 3));
+    REQUIRE_FALSE(bonuses.eligible(*bonuses.at(1), 6));
+    REQUIRE(bonuses.eligible(*bonuses.at(2), 6));
+    REQUIRE(bonuses.total_weight(3, 3) == 10);
+    REQUIRE(bonuses.select_for_roll(3, 3, 0)->id == 1);
+    REQUIRE(bonuses.total_weight(0, 6) == 5);
+    REQUIRE(bonuses.select_for_roll(0, 6, 4)->id == 2);
+    REQUIRE(bonuses.select_for_roll(0, 6, 5) == nullptr);
+}
+
+TEST_CASE("SPCITEMS rejects unknown treasure classes", "[item_generation]") {
+    TextTable table;
+    std::string body = special_bonuses_body();
+    body.replace(body.find("\tB\tfixture"), 3, "\tZ\t");
+    REQUIRE(TextTable::parse_body(body, table) == TextTableError::None);
+    SpecialBonusTable bonuses;
+    REQUIRE(SpecialBonusTable::parse(table, bonuses) == SpecialBonusError::BadTreasureClass);
 }

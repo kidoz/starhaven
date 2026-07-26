@@ -267,6 +267,13 @@ int do_random_items(const std::filesystem::path& data_dir, const std::string& wa
         print_weights(entry.weights);
         std::cout << "\n";
     }
+    const auto& chances = random_items.bonus_chances();
+    for (std::size_t level = 1; level <= data::kTreasureLevelCount; ++level) {
+        std::cout << "  level " << level << " total " << random_items.total_weight(level)
+                  << ", standard " << chances.standard[level - 1] << "%, special "
+                  << chances.special[level - 1] << "%, weapon special "
+                  << chances.weapon_special[level - 1] << "%\n";
+    }
     return 0;
 }
 
@@ -305,6 +312,11 @@ int do_standard_bonuses(const std::filesystem::path& data_dir, const std::string
         std::cout << "  level " << level << " strength " << range->minimum << ".." << range->maximum
                   << "\n";
     }
+    std::cout << "  item-type totals:";
+    for (std::size_t type = 0; type < data::kStandardBonusItemTypeCount; ++type) {
+        std::cout << " " << bonuses.total_weight(type);
+    }
+    std::cout << "\n";
     return 0;
 }
 
@@ -328,7 +340,8 @@ int do_special_bonuses(const std::filesystem::path& data_dir, const std::string&
         }
         std::cout << entry->id << ": " << data::cp1252_to_utf8(entry->name_affix) << "\n"
                   << "  " << data::cp1252_to_utf8(entry->effect) << "\n"
-                  << "  value " << entry->value << ", treasure class " << entry->treasure_class
+                  << "  value " << entry->value << ", treasure class "
+                  << data::special_bonus_class_name(entry->treasure_class)
                   << "\n  item-type weights:";
         print_weights(entry->chance_by_item_type);
         std::cout << "\n";
@@ -338,7 +351,15 @@ int do_special_bonuses(const std::filesystem::path& data_dir, const std::string&
     std::cout << bonuses.size() << " one-based special bonuses\n";
     for (const auto& entry : bonuses.entries()) {
         std::cout << "  " << entry.id << "\t" << data::cp1252_to_utf8(entry.name_affix)
-                  << "\tclass " << entry.treasure_class << "\tvalue " << entry.value << "\n";
+                  << "\tclass " << data::special_bonus_class_name(entry.treasure_class)
+                  << "\tvalue " << entry.value << "\n";
+    }
+    for (std::size_t level = 3; level <= data::kTreasureLevelCount; ++level) {
+        std::cout << "  level " << level << " eligible item-type totals:";
+        for (std::size_t type = 0; type < data::kSpecialBonusItemTypeCount; ++type) {
+            std::cout << " " << bonuses.total_weight(type, level);
+        }
+        std::cout << "\n";
     }
     return 0;
 }

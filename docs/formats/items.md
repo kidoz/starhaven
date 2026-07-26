@@ -77,6 +77,53 @@ The executable selects a positive base item using the corresponding
 `RNDITEMS.TXT` weight column when the chest is populated at runtime.
 `observed`
 
+The weight totals recomputed from ids 1–399 are:
+
+| Treasure level | Total weight |
+| ---: | ---: |
+| 1 | 437 |
+| 2 | 827 |
+| 3 | 959 |
+| 4 | 970 |
+| 5 | 928 |
+| 6 | 805 |
+
+Id 0 is excluded as the empty item. Selection takes the shared random
+function's remainder modulo the total and walks cumulative weights. The base
+item path compares `cumulative >= remainder` without first converting the
+remainder to 1-based form. Consequently the first candidate receives the
+roll-zero outcome in addition to its ordinary weight, and the last candidate
+loses one outcome. A zero-weight first candidate can win roll zero. This
+off-by-one behavior is preserved by the deterministic selection helper.
+`observed`
+
+## Bonus probability branches
+
+The `RNDITEMS.TXT` footer supplies three percentage arrays:
+
+| Treasure level | Equipment standard | Equipment special | Weapon special |
+| ---: | ---: | ---: | ---: |
+| 1 | 0% | 0% | 0% |
+| 2 | 40% | 0% | 0% |
+| 3 | 40% | 10% | 10% |
+| 4 | 40% | 15% | 20% |
+| 5 | 40% | 20% | 30% |
+| 6 | 75% | 25% | 50% |
+
+The loader reads these three rows into separate six-element arrays.
+The generator then branches by the base item's compiled equipment type:
+
+- weapon types 0–2 roll only against `Weapon special`;
+- equipment types 3–11 make one percentile roll: values below `standard`
+  choose a standard bonus, and the immediately following `special` interval
+  chooses a special bonus;
+- type 12 is a wand and receives charges instead of an enchantment roll;
+- other types take no standard or special bonus in this path.
+
+For example, treasure-level 3 equipment rolls 0–39 standard, 40–49 special,
+and 50–99 no bonus. Treasure-level 3 weapons roll 0–9 special and 10–99 no
+bonus. `observed`
+
 ## Standard bonuses: `STDITEMS.TXT`
 
 The 14 standard-bonus rows have no explicit numeric column. Their serialized
@@ -96,6 +143,13 @@ treasure level:
 | 5 | 10 | 17 |
 | 6 | 15 | 25 |
 
+The generator sums each item-type column before selection. The shipped totals,
+in table-column order, are `115, 70, 115, 70, 140, 155, 110, 140, 140`.
+Like base-item selection, standard selection uses a zero-based remainder with
+an inclusive cumulative comparison. This gives the first standard-bonus row
+the roll-zero outcome even when its weight for that item type is zero.
+`observed`
+
 ## Special bonuses: `SPCITEMS.TXT`
 
 The 59 special-bonus rows likewise use 1-based selectors in table order.
@@ -103,6 +157,25 @@ Each row stores an effect, a name affix, weights for twelve item types, a
 value expression, treasure class, and description. The item types add
 one-handed, two-handed, and missile weapons to the nine equipment categories
 used by standard bonuses. `observed`
+
+The treasure-class footer determines which rows participate:
+
+| Treasure level | Eligible classes |
+| ---: | --- |
+| 1–2 | none |
+| 3 | A, B |
+| 4 | A, B, C |
+| 5 | B, C, D |
+| 6 | D |
+
+Special selection first removes ineligible and zero-weight rows, sums the
+remaining item-type weights, and uses a one-based cumulative draw. Unlike base
+and standard selection, it therefore has no roll-zero off-by-one quirk.
+`observed`
+
+The typed helpers accept a deterministic roll rather than owning random state.
+This separates the established probability behavior from the still-unresolved
+global random-call sequence.
 
 ## Joins in shipped outdoor maps
 
@@ -131,9 +204,9 @@ signed 16-bit grid entries total 4204 bytes. `observed`
 ```bash
 export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --items 160
-./buildDir/data_info --random-items 160
-./buildDir/data_info --standard-bonuses 1
-./buildDir/data_info --special-bonuses 16
+./buildDir/data_info --random-items       # weights and footer chances
+./buildDir/data_info --standard-bonuses  # ranges and item-type totals
+./buildDir/data_info --special-bonuses   # class-filtered totals
 ./buildDir/ddm_info outb2.ddm
 ```
 
@@ -143,7 +216,9 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 
 - Meanings of flag bits above bit 1 and direct MM6 evidence for `+0x18`.
 - The complete item-type-dependent interpretation of overloaded fields.
-- How the generation algorithm combines the table footer probabilities with
-  base-item and enchantment weights.
+- Mapping every `ITEMS.TXT` equipment label to the generator's compiled type,
+  especially hybrid one-or-two-handed weapons.
+- The shared random generator's seed ownership and exact call sequence around
+  map population.
 - How the abbreviated modifier and material columns in `ITEMS.TXT` drive
   gameplay.
