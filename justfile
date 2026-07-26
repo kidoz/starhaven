@@ -6,6 +6,7 @@
 #   - generated output is disposable; never hand-edit buildDir/
 
 build_dir := "buildDir"
+release_dir := "buildRelease"
 
 # Homebrew clang-tidy does not know the macOS SDK location, so it cannot find
 # libc++ headers and fails with "'array' file not found". Pass the sysroot
@@ -86,6 +87,29 @@ check-wraps:
     meson test -C /tmp/starhaven-wrap-check
     rm -rf /tmp/starhaven-wrap-check
 
-# Remove the build directory.
+# Configure and compile an optimised build.
+# The default build directory is a debug one, so anything timed there is
+# meaningless as a performance number.
+release:
+    @if [ -f {{release_dir}}/build.ninja ]; then \
+        meson setup {{release_dir}} --reconfigure --buildtype=release; \
+    else \
+        meson setup {{release_dir}} --buildtype=release; \
+    fi
+    meson compile -C {{release_dir}}
+
+# Time the renderer on one map, e.g. `just bench CD1.Blv`. Always optimised.
+bench map frames="60": release
+    ./{{release_dir}}/starhaven {{map}} --bench {{frames}}
+
+# Time every map and print the slowest ten.
+bench-all frames="40": release
+    @./{{release_dir}}/starhaven --maps | tail -n +2 | awk -F'\t' '{print $1}' | sed 's/^  //' \
+        | while IFS= read -r m; do \
+            printf '%s %s\n' "$m" "$(./{{release_dir}}/starhaven "$m" --bench {{frames}} \
+                | grep 'median fps' | tr -dc '0-9.')"; \
+          done | sort -k2 -n | head -10
+
+# Remove the build directories.
 clean:
-    rm -rf {{build_dir}}
+    rm -rf {{build_dir}} {{release_dir}}

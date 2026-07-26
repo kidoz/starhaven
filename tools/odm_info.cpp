@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
             for (const auto& mesh : meshes) {
                 for (const auto& f : mesh.facets) {
                     std::cout << f.attributes << "\t" << f.nx() << "\t" << f.ny() << "\t" << f.nz()
-                              << "\n";
+                              << "\t" << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
                 }
             }
             return 0;

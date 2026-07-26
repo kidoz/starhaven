@@ -6,8 +6,10 @@
 // point it at your own legal install with STARHAVEN_GAME_DIR.
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -59,6 +61,7 @@ void print_usage(const char* argv0) {
               << "  --pos X,Y,Z         start position (renderer axes, Y up)\n"
               << "  --look YAW,PITCH    start orientation in degrees\n"
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
+              << "  --bench N           render N frames, report timings, and exit\n"
               << "  --boxes             overlay model bounding boxes\n"
               << "  --fly               disable gravity and collision\n"
               << "  --no-music          do not play the map's music track\n"
@@ -241,6 +244,7 @@ int main(int argc, char** argv) {
     bool fly = false;
     bool music_wanted = true;
     bool list_only = false;
+    int bench_frames = 0;
     bool have_pos = false;
     render::Camera camera;
 
@@ -248,6 +252,8 @@ int main(int argc, char** argv) {
         const std::string a = argv[i];
         if (a == "--maps") {
             list_only = true;
+        } else if (a == "--bench" && i + 1 < argc) {
+            bench_frames = std::atoi(argv[++i]);
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -301,6 +307,7 @@ int main(int argc, char** argv) {
     assets::AssetCache cache;
     cache.open(data_dir);
 
+    const auto load_started = std::chrono::steady_clock::now();
     world::MapSession session;
     if (const world::MapSessionError e =
             world::load_map_session(game::resolve_games_lod(), data_dir, map_name, cache, session);
@@ -309,6 +316,10 @@ int main(int argc, char** argv) {
                   << ")\n";
         return 1;
     }
+
+    const double load_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - load_started)
+            .count();
 
     std::cout << session.file_name << " \"" << session.title()
               << "\": " << (session.outdoor() ? "outdoor" : "indoor") << ", "
@@ -332,6 +343,60 @@ int main(int argc, char** argv) {
             camera.position = session.spawn;
             camera.position.y += game::kEyeHeight;
         }
+    }
+
+    // Benchmark mode: render frames into the framebuffer and report where the
+    // time goes. It opens no window — what is being measured is the software
+    // rasterizer, not the compositor — which also makes it usable anywhere.
+    if (bench_frames > 0) {
+        render::SceneRenderer bench_scene(kWidth, kHeight);
+        const render::Vec3 bench_light = render::normalize(
+            session.outdoor() ? render::Vec3{0.4f, 1.0f, 0.3f} : render::Vec3{0.3f, 1.0f, 0.2f});
+        const render::Color bench_sky =
+            session.outdoor() ? render::Color{135, 180, 220, 255} : render::Color{16, 16, 24, 255};
+
+        std::vector<double> geometry;
+        std::vector<double> billboards;
+        geometry.reserve(static_cast<std::size_t>(bench_frames));
+        billboards.reserve(static_cast<std::size_t>(bench_frames));
+
+        for (int i = 0; i < bench_frames; ++i) {
+            const auto t0 = std::chrono::steady_clock::now();
+            bench_scene.begin(camera, bench_sky);
+            if (session.outdoor()) {
+                draw_outdoor(bench_scene, session, cache, bench_light);
+            } else {
+                draw_indoor(bench_scene, session, cache, bench_light);
+            }
+            const auto t1 = std::chrono::steady_clock::now();
+            // Animation time advances with the frame so the billboard work is
+            // not measured on one cached sprite.
+            draw_billboards(bench_scene, session, cache, static_cast<std::uint32_t>(i));
+            const auto t2 = std::chrono::steady_clock::now();
+
+            using ms = std::chrono::duration<double, std::milli>;
+            geometry.push_back(ms(t1 - t0).count());
+            billboards.push_back(ms(t2 - t1).count());
+        }
+
+        auto report = [](const char* label, std::vector<double> v) {
+            std::sort(v.begin(), v.end());
+            const std::size_t p95 = (v.size() * 95) / 100;
+            std::cout << "  " << label << ": median " << v[v.size() / 2] << " ms, p95 "
+                      << v[p95 < v.size() ? p95 : v.size() - 1] << " ms\n";
+        };
+        std::vector<double> total(geometry.size());
+        for (std::size_t i = 0; i < total.size(); ++i) {
+            total[i] = geometry[i] + billboards[i];
+        }
+        std::cout << "bench " << bench_frames << " frames at " << kWidth << "x" << kHeight << "\n";
+        std::cout << "  load: " << load_ms << " ms\n";
+        report("geometry  ", geometry);
+        report("billboards", billboards);
+        report("frame     ", total);
+        std::sort(total.begin(), total.end());
+        std::cout << "  median fps: " << 1000.0 / total[total.size() / 2] << "\n";
+        return 0;
     }
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -372,6 +437,7 @@ int main(int argc, char** argv) {
         session.outdoor() ? render::Color{135, 180, 220, 255} : render::Color{16, 16, 24, 255};
 
     render::SceneRenderer scene(kWidth, kHeight);
+
     float fall_speed = 0.0f;
     int frame = 0;
     bool running = true;
