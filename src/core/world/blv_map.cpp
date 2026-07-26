@@ -33,7 +33,8 @@ constexpr std::size_t kArrayU = 4;
 constexpr std::size_t kArrayV = 5;
 
 // Field offsets within an 80-byte face record.
-constexpr std::uint32_t kFacePlaneOff = 0x00;        // 4 x i32, 16.16
+constexpr std::uint32_t kFacePlaneOff = 0x00;  // 4 x i32, 16.16
+constexpr std::uint32_t kFaceArrayPointersOff = 0x20;
 constexpr std::uint32_t kFaceAttributesOff = 0x1C;   // u32
 constexpr std::uint32_t kFaceVertexCountOff = 0x4D;  // u8
 
@@ -182,6 +183,20 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
 
         // The face's six arrays sit side by side, each `entries` wide.
         const auto array_at = [&](std::size_t which) { return index_cursor + which * entries * 2; };
+
+        // The first array pointer is stale, but its value minus the array's
+        // own offset is the address the payload was loaded at. Every face must
+        // agree, which is both a check on the walk and a way to read the
+        // file's other stale pointers.
+        if (r.seek(static_cast<std::size_t>(base + kFaceArrayPointersOff))) {
+            const std::uint32_t stored = r.read_u32_le();
+            const auto implied = static_cast<std::uint32_t>(stored - index_cursor);
+            if (i == 0) {
+                out.pointer_base = implied;
+            } else if (out.pointer_base != implied) {
+                out.pointer_base = 0;
+            }
+        }
 
         if (!r.seek(static_cast<std::size_t>(array_at(kArrayVertexIds)))) {
             return BlvError::Truncated;

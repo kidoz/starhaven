@@ -118,6 +118,12 @@ int main(int argc, char** argv) {
     std::cout << "  stored=" << entry.size() << "  decompressed=" << map.payload.size() << "\n";
     std::cout << "  header counts: " << map.header.unknown_6c << " " << map.header.unknown_70
               << "  event state bytes: " << map.header.event_state_bytes << "\n";
+    if (map.pointer_base != 0) {
+        std::cout << "  pointer base: 0x" << std::hex << map.pointer_base << std::dec
+                  << " (all faces agree)\n";
+    } else {
+        std::cout << "  pointer base: faces disagree\n";
+    }
     std::cout << "  vertices: " << map.vertices.size() << "\n";
 
     // Coordinate extents give a feel for the level's size without reproducing

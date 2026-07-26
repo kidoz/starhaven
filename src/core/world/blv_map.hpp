@@ -129,6 +129,13 @@ struct BlvMap {
     std::vector<BlvFaceExtra> face_extras;
     std::vector<std::uint8_t> payload;  // the whole decompressed payload
 
+    // The address the payload was loaded at in the process that wrote the
+    // file, recovered from the faces' stale array pointers: face N's first
+    // pointer is `pointer_base + index_block_offset + running_offset`. Zero
+    // when the faces disagree, which no shipped map does. It maps any other
+    // stale pointer in the file to a payload offset. See docs/formats/blv.md.
+    std::uint32_t pointer_base = 0;
+
     // Where the face-extra array starts in `payload`. Most of each 36-byte
     // record is still unidentified, so the raw bytes stay reachable.
     std::uint64_t face_extras_offset = 0;

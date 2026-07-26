@@ -52,7 +52,8 @@ std::vector<std::uint8_t>
 make_payload(const std::vector<std::array<std::int16_t, 3>>& vertices,
              const std::vector<FaceSpec>& faces, const std::string& name = "Test Level",
              const std::string& name2 = "test",
-             const std::vector<std::pair<std::uint16_t, std::uint16_t>>& extras = {}) {
+             const std::vector<std::pair<std::uint16_t, std::uint16_t>>& extras = {},
+             std::uint32_t pointer_base = 0) {
     std::vector<std::uint8_t> p(kBlvHeaderSize, 0);
     put_u32(p, 0x00, 1);
     for (std::size_t i = 0; i < name.size(); ++i)
@@ -78,6 +79,11 @@ make_payload(const std::vector<std::array<std::int16_t, 3>>& vertices,
     }
 
     push_u32(p, static_cast<std::uint32_t>(faces.size()));
+    // The index block begins after the face array; a face's first array
+    // pointer is the load address plus that array's offset, which is what the
+    // parser recovers the base from.
+    const std::size_t index_start = p.size() + faces.size() * kBlvFaceSize;
+    std::size_t index_cursor = index_start;
     for (const auto& f : faces) {
         const std::size_t base = p.size();
         p.resize(base + kBlvFaceSize, 0);
@@ -86,6 +92,10 @@ make_payload(const std::vector<std::array<std::int16_t, 3>>& vertices,
         put_u32(p, base + 0x08, static_cast<std::uint32_t>(f.nz));
         put_u32(p, base + 0x0C, static_cast<std::uint32_t>(f.d));
         put_u32(p, base + 0x1C, f.attributes);
+        if (pointer_base != 0) {
+            put_u32(p, base + 0x20, static_cast<std::uint32_t>(pointer_base + index_cursor));
+        }
+        index_cursor += (f.ids.size() + 1) * 2 * kBlvFaceArrayCount;
         p[base + 0x4D] = static_cast<std::uint8_t>(f.ids.size());
     }
 
@@ -532,4 +542,27 @@ TEST_CASE("bits 0x100/0x200/0x400 select the projection plane", "[blv]") {
     BlvFace face;
     face.attributes = kFaceProjectXZ;
     REQUIRE(face.projection() == ProjectionPlane::XZ);
+}
+
+TEST_CASE("the writer's load address is recovered from the faces", "[blv]") {
+    // Each face's first array pointer is stale, but it is the load address
+    // plus that array's own offset, so every face implies the same base.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}, {{0, 1, 2}, 0, "WallB"}};
+    auto entry =
+        wrap(make_payload(kSquare, faces, "Test Level", "test", {}, /*pointer_base=*/0x03000000u));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.pointer_base == 0x03000000u);
+}
+
+TEST_CASE("faces that disagree on the load address report none", "[blv]") {
+    // Without stale pointers the faces imply different bases, and a base that
+    // cannot be trusted must be reported as absent rather than guessed.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}, {{0, 1, 2}, 0, "WallB"}};
+    auto entry = wrap(make_payload(kSquare, faces));
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE(map.pointer_base == 0);
 }
