@@ -46,11 +46,13 @@ This accounts for all 4204 bytes exactly. The executable addresses the item
 array at chest `+4` with a 28-byte stride and the grid at chest `+3924`.
 The leading item word is a direct `ITEMS.TXT` id; see
 [`items.md`](items.md) when positive. Values −1…−6 instead request deferred
-random generation at treasure levels 1…6. Across the 15 shipped outdoor maps,
-191 of 202 nonempty chest slots are such placeholders; all 11 fixed positive
-ids join to `ITEMS.TXT`. The item-state fields are zero in these serialized
-templates because generation happens when the map is populated. Meanings of
-the chest's first word and grid values remain open. `observed`
+random generation in placeholder classes 1…6. At population time the
+executable combines that class with the map's 0…6 treasure class through the
+documented 6×7 level-range table. Across the 15 shipped outdoor maps, 191 of
+202 nonempty chest slots are such placeholders; all 11 fixed positive ids join
+to `ITEMS.TXT`. The item-state fields are zero in these serialized templates
+because generation happens when the map is populated. Meanings of the chest's
+first word and grid values remain open. `observed`
 
 ## Correction to the earlier interpretation
 

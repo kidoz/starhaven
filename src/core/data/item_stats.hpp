@@ -36,8 +36,30 @@ enum class ItemEquipType : std::uint8_t {
     Other = 19,
 };
 
+// Numeric values compiled from the `Skill Group` column. `Misc` is the
+// executable's fallback for every label outside the named weapon and armour
+// skills.
+enum class ItemSkillType : std::uint8_t {
+    Club = 0,
+    Staff = 1,
+    Sword = 2,
+    Dagger = 3,
+    Axe = 4,
+    Spear = 5,
+    Bow = 6,
+    Mace = 7,
+    Blaster = 8,
+    Shield = 9,
+    Leather = 10,
+    Chain = 11,
+    Plate = 12,
+    Misc = 13,
+};
+
 [[nodiscard]] ItemEquipType item_equip_type_from_name(std::string_view name) noexcept;
 [[nodiscard]] std::string_view item_equip_type_name(ItemEquipType type) noexcept;
+[[nodiscard]] ItemSkillType item_skill_type_from_name(std::string_view name) noexcept;
+[[nodiscard]] std::string_view item_skill_type_name(ItemSkillType type) noexcept;
 
 // One row of `ITEMS.TXT`. Names follow the shipped column headings where the
 // engine meaning has not yet been independently established.
@@ -49,6 +71,7 @@ struct ItemStatsEntry {
     std::string equip_stat;
     ItemEquipType equip_type = ItemEquipType::Other;
     std::string skill_group;
+    ItemSkillType skill_type = ItemSkillType::Misc;
     std::string modifier_1;
     int modifier_2 = 0;
     std::string material;  // numeric codes plus the literals "Artifact" and "Relic"

@@ -173,14 +173,14 @@ int main(int argc, char** argv) {
     }
 
     const auto chest_items = world::extract_chest_items(ev);
-    std::size_t random_placeholders = 0;
+    std::array<std::size_t, 6> random_by_class{};
     std::size_t fixed_items = 0;
     std::size_t fixed_joins = 0;
     std::size_t invalid_negative = 0;
     for (const auto& chest_item : chest_items) {
-        const int level = chest_item.item.random_treasure_level();
-        if (level != 0) {
-            ++random_placeholders;
+        const int treasure_class = chest_item.item.random_treasure_class();
+        if (treasure_class != 0) {
+            ++random_by_class[static_cast<std::size_t>(treasure_class - 1)];
         } else if (chest_item.item.item_id > 0) {
             ++fixed_items;
             if (have_items &&
@@ -191,8 +191,13 @@ int main(int argc, char** argv) {
             ++invalid_negative;
         }
     }
-    std::cout << "  chest_items: " << chest_items.size()
-              << " random_placeholders=" << random_placeholders;
+    std::cout << "  chest_items: " << chest_items.size() << " random_by_class=";
+    for (std::size_t index = 0; index < random_by_class.size(); ++index) {
+        if (index != 0) {
+            std::cout << ",";
+        }
+        std::cout << index + 1 << ":" << random_by_class[index];
+    }
     if (have_items) {
         std::cout << " fixed_item_joins=" << fixed_joins << "/" << fixed_items;
     } else {

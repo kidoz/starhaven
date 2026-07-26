@@ -16,6 +16,8 @@
 namespace starhaven::data {
 
 constexpr std::size_t kTreasureLevelCount = 6;
+constexpr std::size_t kChestTreasureClassCount = 6;
+constexpr std::size_t kMapTreasureClassCount = 7;
 constexpr std::size_t kStandardBonusItemTypeCount = 9;
 constexpr std::size_t kSpecialBonusItemTypeCount = 12;
 constexpr std::size_t kArtifactCandidateCount = 30;
@@ -26,6 +28,77 @@ enum class ItemBonusKind : std::uint8_t {
     Standard,
     Special,
 };
+
+// The selector accepted by MM6's item generator. Values 1..19 are the
+// compiled equipment type plus one. Values 20..43 are aliases used by events,
+// monster loot, character setup, and shop restocking.
+enum class ItemGenerationType : std::uint8_t {
+    Any = 0,
+    Weapon = 1,
+    TwoHandedWeapon = 2,
+    Missile = 3,
+    Armor = 4,
+    Shield = 5,
+    Helm = 6,
+    Belt = 7,
+    Cloak = 8,
+    Gauntlets = 9,
+    Boots = 10,
+    Ring = 11,
+    Amulet = 12,
+    Wand = 13,
+    Reagent = 14,
+    Potion = 15,
+    SpellScroll = 16,
+    Book = 17,
+    MessageScroll = 18,
+    Gold = 19,
+    WeaponCategory = 20,
+    ArmorCategory = 21,
+    Misc = 22,
+    Sword = 23,
+    Dagger = 24,
+    Axe = 25,
+    Spear = 26,
+    Bow = 27,
+    Mace = 28,
+    Club = 29,
+    Staff = 30,
+    Leather = 31,
+    Chain = 32,
+    Plate = 33,
+    ShieldCategory = 34,
+    HelmCategory = 35,
+    BeltCategory = 36,
+    CloakCategory = 37,
+    GauntletsCategory = 38,
+    BootsCategory = 39,
+    RingCategory = 40,
+    AmuletCategory = 41,
+    WandCategory = 42,
+    SpellScrollCategory = 43,
+};
+
+[[nodiscard]] std::string_view item_generation_type_name(ItemGenerationType type) noexcept;
+
+struct ChestTreasureLevelRange {
+    int minimum = 0;
+    int maximum = 0;
+
+    friend bool operator==(const ChestTreasureLevelRange&,
+                           const ChestTreasureLevelRange&) = default;
+};
+
+// Negative chest item ids -1..-6 select a placeholder class, not a final
+// treasure level. MapStats' compiled treasure class (0..6) selects the column.
+[[nodiscard]] std::optional<ChestTreasureLevelRange>
+chest_treasure_level_range(std::size_t placeholder_class, std::size_t map_treasure_class) noexcept;
+
+// Resolve the inclusive range with the single random call used by MM6.
+// Invalid class pairs return std::nullopt without consuming random state.
+[[nodiscard]] std::optional<int> roll_chest_treasure_level(std::size_t placeholder_class,
+                                                           std::size_t map_treasure_class,
+                                                           Mm6Random& random) noexcept;
 
 enum class ItemBonusTarget : std::uint8_t {
     Weapon,
@@ -215,6 +288,16 @@ generate_random_item(const RandomItemTable& random_items, const ItemStatsTable& 
                      const StandardBonusTable& standard_bonuses,
                      const SpecialBonusTable& special_bonuses, std::size_t treasure_level,
                      Mm6Random& random, ArtifactGenerationState& artifacts,
+                     GeneratedItem& out) noexcept;
+
+// A nonzero type restricts the base-item candidate set and skips the artifact
+// candidate/gate calls. All later enchantment calls are shared with the
+// unrestricted path.
+[[nodiscard]] ItemGenerationError
+generate_random_item(const RandomItemTable& random_items, const ItemStatsTable& items,
+                     const StandardBonusTable& standard_bonuses,
+                     const SpecialBonusTable& special_bonuses, std::size_t treasure_level,
+                     ItemGenerationType type, Mm6Random& random, ArtifactGenerationState& artifacts,
                      GeneratedItem& out) noexcept;
 
 }  // namespace starhaven::data

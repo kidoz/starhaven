@@ -200,14 +200,15 @@ variant A 34 times out of 34. `unknown`
 The 581 item ids form the exact contiguous range 0–580 and are addressable
 directly by id. Placed outdoor objects and chest slots embed a 28-byte item
 instance whose leading positive `i32` selects the row without an offset;
-negative chest values −1…−6 request deferred random generation.
+negative chest values −1…−6 request deferred random generation classes.
 `RNDITEMS.TXT` exposes 400 direct-id base-item weight rows, while
 `STDITEMS.TXT` and `SPCITEMS.TXT` expose 14 and 59 one-based bonus selectors.
 Its footer also supplies the three six-level bonus-chance arrays; the typed
 views expose standard strength ranges, special treasure-class eligibility,
-compiled equipment types, and deterministic generation using the shared
-random sequence. The complete column maps, binary joins, probability branches,
-and item-instance layout are documented in
+compiled equipment and skill types, restricted selectors, the chest
+class-to-level matrix, and deterministic generation using the shared random
+sequence. The complete column maps, binary joins, probability branches, and
+item-instance layout are documented in
 [`items.md`](items.md). `observed`
 
 ## Invalid-input behavior

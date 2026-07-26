@@ -353,6 +353,11 @@ TEST_CASE("ITEMS equip labels reproduce compiled generator types", "[item_stats]
     REQUIRE(item_equip_type_from_name("Gold") == ItemEquipType::Gold);
     REQUIRE(item_equip_type_from_name("unknown") == ItemEquipType::Other);
     REQUIRE(item_equip_type_name(ItemEquipType::Gauntlets) == "gauntlets");
+    REQUIRE(item_skill_type_from_name("Club") == ItemSkillType::Club);
+    REQUIRE(item_skill_type_from_name("SWORD") == ItemSkillType::Sword);
+    REQUIRE(item_skill_type_from_name("Leather") == ItemSkillType::Leather);
+    REQUIRE(item_skill_type_from_name("unknown") == ItemSkillType::Misc);
+    REQUIRE(item_skill_type_name(ItemSkillType::Plate) == "plate");
 }
 
 TEST_CASE("ITEMS rejects a missing header or non-contiguous ids", "[item_stats]") {
@@ -418,7 +423,7 @@ std::string special_bonuses_body() {
 }
 
 std::string generation_items_body(std::string_view equip_stat, int modifier_2 = 0,
-                                  int id_rep_st = 0) {
+                                  int id_rep_st = 0, std::string_view skill_group = "Misc") {
     std::string s;
     s += "Items\r\n";
     s += "Item #\tPic File\tName\tValue\tEquip Stat\tSkill Group\tMod1\tMod2\tmaterial"
@@ -426,7 +431,9 @@ std::string generation_items_body(std::string_view equip_stat, int modifier_2 = 
     s += "0\tblank\t\t0\t0\t0\t0\t0\t0\t0\t\t0\t0\t0\t0\tplaceholder\r\n";
     s += "1\tfixture\tFixture\t10\t";
     s += equip_stat;
-    s += "\tMisc\t0\t";
+    s += "\t";
+    s += skill_group;
+    s += "\t0\t";
     s += std::to_string(modifier_2);
     s += "\t1\t";
     s += std::to_string(id_rep_st);
@@ -449,10 +456,12 @@ std::string generation_random_items_body() {
 void load_generation_tables(std::string_view equip_stat, int modifier_2, int id_rep_st,
                             ItemStatsTable& items, RandomItemTable& random_items,
                             StandardBonusTable& standard_bonuses,
-                            SpecialBonusTable& special_bonuses) {
+                            SpecialBonusTable& special_bonuses,
+                            std::string_view skill_group = "Misc") {
     TextTable table;
-    REQUIRE(TextTable::parse_body(generation_items_body(equip_stat, modifier_2, id_rep_st),
-                                  table) == TextTableError::None);
+    REQUIRE(
+        TextTable::parse_body(generation_items_body(equip_stat, modifier_2, id_rep_st, skill_group),
+                              table) == TextTableError::None);
     REQUIRE(ItemStatsTable::parse(table, items) == ItemStatsError::None);
     REQUIRE(TextTable::parse_body(generation_random_items_body(), table) == TextTableError::None);
     REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::None);
@@ -686,4 +695,68 @@ TEST_CASE("level-six item generation tracks the thirteen-artifact cap", "[item_g
     REQUIRE(item.item_id == 1);
     REQUIRE_FALSE(capped_artifacts.found[4]);
     REQUIRE(capped_random.state() == UINT32_C(0x7541458A));
+}
+
+TEST_CASE("restricted item generation filters compiled skill and equipment types",
+          "[item_generation]") {
+    ItemStatsTable items;
+    RandomItemTable random_items;
+    StandardBonusTable standard_bonuses;
+    SpecialBonusTable special_bonuses;
+    ArtifactGenerationState artifacts;
+    GeneratedItem item;
+
+    load_generation_tables("Weapon", 0, 0, items, random_items, standard_bonuses, special_bonuses,
+                           "Sword");
+    Mm6Random sword_random(1);
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 1,
+                                 ItemGenerationType::Sword, sword_random, artifacts,
+                                 item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE(sword_random.state() == UINT32_C(0x0029E2C0));
+
+    load_generation_tables("Ring", 0, 0, items, random_items, standard_bonuses, special_bonuses);
+    Mm6Random ring_random(1);
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 1,
+                                 ItemGenerationType::RingCategory, ring_random, artifacts,
+                                 item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE(ring_random.state() == UINT32_C(0x0029E2C0));
+}
+
+TEST_CASE("an empty restricted category consumes no selector call", "[item_generation]") {
+    ItemStatsTable items;
+    RandomItemTable random_items;
+    StandardBonusTable standard_bonuses;
+    SpecialBonusTable special_bonuses;
+    load_generation_tables("Ring", 0, 0, items, random_items, standard_bonuses, special_bonuses);
+
+    ArtifactGenerationState artifacts;
+    Mm6Random random(1);
+    GeneratedItem item;
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 1,
+                                 ItemGenerationType::TwoHandedWeapon, random, artifacts,
+                                 item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 0);
+    REQUIRE(item.identified);
+    REQUIRE(random.state() == 1);
+}
+
+TEST_CASE("chest placeholder and map classes resolve treasure-level ranges", "[item_generation]") {
+    REQUIRE(chest_treasure_level_range(1, 0) == ChestTreasureLevelRange{1, 1});
+    REQUIRE(chest_treasure_level_range(2, 1) == ChestTreasureLevelRange{1, 2});
+    REQUIRE(chest_treasure_level_range(4, 3) == ChestTreasureLevelRange{3, 4});
+    REQUIRE(chest_treasure_level_range(6, 5) == ChestTreasureLevelRange{5, 6});
+    REQUIRE(chest_treasure_level_range(6, 6) == ChestTreasureLevelRange{6, 6});
+    REQUIRE_FALSE(chest_treasure_level_range(0, 0).has_value());
+    REQUIRE_FALSE(chest_treasure_level_range(7, 0).has_value());
+    REQUIRE_FALSE(chest_treasure_level_range(1, 7).has_value());
+
+    Mm6Random random(1);
+    REQUIRE(roll_chest_treasure_level(6, 5, random) == 6);
+    REQUIRE(random.state() == UINT32_C(0x0029E2C0));
+
+    Mm6Random invalid_random(1);
+    REQUIRE_FALSE(roll_chest_treasure_level(0, 0, invalid_random).has_value());
+    REQUIRE(invalid_random.state() == 1);
 }

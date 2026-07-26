@@ -313,12 +313,12 @@ TEST_CASE("chests expose fixed items and random treasure placeholders", "[map_ev
     REQUIRE(items[0].item.charges == 11);
     REQUIRE(items[0].item.identified());
     REQUIRE(items[0].item.equipped_slot == 9);
-    REQUIRE(items[0].item.random_treasure_level() == 0);
+    REQUIRE(items[0].item.random_treasure_class() == 0);
 
     REQUIRE(items[1].chest_index == 1);
     REQUIRE(items[1].slot_index == 17);
     REQUIRE(items[1].item.item_id == -6);
-    REQUIRE(items[1].item.random_treasure_level() == 6);
+    REQUIRE(items[1].item.random_treasure_class() == 6);
     REQUIRE(extract_chest_items(file, 1).size() == 1);
 }
 

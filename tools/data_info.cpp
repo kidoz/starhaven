@@ -24,7 +24,7 @@ using namespace starhaven;
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0 << " <--list | --maps | --monsters [name] | --items [id]"
               << " | --random-items [id] | --standard-bonuses [id]"
-              << " | --special-bonuses [id] | --generate-item LEVEL:SEED | --check"
+              << " | --special-bonuses [id] | --generate-item LEVEL:SEED[:TYPE] | --check"
               << " | <Table.txt>>\n"
               << "\n"
               << "Reads the tab-separated design tables shipped inside your own\n"
@@ -37,7 +37,7 @@ void print_usage(const char* argv0) {
               << "  --random-items [id] RNDITEMS.TXT weights, or one direct item id\n"
               << "  --standard-bonuses [id] STDITEMS.TXT selectors and strength ranges\n"
               << "  --special-bonuses [id] SPCITEMS.TXT one-based selectors\n"
-              << "  --generate-item LEVEL:SEED deterministic unrestricted item generation\n"
+              << "  --generate-item LEVEL:SEED[:TYPE] deterministic item generation\n"
               << "  --check            cross-check MONSTERS.TXT against DMONLIST.BIN\n"
               << "  <Table.txt>        dump one table's cells\n"
               << "  --rows N           limit a dump to N rows\n"
@@ -367,25 +367,35 @@ int do_special_bonuses(const std::filesystem::path& data_dir, const std::string&
 }
 
 int do_generate_item(const std::filesystem::path& data_dir, const std::string& request) {
-    const std::size_t separator = request.find(':');
-    if (separator == std::string::npos) {
-        std::cerr << "error: item generation expects LEVEL:SEED\n";
+    const std::size_t first_separator = request.find(':');
+    if (first_separator == std::string::npos) {
+        std::cerr << "error: item generation expects LEVEL:SEED[:TYPE]\n";
         return 2;
     }
+    const std::size_t second_separator = request.find(':', first_separator + 1);
 
     std::size_t level = 0;
     std::uint32_t seed = 0;
+    std::uint32_t type_value = 0;
     const char* level_begin = request.data();
-    const char* level_end = level_begin + separator;
+    const char* level_end = level_begin + first_separator;
     const char* seed_begin = level_end + 1;
     const char* request_end = request.data() + request.size();
+    const char* seed_end =
+        second_separator == std::string::npos ? request_end : request.data() + second_separator;
     const auto level_result = std::from_chars(level_begin, level_end, level);
-    const auto seed_result = std::from_chars(seed_begin, request_end, seed);
+    const auto seed_result = std::from_chars(seed_begin, seed_end, seed);
+    std::from_chars_result type_result{request_end, std::errc{}};
+    if (second_separator != std::string::npos) {
+        type_result = std::from_chars(seed_end + 1, request_end, type_value);
+    }
     if (level_result.ec != std::errc{} || level_result.ptr != level_end ||
-        seed_result.ec != std::errc{} || seed_result.ptr != request_end) {
-        std::cerr << "error: item generation expects decimal LEVEL:SEED\n";
+        seed_result.ec != std::errc{} || seed_result.ptr != seed_end ||
+        type_result.ec != std::errc{} || type_result.ptr != request_end || type_value > 255) {
+        std::cerr << "error: item generation expects decimal LEVEL:SEED[:TYPE]\n";
         return 2;
     }
+    const auto generation_type = static_cast<data::ItemGenerationType>(type_value);
 
     data::ItemStatsTable items;
     data::RandomItemTable random_items;
@@ -404,14 +414,16 @@ int do_generate_item(const std::filesystem::path& data_dir, const std::string& r
     data::GeneratedItem generated;
     const auto error =
         data::generate_random_item(random_items, items, standard_bonuses, special_bonuses, level,
-                                   random, artifacts, generated);
+                                   generation_type, random, artifacts, generated);
     if (error != data::ItemGenerationError::None) {
         std::cerr << "error: item generation failed (" << static_cast<int>(error) << ")\n";
         return 1;
     }
 
     const auto* item = items.at(static_cast<std::size_t>(generated.item_id));
-    std::cout << "level " << level << ", seed " << seed << " -> item " << generated.item_id;
+    std::cout << "level " << level << ", seed " << seed << ", type " << type_value << " ("
+              << data::item_generation_type_name(generation_type) << ") -> item "
+              << generated.item_id;
     if (item != nullptr) {
         std::cout << " (" << data::cp1252_to_utf8(item->name) << ", "
                   << data::item_equip_type_name(item->equip_type) << ")";

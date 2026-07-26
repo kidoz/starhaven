@@ -105,9 +105,10 @@ struct MapItemInstance {
     [[nodiscard]] bool identified() const noexcept { return (flags & kItemFlagIdentified) != 0; }
     [[nodiscard]] bool broken() const noexcept { return (flags & kItemFlagBroken) != 0; }
 
-    // Chest item ids -1..-6 request deferred generation at treasure levels
-    // 1..6. Returns zero for a concrete item id or an unknown negative value.
-    [[nodiscard]] int random_treasure_level() const noexcept {
+    // Chest item ids -1..-6 request deferred generation in placeholder classes
+    // 1..6. The map's treasure class later resolves the final treasure level.
+    // Returns zero for a concrete item id or an unknown negative value.
+    [[nodiscard]] int random_treasure_class() const noexcept {
         return item_id >= -6 && item_id <= -1 ? -item_id : 0;
     }
 };

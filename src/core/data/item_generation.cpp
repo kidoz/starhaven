@@ -55,7 +55,207 @@ std::optional<SpecialBonusTreasureClass> parse_special_class(std::string_view te
     }
 }
 
+enum class ItemFilterField : std::uint8_t {
+    EquipType,
+    SkillType,
+};
+
+struct ItemFilter {
+    ItemFilterField field = ItemFilterField::EquipType;
+    std::uint8_t value = 0;
+};
+
+ItemFilter item_filter(ItemGenerationType type) noexcept {
+    const auto raw = static_cast<std::uint8_t>(type);
+    switch (type) {
+    case ItemGenerationType::WeaponCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Weapon)};
+    case ItemGenerationType::ArmorCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Armor)};
+    case ItemGenerationType::Misc:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Misc)};
+    case ItemGenerationType::Sword:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Sword)};
+    case ItemGenerationType::Dagger:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Dagger)};
+    case ItemGenerationType::Axe:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Axe)};
+    case ItemGenerationType::Spear:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Spear)};
+    case ItemGenerationType::Bow:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Bow)};
+    case ItemGenerationType::Mace:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Mace)};
+    case ItemGenerationType::Club:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Club)};
+    case ItemGenerationType::Staff:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Staff)};
+    case ItemGenerationType::Leather:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Leather)};
+    case ItemGenerationType::Chain:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Chain)};
+    case ItemGenerationType::Plate:
+        return {ItemFilterField::SkillType, static_cast<std::uint8_t>(ItemSkillType::Plate)};
+    case ItemGenerationType::ShieldCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Shield)};
+    case ItemGenerationType::HelmCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Helm)};
+    case ItemGenerationType::BeltCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Belt)};
+    case ItemGenerationType::CloakCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Cloak)};
+    case ItemGenerationType::GauntletsCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Gauntlets)};
+    case ItemGenerationType::BootsCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Boots)};
+    case ItemGenerationType::RingCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Ring)};
+    case ItemGenerationType::AmuletCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Amulet)};
+    case ItemGenerationType::WandCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::Wand)};
+    case ItemGenerationType::SpellScrollCategory:
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(ItemEquipType::SpellScroll)};
+    default:
+        // This is also the executable's fallback for nonzero values outside
+        // its 20..43 alias switch.
+        return {ItemFilterField::EquipType, static_cast<std::uint8_t>(raw - 1)};
+    }
+}
+
+bool matches_filter(const ItemStatsEntry& item, ItemFilter filter) noexcept {
+    if (filter.field == ItemFilterField::SkillType) {
+        return static_cast<std::uint8_t>(item.skill_type) == filter.value;
+    }
+    return static_cast<std::uint8_t>(item.equip_type) == filter.value;
+}
+
 }  // namespace
+
+std::string_view item_generation_type_name(ItemGenerationType type) noexcept {
+    switch (type) {
+    case ItemGenerationType::Any:
+        return "any";
+    case ItemGenerationType::Weapon:
+        return "weapon";
+    case ItemGenerationType::TwoHandedWeapon:
+        return "two-handed weapon";
+    case ItemGenerationType::Missile:
+        return "missile";
+    case ItemGenerationType::Armor:
+        return "armor";
+    case ItemGenerationType::Shield:
+        return "shield";
+    case ItemGenerationType::Helm:
+        return "helm";
+    case ItemGenerationType::Belt:
+        return "belt";
+    case ItemGenerationType::Cloak:
+        return "cloak";
+    case ItemGenerationType::Gauntlets:
+        return "gauntlets";
+    case ItemGenerationType::Boots:
+        return "boots";
+    case ItemGenerationType::Ring:
+        return "ring";
+    case ItemGenerationType::Amulet:
+        return "amulet";
+    case ItemGenerationType::Wand:
+        return "wand";
+    case ItemGenerationType::Reagent:
+        return "reagent";
+    case ItemGenerationType::Potion:
+        return "potion";
+    case ItemGenerationType::SpellScroll:
+        return "spell scroll";
+    case ItemGenerationType::Book:
+        return "book";
+    case ItemGenerationType::MessageScroll:
+        return "message scroll";
+    case ItemGenerationType::Gold:
+        return "gold";
+    case ItemGenerationType::WeaponCategory:
+        return "weapon category";
+    case ItemGenerationType::ArmorCategory:
+        return "armor category";
+    case ItemGenerationType::Misc:
+        return "misc";
+    case ItemGenerationType::Sword:
+        return "sword";
+    case ItemGenerationType::Dagger:
+        return "dagger";
+    case ItemGenerationType::Axe:
+        return "axe";
+    case ItemGenerationType::Spear:
+        return "spear";
+    case ItemGenerationType::Bow:
+        return "bow";
+    case ItemGenerationType::Mace:
+        return "mace";
+    case ItemGenerationType::Club:
+        return "club";
+    case ItemGenerationType::Staff:
+        return "staff";
+    case ItemGenerationType::Leather:
+        return "leather";
+    case ItemGenerationType::Chain:
+        return "chain";
+    case ItemGenerationType::Plate:
+        return "plate";
+    case ItemGenerationType::ShieldCategory:
+        return "shield category";
+    case ItemGenerationType::HelmCategory:
+        return "helm category";
+    case ItemGenerationType::BeltCategory:
+        return "belt category";
+    case ItemGenerationType::CloakCategory:
+        return "cloak category";
+    case ItemGenerationType::GauntletsCategory:
+        return "gauntlets category";
+    case ItemGenerationType::BootsCategory:
+        return "boots category";
+    case ItemGenerationType::RingCategory:
+        return "ring category";
+    case ItemGenerationType::AmuletCategory:
+        return "amulet category";
+    case ItemGenerationType::WandCategory:
+        return "wand category";
+    case ItemGenerationType::SpellScrollCategory:
+        return "spell scroll category";
+    }
+    return "unknown";
+}
+
+std::optional<ChestTreasureLevelRange>
+chest_treasure_level_range(std::size_t placeholder_class, std::size_t map_treasure_class) noexcept {
+    constexpr std::array<std::array<ChestTreasureLevelRange, kMapTreasureClassCount>,
+                         kChestTreasureClassCount>
+        kRanges{{
+            {{{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}},
+            {{{1, 1}, {1, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}}},
+            {{{1, 2}, {2, 2}, {2, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}}},
+            {{{2, 2}, {2, 3}, {3, 3}, {3, 4}, {4, 4}, {4, 4}, {4, 4}}},
+            {{{2, 3}, {3, 3}, {3, 4}, {4, 4}, {4, 5}, {5, 5}, {5, 5}}},
+            {{{3, 3}, {3, 4}, {4, 4}, {4, 5}, {5, 5}, {5, 6}, {6, 6}}},
+        }};
+
+    if (placeholder_class == 0 || placeholder_class > kRanges.size() ||
+        map_treasure_class >= kRanges.front().size()) {
+        return std::nullopt;
+    }
+    return kRanges[placeholder_class - 1][map_treasure_class];
+}
+
+std::optional<int> roll_chest_treasure_level(std::size_t placeholder_class,
+                                             std::size_t map_treasure_class,
+                                             Mm6Random& random) noexcept {
+    const auto range = chest_treasure_level_range(placeholder_class, map_treasure_class);
+    if (!range.has_value()) {
+        return std::nullopt;
+    }
+    const auto width = static_cast<std::uint32_t>(range->maximum - range->minimum + 1);
+    return range->minimum + static_cast<int>(random.next() % width);
+}
 
 std::optional<ItemBonusKind> classify_item_bonus(const ItemBonusChances& chances,
                                                  ItemBonusTarget target, std::size_t treasure_level,
@@ -90,32 +290,89 @@ ItemGenerationError generate_random_item(const RandomItemTable& random_items,
                                          std::size_t treasure_level, Mm6Random& random,
                                          ArtifactGenerationState& artifacts,
                                          GeneratedItem& out) noexcept {
+    return generate_random_item(random_items, items, standard_bonuses, special_bonuses,
+                                treasure_level, ItemGenerationType::Any, random, artifacts, out);
+}
+
+ItemGenerationError generate_random_item(const RandomItemTable& random_items,
+                                         const ItemStatsTable& items,
+                                         const StandardBonusTable& standard_bonuses,
+                                         const SpecialBonusTable& special_bonuses,
+                                         std::size_t treasure_level, ItemGenerationType type,
+                                         Mm6Random& random, ArtifactGenerationState& artifacts,
+                                         GeneratedItem& out) noexcept {
     out = {};
     if (treasure_level == 0 || treasure_level > kTreasureLevelCount) {
         return ItemGenerationError::BadTreasureLevel;
     }
 
-    const int base_total = random_items.total_weight(treasure_level);
-    if (base_total <= 0) {
-        return ItemGenerationError::NoBaseWeight;
-    }
+    const RandomItemEntry* base = nullptr;
+    if (type == ItemGenerationType::Any) {
+        const int base_total = random_items.total_weight(treasure_level);
+        if (base_total <= 0) {
+            return ItemGenerationError::NoBaseWeight;
+        }
 
-    // The candidate draw occurs at every level even though only level 6 can
-    // award an artifact. This otherwise-unused call is part of MM6's sequence.
-    const std::size_t artifact_candidate = random.next() % kArtifactCandidateCount;
-    if (treasure_level == 6) {
-        const int artifact_roll = random.next() % 100;
-        const auto found_count = static_cast<std::size_t>(
-            std::count(artifacts.found.begin(), artifacts.found.end(), true));
-        if (artifact_roll < 5 && !artifacts.found[artifact_candidate] &&
-            found_count < kMaximumGeneratedArtifacts) {
-            artifacts.found[artifact_candidate] = true;
-            out.item_id = static_cast<int>(400 + artifact_candidate);
-            return ItemGenerationError::None;
+        // The candidate draw occurs at every level even though only level 6
+        // can award an artifact. This otherwise-unused call is part of MM6's
+        // unrestricted sequence.
+        const std::size_t artifact_candidate = random.next() % kArtifactCandidateCount;
+        if (treasure_level == 6) {
+            const int artifact_roll = random.next() % 100;
+            const auto found_count = static_cast<std::size_t>(
+                std::count(artifacts.found.begin(), artifacts.found.end(), true));
+            if (artifact_roll < 5 && !artifacts.found[artifact_candidate] &&
+                found_count < kMaximumGeneratedArtifacts) {
+                artifacts.found[artifact_candidate] = true;
+                out.item_id = static_cast<int>(400 + artifact_candidate);
+                return ItemGenerationError::None;
+            }
+        }
+
+        base = random_items.select_for_roll(treasure_level, random.next() % base_total);
+    } else {
+        const ItemFilter filter = item_filter(type);
+        const RandomItemEntry* first_match = nullptr;
+        int total = 0;
+        for (std::size_t id = 1; id < random_items.size(); ++id) {
+            const auto* candidate = random_items.at(id);
+            const auto* candidate_stats = items.at(id);
+            if (candidate == nullptr || candidate_stats == nullptr) {
+                return ItemGenerationError::MissingItemStats;
+            }
+            if (!matches_filter(*candidate_stats, filter)) {
+                continue;
+            }
+            if (first_match == nullptr) {
+                first_match = candidate;
+            }
+            total += candidate->weights[treasure_level - 1];
+        }
+
+        // MM6 keeps matching zero-weight entries in its candidate array. When
+        // their total is zero it consumes no selector call and chooses the
+        // first match; no matches leave the zero-initialized item id 0.
+        if (total <= 0) {
+            base = first_match != nullptr ? first_match : random_items.at(0);
+        } else {
+            const int roll = random.next() % total;
+            int cumulative = 0;
+            for (std::size_t id = 1; id < random_items.size(); ++id) {
+                const auto* candidate = random_items.at(id);
+                const auto* candidate_stats = items.at(id);
+                if (candidate == nullptr || candidate_stats == nullptr ||
+                    !matches_filter(*candidate_stats, filter)) {
+                    continue;
+                }
+                cumulative += candidate->weights[treasure_level - 1];
+                if (cumulative >= roll) {
+                    base = candidate;
+                    break;
+                }
+            }
         }
     }
 
-    const auto* base = random_items.select_for_roll(treasure_level, random.next() % base_total);
     if (base == nullptr) {
         return ItemGenerationError::NoBaseWeight;
     }

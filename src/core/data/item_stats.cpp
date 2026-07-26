@@ -130,6 +130,70 @@ std::string_view item_equip_type_name(ItemEquipType type) noexcept {
     return {};
 }
 
+ItemSkillType item_skill_type_from_name(std::string_view name) noexcept {
+    if (iequals(name, "club"))
+        return ItemSkillType::Club;
+    if (iequals(name, "staff"))
+        return ItemSkillType::Staff;
+    if (iequals(name, "sword"))
+        return ItemSkillType::Sword;
+    if (iequals(name, "dagger"))
+        return ItemSkillType::Dagger;
+    if (iequals(name, "axe"))
+        return ItemSkillType::Axe;
+    if (iequals(name, "spear"))
+        return ItemSkillType::Spear;
+    if (iequals(name, "bow"))
+        return ItemSkillType::Bow;
+    if (iequals(name, "mace"))
+        return ItemSkillType::Mace;
+    if (iequals(name, "blaster"))
+        return ItemSkillType::Blaster;
+    if (iequals(name, "shield"))
+        return ItemSkillType::Shield;
+    if (iequals(name, "leather"))
+        return ItemSkillType::Leather;
+    if (iequals(name, "chain"))
+        return ItemSkillType::Chain;
+    if (iequals(name, "plate"))
+        return ItemSkillType::Plate;
+    return ItemSkillType::Misc;
+}
+
+std::string_view item_skill_type_name(ItemSkillType type) noexcept {
+    switch (type) {
+    case ItemSkillType::Club:
+        return "club";
+    case ItemSkillType::Staff:
+        return "staff";
+    case ItemSkillType::Sword:
+        return "sword";
+    case ItemSkillType::Dagger:
+        return "dagger";
+    case ItemSkillType::Axe:
+        return "axe";
+    case ItemSkillType::Spear:
+        return "spear";
+    case ItemSkillType::Bow:
+        return "bow";
+    case ItemSkillType::Mace:
+        return "mace";
+    case ItemSkillType::Blaster:
+        return "blaster";
+    case ItemSkillType::Shield:
+        return "shield";
+    case ItemSkillType::Leather:
+        return "leather";
+    case ItemSkillType::Chain:
+        return "chain";
+    case ItemSkillType::Plate:
+        return "plate";
+    case ItemSkillType::Misc:
+        return "misc";
+    }
+    return {};
+}
+
 ItemStatsError ItemStatsTable::parse(const TextTable& table, ItemStatsTable& out) {
     out.entries_.clear();
 
@@ -163,6 +227,7 @@ ItemStatsError ItemStatsTable::parse(const TextTable& table, ItemStatsTable& out
         item.equip_stat = cell_text(table, row, kColEquipStat);
         item.equip_type = item_equip_type_from_name(item.equip_stat);
         item.skill_group = cell_text(table, row, kColSkillGroup);
+        item.skill_type = item_skill_type_from_name(item.skill_group);
         item.modifier_1 = cell_text(table, row, kColModifier1);
         item.modifier_2 = table.cell_int(row, kColModifier2);
         item.material = cell_text(table, row, kColMaterial);

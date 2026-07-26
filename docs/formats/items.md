@@ -36,7 +36,7 @@ generator clears seven 32-bit words before filling these fields. `observed`
 
 | Offset | Size | Type | Field | Status |
 | --- | ---: | --- | --- | --- |
-| `+0x00` | 4 | i32 | `item_id` | observed; 0 empty, positive concrete id, chest values −1…−6 request random treasure levels 1…6 |
+| `+0x00` | 4 | i32 | `item_id` | observed; 0 empty, positive concrete id, chest values −1…−6 request random placeholder classes 1…6 |
 | `+0x04` | 4 | i32 | standard-bonus selector or potion power | observed; standard selector is 1-based, alternate potion meaning corroborated |
 | `+0x08` | 4 | i32 | standard-bonus strength | observed |
 | `+0x0C` | 4 | i32 | special-bonus selector or gold amount | observed; special selector is 1-based, alternate gold meaning corroborated |
@@ -64,18 +64,23 @@ a picture label and six weights, one for every treasure level. The id is the
 join key; picture labels are descriptive and do not consistently match
 `ITEMS.TXT` spelling or even selection. `observed`
 
-A negative chest item id is a deferred-generation placeholder:
+A negative chest item id is a deferred-generation **class**, not a final
+treasure level. The executable combines its absolute value (1…6) with the
+map's compiled `MapStats` treasure class (0…6), then makes one uniform draw
+over this inclusive range:
 
-```text
--1 => treasure level 1
--2 => treasure level 2
-...
--6 => treasure level 6
-```
+| Placeholder class | Map 0 | Map 1 | Map 2 | Map 3 | Map 4 | Map 5 | Map 6 |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+| 2 | 1 | 1–2 | 2 | 2 | 2 | 2 | 2 |
+| 3 | 1–2 | 2 | 2–3 | 3 | 3 | 3 | 3 |
+| 4 | 2 | 2–3 | 3 | 3–4 | 4 | 4 | 4 |
+| 5 | 2–3 | 3 | 3–4 | 4 | 4–5 | 5 | 5 |
+| 6 | 3 | 3–4 | 4 | 4–5 | 5 | 5–6 | 6 |
 
-The executable selects a positive base item using the corresponding
-`RNDITEMS.TXT` weight column when the chest is populated at runtime.
-`observed`
+The resulting level selects the corresponding `RNDITEMS.TXT` weight column.
+`chest_treasure_level_range` and `roll_chest_treasure_level` expose this
+mapping directly. `observed`
 
 The weight totals recomputed from ids 1–399 are:
 
@@ -191,6 +196,15 @@ the numeric types used by generation:
 Values 0–11 index `SPCITEMS.TXT` directly. Values 3–11 index
 `STDITEMS.TXT` after subtracting three. `observed`
 
+The `Skill Group` strings compile case-insensitively into a second byte used
+by restricted generation:
+
+| Value | Skill group |
+| ---: | --- |
+| 0–7 | Club, Staff, Sword, Dagger, Axe, Spear, Bow, Mace |
+| 8–12 | Blaster, Shield, Leather, Chain, Plate |
+| 13 | any other label (`Misc`) |
+
 The compiled `Mod2` byte supplies a wand's base charges. Generation adds
 `random % 6`, so a wand receives `Mod2…Mod2+5` charges. The compiled
 `ID/Rep/St` byte also controls the initial identified flag: zero starts
@@ -250,6 +264,79 @@ and artifact state. It is safe on malformed synthetic tables: instead of the
 original executable's possible divide-by-zero, it returns a typed error when a
 required weight total or strength range is unavailable.
 
+### Restricted generation
+
+The generator's second argument is a selector. Zero takes the unrestricted
+path above. Values 1…19 match compiled equipment type `selector − 1`; values
+20…43 are named aliases:
+
+| Selector | Filter | Selector | Filter |
+| ---: | --- | ---: | --- |
+| 20 | equipment: weapon | 32 | skill: chain |
+| 21 | equipment: armor | 33 | skill: plate |
+| 22 | skill: misc | 34 | equipment: shield |
+| 23 | skill: sword | 35 | equipment: helm |
+| 24 | skill: dagger | 36 | equipment: belt |
+| 25 | skill: axe | 37 | equipment: cloak |
+| 26 | skill: spear | 38 | equipment: gauntlets |
+| 27 | skill: bow | 39 | equipment: boots |
+| 28 | skill: mace | 40 | equipment: ring |
+| 29 | skill: club | 41 | equipment: amulet |
+| 30 | skill: staff | 42 | equipment: wand |
+| 31 | skill: leather | 43 | equipment: spell scroll |
+
+Restricted generation considers ids 1…399 that match the filter and keeps
+zero-weight matches in the candidate list. It skips both artifact calls. A
+positive total consumes one weighted-selector draw and preserves the same
+inclusive comparison as unrestricted base selection. A zero total consumes no
+selector draw and chooses the first matching row; if no row matches, the
+original zero-initialized candidate yields item id 0. Enchantment, wand-charge,
+and initial-identification behavior is then shared with the unrestricted path.
+`observed`
+
+### Generator callers
+
+All nine executable call sites agree on the three-argument signature
+`(treasureLevel, selector, outputItem)`:
+
+| Call address | Role | Inputs before the call |
+| --- | --- | --- |
+| `0x4218e0` | monster loot | monster-configured treasure level and selector after its loot-chance roll |
+| `0x43e055` | give-item event | two event operand bytes; result goes to party inventory |
+| `0x4528c2`, `0x4857d3` | mirrored character setup | level 2, ring-category selector 40 |
+| `0x456197` | placed-object population | level from its record and a prior random selector in 20…43 |
+| `0x4564f7`, `0x456651` | chest population | resolved level and unrestricted selector 0 |
+| `0x49fce2`, `0x49fee2` | mirrored inventory/restock paths | caller level and a prior random choice of cloak 37 or boots 39 |
+
+This establishes both non-chest consumers of restricted generation and the
+random calls that occur before the generator receives control. `observed`
+
+### Chest population
+
+For each negative chest placeholder, population first draws `random % 5 + 1`
+attempts and resolves the final treasure level through the 6×7 table above.
+Additional attempts scan forward for an empty slot. Each has a fresh
+percentile: 0…19 skips the slot, 20…59 generates an unrestricted item, and
+60…99 generates gold. Gold uses one further draw:
+
+| Level | Gold item id | Amount |
+| ---: | ---: | --- |
+| 1 | 197 | 50…100 |
+| 2 | 197 | 100…200 |
+| 3 | 198 | 200…500 |
+| 4 | 198 | 500…1000 |
+| 5 | 199 | 1000…2000 |
+| 6 | 199 | 2000…5000 |
+
+The function also consumes one apparently unused percentile draw on entry.
+The original placeholder's primary item/gold/clear decision reads a stack
+local that static analysis does not show initialized before its first use; on
+later iterations it can retain the latest additional-attempt percentile. This
+quirk prevents a defensible deterministic implementation of the complete
+chest-population loop until an isolated runtime trace establishes the actual
+incoming stack behavior. The level resolver and all generator paths after that
+decision are independently specified. `observed`, primary decision `unknown`
+
 ## Joins in shipped outdoor maps
 
 All 129 sprite objects across the 15 outdoor maps have a valid concrete join:
@@ -264,7 +351,7 @@ fields are zero in these placed instances. `observed`
 
 The shipped chest templates contain 202 nonempty slots:
 
-- 191 are random placeholders −1…−6;
+- 191 are random placeholder classes −1…−6;
 - 11 are fixed positive ids, all of which join directly to `ITEMS.TXT`;
 - every other state field in these template slots is zero because random
   generation is deferred until the map is populated.
@@ -280,19 +367,20 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --random-items       # weights and footer chances
 ./buildDir/data_info --standard-bonuses  # ranges and item-type totals
 ./buildDir/data_info --special-bonuses   # class-filtered totals
-./buildDir/data_info --generate-item 6:1 # deterministic level:seed probe
+./buildDir/data_info --generate-item 6:1    # unrestricted level:seed probe
+./buildDir/data_info --generate-item 3:1:23 # restricted level:seed:type probe
 ./buildDir/ddm_info outb2.ddm
 ```
 
-`ddm_info` reports both sprite-object item joins and fixed/random chest totals.
+`ddm_info` reports sprite-object joins, fixed chest items, and placeholder
+counts by class.
 
 ## Open questions
 
 - Meanings of flag bits above bit 1 and direct MM6 evidence for `+0x18`.
 - The complete item-type-dependent interpretation of overloaded fields.
-- How map population interleaves generator calls with other users of the
-  process-wide random state.
-- The restricted item-category argument accepted by the generator's non-chest
-  callers.
+- Runtime provenance of the stale/uninitialized primary chest percentile
+  stack local and its first-iteration behavior.
+- The higher-level purpose of the mirrored cloak/boots inventory paths.
 - How the abbreviated modifier and material columns in `ITEMS.TXT` drive
   gameplay.
