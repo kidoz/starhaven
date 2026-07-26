@@ -130,11 +130,18 @@ explicitly rather than derived.
 ### Attributes
 
 49 distinct values across all maps. The most common are `0x200` (10,940),
-`0x400` (9,829) and `0x100` (9,184). These three behave as a
-projection-axis selector: `0x100` co-occurs with a Z-dominant normal, `0x200`
-with Y-dominant, `0x400` with X-dominant, in 35,072 of 37,187 facets.
-`inferred`. The remaining bits (`0x8`, `0x1000`, `0x2000000`, …) are
-`unknown`.
+`0x400` (9,829) and `0x100` (9,184), and these three are the **projection
+plane**: exactly one is set on every one of the 37,187 facets, and it is always
+the plane perpendicular to the normal's largest component, with ties resolved
+towards z then y. Under that tie order the rule holds on **37,187 of 37,187**.
+`observed`
+
+An earlier revision recorded this as `inferred` at 35,072 of 37,187. The 2,115
+apparent exceptions were ties being broken the other way, not counterexamples.
+The same three bits mean the same thing on indoor faces, where the rule holds
+on all 89,091; see [`blv.md`](blv.md) for the derivation.
+
+The remaining bits (`0x8`, `0x1000`, `0x2000000`, …) are `unknown`.
 
 ### Texture names
 

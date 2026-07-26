@@ -138,9 +138,47 @@ textured faces also carry it. `observed` — the natural reading is a
 portal or otherwise invisible face, which a portal-based indoor renderer needs.
 `inferred`
 
-Bits 0x100/0x200/0x400 dominate the rest, the same axis-selector pattern the
-outdoor facets show (see [`odm-model-facets.md`](odm-model-facets.md)).
+#### Bits 0x100/0x200/0x400 select the projection plane
+
+**Exactly one of the three is set on every polygon in the game** — all 89,091
+indoor faces and all 37,187 outdoor model facets — and which one is decided by
+the face's own normal:
+
+| Bit | Set when | Plane |
+| --- | --- | --- |
+| 0x100 | `|nz|` is the largest component | XY |
+| 0x200 | `|ny|` is the largest | XZ |
+| 0x400 | `|nx|` is the largest | YZ |
+
+with ties resolved towards z, then y. Reproducing the shipped values needs that
+tie order: of the six possible precedences, the other five agree on 94.7% to
+98.5% of faces and **z-then-y-then-x agrees on 100.00%**, on both formats.
+`observed`
+
+This is the plane a polygon is flattened onto to be worked with in two
+dimensions — for point-in-polygon tests and texture mapping — which is why the
+bit tracks the normal rather than anything about the surface. It resolves the
+"axis-selector pattern" [`odm-model-facets.md`](odm-model-facets.md) recorded
+as `inferred`.
+
+#### Bits that accompany an event id
+
+Bits 0x02000000, 0x04000000 and 0x08000000 travel with a non-zero `+0x1A` in
+the face's extra record: 5,380 of the 5,560 faces with such a value carry one
+of them, and 147 faces carry one without a value. Close, but not a rule.
 `inferred`
+
+#### Bits still unread
+
+| Bit | Faces | What is visible |
+| --- | ---: | --- |
+| 0x10 | 416 | 86% floors, and 90% of them are textured `wtrtyl`, `orwtrtyl`, `swprrf3` — liquid surfaces. But 1,395 faces with those textures do **not** set it, so it is not "this is water". `unknown` |
+| 0x40000 | 2,509 | 82% walls; textures include `tdoord`, `d8dorb`, `d2lgdor` and a family of `bem*` beams. 70% carry an event id. Door-shaped, but fewer than half the faces are door-textured. `unknown` |
+| 0x400000 | 7 | all ceilings, five of them textured `sky_*`. Too few to call. `unknown` |
+| 0x8, 0x1000 | ~29,000 each | accompany the texture origins in the face's extra record (see below) |
+| 0x20000000 | 2,836 | 96% walls, no event ids, no texture pattern. `unknown` |
+
+The remaining bits appear on fewer than 120 faces each.
 
 ## Per-face index arrays
 
