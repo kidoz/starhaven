@@ -123,6 +123,13 @@ interoperability and compatibility with a legally purchased copy.
   and every item id resolving in `ITEMS.TXT`. `walk_blv` draws them. The state
   that follows is partly mapped too: a fixed 200-slot record array, then a
   region the writer trims to whatever it happened to fill.
+- A decoder for the **sound table** (`DSOUNDS.BIN`) and the **decoration table**
+  (`DDECLIST.BIN`), which together say what a place sounds like: 1,338 of the
+  table's 1,345 names are entries of the already-decoded `Audio.snd`, and the
+  seven decoration types that name an ambient sound all resolve — a campfire to
+  `campfire`, a fountain to `fountain`, a cauldron to `bubbling cauldron01`.
+  Both walkers mix those sounds by distance, so New Sorpigal's fountains and a
+  dungeon's braziers are audible as you approach them.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own

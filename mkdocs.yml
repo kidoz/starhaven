@@ -33,6 +33,7 @@ nav:
       - Monster table: formats/dmonlist.md
       - Design data tables: formats/text-tables.md
       - Sprite frame table: formats/dsft.md
+      - Sound table: formats/dsounds.md
       - VID containers: formats/vid.md
       - Smacker video: formats/smacker.md
       - Sound archive: formats/snd.md

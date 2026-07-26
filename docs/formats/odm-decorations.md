@@ -77,9 +77,19 @@ header, a zlib stream, then a `u32` count and 230 fixed 80-byte records.
 | +0x42 | 2 | u16 | unknown | unknown | 96 for trees, 52 for cacti; plausibly a radius |
 | +0x44 | 2 | u16 | unknown | unknown | 76 for trees |
 | +0x48 | 2 | u16 | unknown | inferred | consecutive across sibling entries (tree27→1158, tree28→1159, tree29→1160), so an id rather than a size |
+| +0x4A | 2 | u16 | unknown | unknown | nonzero on five records |
+| +0x4C | 2 | u16 | sound id | observed | an ambient sound, resolved through `DSOUNDS.BIN` |
 
 A decoration's `kind` indexes this table, and the record's name matches the
 map's own name array in **726 of 727** entries on `Outa1.odm`. `observed`
+
+### Ambient sound
+
+Seven of the 230 types name a sound at `+0x4C`, and all seven resolve through
+[`DSOUNDS.BIN`](dsounds.md) to what their names suggest — `CampfireOn` to
+`campfire`, `Statue` to `fountain`, `Cauldron` to `bubbling cauldron01`. The
+other 223 are zero, which is correct rather than incomplete: a tree makes no
+noise. `observed`
 
 ## Rendering
 
