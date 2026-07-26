@@ -151,7 +151,9 @@ interoperability and compatibility with a legally purchased copy.
   Sorpigal. **Tab** lists them while you walk, with the people inside: 396
   named NPCs from `NPCdata.txt`, every one of the 367 who stands somewhere
   resolving to an establishment that exists, and every one of the 332 with a
-  profession resolving to `npcprof.txt`.
+  profession resolving to `npcprof.txt`. Each person's conversation topics are
+  listed beside them, from `npctopic.txt` and `npctext.txt` — all 298 of the
+  NPC table's references resolve, and all 298 have words.
 - Typed views over the **character tables**: `Spells.txt` (99 spells across
   nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
   and `SkillDes.txt`. `data_info --spells Fireball` prints one.

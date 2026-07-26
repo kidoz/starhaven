@@ -6,11 +6,12 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the thirteen tables parsed into
-typed rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
+Covers the container, the text format, and the sixteen tables parsed into typed
+rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
 `STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
-`SkillDes.txt`, `2DEvents.txt`, `NPCdata.txt` and `npcprof.txt`. The other 17
-are readable through the same reader but not yet given typed views.
+`SkillDes.txt`, `2DEvents.txt`, `NPCdata.txt`, `npcprof.txt`, `npctopic.txt`,
+`npctext.txt` and `NPCNews.txt`. The other 14 are readable through the same
+reader but not yet given typed views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -42,6 +43,8 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --buildings OutE3.Odm
 ./buildDir/data_info --npcs
 ./buildDir/data_info --professions
+./buildDir/data_info --dialogue 296
+./buildDir/data_info --news
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -340,6 +343,33 @@ data.
 
 The prose carries `%01`-style placeholders the engine substitutes; what each
 stands for is `unknown`.
+
+## `npctopic.txt`, `npctext.txt` and `NPCNews.txt`
+
+### The topics and the words share one numbering
+
+Both files head their first column "Text Number From NPC Events.Doc", and they
+are the same numbering: topic *N* is the label and text *N* is the words.
+StarHaven merges them into one table for that reason. `observed`
+
+473 topics, of which **19 have a label and nothing to say**. They are kept:
+dropping them would leave gaps in the numbering the NPC event columns index.
+`observed`
+
+**All 298 event references from `NPCdata.txt` resolve, and all 298 have words.**
+`observed`
+
+### `NPCNews.txt`
+
+279 regional rumours, each with a topic and a passage. The second column is
+headed "Map" and **is not a map id**: it takes only sixteen distinct values —
+1 and 26 through 40 — and they do not line up with the subjects. Rumour 1 is
+about Goblinwatch, which is map 16, and its value is 40; rumour about Lair of
+the Wolf, map 32, has value 30. `observed`
+
+Reading it as a `MapStats.txt` id would appear to succeed, because every value
+falls inside 1..67. That is the trap: the range check passes and the meaning is
+still wrong. The value is kept as written and what it indexes is `unknown`.
 
 ## Invalid-input behavior
 
