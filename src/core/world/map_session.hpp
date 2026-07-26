@@ -45,6 +45,17 @@ struct SessionActor {
     render::Vec3 position;
 };
 
+// One establishment the design table places on this map: a shop, temple,
+// tavern or guild. They have no position in the world — the table says which
+// map they belong to and nothing more.
+struct SessionBuilding {
+    std::string name;
+    std::string type;
+    std::string proprietor;
+    int opens = 0;
+    int closes = 0;
+};
+
 // One loot object or projectile lying on the map.
 struct SessionObject {
     std::uint16_t descriptor_index = 0;
@@ -91,6 +102,7 @@ struct MapSession {
     std::vector<SessionDecoration> decorations;
     std::vector<SessionActor> actors;
     std::vector<SessionObject> objects;
+    std::vector<SessionBuilding> buildings;
     render::Vec3 spawn{};
 
     // The global tables the placed things resolve through.

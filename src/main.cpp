@@ -61,6 +61,7 @@ void print_usage(const char* argv0) {
               << "  Shift      move faster\n"
               << "  Mouse      look around\n"
               << "  Arrows     look left/right/up/down\n"
+              << "  Tab        list the establishments on this map\n"
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
@@ -311,6 +312,47 @@ void draw_panel(render::SceneRenderer& scene, const image::Font& font,
     }
 }
 
+// A directory of the establishments the design table places on this map,
+// drawn down the left edge. They have no position in the world, so a list is
+// the honest way to show them.
+void draw_directory(render::SceneRenderer& scene, const image::Font& font,
+                    const world::MapSession& session) {
+    if (session.buildings.empty() || font.glyph_count() == 0) {
+        return;
+    }
+    const int line_height = font.height() + 1;
+    const int rows =
+        std::min<int>(static_cast<int>(session.buildings.size()), (kHeight - 60) / line_height);
+
+    auto pixels = scene.framebuffer().color();
+    const int box_h = rows * line_height + 12;
+    for (int y = 30; y < 30 + box_h && y < kHeight; ++y) {
+        for (int x = 0; x < kWidth / 2; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 4);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 4);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 4);
+        }
+    }
+
+    int y = 36;
+    for (int i = 0; i < rows; ++i) {
+        const auto& b = session.buildings[static_cast<std::size_t>(i)];
+        const std::string line = b.name + "  (" + b.type + ", " + std::to_string(b.opens) + "-" +
+                                 std::to_string(b.closes) + ")";
+        game::draw_text(scene.framebuffer(), font, 8, y, line, render::Color{220, 220, 220, 255},
+                        render::Color{0, 0, 0, 255});
+        y += line_height;
+    }
+    if (rows < static_cast<int>(session.buildings.size())) {
+        game::draw_text(
+            scene.framebuffer(), font, 8, y,
+            "... " + std::to_string(session.buildings.size() - static_cast<std::size_t>(rows)) +
+                " more",
+            render::Color{160, 160, 160, 255}, render::Color{0, 0, 0, 255});
+    }
+}
+
 void draw_boxes(render::SceneRenderer& scene, const world::MapSession& session) {
     const render::Color box_color{255, 220, 0, 255};
     for (const auto& m : session.models) {
@@ -347,6 +389,7 @@ int main(int argc, char** argv) {
     bool music_wanted = true;
     bool list_only = false;
     bool show_labels = false;
+    bool show_directory = false;
     int bench_frames = 0;
     bool have_pos = false;
     render::Camera camera;
@@ -435,7 +478,11 @@ int main(int argc, char** argv) {
               << " named), " << session.objects.size() << " objects ("
               << std::count_if(session.objects.begin(), session.objects.end(),
                                [](const auto& o) { return !o.name.empty(); })
-              << " named)\n";
+              << " named)";
+    if (!session.buildings.empty()) {
+        std::cout << ", " << session.buildings.size() << " establishments";
+    }
+    std::cout << "\n";
 
     std::vector<game::AmbientSource> ambient_sources;
     for (const auto& d : session.decorations) {
@@ -579,6 +626,8 @@ int main(int argc, char** argv) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 running = false;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB) {
+                show_directory = !show_directory;
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
@@ -622,6 +671,9 @@ int main(int argc, char** argv) {
 
         if (show_labels) {
             draw_labels(scene, session, font, camera.position);
+        }
+        if (show_directory) {
+            draw_directory(scene, font, session);
         }
         draw_panel(scene, font,
                    game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,

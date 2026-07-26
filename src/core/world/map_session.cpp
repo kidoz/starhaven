@@ -6,6 +6,7 @@
 #include <cmath>
 #include <span>
 
+#include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/monster_stats.hpp"
 #include "core/image/bitmap.hpp"
@@ -389,6 +390,18 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
         if (const auto* stats = maps.find(map_name); stats != nullptr) {
             out.display_name = data::cp1252_to_utf8(stats->name);
             out.music_track = stats->music_track;
+        }
+    }
+
+    // The establishments the design table places here. Only outdoor maps have
+    // a code it references (see docs/formats/text-tables.md).
+    if (const std::string code = data::map_code_of(out.file_name); !code.empty()) {
+        data::BuildingStatsTable buildings;
+        if (data::load_building_stats(data_dir, buildings) == data::GameDataError::None) {
+            for (const auto* b : buildings.on_map(code)) {
+                out.buildings.push_back({data::cp1252_to_utf8(b->name), b->type,
+                                         data::cp1252_to_utf8(b->proprietor), b->opens, b->closes});
+            }
         }
     }
 
