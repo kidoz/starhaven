@@ -135,6 +135,10 @@ interoperability and compatibility with a legally purchased copy.
   to 30 — and the engine draws the map's name in the game's own typeface.
   `font_info <font> <text>` renders a string as ASCII art, which is how the
   format was verified.
+- **The decoded content, on screen.** `--labels` names every monster and every
+  loot object in the world from `MONSTERS.TXT` and `ITEMS.TXT`. In New Sorpigal
+  that is 38 of 38 monsters and 42 of 42 objects named — the joins those tables
+  were decoded for, drawn where they belong rather than counted in a test.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - **`starhaven`, the engine itself**: `--maps` lists all 67 maps, and naming
@@ -287,6 +291,9 @@ Walk any map, indoor or outdoor, in a 3D software-rasterized view:
 
 # Overlay model bounding boxes (placement debugging)
 ./buildDir/starhaven Outa1.odm --boxes
+
+# Name the monsters and loot standing in the world
+./buildDir/starhaven Oute3.odm --labels
 ```
 
 Play a music track (`--list` shows all fifteen):

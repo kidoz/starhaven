@@ -67,6 +67,7 @@ void print_usage(const char* argv0) {
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
               << "  --bench N           render N frames, report timings, and exit\n"
               << "  --boxes             overlay model bounding boxes\n"
+              << "  --labels            name the monsters and loot in the world\n"
               << "  --fly               disable gravity and collision\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
@@ -226,6 +227,43 @@ image::Font load_font(const std::filesystem::path& data_dir, const char* name) {
     return font;
 }
 
+// Name the things standing in the world, using the game's own font. A label is
+// drawn centred over its subject and only when the subject is in front of the
+// camera and near enough to read.
+void draw_labels(render::SceneRenderer& scene, const world::MapSession& session,
+                 const image::Font& font, const render::Vec3& eye) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    // Beyond this the text is unreadable clutter rather than information.
+    constexpr float kRange = 4096.0f;
+    constexpr float kLift = 200.0f;  // roughly a body height above the feet
+
+    auto label = [&](const std::string& text, const render::Vec3& at, render::Color colour) {
+        if (text.empty()) {
+            return;
+        }
+        const render::Vec3 d{at.x - eye.x, at.y - eye.y, at.z - eye.z};
+        if (d.x * d.x + d.y * d.y + d.z * d.z > kRange * kRange) {
+            return;
+        }
+        render::ScreenVertex p;
+        if (!scene.project_point({at.x, at.y + kLift, at.z}, p)) {
+            return;
+        }
+        const int x = static_cast<int>(p.x) - font.text_width(text) / 2;
+        game::draw_text(scene.framebuffer(), font, x, static_cast<int>(p.y), text, colour,
+                        render::Color{0, 0, 0, 255});
+    };
+
+    for (const auto& a : session.actors) {
+        label(a.name, a.position, render::Color{255, 200, 200, 255});
+    }
+    for (const auto& o : session.objects) {
+        label(o.name, o.position, render::Color{200, 230, 255, 255});
+    }
+}
+
 void draw_boxes(render::SceneRenderer& scene, const world::MapSession& session) {
     const render::Color box_color{255, 220, 0, 255};
     for (const auto& m : session.models) {
@@ -261,6 +299,7 @@ int main(int argc, char** argv) {
     bool fly = false;
     bool music_wanted = true;
     bool list_only = false;
+    bool show_labels = false;
     int bench_frames = 0;
     bool have_pos = false;
     render::Camera camera;
@@ -275,6 +314,8 @@ int main(int argc, char** argv) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
             show_boxes = true;
+        } else if (a == "--labels") {
+            show_labels = true;
         } else if (a == "--fly") {
             fly = true;
         } else if (a == "--no-music") {
@@ -341,8 +382,13 @@ int main(int argc, char** argv) {
     std::cout << session.file_name << " \"" << session.title()
               << "\": " << (session.outdoor() ? "outdoor" : "indoor") << ", "
               << session.collision.size() << " collision polygons, " << session.decorations.size()
-              << " decorations, " << session.actors.size() << " monsters, "
-              << session.objects.size() << " objects\n";
+              << " decorations, " << session.actors.size() << " monsters ("
+              << std::count_if(session.actors.begin(), session.actors.end(),
+                               [](const auto& a) { return !a.name.empty(); })
+              << " named), " << session.objects.size() << " objects ("
+              << std::count_if(session.objects.begin(), session.objects.end(),
+                               [](const auto& o) { return !o.name.empty(); })
+              << " named)\n";
 
     std::vector<game::AmbientSource> ambient_sources;
     for (const auto& d : session.decorations) {
@@ -511,6 +557,10 @@ int main(int argc, char** argv) {
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()));
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
+        }
+
+        if (show_labels) {
+            draw_labels(scene, session, font, camera.position);
         }
 
         // The map's name, drawn with the game's own font.
