@@ -169,3 +169,9 @@ test('map_session',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('font',
+  executable('test_font', 'test_font.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

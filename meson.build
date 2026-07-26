@@ -34,6 +34,7 @@ starhaven_core_sources = files(
   'src/core/image/bitmap.cpp',
   'src/core/image/palette.cpp',
   'src/core/image/sprite.cpp',
+  'src/core/image/font.cpp',
   'src/core/image/zlib_util.cpp',
   'src/core/data/text_table.cpp',
   'src/core/data/item_generation.cpp',
@@ -157,6 +158,12 @@ executable('data_info', 'tools/data_info.cpp',
 
 # Sprite-frame-table inspector: reads DSFT.BIN and verifies its joins.
 executable('sft_info', 'tools/sft_info.cpp',
+  dependencies : starhaven_dep,
+  install : true,
+)
+
+# Font inspector: lists the bitmap fonts and draws text as ASCII art.
+executable('font_info', 'tools/font_info.cpp',
   dependencies : starhaven_dep,
   install : true,
 )
