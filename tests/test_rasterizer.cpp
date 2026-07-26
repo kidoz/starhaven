@@ -311,3 +311,22 @@ TEST_CASE("a textured triangle respects backface culling", "[rasterizer]") {
     fb.draw_triangle_textured(a, b, c, solid, WrapMode::Repeat, /*cull*/ false);
     REQUIRE(same(pixel_at(fb, 1, 1), Color{255, 255, 255, 255}));
 }
+
+TEST_CASE("the depth buffer can be read back", "[rasterizer]") {
+    // An overlay needs to know whether the world already drew something nearer
+    // than the point it is about to annotate.
+    Framebuffer fb(4, 4);
+    fb.clear_depth();
+    REQUIRE(fb.depth_at(0, 0) == 1.0f);
+    REQUIRE(fb.depth().size() == 16);
+
+    // Outside the framebuffer reads as the far plane rather than faulting.
+    REQUIRE(fb.depth_at(-1, 0) == 1.0f);
+    REQUIRE(fb.depth_at(0, 99) == 1.0f);
+
+    ScreenVertex a{0, 0, 0.25f};
+    ScreenVertex b{4, 0, 0.25f};
+    ScreenVertex c{0, 4, 0.25f};
+    fb.draw_triangle(a, b, c, false);
+    REQUIRE(fb.depth_at(0, 0) < 1.0f);
+}

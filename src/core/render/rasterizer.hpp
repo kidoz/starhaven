@@ -41,6 +41,21 @@ public:
     std::span<std::uint8_t> color() { return color_; }
     std::span<const std::uint8_t> color() const { return color_; }
 
+    // The z-buffer, so an overlay can tell whether the world already drew
+    // something nearer than the point it is about to annotate. Values are the
+    // same [0,1] NDC depth `project_point` reports; 1 is the cleared far
+    // plane, so nothing was drawn there.
+    [[nodiscard]] std::span<const float> depth() const { return depth_; }
+
+    // The depth already written at a pixel, or 1 when the pixel is outside.
+    [[nodiscard]] float depth_at(int x, int y) const {
+        if (x < 0 || y < 0 || x >= width_ || y >= height_) {
+            return 1.0f;
+        }
+        return depth_[static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) +
+                      static_cast<std::size_t>(x)];
+    }
+
     void clear(Color c);
     void clear_depth(float z = 1.0f);
 
