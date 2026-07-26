@@ -90,12 +90,15 @@ int main(int argc, char** argv) {
               << (ev.payload.empty() ? 0 : (100.0 * nonzero / ev.payload.size()))
               << "% populated)\n";
 
-    world::OutdoorEventLayout layout;
-    if (world::parse_outdoor_event_layout(ev, layout) != world::OutdoorEventLayoutError::None) {
-        std::cout << "  outdoor-layout: not present\n";
+    world::EventLayout layout;
+    if (world::parse_event_layout(ev, layout) != world::EventLayoutError::None) {
+        std::cout << "  layout: neither the outdoor nor the indoor section chain fits\n";
         return 0;
     }
 
+    std::cout << "  layout: " << (layout.kind == world::MapEventKind::Indoor ? "indoor" : "outdoor")
+              << "  sections at " << layout.actors_offset << ", tail " << layout.tail_size
+              << " bytes\n";
     std::cout << "  actors: " << layout.actor_count << "\n";
     std::cout << "  sprite_objects: " << layout.sprite_object_count << "\n";
     std::cout << "  chests: " << layout.chest_count << "\n";

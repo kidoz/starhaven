@@ -64,6 +64,52 @@ enum class OutdoorEventLayoutError : std::uint8_t {
 [[nodiscard]] OutdoorEventLayoutError parse_outdoor_event_layout(const MapEventFile& file,
                                                                  OutdoorEventLayout& out);
 
+// --- Indoor DLV layout (see docs/formats/event-tables.md) ------------------
+
+// Indoor files carry the same three counted sections in the same order, after
+// a shorter and — unlike the outdoor one — unaligned fixed prefix.
+constexpr std::size_t kIndoorActorCountOffset = 883;
+constexpr std::size_t kIndoorActorArrayOffset = 887;
+
+enum class MapEventKind : std::uint8_t {
+    Unknown,
+    Outdoor,
+    Indoor,
+};
+
+// The counted sections of either kind of event file.
+struct EventLayout {
+    MapEventKind kind = MapEventKind::Unknown;
+    std::uint32_t actor_count = 0;
+    std::size_t actors_offset = 0;
+    std::uint32_t sprite_object_count = 0;
+    std::size_t sprite_objects_offset = 0;
+    std::uint32_t chest_count = 0;
+    std::size_t chests_offset = 0;
+
+    // What follows the chest array: outdoor's fixed 256-byte trailer, or the
+    // indoor block of saved runtime state, whose size is not modelled.
+    std::size_t tail_offset = 0;
+    std::size_t tail_size = 0;
+};
+
+enum class EventLayoutError : std::uint8_t {
+    None,
+    // The payload cannot hold either layout's fixed prefix.
+    TooSmall,
+    // A count-times-stride section runs past the payload.
+    BadSectionSize,
+};
+
+// Decode either layout, choosing between them by trying the outdoor one first.
+//
+// The order is not arbitrary. An outdoor payload also chains from the indoor
+// offset, but yields three zero counts there, so testing indoor first would
+// silently report an empty outdoor map. The outdoor test cannot misfire the
+// other way: it demands an exact 256-byte trailer, which no indoor payload
+// satisfies.
+[[nodiscard]] EventLayoutError parse_event_layout(const MapEventFile& file, EventLayout& out);
+
 // --- Actors (see docs/formats/event-actors.md) -----------------------------
 
 struct MapActor {

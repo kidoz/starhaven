@@ -90,19 +90,18 @@ struct ObjectSpec {
     std::int32_t previous_x = 0, previous_y = 0, previous_z = 0;
 };
 
-std::vector<std::uint8_t>
-make_outdoor_payload(const std::vector<ActorSpec>& actors, const std::vector<ObjectSpec>& objects,
-                     std::uint32_t chest_count = 2,
-                     std::size_t trailer_size = kOutdoorEventTrailerSize) {
-    const std::size_t objects_offset =
-        kOutdoorActorArrayOffset + actors.size() * kActorRecordSize + 4;
+std::vector<std::uint8_t> make_event_payload(const std::vector<ActorSpec>& actors,
+                                             const std::vector<ObjectSpec>& objects,
+                                             std::uint32_t chest_count, std::size_t trailer_size,
+                                             std::size_t actors_offset) {
+    const std::size_t objects_offset = actors_offset + actors.size() * kActorRecordSize + 4;
     const std::size_t chests_offset = objects_offset + objects.size() * kSpriteObjectRecordSize + 4;
     std::vector<std::uint8_t> payload(chests_offset + chest_count * kChestRecordSize + trailer_size,
                                       0);
 
-    put_u32(payload, kOutdoorActorCountOffset, static_cast<std::uint32_t>(actors.size()));
+    put_u32(payload, actors_offset - 4, static_cast<std::uint32_t>(actors.size()));
     for (std::size_t i = 0; i < actors.size(); ++i) {
-        const std::size_t base = kOutdoorActorArrayOffset + i * kActorRecordSize;
+        const std::size_t base = actors_offset + i * kActorRecordSize;
         for (std::size_t k = 0; k < actors[i].name.size() && k < kActorNameSize; ++k) {
             payload[base + k] = static_cast<std::uint8_t>(actors[i].name[k]);
         }
@@ -142,6 +141,22 @@ make_outdoor_payload(const std::vector<ActorSpec>& actors, const std::vector<Obj
 
     put_u32(payload, chests_offset - 4, chest_count);
     return payload;
+}
+
+std::vector<std::uint8_t>
+make_outdoor_payload(const std::vector<ActorSpec>& actors, const std::vector<ObjectSpec>& objects,
+                     std::uint32_t chest_count = 2,
+                     std::size_t trailer_size = kOutdoorEventTrailerSize) {
+    return make_event_payload(actors, objects, chest_count, trailer_size, kOutdoorActorArrayOffset);
+}
+
+// Indoor files put the same sections at a different, unaligned offset and end
+// in saved runtime state of no fixed size.
+std::vector<std::uint8_t> make_indoor_payload(const std::vector<ActorSpec>& actors,
+                                              const std::vector<ObjectSpec>& objects,
+                                              std::uint32_t chest_count = 20,
+                                              std::size_t tail_size = 4096) {
+    return make_event_payload(actors, objects, chest_count, tail_size, kIndoorActorArrayOffset);
 }
 
 }  // namespace
@@ -327,4 +342,63 @@ TEST_CASE("object extraction rejects malformed layout and honors its limit", "[m
     REQUIRE(extract_sprite_objects(file, 2).size() == 2);
     file.payload.pop_back();
     REQUIRE(extract_sprite_objects(file).empty());
+}
+
+TEST_CASE("indoor section counts follow the shorter prefix", "[map_event]") {
+    MapEventFile file{make_indoor_payload({{"Snergle"}}, {{127, 105}}, 20, 4096)};
+    EventLayout layout;
+    REQUIRE(parse_event_layout(file, layout) == EventLayoutError::None);
+    REQUIRE(layout.kind == MapEventKind::Indoor);
+    REQUIRE(layout.actor_count == 1);
+    REQUIRE(layout.actors_offset == kIndoorActorArrayOffset);
+    REQUIRE(layout.sprite_object_count == 1);
+    REQUIRE(layout.chest_count == 20);
+    REQUIRE(layout.tail_size == 4096);
+}
+
+TEST_CASE("an outdoor payload is not read as an indoor one", "[map_event]") {
+    // An outdoor payload also chains from the indoor offset, but reads three
+    // zero counts there. Testing outdoor first is what prevents a populated
+    // outdoor map from being reported as an empty indoor one.
+    MapEventFile file{make_outdoor_payload({{"Peasant"}, {"Guard"}}, {{76, 54}}, 20)};
+    EventLayout layout;
+    REQUIRE(parse_event_layout(file, layout) == EventLayoutError::None);
+    REQUIRE(layout.kind == MapEventKind::Outdoor);
+    REQUIRE(layout.actor_count == 2);
+    REQUIRE(layout.tail_size == kOutdoorEventTrailerSize);
+}
+
+TEST_CASE("indoor actors and objects decode through the shared extractors", "[map_event]") {
+    MapEventFile file{make_indoor_payload(
+        {
+            {"Snergle", 48, 1, 1344, 11776, 128},
+            {"Queen Spider", 162, 12, -29280, -10240, -2201},
+        },
+        {{127, 105, -2432, -2496, 0}})};
+
+    const auto actors = extract_actors(file);
+    REQUIRE(actors.size() == 2);
+    REQUIRE(actors[0].name == "Snergle");
+    REQUIRE(actors[0].monster_id == 48);
+    REQUIRE(actors[1].y == -10240);
+
+    const auto objects = extract_sprite_objects(file);
+    REQUIRE(objects.size() == 1);
+    REQUIRE(objects[0].object_id == 127);
+    REQUIRE(objects[0].descriptor_index == 105);
+    REQUIRE(objects[0].x == -2432);
+}
+
+TEST_CASE("indoor layout rejects sections that run past the payload", "[map_event]") {
+    EventLayout layout;
+    MapEventFile too_small{std::vector<std::uint8_t>(64, 0)};
+    REQUIRE(parse_event_layout(too_small, layout) == EventLayoutError::TooSmall);
+
+    MapEventFile bad_actor_count{make_indoor_payload({}, {})};
+    put_u32(bad_actor_count.payload, kIndoorActorCountOffset, 0xFFFFFFFFu);
+    REQUIRE(parse_event_layout(bad_actor_count, layout) == EventLayoutError::BadSectionSize);
+
+    MapEventFile bad_chest_count{make_indoor_payload({}, {})};
+    put_u32(bad_chest_count.payload, kIndoorActorArrayOffset + 4, 0xFFFFFFFFu);
+    REQUIRE(parse_event_layout(bad_chest_count, layout) == EventLayoutError::BadSectionSize);
 }

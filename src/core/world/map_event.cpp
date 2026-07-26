@@ -117,9 +117,66 @@ OutdoorEventLayoutError parse_outdoor_event_layout(const MapEventFile& file,
     return OutdoorEventLayoutError::None;
 }
 
+EventLayoutError parse_event_layout(const MapEventFile& file, EventLayout& out) {
+    out = EventLayout{};
+    const auto& p = file.payload;
+
+    // Outdoor first: its trailer check is exact, so it cannot claim an indoor
+    // payload, while the indoor chain would happily read three zero counts out
+    // of an outdoor one.
+    OutdoorEventLayout outdoor;
+    if (parse_outdoor_event_layout(file, outdoor) == OutdoorEventLayoutError::None) {
+        out.kind = MapEventKind::Outdoor;
+        out.actor_count = outdoor.actor_count;
+        out.actors_offset = outdoor.actors_offset;
+        out.sprite_object_count = outdoor.sprite_object_count;
+        out.sprite_objects_offset = outdoor.sprite_objects_offset;
+        out.chest_count = outdoor.chest_count;
+        out.chests_offset = outdoor.chests_offset;
+        out.tail_offset = outdoor.trailer_offset;
+        out.tail_size = kOutdoorEventTrailerSize;
+        return EventLayoutError::None;
+    }
+
+    if (p.size() < kIndoorActorArrayOffset) {
+        return EventLayoutError::TooSmall;
+    }
+
+    out.actor_count = u32_at(p, kIndoorActorCountOffset);
+    out.actors_offset = kIndoorActorArrayOffset;
+
+    std::size_t cursor = 0;
+    if (!section_end(out.actors_offset, out.actor_count, kActorRecordSize, p.size(), cursor) ||
+        p.size() - cursor < 4) {
+        return EventLayoutError::BadSectionSize;
+    }
+
+    out.sprite_object_count = u32_at(p, cursor);
+    out.sprite_objects_offset = cursor + 4;
+    if (!section_end(out.sprite_objects_offset, out.sprite_object_count, kSpriteObjectRecordSize,
+                     p.size(), cursor) ||
+        p.size() - cursor < 4) {
+        return EventLayoutError::BadSectionSize;
+    }
+
+    out.chest_count = u32_at(p, cursor);
+    out.chests_offset = cursor + 4;
+    if (!section_end(out.chests_offset, out.chest_count, kChestRecordSize, p.size(), cursor)) {
+        return EventLayoutError::BadSectionSize;
+    }
+
+    // What follows is saved runtime state, not a counted section: it still
+    // holds the stale heap pointers the original process wrote. Its size is
+    // therefore recorded, not required to be anything.
+    out.kind = MapEventKind::Indoor;
+    out.tail_offset = cursor;
+    out.tail_size = p.size() - cursor;
+    return EventLayoutError::None;
+}
+
 std::vector<MapActor> extract_actors(const MapEventFile& file, std::size_t max_records) {
-    OutdoorEventLayout layout;
-    if (parse_outdoor_event_layout(file, layout) != OutdoorEventLayoutError::None) {
+    EventLayout layout;
+    if (parse_event_layout(file, layout) != EventLayoutError::None) {
         return {};
     }
 
@@ -148,8 +205,8 @@ std::vector<MapActor> extract_actors(const MapEventFile& file, std::size_t max_r
 
 std::vector<MapSpriteObject> extract_sprite_objects(const MapEventFile& file,
                                                     std::size_t max_records) {
-    OutdoorEventLayout layout;
-    if (parse_outdoor_event_layout(file, layout) != OutdoorEventLayoutError::None) {
+    EventLayout layout;
+    if (parse_event_layout(file, layout) != EventLayoutError::None) {
         return {};
     }
 
@@ -180,8 +237,8 @@ std::vector<MapSpriteObject> extract_sprite_objects(const MapEventFile& file,
 }
 
 std::vector<MapChestItem> extract_chest_items(const MapEventFile& file, std::size_t max_records) {
-    OutdoorEventLayout layout;
-    if (parse_outdoor_event_layout(file, layout) != OutdoorEventLayoutError::None) {
+    EventLayout layout;
+    if (parse_event_layout(file, layout) != EventLayoutError::None) {
         return {};
     }
 
