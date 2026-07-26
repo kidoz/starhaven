@@ -147,8 +147,11 @@ interoperability and compatibility with a legally purchased copy.
   table codes — `Fireball`, not `Fireball,N,5`.
 - A typed view over the **town establishments** (`2DEvents.txt`): 556 shops,
   temples, taverns and guilds with proprietors, titles, stock and opening
-  hours, joined to the map each stands on — 95 in Free Haven, 46 in New
-  Sorpigal. **Tab** lists them while you walk.
+  hours, joined to the map each stands on — 95 in Free Haven, 47 in New
+  Sorpigal. **Tab** lists them while you walk, with the people inside: 396
+  named NPCs from `NPCdata.txt`, every one of the 367 who stands somewhere
+  resolving to an establishment that exists, and every one of the 332 with a
+  profession resolving to `npcprof.txt`.
 - Typed views over the **character tables**: `Spells.txt` (99 spells across
   nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
   and `SkillDes.txt`. `data_info --spells Fireball` prints one.

@@ -6,11 +6,11 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the eleven tables parsed into typed
-rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
+Covers the container, the text format, and the thirteen tables parsed into
+typed rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
 `STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
-`SkillDes.txt` and `2DEvents.txt`. The other 19 are readable through the same
-reader but not yet given typed views.
+`SkillDes.txt`, `2DEvents.txt`, `NPCdata.txt` and `npcprof.txt`. The other 17
+are readable through the same reader but not yet given typed views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -40,6 +40,8 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --spells Fireball
 ./buildDir/data_info --classes
 ./buildDir/data_info --buildings OutE3.Odm
+./buildDir/data_info --npcs
+./buildDir/data_info --professions
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -283,6 +285,61 @@ one.
 Nothing in the table places a building anywhere *within* its map. The interiors
 are a separate screen the original drew in two dimensions, which is what the
 file's name refers to.
+
+## `NPCdata.txt` and `npcprof.txt`
+
+396 named people and 77 professions. Two columns of `NPCdata.txt` are
+references, and both resolve cleanly:
+
+| Reference | Resolves |
+| --- | ---: |
+| "2D Location" → a `2DEvents.txt` row | **367 of 367** |
+| "Profession" → an `npcprof.txt` row | **332 of 332** |
+
+`data_info --npcs` reports both counts.
+
+### Two traps in the reference columns
+
+**A location of −1 is not a row id.** Eighteen rows carry it, and it means the
+person stands in no establishment. Read as an id it produces eighteen
+references that can never resolve; read as zero it hides that the table said
+something specific. The value is kept as written and `placed()` asks the
+question. `observed`
+
+**One establishment has no type.** Row 479 of `2DEvents.txt` — a house in New
+Sorpigal — leaves the type column blank but does have a name, and eighteen
+people live in it. A reader that requires a type drops the building and orphans
+all eighteen. `observed`
+
+Both were found by measuring the joins rather than assuming them: the first
+attempt reported 367 of 385 and 310 of 332, and neither shortfall was in the
+data.
+
+### `NPCdata.txt` columns
+
+| Column | Field | Status |
+| --- | --- | --- |
+| 0–1 | id, name | observed |
+| 2 | picture | observed |
+| 3–5 | state, fame, reputation | inferred |
+| 6 | establishment, or −1 | observed |
+| 7 | profession | observed |
+| 8–9 | whether they join, whether they carry news — 1 or 0, despite the heading reading `Y / N` | observed |
+| 10–12 | three event ids | inferred |
+| 13 | the designers' notes | observed |
+
+### `npcprof.txt` columns
+
+| Column | Field | Status |
+| --- | --- | --- |
+| 0–1 | id, name | observed |
+| 2 | chance of appearing on a random NPC | inferred |
+| 3 | weekly hire cost | observed |
+| 4 | personality — "Merchant", "Sorcerer", "Scholar" | observed |
+| 5–7 | action text, benefit while in the party, join text | observed |
+
+The prose carries `%01`-style placeholders the engine substitutes; what each
+stands for is `unknown`.
 
 ## Invalid-input behavior
 
