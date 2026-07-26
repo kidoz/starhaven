@@ -143,6 +143,19 @@ GameDataError load_npc_professions(const std::filesystem::path& data_dir, NpcPro
     return GameDataError::None;
 }
 
+GameDataError load_npc_personalities(const std::filesystem::path& data_dir,
+                                     NpcPersonalityTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "npcbtb.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (NpcPersonalityTable::parse(table, out) != NpcStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_npc_dialogue(const std::filesystem::path& data_dir, NpcDialogueTable& out) {
     TextTable topics;
     TextTable texts;
@@ -167,6 +180,18 @@ GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable&
         return e;
     }
     if (NpcNewsTable::parse(table, out) != NpcStatsError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
+GameDataError load_interface_strings(const std::filesystem::path& data_dir, InterfaceStrings& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "GLOBAL.TXT", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (InterfaceStrings::parse(table, out) != InterfaceStringsError::None) {
         return GameDataError::BadTable;
     }
     return GameDataError::None;

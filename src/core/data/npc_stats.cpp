@@ -150,6 +150,115 @@ const NpcProfessionEntry* NpcProfessionTable::at(int id) const noexcept {
     return nullptr;
 }
 
+std::string_view NpcPersonality::message(int number) const noexcept {
+    const auto i = static_cast<std::size_t>(number);
+    if (number <= 0 || i >= messages.size()) {
+        return {};
+    }
+    return messages[i];
+}
+
+NpcStatsError NpcPersonalityTable::parse(const TextTable& table, NpcPersonalityTable& out) {
+    out.entries_.clear();
+    out.notes_.clear();
+
+    // The header names each personality with a suffix the designers used as a
+    // reminder of which approaches work — "Peasant BTB", "Thief BT". The
+    // suffix is dropped; the three rows below state the same thing exactly.
+    const std::size_t header = find_header(table, 0, "Msg#");
+    if (header == table.row_count()) {
+        return NpcStatsError::NoHeader;
+    }
+    constexpr std::size_t kFirstPersonality = 2;
+    for (std::size_t c = kFirstPersonality; c < table.rows()[header].size(); ++c) {
+        std::string heading = cell_text(table, header, c);
+        if (heading.empty()) {
+            continue;
+        }
+        if (const std::size_t space = heading.rfind(' '); space != std::string::npos) {
+            heading = heading.substr(0, space);
+        }
+        NpcPersonality p;
+        p.name = std::move(heading);
+        out.entries_.push_back(std::move(p));
+    }
+    if (out.entries_.empty()) {
+        return NpcStatsError::NoHeader;
+    }
+
+    for (std::size_t r = header + 1; r < table.row_count(); ++r) {
+        const std::string label = cell_text(table, r, 0);
+        if (label.empty()) {
+            continue;
+        }
+        // The first three rows are the approach matrix, named rather than
+        // numbered; everything after is a numbered message.
+        int approach = -1;
+        if (iequals(label, "Beg")) {
+            approach = static_cast<int>(NpcApproach::Beg);
+        } else if (iequals(label, "Bribe")) {
+            approach = static_cast<int>(NpcApproach::Bribe);
+        } else if (iequals(label, "Threat")) {
+            approach = static_cast<int>(NpcApproach::Threat);
+        }
+
+        const int number = table.cell_int(r, 0, -1);
+        if (approach < 0) {
+            if (number <= 0) {
+                continue;
+            }
+            if (static_cast<std::size_t>(number) >= out.notes_.size()) {
+                out.notes_.resize(static_cast<std::size_t>(number) + 1);
+            }
+            out.notes_[static_cast<std::size_t>(number)] = cell_text(table, r, 1);
+        }
+
+        for (std::size_t i = 0; i < out.entries_.size(); ++i) {
+            const std::size_t column = kFirstPersonality + i;
+            if (approach >= 0) {
+                out.entries_[i].allows[static_cast<std::size_t>(approach)] =
+                    table.cell_int(r, column) != 0;
+            } else if (number > 0) {
+                auto& messages = out.entries_[i].messages;
+                if (static_cast<std::size_t>(number) >= messages.size()) {
+                    messages.resize(static_cast<std::size_t>(number) + 1);
+                }
+                // "n/a" is written where a personality has no such line —
+                // always where the message is a refusal it never makes.
+                std::string text = cell_text(table, r, column);
+                if (!iequals(text, "n/a")) {
+                    messages[static_cast<std::size_t>(number)] = std::move(text);
+                }
+            }
+        }
+    }
+    return NpcStatsError::None;
+}
+
+std::string_view NpcPersonalityTable::note(int number) const noexcept {
+    const auto i = static_cast<std::size_t>(number);
+    if (number <= 0 || i >= notes_.size()) {
+        return {};
+    }
+    return notes_[i];
+}
+
+const NpcPersonality* NpcPersonalityTable::find(std::string_view name) const noexcept {
+    for (const auto& e : entries_) {
+        if (iequals(e.name, name)) {
+            return &e;
+        }
+    }
+    // "Evil Fanatic" here against "Fanatic" in the profession table.
+    for (const auto& e : entries_) {
+        if (e.name.size() > name.size() &&
+            iequals(std::string_view(e.name).substr(e.name.size() - name.size()), name)) {
+            return &e;
+        }
+    }
+    return nullptr;
+}
+
 NpcStatsError NpcDialogueTable::parse(const TextTable& topics, const TextTable& texts,
                                       NpcDialogueTable& out) {
     out.entries_.clear();

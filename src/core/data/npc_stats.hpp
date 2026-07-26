@@ -114,6 +114,58 @@ private:
     std::vector<NpcProfessionEntry> entries_;
 };
 
+// How a party can approach an NPC in conversation. `npcbtb.txt`'s first three
+// rows say which of these each personality will entertain.
+enum class NpcApproach : std::uint8_t {
+    Beg,
+    Bribe,
+    Threat,
+    Count,
+};
+
+constexpr std::size_t kNpcApproachCount = static_cast<std::size_t>(NpcApproach::Count);
+
+// One personality's column of `npcbtb.txt`: which approaches work on it, and
+// how it phrases each numbered message.
+struct NpcPersonality {
+    std::string name;  // "Peasant", "Merchant", "Fanatic", "Monster"
+    std::array<bool, kNpcApproachCount> allows{};
+    // Indexed by the table's message number, 1-based; index 0 is unused. A
+    // message the personality never has occasion to say is empty: the file
+    // writes "n/a" there.
+    std::vector<std::string> messages;
+
+    [[nodiscard]] bool allows_approach(NpcApproach a) const noexcept {
+        return allows[static_cast<std::size_t>(a)];
+    }
+    [[nodiscard]] std::string_view message(int number) const noexcept;
+};
+
+// `npcbtb.txt`: three rows saying which approaches each personality accepts,
+// then numbered rows giving each personality's wording for that message.
+class NpcPersonalityTable {
+public:
+    NpcPersonalityTable() = default;
+
+    [[nodiscard]] static NpcStatsError parse(const TextTable& table, NpcPersonalityTable& out);
+
+    [[nodiscard]] const std::vector<NpcPersonality>& entries() const noexcept { return entries_; }
+    [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
+
+    // What a numbered message is for — "Beg return", "I don't like bribes".
+    // The designers' own note, shared by every personality.
+    [[nodiscard]] std::string_view note(int number) const noexcept;
+
+    // Resolve a personality by the name `npcprof.txt` uses. The two files
+    // disagree on one: the profession table says "Fanatic" where this one says
+    // "Evil Fanatic", so a suffix match is accepted.
+    [[nodiscard]] const NpcPersonality* find(std::string_view name) const noexcept;
+
+private:
+    std::vector<NpcPersonality> entries_;
+    std::vector<std::string> notes_;  // indexed by message number
+};
+
 // `npctopic.txt` and `npctext.txt`, merged on their shared numbering.
 class NpcDialogueTable {
 public:

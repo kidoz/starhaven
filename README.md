@@ -154,6 +154,13 @@ interoperability and compatibility with a legally purchased copy.
   profession resolving to `npcprof.txt`. Each person's conversation topics are
   listed beside them, from `npctopic.txt` and `npctext.txt` — all 298 of the
   NPC table's references resolve, and all 298 have words.
+- Typed views over **how NPCs react**: `npcbtb.txt` says which of begging,
+  bribing and threatening works on each personality, and how each phrases the
+  twenty-four things it can say. All twelve personalities the professions name
+  are described there, and the file states the matrix three times over — in the
+  column headings, in the three rows, and in which messages a personality has
+  at all — agreeing on all 39 pairs. Plus `GLOBAL.TXT`, the 596 interface
+  strings the original drew on its panels.
 - Typed views over the **journal**: `Quests.txt`, `Awards.txt` and
   `Autonote.txt` — 512 quest bits, 100 awards and 128 categorised automatic
   notes. Only 52 quest bits carry player-facing text; the rest are recorded as

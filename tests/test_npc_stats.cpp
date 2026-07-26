@@ -197,3 +197,87 @@ TEST_CASE("dialogue tables without their headers are refused", "[npc]") {
     NpcNewsTable news;
     REQUIRE(NpcNewsTable::parse(empty, news) == NpcStatsError::NoHeader);
 }
+
+namespace {
+
+// npcbtb.txt: "Msg# | Notes | <personality> <approach initials>...".
+std::string personality_body() {
+    std::string s;
+    s += "Msg#\tNotes\tPeasant BTB\tThief BT\tEvil Fanatic T\r\n";
+    s += "Beg\t\t1\t0\t0\r\n";
+    s += "Bribe\t\t1\t1\t0\r\n";
+    s += "Threat\t\t1\t1\t1\r\n";
+    s += "1\tRep ok, 1st greet\tGood day!\tName's Sam.\tBaa is coming.\r\n";
+    s += "2\tI accept your beg\tOh, all right.\tn/a\tn/a\r\n";
+    s += "3\tI don't like begging\tn/a\tI gave at the Guild.\tBeg elsewhere.\r\n";
+    return s;
+}
+
+NpcPersonalityTable personalities() {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(personality_body(), table) == TextTableError::None);
+    NpcPersonalityTable out;
+    REQUIRE(NpcPersonalityTable::parse(table, out) == NpcStatsError::None);
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("the header names the personalities, minus its approach reminder", "[npc]") {
+    // The columns read "Peasant BTB", "Thief BT" — the suffix repeats what the
+    // three rows below state exactly, so it is not part of the name.
+    const auto matrix = personalities();
+    REQUIRE(matrix.size() == 3);
+    REQUIRE(matrix.entries()[0].name == "Peasant");
+    REQUIRE(matrix.entries()[1].name == "Thief");
+    REQUIRE(matrix.entries()[2].name == "Evil Fanatic");
+}
+
+TEST_CASE("the first three rows say which approaches work", "[npc]") {
+    const auto matrix = personalities();
+    const auto& peasant = *matrix.find("Peasant");
+    REQUIRE(peasant.allows_approach(NpcApproach::Beg));
+    REQUIRE(peasant.allows_approach(NpcApproach::Bribe));
+    REQUIRE(peasant.allows_approach(NpcApproach::Threat));
+
+    const auto& thief = *matrix.find("Thief");
+    REQUIRE_FALSE(thief.allows_approach(NpcApproach::Beg));
+    REQUIRE(thief.allows_approach(NpcApproach::Bribe));
+}
+
+TEST_CASE("the profession table's Fanatic is this file's Evil Fanatic", "[npc]") {
+    // The two files are the only place either name appears, and every other
+    // personality matches outright; without the suffix match one profession of
+    // the twelve would resolve to nothing.
+    const auto matrix = personalities();
+    REQUIRE(matrix.find("Fanatic") != nullptr);
+    REQUIRE(matrix.find("Fanatic")->name == "Evil Fanatic");
+    REQUIRE(matrix.find("Merchant") == nullptr);
+}
+
+TEST_CASE("messages are keyed by their own number and share one note", "[npc]") {
+    const auto matrix = personalities();
+    REQUIRE(matrix.note(1) == "Rep ok, 1st greet");
+    REQUIRE(matrix.find("Peasant")->message(1) == "Good day!");
+    REQUIRE(matrix.find("Thief")->message(1) == "Name's Sam.");
+    REQUIRE(matrix.find("Peasant")->message(0).empty());
+    REQUIRE(matrix.find("Peasant")->message(99).empty());
+}
+
+TEST_CASE("n/a means the personality never says that line", "[npc]") {
+    // It appears exactly where the matrix makes the line impossible: a Peasant
+    // accepts begging so never refuses it, and a Thief refuses so never
+    // accepts. All 39 shipped pairs agree.
+    const auto matrix = personalities();
+    REQUIRE(matrix.find("Peasant")->message(2) == "Oh, all right.");
+    REQUIRE(matrix.find("Peasant")->message(3).empty());
+    REQUIRE(matrix.find("Thief")->message(2).empty());
+    REQUIRE(matrix.find("Thief")->message(3) == "I gave at the Guild.");
+}
+
+TEST_CASE("a table without the Msg# header is refused", "[npc]") {
+    TextTable table;
+    REQUIRE(TextTable::parse_body("a\tb\r\n1\t2\r\n", table) == TextTableError::None);
+    NpcPersonalityTable matrix;
+    REQUIRE(NpcPersonalityTable::parse(table, matrix) == NpcStatsError::NoHeader);
+}

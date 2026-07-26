@@ -10,7 +10,8 @@ Covers the container, the text format, and the nineteen tables parsed into
 typed rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
 `STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
 `SkillDes.txt`, `2DEvents.txt`, `NPCdata.txt`, `npcprof.txt`, `npctopic.txt`,
-`npctext.txt`, `NPCNews.txt`, `Quests.txt`, `Awards.txt` and `Autonote.txt`.
+`npctext.txt`, `NPCNews.txt`, `npcbtb.txt`, `GLOBAL.TXT`, `Quests.txt`,
+`Awards.txt` and `Autonote.txt`.
 The other 11 are readable through the same reader but not yet given typed
 views.
 
@@ -374,6 +375,55 @@ Reading it as a `MapStats.txt` id would appear to succeed, because every value
 falls inside 1..67. That is the trap: the range check passes and the meaning is
 still wrong. The value is kept as written and what it indexes is `unknown`.
 
+## `npcbtb.txt`: what works on whom, and how they say it
+
+The name is the file's own shorthand: **b**eg, **b**ribe, **t**hreat, the three
+ways a party can lean on an NPC. Twenty-eight rows, thirteen personality
+columns.
+
+The first column is either an approach name or a message number:
+
+| Rows | First cell | What the personality columns hold |
+| --- | --- | --- |
+| 1–3 | `Beg`, `Bribe`, `Threat` | `1` or `0` — whether that approach works |
+| 4–27 | `1`–`24` | that personality's wording for that message |
+
+The second column is a designers' note naming what the message is for — `"Rep
+ok, 1st greet"`, `"Beg return"`, `"I don't like threats"` — and is shared by
+every personality. `observed`
+
+### The header repeats the matrix, and the matrix repeats the messages
+
+The columns are headed `Peasant BTB`, `Thief BT`, `Sorcerer TB`, `Paladin Be` —
+a name and a reminder of which approaches work, spelled with the initials. The
+suffix is dropped; the three rows below state the same thing exactly.
+
+The messages say it a third time. Six of the twenty-four are an acceptance and
+a refusal for each approach, and a personality has the acceptance exactly where
+the matrix allows the approach and the refusal exactly where it does not; the
+impossible cell is written `n/a`. All **39 of 39** personality-and-approach
+pairs agree. `observed` — `data_info --personalities` prints the count.
+
+### Twelve personalities, and a thirteenth for monsters
+
+The professions in `npcprof.txt` name twelve personalities. All twelve are
+described here once `Evil Fanatic` is read as the professions' `Fanatic` —
+`12 of 12`, a suffix match on the one name the two files spell differently.
+The thirteenth column, `Monster`, no profession names; its wording is the
+hostile register (`"%02, eh?  I'll remember that."`). `observed`
+
+The prose carries the same `%01`-style placeholders as `npcprof.txt`.
+
+## `GLOBAL.TXT`: the interface's vocabulary
+
+596 numbered strings, ids **0 to 595** with no gaps: `AC`, `Accuracy`, `Add to
+Stat`, `Adventurer`, and on through every word the original drew on its panels
+and menus. Two columns, the id and the string. Ids start at zero, so a reader
+that treats a missing number as zero swallows the first string. `observed`
+
+What indexes them is `unknown` — nothing decoded so far references the table by
+id — but it is the label vocabulary any faithful interface needs.
+
 ## The journal: `Quests.txt`, `Awards.txt`, `Autonote.txt`
 
 Three tables keyed the same way. The game sets bit *N* when something happens
@@ -423,7 +473,9 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   `unknown`
 - The semantics of the monster columns tagged `inferred` above — `Pref`,
   `Bonus`, `Hst`, `Rec` — and of the `Misc Special` column. `unknown`
-- The 24 tables without typed views: spells, quests, NPC dialogue and shop
-  behaviour are readable but not yet modelled. `unknown`
+- What the `%01`-style placeholders in the NPC prose stand for. `unknown`
+- What indexes `GLOBAL.TXT` by id. `unknown`
+- The remaining tables without typed views — `npcnames.txt`, `PROFTEXT.txt`,
+  shop behaviour — are readable but not yet modelled. `unknown`
 - Where `MONSTERS.TXT`'s treasure codes (`"5%6D20+L2Bow"`) are interpreted, and
   how they index `ITEMS.TXT`. `unknown`

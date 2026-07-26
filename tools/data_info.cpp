@@ -1,15 +1,18 @@
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
+#include "core/data/interface_strings.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
@@ -45,6 +48,8 @@ void print_usage(const char* argv0) {
               << "  --quests [bit]     Quests.txt\n"
               << "  --awards           Awards.txt\n"
               << "  --autonotes        Autonote.txt\n"
+              << "  --personalities    npcbtb.txt reactions and phrasing\n"
+              << "  --strings [id]     GLOBAL.TXT interface words\n"
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
               << "  --skills           SkillDes.txt\n"
@@ -697,6 +702,101 @@ int do_journal(const std::string& label, const data::JournalTable& table, const 
     return 0;
 }
 
+int do_personalities(const std::filesystem::path& data_dir) {
+    data::NpcPersonalityTable personalities;
+    if (data::load_npc_personalities(data_dir, personalities) != data::GameDataError::None) {
+        std::cerr << "error: could not load npcbtb.txt\n";
+        return 1;
+    }
+    data::NpcProfessionTable professions;
+    (void)data::load_npc_professions(data_dir, professions);
+
+    // Every personality a profession names should be one this table describes.
+    std::set<std::string> named;
+    for (const auto& p : professions.entries()) {
+        if (!p.personality.empty()) {
+            named.insert(p.personality);
+        }
+    }
+    std::size_t matched = 0;
+    for (const auto& n : named) {
+        matched += personalities.find(n) != nullptr;
+    }
+    std::cout << personalities.size() << " personalities; " << matched << "/" << named.size()
+              << " of those the professions name are described here\n";
+
+    // The matrix and the messages say the same thing twice: a personality has
+    // an acceptance line exactly where the matrix allows the approach, and a
+    // refusal line exactly where it does not.
+    struct Pair {
+        data::NpcApproach approach;
+        const char* accepts;
+        const char* refuses;
+    };
+    static constexpr std::array<Pair, 3> kPairs{{
+        {data::NpcApproach::Beg, "I accept your beg", "I don't like begging"},
+        {data::NpcApproach::Bribe, "Thanks for the bribe", "I don't like bribes"},
+        {data::NpcApproach::Threat, "I accept your threat", "I don't like threats"},
+    }};
+    const auto numbered = [&](const char* note) {
+        for (int n = 1; n < 64; ++n) {
+            if (personalities.note(n) == note) {
+                return n;
+            }
+        }
+        return 0;
+    };
+    std::size_t agree = 0;
+    std::size_t pairs = 0;
+    for (const auto& pair : kPairs) {
+        const int accepts = numbered(pair.accepts);
+        const int refuses = numbered(pair.refuses);
+        for (const auto& p : personalities.entries()) {
+            ++pairs;
+            const bool allowed = p.allows_approach(pair.approach);
+            agree +=
+                !p.message(accepts).empty() == allowed && p.message(refuses).empty() == allowed;
+        }
+    }
+    std::cout << agree << "/" << pairs
+              << " personality and approach pairs agree with their messages\n";
+
+    for (const auto& p : personalities.entries()) {
+        std::cout << "  " << p.name << "\t";
+        std::cout << (p.allows_approach(data::NpcApproach::Beg) ? "beg " : "    ");
+        std::cout << (p.allows_approach(data::NpcApproach::Bribe) ? "bribe " : "      ");
+        std::cout << (p.allows_approach(data::NpcApproach::Threat) ? "threat" : "      ");
+        std::cout << "\t" << data::cp1252_to_utf8(std::string(p.message(1))).substr(0, 60) << "\n";
+    }
+    return 0;
+}
+
+int do_strings(const std::filesystem::path& data_dir, const std::string& want) {
+    data::InterfaceStrings strings;
+    if (data::load_interface_strings(data_dir, strings) != data::GameDataError::None) {
+        std::cerr << "error: could not load GLOBAL.TXT\n";
+        return 1;
+    }
+    if (!want.empty()) {
+        const int id = std::atoi(want.c_str());
+        const std::string_view text = strings.at(id);
+        if (text.empty()) {
+            std::cerr << "error: no string with id " << id << "\n";
+            return 1;
+        }
+        std::cout << id << "  " << data::cp1252_to_utf8(std::string(text)) << "\n";
+        return 0;
+    }
+    std::cout << strings.size() << " interface strings\n";
+    for (int id = 0; id < static_cast<int>(strings.size()); ++id) {
+        const std::string_view text = strings.at(id);
+        if (!text.empty()) {
+            std::cout << "  " << id << "\t" << data::cp1252_to_utf8(std::string(text)) << "\n";
+        }
+    }
+    return 0;
+}
+
 int do_professions(const std::filesystem::path& data_dir) {
     data::NpcProfessionTable professions;
     if (data::load_npc_professions(data_dir, professions) != data::GameDataError::None) {
@@ -856,6 +956,10 @@ int main(int argc, char** argv) {
         }
         return do_journal(command.substr(2), table, argument);
     }
+    if (command == "--personalities")
+        return do_personalities(data_dir);
+    if (command == "--strings")
+        return do_strings(data_dir, argument);
     if (command == "--professions")
         return do_professions(data_dir);
     if (command == "--classes")

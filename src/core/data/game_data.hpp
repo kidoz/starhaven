@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "core/data/building_stats.hpp"
+#include "core/data/interface_strings.hpp"
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/journal.hpp"
@@ -62,10 +63,18 @@ enum class GameDataError {
 [[nodiscard]] GameDataError load_npc_professions(const std::filesystem::path& data_dir,
                                                  NpcProfessionTable& out);
 
+// Load `npcbtb.txt`, the personality reaction and phrasing matrix.
+[[nodiscard]] GameDataError load_npc_personalities(const std::filesystem::path& data_dir,
+                                                   NpcPersonalityTable& out);
+
 // Load and merge `npctopic.txt` with `npctext.txt`, and load `NPCNews.txt`.
 [[nodiscard]] GameDataError load_npc_dialogue(const std::filesystem::path& data_dir,
                                               NpcDialogueTable& out);
 [[nodiscard]] GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable& out);
+
+// Load `Global.txt`, the interface's own words.
+[[nodiscard]] GameDataError load_interface_strings(const std::filesystem::path& data_dir,
+                                                   InterfaceStrings& out);
 
 // The three bit-keyed journal tables. Each knows its own column layout.
 [[nodiscard]] GameDataError load_quests(const std::filesystem::path& data_dir, JournalTable& out);
