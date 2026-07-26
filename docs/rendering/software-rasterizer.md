@@ -30,7 +30,7 @@ software-rendered look of the original game.
 (farthest) and a fragment passes when its interpolated NDC z is **less than**
 the stored value. This avoids the depth-precision quirks of flipping the range.
 
-## Frame pipeline (in `tools/walk_odm.cpp`)
+## Frame pipeline (in `src/main.cpp`)
 
 For each frame:
 1. Read keyboard input (WASD move, Q/E fly, arrows look, shift = fast).

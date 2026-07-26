@@ -1,7 +1,7 @@
 # Terrain coloring by tile type
 
 Status: **evidence-backed interim approach.** This documents the current
-terrain-coloring strategy in `walk_odm`: coloring each terrain cell by its
+terrain-coloring strategy in `starhaven`: coloring each terrain cell by its
 **tile-type index** rather than by a decoded ground-tile texture. The final
 tile-index→texture mapping is deferred (needs the `MM6.exe` tile-loader trace).
 
@@ -45,7 +45,7 @@ readable region map. `observed`.
 
 ## Update: the renderer now takes textures, the mapping still does not exist
 
-`walk_odm` no longer flat-shades the terrain. It samples a texture per cell
+`starhaven` no longer flat-shades the terrain. It samples a texture per cell
 through the perspective-correct textured rasterizer:
 
 - `TerrainMesh::uvs` carries per-vertex texture coordinates in **cell units**
@@ -77,5 +77,5 @@ trace (same category of work as the model-facet and event-record blockers).
 
 `TileSet` is the single seam where that lands. A real loader only has to
 populate a `TileSet` from the map's ground tileset name (e.g. `"grastyl"`) plus
-the tile-index→atlas-cell table; `walk_odm`, the mesh, and the rasterizer need
+the tile-index→atlas-cell table; `starhaven`, the mesh, and the rasterizer need
 no further change. `status: unresolved`.

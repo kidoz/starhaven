@@ -61,7 +61,7 @@ values are unknown.
 ## Where this lives
 
 `CollisionWorld` is engine code in `src/core/world/`. The player's proportions
-and the movement step are viewer policy, so they sit in `tools/walker_common.hpp`
+and the movement step are viewer policy, so they sit in `src/game/player.hpp`
 alongside the argument helpers — shared by both walkers without pretending they
 are engine behaviour.
 

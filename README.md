@@ -37,7 +37,7 @@ interoperability and compatibility with a legally purchased copy.
   128×128 terrain **heightmap** and **tile-type map**. Verified on all 15
   outdoor maps.
 - A **software rasterizer** (`math3d`, `rasterizer`, `terrain_mesh`) and a
-  **first-person 3D walker** (`walk_odm`) that renders an `.odm` heightmap as a
+  **first-person 3D walker** (`starhaven`) that renders an `.odm` heightmap as a
   shaded, walkable 3D heightfield — the first 3D view of a real game world.
   No OpenGL; the rasterizer is pure C++20 writing into an SDL3 texture.
 - A decoder for the `.odm` **model array** (placed props/buildings), confirmed
@@ -48,13 +48,13 @@ interoperability and compatibility with a legally purchased copy.
   between them. Facet records are a fixed 308 bytes carrying a 16.16
   fixed-point plane, a vertex-id list, per-vertex texture coordinates and a
   `BITMAPS.LOD` texture name. Verified across all 15 outdoor maps: 921 models,
-  37,187 facets. `walk_odm` renders the props **filled and textured**, so real
+  37,187 facets. `starhaven` renders the props **filled and textured**, so real
   MM6 houses, bridges and obelisks stand on the terrain.
 - A decoder for `.odm` **decorations** — the placed sprites (trees, cacti,
   rocks, pedestals, the party start marker). Found at a computed offset right
   after the model geometry, with a parallel name array that cross-checks it:
   all 15 maps, 6,210 placements, 85 type ids each mapping to exactly one name.
-  `walk_odm` draws them as camera-facing billboards.
+  `starhaven` draws them as camera-facing billboards.
 - **Real ground textures**: the `DTILE.BIN` global tile table (in `icons.lod`)
   resolves an `.odm` tilemap byte to a `BITMAPS.LOD` entry, so terrain is drawn
   with the game's own art rather than placeholder colors.
@@ -62,7 +62,7 @@ interoperability and compatibility with a legally purchased copy.
   maps, with their world positions, monster ids and variant numbers. 266 across 15 maps, of
   which 252 stand either on the terrain or inside a building footprint.
 - A decoder for `DMONLIST.BIN`, the **monster table** (173 records): each
-  monster's name and its eight animation sprite base names. `walk_odm` draws
+  monster's name and its eight animation sprite base names. `starhaven` draws
   actors as billboards, so MM6's townsfolk stand in the streets.
 - A decoder for `.ddm` (outdoor) and `.dlv` (indoor) **event-data files** — the
   map interaction scripts (triggers, spawns, actions). Same zlib wrapper as
@@ -82,7 +82,7 @@ interoperability and compatibility with a legally purchased copy.
   array, the 80-byte face records (16.16 plane, attributes, polygon size), the
   variable-length per-face index arrays (vertex ids and texture coordinates)
   the per-face texture names, and the face-extra array with its parallel names. Verified on all 52 maps: 114,833 vertices and
-  89,091 faces, rendered in 3D by `walk_blv`. Placed **decorations** (torches,
+  89,091 faces, rendered in 3D by `starhaven`. Placed **decorations** (torches,
   barrels, trees, and the party's start point) are located too — by scanning,
   since the sections that would give their offset are still undecoded.
 - A reader for the `.vid` video container (`Anims1.vid`, `Anims2.vid`) and a
@@ -120,7 +120,7 @@ interoperability and compatibility with a legally purchased copy.
   populated: the same actor, loot and chest arrays the outdoor files use, after
   a shorter prefix. All 52 indoor maps decode — 76 monsters, 219 loot objects
   and 1,040 chests — with every actor standing inside the level's own geometry
-  and every item id resolving in `ITEMS.TXT`. `walk_blv` draws them. The state
+  and every item id resolving in `ITEMS.TXT`. `starhaven` draws them. The state
   that follows is partly mapped too: a fixed 200-slot record array, then a
   region the writer trims to whatever it happened to fill.
 - A decoder for the **sound table** (`DSOUNDS.BIN`) and the **decoration table**
@@ -132,14 +132,17 @@ interoperability and compatibility with a legally purchased copy.
   dungeon's braziers are audible as you approach them.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
+- **`starhaven`, the engine itself**: `--maps` lists all 67 maps, and naming
+  one loads it and renders it as a walkable world — outdoor terrain with its
+  models or an indoor level's faces, with the map's music, ambient sound,
+  monsters, loot and animated decorations. Indoor and outdoor go through one
+  code path; the two separate walker programs this replaced are gone.
 - `lod_browser`, a CLI tool to list, inspect, and extract entries from your own
   archives — handles both standard `.LOD` archives and `Games.lod`.
 - `odm_info`, a CLI that decompresses one `.odm` outdoor map from `Games.lod`
   and prints its header metadata plus terrain (heightmap/tilemap) statistics.
 - `view_heightmap`, a CLI that renders an `.odm` heightmap as a grayscale image
   in an SDL3 window (a visual sanity check of terrain extraction).
-- `walk_odm`, a CLI that software-rasterizes an `.odm` map in 3D — textured
-  terrain plus every model's filled mesh — and lets you walk/fly around it.
 - `ddm_info`, a CLI that decompresses one `.ddm`/`.dlv` event-data file and
   reports non-expressive statistics (sizes, populated percentage).
 - `view_bitmap`, a CLI that decodes one `.LOD` image or sprite entry and shows
@@ -148,8 +151,6 @@ interoperability and compatibility with a legally purchased copy.
   and can dump a video's audio track to a WAV.
 - `blv_info`, a CLI that decompresses one `.blv` indoor map and prints its
   geometry statistics.
-- `walk_blv`, a CLI that renders a `.blv` indoor level in 3D — walls, floors and
-  decorations such as torches — and lets you walk through it.
 - `data_info`, a CLI that lists the design tables, dumps any of them, and
   cross-checks `MONSTERS.TXT` against `DMONLIST.BIN`.
 - `sft_info`, a CLI that lists the sprite animations, dumps one, and verifies
@@ -241,11 +242,10 @@ Inspect an outdoor map's header (decompresses it on the fly):
 ./buildDir/odm_info Outa1.odm   # header, terrain stats, model/facet counts
 ```
 
-Inspect an indoor map's geometry, or walk through it:
+Inspect an indoor map's geometry:
 
 ```bash
 ./buildDir/blv_info CD1.blv
-./buildDir/walk_blv CD1.blv     # WASD move, Q/E fly, arrows look, ESC quits
 ```
 
 Render an outdoor map's heightmap as a grayscale image (visual terrain check):
@@ -254,17 +254,19 @@ Render an outdoor map's heightmap as a grayscale image (visual terrain check):
 ./buildDir/view_heightmap Outa1.odm --scale 4
 ```
 
-Walk a 3D, software-rasterized view of an outdoor map — terrain and buildings:
+Walk any map, indoor or outdoor, in a 3D software-rasterized view:
 
 ```bash
-./buildDir/walk_odm Outa1.odm   # WASD move, Q/E fly, arrows look, ESC quits
+./buildDir/starhaven --maps      # the 67 maps, by file name and title
+./buildDir/starhaven Outa1.odm   # WASD move, Q/E fly, arrows look, ESC quits
+./buildDir/starhaven CD1.blv     # the same program reads indoor levels
 
 # Reproducible one-frame capture from a chosen viewpoint
-./buildDir/walk_odm Outa1.odm --pos 6600,900,10600 --look 200,-4 \
+./buildDir/starhaven Outa1.odm --pos 6600,900,10600 --look 200,-4 \
     --screenshot village.ppm
 
 # Overlay model bounding boxes (placement debugging)
-./buildDir/walk_odm Outa1.odm --boxes
+./buildDir/starhaven Outa1.odm --boxes
 ```
 
 Play a music track (`--list` shows all fifteen):
@@ -337,19 +339,21 @@ src/
     render/texture.{hpp,cpp}  sampled texture with repeat/clamp wrapping
     render/tile_set.{hpp,cpp} per-map set of resolved ground tile textures
     platform/paths.{hpp,cpp} portable install/data paths
+  game/player.hpp            player proportions and the movement step
+  game/music_player.hpp      per-map music playback
+  game/ambient_mixer.hpp     distance-mixed ambient sound
+  game/sprites.hpp           frame-table lookup for a drawable sprite
+  main.cpp                   the engine: load a map, render it, walk it
 tools/
   lod_browser.cpp            archive list/info/extract CLI (standard + Games.lod)
   view_bitmap.cpp            decode an image or sprite entry, show in SDL3
   odm_info.cpp               print one .odm map's header, terrain and mesh stats
   view_heightmap.cpp         render an .odm heightmap as grayscale in SDL3
-  walk_odm.cpp               first-person 3D walker (terrain + model meshes)
   tile_probe.cpp             ground tileset research probe
   play_smk.cpp               list and play the game's Smacker videos
   play_sound.cpp             list, play and dump the game's sound effects
   play_music.cpp             list and play the installation's music tracks
   blv_info.cpp               print one .blv indoor map's geometry stats
-  walk_blv.cpp               first-person 3D walker for indoor levels
-  walker_common.hpp          player proportions, movement step, CLI helpers
   ddm_info.cpp               decompress one .ddm/.dlv event file, print stats
 tests/                       hermetic Catch2 unit tests (synthetic fixtures)
 docs/
@@ -376,7 +380,7 @@ docs/
 14. ~~Decode the model geometry stream (facets); render filled, textured props.~~ ✓ (this slice)
 15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
 16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
-17. ~~Render indoor levels (`walk_blv`), with per-face texture coordinates.~~ ✓ (this slice)
+17. ~~Render indoor levels (`starhaven`), with per-face texture coordinates.~~ ✓ (this slice)
 18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) so decorations can be located by offset rather than by scanning.
 19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
 20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)

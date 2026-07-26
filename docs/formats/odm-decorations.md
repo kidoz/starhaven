@@ -24,7 +24,7 @@ Reproduce with:
 ```bash
 export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/odm_info Outa1.odm      # prints the decoration count
-./buildDir/walk_odm Outa1.odm      # draws them as billboards
+./buildDir/starhaven Outa1.odm      # draws them as billboards
 ```
 
 ## Location
