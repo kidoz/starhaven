@@ -126,6 +126,15 @@ exactly `2 × (vertex_count + 1)` in every one of the 11,710 faces sampled,
 which is what identifies each face as owning six `u16[vertex_count + 1]`
 arrays. `observed`
 
+They also give away **the address the payload was loaded at** in the process
+that wrote the file. A face's first pointer is that address plus its own
+array's offset in the index block, so subtracting the offset recovers it — and
+every face in a map agrees, on all 52 maps. `blv_info` reports it. `observed`
+
+That makes any other stale pointer in the file readable as a payload offset,
+which is worth having even though it has not yet cracked anything: see the open
+questions.
+
 The six arrays are, in order:
 
 | Index | Contents | Status |
@@ -383,6 +392,12 @@ is `unknown`. The API keeps this separate from `parse_blv` for that reason.
 - Whatever follows the decoration array — 32 KB on `d01.blv`, 70 KB on
   `CD1.blv`. `unknown`
 - The header fields at 0x00, 0x6C and 0x70. `unknown`
+- The region after the face extras — rooms, BSP, lights and doors — remains
+  undecoded. Reading its stale pointers through the recovered load address does
+  **not** open it: only 4% of the region's words map inside the payload at all,
+  and of those just 7 land on a face boundary, none of them a face carrying the
+  door or event bits. The pointers that are pointers mostly address other
+  allocations the process made, which are not in the file. `observed`
 - What arrays 1-3 of each face's six actually mean. `unknown`
 - The unknown spans inside the face record (+0x10, +0x38, +0x4E). `unknown`
 - Whether the `.dlv` files pair with `.blv` the way `.ddm` pairs with `.odm`.
