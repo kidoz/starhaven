@@ -7,6 +7,7 @@
 #include <span>
 
 #include "core/data/game_data.hpp"
+#include "core/data/monster_stats.hpp"
 #include "core/image/bitmap.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/world/map_event.hpp"
@@ -153,9 +154,11 @@ std::string actor_animation(const MapSession& session, assets::AssetCache& cache
     return {};
 }
 
-// Actors and loot come from the map's event file, whichever kind it is.
-void load_placed_things(const lod::GameLodArchive& archive, const std::string& map_name,
-                        assets::AssetCache& cache, MapSession& out) {
+// Actors and loot come from the map's event file, whichever kind it is. Their
+// names come from the design tables: a monster id is a 1-based MONSTERS.TXT
+// row, and a contained item id indexes ITEMS.TXT directly.
+void load_placed_things(const lod::GameLodArchive& archive, const std::filesystem::path& data_dir,
+                        const std::string& map_name, assets::AssetCache& cache, MapSession& out) {
     const std::string stem = stem_of(map_name);
     const std::string extension = out.outdoor() ? ".ddm" : ".dlv";
     std::span<const std::byte> entry;
@@ -164,16 +167,39 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::string& m
         parse_map_event(entry, file) != MapEventError::None) {
         return;
     }
+    data::TextTable monster_text;
+    data::MonsterStatsTable monster_stats;
+    if (data::load_text_table(data_dir, "MONSTERS.TXT", monster_text) ==
+        data::GameDataError::None) {
+        (void)data::MonsterStatsTable::parse(monster_text, monster_stats);
+    }
+    data::ItemStatsTable items;
+    (void)data::load_item_stats(data_dir, items);
+
     for (const auto& actor : extract_actors(file)) {
         std::string animation = actor_animation(out, cache, actor.monster_id);
         if (animation.empty()) {
             continue;
         }
-        out.actors.push_back({std::move(animation), to_render_space(actor.x, actor.y, actor.z)});
+        // An indoor unique carries its own name over a base monster's row, so
+        // prefer the record's name when it has one.
+        std::string name = actor.name;
+        if (name.empty() && actor.monster_id > 0 &&
+            actor.monster_id <= monster_stats.entries().size()) {
+            name = monster_stats.entries()[actor.monster_id - 1].name;
+        }
+        out.actors.push_back({std::move(animation), data::cp1252_to_utf8(name),
+                              to_render_space(actor.x, actor.y, actor.z)});
     }
     for (const auto& object : extract_sprite_objects(file)) {
+        std::string name;
+        if (const std::int32_t id = object.contained_item.item_id; id > 0) {
+            if (const auto* item = items.at(static_cast<std::size_t>(id)); item != nullptr) {
+                name = data::cp1252_to_utf8(item->name);
+            }
+        }
         out.objects.push_back(
-            {object.descriptor_index,
+            {object.descriptor_index, std::move(name),
              to_render_space(static_cast<int>(object.x), static_cast<int>(object.y),
                              static_cast<int>(object.z))});
     }
@@ -372,7 +398,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
         return e;
     }
 
-    load_placed_things(archive, out.file_name, cache, out);
+    load_placed_things(archive, data_dir, out.file_name, cache, out);
     return MapSessionError::None;
 }
 

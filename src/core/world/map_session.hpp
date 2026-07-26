@@ -40,12 +40,14 @@ struct SessionDecoration {
 // One monster standing on the map, already resolved to a drawable animation.
 struct SessionActor {
     std::string animation;  // empty when this install has no art for it
+    std::string name;       // the MONSTERS.TXT name for the actor's monster id
     render::Vec3 position;
 };
 
 // One loot object or projectile lying on the map.
 struct SessionObject {
     std::uint16_t descriptor_index = 0;
+    std::string name;  // the ITEMS.TXT name of what it is, when it is an item
     render::Vec3 position;
 };
 
