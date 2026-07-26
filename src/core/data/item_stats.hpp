@@ -1,12 +1,43 @@
 #ifndef STARHAVEN_CORE_DATA_ITEM_STATS_HPP
 #define STARHAVEN_CORE_DATA_ITEM_STATS_HPP
 
+#include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/data/text_table.hpp"
 
 namespace starhaven::data {
+
+// Numeric values stored in the executable's compiled ITEMS records. The first
+// twelve values also index SPCITEMS columns directly; equipment values 3..11
+// index STDITEMS after subtracting three.
+enum class ItemEquipType : std::uint8_t {
+    Weapon = 0,
+    TwoHandedWeapon = 1,
+    Missile = 2,
+    Armor = 3,
+    Shield = 4,
+    Helm = 5,
+    Belt = 6,
+    Cloak = 7,
+    Gauntlets = 8,
+    Boots = 9,
+    Ring = 10,
+    Amulet = 11,
+    Wand = 12,
+    Herb = 13,
+    Bottle = 14,
+    SpellScroll = 15,
+    Book = 16,
+    MessageScroll = 17,
+    Gold = 18,
+    Other = 19,
+};
+
+[[nodiscard]] ItemEquipType item_equip_type_from_name(std::string_view name) noexcept;
+[[nodiscard]] std::string_view item_equip_type_name(ItemEquipType type) noexcept;
 
 // One row of `ITEMS.TXT`. Names follow the shipped column headings where the
 // engine meaning has not yet been independently established.
@@ -16,6 +47,7 @@ struct ItemStatsEntry {
     std::string name;
     int value = 0;
     std::string equip_stat;
+    ItemEquipType equip_type = ItemEquipType::Other;
     std::string skill_group;
     std::string modifier_1;
     int modifier_2 = 0;
@@ -29,7 +61,7 @@ struct ItemStatsEntry {
     std::string notes;
 };
 
-enum class ItemStatsError {
+enum class ItemStatsError : std::uint8_t {
     None,
     // No row carries the expected "Item #" / "Pic File" header.
     NoHeader,

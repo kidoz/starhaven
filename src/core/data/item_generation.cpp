@@ -1,5 +1,6 @@
 #include "core/data/item_generation.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <utility>
 
@@ -80,6 +81,116 @@ std::optional<ItemBonusKind> classify_item_bonus(const ItemBonusChances& chances
         return ItemBonusKind::Special;
     }
     return ItemBonusKind::None;
+}
+
+ItemGenerationError generate_random_item(const RandomItemTable& random_items,
+                                         const ItemStatsTable& items,
+                                         const StandardBonusTable& standard_bonuses,
+                                         const SpecialBonusTable& special_bonuses,
+                                         std::size_t treasure_level, Mm6Random& random,
+                                         ArtifactGenerationState& artifacts,
+                                         GeneratedItem& out) noexcept {
+    out = {};
+    if (treasure_level == 0 || treasure_level > kTreasureLevelCount) {
+        return ItemGenerationError::BadTreasureLevel;
+    }
+
+    const int base_total = random_items.total_weight(treasure_level);
+    if (base_total <= 0) {
+        return ItemGenerationError::NoBaseWeight;
+    }
+
+    // The candidate draw occurs at every level even though only level 6 can
+    // award an artifact. This otherwise-unused call is part of MM6's sequence.
+    const std::size_t artifact_candidate = random.next() % kArtifactCandidateCount;
+    if (treasure_level == 6) {
+        const int artifact_roll = random.next() % 100;
+        const auto found_count = static_cast<std::size_t>(
+            std::count(artifacts.found.begin(), artifacts.found.end(), true));
+        if (artifact_roll < 5 && !artifacts.found[artifact_candidate] &&
+            found_count < kMaximumGeneratedArtifacts) {
+            artifacts.found[artifact_candidate] = true;
+            out.item_id = static_cast<int>(400 + artifact_candidate);
+            return ItemGenerationError::None;
+        }
+    }
+
+    const auto* base = random_items.select_for_roll(treasure_level, random.next() % base_total);
+    if (base == nullptr) {
+        return ItemGenerationError::NoBaseWeight;
+    }
+    const auto* item = items.at(static_cast<std::size_t>(base->id));
+    if (item == nullptr) {
+        return ItemGenerationError::MissingItemStats;
+    }
+
+    out.item_id = base->id;
+    out.identified = item->id_rep_st == 0;
+
+    const auto equip_type = static_cast<std::size_t>(item->equip_type);
+    const auto select_special = [&]() -> ItemGenerationError {
+        const int total = special_bonuses.total_weight(equip_type, treasure_level);
+        if (total <= 0) {
+            return ItemGenerationError::NoSpecialWeight;
+        }
+        const auto* bonus =
+            special_bonuses.select_for_roll(equip_type, treasure_level, random.next() % total);
+        if (bonus == nullptr) {
+            return ItemGenerationError::NoSpecialWeight;
+        }
+        out.special_bonus = bonus->id;
+        return ItemGenerationError::None;
+    };
+
+    const auto& chances = random_items.bonus_chances();
+    const std::size_t level_index = treasure_level - 1;
+    if (equip_type <= static_cast<std::size_t>(ItemEquipType::Missile)) {
+        const int special_chance = chances.weapon_special[level_index];
+        if (special_chance != 0 && random.next() % 100 < special_chance) {
+            return select_special();
+        }
+        return ItemGenerationError::None;
+    }
+
+    if (equip_type >= static_cast<std::size_t>(ItemEquipType::Armor) &&
+        equip_type <= static_cast<std::size_t>(ItemEquipType::Amulet)) {
+        const int standard_chance = chances.standard[level_index];
+        if (standard_chance == 0) {
+            return ItemGenerationError::None;
+        }
+
+        const int bonus_roll = random.next() % 100;
+        if (bonus_roll >= standard_chance) {
+            if (bonus_roll < standard_chance + chances.special[level_index]) {
+                return select_special();
+            }
+            return ItemGenerationError::None;
+        }
+
+        const std::size_t standard_type =
+            equip_type - static_cast<std::size_t>(ItemEquipType::Armor);
+        const int total = standard_bonuses.total_weight(standard_type);
+        if (total <= 0) {
+            return ItemGenerationError::NoStandardWeight;
+        }
+        const auto* bonus = standard_bonuses.select_for_roll(standard_type, random.next() % total);
+        if (bonus == nullptr) {
+            return ItemGenerationError::NoStandardWeight;
+        }
+        const auto* range = standard_bonuses.range(treasure_level);
+        if (range == nullptr || range->maximum < range->minimum) {
+            return ItemGenerationError::BadStandardRange;
+        }
+        const int width = range->maximum - range->minimum + 1;
+        out.standard_bonus = bonus->id;
+        out.standard_bonus_strength = range->minimum + random.next() % width;
+        return ItemGenerationError::None;
+    }
+
+    if (item->equip_type == ItemEquipType::Wand) {
+        out.charges = item->modifier_2 + random.next() % 6;
+    }
+    return ItemGenerationError::None;
 }
 
 RandomItemError RandomItemTable::parse(const TextTable& table, RandomItemTable& out) {

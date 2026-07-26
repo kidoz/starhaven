@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -23,7 +24,7 @@ using namespace starhaven;
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0 << " <--list | --maps | --monsters [name] | --items [id]"
               << " | --random-items [id] | --standard-bonuses [id]"
-              << " | --special-bonuses [id] | --check"
+              << " | --special-bonuses [id] | --generate-item LEVEL:SEED | --check"
               << " | <Table.txt>>\n"
               << "\n"
               << "Reads the tab-separated design tables shipped inside your own\n"
@@ -36,6 +37,7 @@ void print_usage(const char* argv0) {
               << "  --random-items [id] RNDITEMS.TXT weights, or one direct item id\n"
               << "  --standard-bonuses [id] STDITEMS.TXT selectors and strength ranges\n"
               << "  --special-bonuses [id] SPCITEMS.TXT one-based selectors\n"
+              << "  --generate-item LEVEL:SEED deterministic unrestricted item generation\n"
               << "  --check            cross-check MONSTERS.TXT against DMONLIST.BIN\n"
               << "  <Table.txt>        dump one table's cells\n"
               << "  --rows N           limit a dump to N rows\n"
@@ -364,6 +366,64 @@ int do_special_bonuses(const std::filesystem::path& data_dir, const std::string&
     return 0;
 }
 
+int do_generate_item(const std::filesystem::path& data_dir, const std::string& request) {
+    const std::size_t separator = request.find(':');
+    if (separator == std::string::npos) {
+        std::cerr << "error: item generation expects LEVEL:SEED\n";
+        return 2;
+    }
+
+    std::size_t level = 0;
+    std::uint32_t seed = 0;
+    const char* level_begin = request.data();
+    const char* level_end = level_begin + separator;
+    const char* seed_begin = level_end + 1;
+    const char* request_end = request.data() + request.size();
+    const auto level_result = std::from_chars(level_begin, level_end, level);
+    const auto seed_result = std::from_chars(seed_begin, request_end, seed);
+    if (level_result.ec != std::errc{} || level_result.ptr != level_end ||
+        seed_result.ec != std::errc{} || seed_result.ptr != request_end) {
+        std::cerr << "error: item generation expects decimal LEVEL:SEED\n";
+        return 2;
+    }
+
+    data::ItemStatsTable items;
+    data::RandomItemTable random_items;
+    data::StandardBonusTable standard_bonuses;
+    data::SpecialBonusTable special_bonuses;
+    if (data::load_item_stats(data_dir, items) != data::GameDataError::None ||
+        data::load_random_items(data_dir, random_items) != data::GameDataError::None ||
+        data::load_standard_bonuses(data_dir, standard_bonuses) != data::GameDataError::None ||
+        data::load_special_bonuses(data_dir, special_bonuses) != data::GameDataError::None) {
+        std::cerr << "error: could not load item-generation tables\n";
+        return 1;
+    }
+
+    Mm6Random random(seed);
+    data::ArtifactGenerationState artifacts;
+    data::GeneratedItem generated;
+    const auto error =
+        data::generate_random_item(random_items, items, standard_bonuses, special_bonuses, level,
+                                   random, artifacts, generated);
+    if (error != data::ItemGenerationError::None) {
+        std::cerr << "error: item generation failed (" << static_cast<int>(error) << ")\n";
+        return 1;
+    }
+
+    const auto* item = items.at(static_cast<std::size_t>(generated.item_id));
+    std::cout << "level " << level << ", seed " << seed << " -> item " << generated.item_id;
+    if (item != nullptr) {
+        std::cout << " (" << data::cp1252_to_utf8(item->name) << ", "
+                  << data::item_equip_type_name(item->equip_type) << ")";
+    }
+    std::cout << "\n  standard " << generated.standard_bonus << " strength "
+              << generated.standard_bonus_strength << ", special " << generated.special_bonus
+              << ", charges " << generated.charges << ", identified "
+              << (generated.identified ? "yes" : "no") << "\n"
+              << "  final random state " << random.state() << "\n";
+    return 0;
+}
+
 // The join this slice makes possible: MONSTERS.TXT's "Picture" column against
 // the DMONLIST.BIN names an actor record's monster id indexes.
 int do_check(const std::filesystem::path& data_dir) {
@@ -465,6 +525,8 @@ int main(int argc, char** argv) {
         return do_standard_bonuses(data_dir, argument);
     if (command == "--special-bonuses")
         return do_special_bonuses(data_dir, argument);
+    if (command == "--generate-item")
+        return do_generate_item(data_dir, argument);
     if (command == "--check")
         return do_check(data_dir);
     if (command.rfind("--", 0) == 0) {

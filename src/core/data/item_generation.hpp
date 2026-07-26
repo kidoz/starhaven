@@ -9,13 +9,17 @@
 #include <string_view>
 #include <vector>
 
+#include "core/data/item_stats.hpp"
 #include "core/data/text_table.hpp"
+#include "core/random.hpp"
 
 namespace starhaven::data {
 
 constexpr std::size_t kTreasureLevelCount = 6;
 constexpr std::size_t kStandardBonusItemTypeCount = 9;
 constexpr std::size_t kSpecialBonusItemTypeCount = 12;
+constexpr std::size_t kArtifactCandidateCount = 30;
+constexpr std::size_t kMaximumGeneratedArtifacts = 13;
 
 enum class ItemBonusKind : std::uint8_t {
     None,
@@ -176,6 +180,42 @@ public:
 private:
     std::vector<SpecialBonusEntry> entries_;
 };
+
+struct ArtifactGenerationState {
+    std::array<bool, kArtifactCandidateCount> found{};
+};
+
+// The six meaningful fields produced by the generator before an item is put
+// into a map, chest, or inventory record.
+struct GeneratedItem {
+    int item_id = 0;
+    int standard_bonus = 0;
+    int standard_bonus_strength = 0;
+    int special_bonus = 0;
+    int charges = 0;
+    bool identified = false;
+};
+
+enum class ItemGenerationError : std::uint8_t {
+    None,
+    BadTreasureLevel,
+    NoBaseWeight,
+    MissingItemStats,
+    NoStandardWeight,
+    BadStandardRange,
+    NoSpecialWeight,
+};
+
+// Reproduce the unrestricted random-item path used by deferred chest
+// placeholders. The caller owns both explicit random state and the set of
+// artifacts already generated, making the original process-global behavior
+// deterministic and testable.
+[[nodiscard]] ItemGenerationError
+generate_random_item(const RandomItemTable& random_items, const ItemStatsTable& items,
+                     const StandardBonusTable& standard_bonuses,
+                     const SpecialBonusTable& special_bonuses, std::size_t treasure_level,
+                     Mm6Random& random, ArtifactGenerationState& artifacts,
+                     GeneratedItem& out) noexcept;
 
 }  // namespace starhaven::data
 

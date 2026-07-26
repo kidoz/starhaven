@@ -42,6 +42,94 @@ std::string cell_text(const TextTable& table, std::size_t row, std::size_t colum
 
 }  // namespace
 
+ItemEquipType item_equip_type_from_name(std::string_view name) noexcept {
+    if (iequals(name, "weapon") || iequals(name, "weapon1or2"))
+        return ItemEquipType::Weapon;
+    if (iequals(name, "weapon2"))
+        return ItemEquipType::TwoHandedWeapon;
+    if (iequals(name, "missile"))
+        return ItemEquipType::Missile;
+    if (iequals(name, "armor"))
+        return ItemEquipType::Armor;
+    if (iequals(name, "shield"))
+        return ItemEquipType::Shield;
+    if (iequals(name, "helm"))
+        return ItemEquipType::Helm;
+    if (iequals(name, "belt"))
+        return ItemEquipType::Belt;
+    if (iequals(name, "cloak"))
+        return ItemEquipType::Cloak;
+    if (iequals(name, "gauntlets"))
+        return ItemEquipType::Gauntlets;
+    if (iequals(name, "boots"))
+        return ItemEquipType::Boots;
+    if (iequals(name, "ring"))
+        return ItemEquipType::Ring;
+    if (iequals(name, "amulet"))
+        return ItemEquipType::Amulet;
+    if (iequals(name, "weaponw"))
+        return ItemEquipType::Wand;
+    if (iequals(name, "herb"))
+        return ItemEquipType::Herb;
+    if (iequals(name, "bottle"))
+        return ItemEquipType::Bottle;
+    if (iequals(name, "sscroll"))
+        return ItemEquipType::SpellScroll;
+    if (iequals(name, "book"))
+        return ItemEquipType::Book;
+    if (iequals(name, "mscroll"))
+        return ItemEquipType::MessageScroll;
+    if (iequals(name, "gold"))
+        return ItemEquipType::Gold;
+    return ItemEquipType::Other;
+}
+
+std::string_view item_equip_type_name(ItemEquipType type) noexcept {
+    switch (type) {
+    case ItemEquipType::Weapon:
+        return "weapon";
+    case ItemEquipType::TwoHandedWeapon:
+        return "two-handed weapon";
+    case ItemEquipType::Missile:
+        return "missile";
+    case ItemEquipType::Armor:
+        return "armor";
+    case ItemEquipType::Shield:
+        return "shield";
+    case ItemEquipType::Helm:
+        return "helm";
+    case ItemEquipType::Belt:
+        return "belt";
+    case ItemEquipType::Cloak:
+        return "cloak";
+    case ItemEquipType::Gauntlets:
+        return "gauntlets";
+    case ItemEquipType::Boots:
+        return "boots";
+    case ItemEquipType::Ring:
+        return "ring";
+    case ItemEquipType::Amulet:
+        return "amulet";
+    case ItemEquipType::Wand:
+        return "wand";
+    case ItemEquipType::Herb:
+        return "herb";
+    case ItemEquipType::Bottle:
+        return "bottle";
+    case ItemEquipType::SpellScroll:
+        return "spell scroll";
+    case ItemEquipType::Book:
+        return "book";
+    case ItemEquipType::MessageScroll:
+        return "message scroll";
+    case ItemEquipType::Gold:
+        return "gold";
+    case ItemEquipType::Other:
+        return "other";
+    }
+    return {};
+}
+
 ItemStatsError ItemStatsTable::parse(const TextTable& table, ItemStatsTable& out) {
     out.entries_.clear();
 
@@ -73,6 +161,7 @@ ItemStatsError ItemStatsTable::parse(const TextTable& table, ItemStatsTable& out
         item.name = cell_text(table, row, kColName);
         item.value = table.cell_int(row, kColValue);
         item.equip_stat = cell_text(table, row, kColEquipStat);
+        item.equip_type = item_equip_type_from_name(item.equip_stat);
         item.skill_group = cell_text(table, row, kColSkillGroup);
         item.modifier_1 = cell_text(table, row, kColModifier1);
         item.modifier_2 = table.cell_int(row, kColModifier2);

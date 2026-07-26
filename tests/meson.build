@@ -8,6 +8,12 @@ test('byte_reader',
   workdir : meson.current_build_dir(),
 )
 
+test('random',
+  executable('test_random', 'test_random.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('lod_archive',
   executable('test_lod_archive', 'test_lod_archive.cpp',
     dependencies : [starhaven_dep, catch2_main]),

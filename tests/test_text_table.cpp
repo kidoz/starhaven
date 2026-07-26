@@ -17,6 +17,7 @@
 #include "core/data/text_table.hpp"
 
 using namespace starhaven::data;
+using starhaven::Mm6Random;
 
 namespace {
 
@@ -326,6 +327,7 @@ TEST_CASE("ITEMS rows parse into direct-id-addressable entries", "[item_stats]")
     REQUIRE(sword->name == "Long Sword");
     REQUIRE(sword->value == 100);
     REQUIRE(sword->equip_stat == "Attack");
+    REQUIRE(sword->equip_type == ItemEquipType::Other);
     REQUIRE(sword->skill_group == "Sword");
     REQUIRE(sword->modifier_1 == "Might");
     REQUIRE(sword->modifier_2 == 2);
@@ -338,6 +340,19 @@ TEST_CASE("ITEMS rows parse into direct-id-addressable entries", "[item_stats]")
     REQUIRE(sword->equip_y == 12);
     REQUIRE(sword->notes == "fixture note");
     REQUIRE(items.at(2) == nullptr);
+}
+
+TEST_CASE("ITEMS equip labels reproduce compiled generator types", "[item_stats]") {
+    REQUIRE(item_equip_type_from_name("Weapon") == ItemEquipType::Weapon);
+    REQUIRE(item_equip_type_from_name("weapon1or2") == ItemEquipType::Weapon);
+    REQUIRE(item_equip_type_from_name("WEAPON2") == ItemEquipType::TwoHandedWeapon);
+    REQUIRE(item_equip_type_from_name("Missile") == ItemEquipType::Missile);
+    REQUIRE(item_equip_type_from_name("Armor") == ItemEquipType::Armor);
+    REQUIRE(item_equip_type_from_name("Amulet") == ItemEquipType::Amulet);
+    REQUIRE(item_equip_type_from_name("WeaponW") == ItemEquipType::Wand);
+    REQUIRE(item_equip_type_from_name("Gold") == ItemEquipType::Gold);
+    REQUIRE(item_equip_type_from_name("unknown") == ItemEquipType::Other);
+    REQUIRE(item_equip_type_name(ItemEquipType::Gauntlets) == "gauntlets");
 }
 
 TEST_CASE("ITEMS rejects a missing header or non-contiguous ids", "[item_stats]") {
@@ -400,6 +415,51 @@ std::string special_bonuses_body() {
     s += "\r\n";
     s += "footer\tmust not parse\r\n";
     return s;
+}
+
+std::string generation_items_body(std::string_view equip_stat, int modifier_2 = 0,
+                                  int id_rep_st = 0) {
+    std::string s;
+    s += "Items\r\n";
+    s += "Item #\tPic File\tName\tValue\tEquip Stat\tSkill Group\tMod1\tMod2\tmaterial"
+         "\tID/Rep/St\tNot identified name\tSprite Index\tShape\tEquip X\tEquip Y\tNotes\r\n";
+    s += "0\tblank\t\t0\t0\t0\t0\t0\t0\t0\t\t0\t0\t0\t0\tplaceholder\r\n";
+    s += "1\tfixture\tFixture\t10\t";
+    s += equip_stat;
+    s += "\tMisc\t0\t";
+    s += std::to_string(modifier_2);
+    s += "\t1\t";
+    s += std::to_string(id_rep_st);
+    s += "\tFixture\t1\t0\t0\t0\tfixture\r\n";
+    return s;
+}
+
+std::string generation_random_items_body() {
+    return "Random items\r\n"
+           "Item #\tPic File\t1\t2\t3\t4\t5\t6\r\n"
+           "0\tblank\t0\t0\t0\t0\t0\t0\r\n"
+           "1\tfixture\t10\t10\t10\t10\t10\t10\r\n"
+           "\r\n"
+           "Bonus chance by level %\t\t1\t2\t3\t4\t5\t6\r\n"
+           "\tStandard\t0\t40\t40\t40\t40\t75\r\n"
+           "\tSpecial\t0\t0\t10\t15\t20\t25\r\n"
+           "Weapons\tSpecial %\t0\t0\t10\t20\t30\t50\r\n";
+}
+
+void load_generation_tables(std::string_view equip_stat, int modifier_2, int id_rep_st,
+                            ItemStatsTable& items, RandomItemTable& random_items,
+                            StandardBonusTable& standard_bonuses,
+                            SpecialBonusTable& special_bonuses) {
+    TextTable table;
+    REQUIRE(TextTable::parse_body(generation_items_body(equip_stat, modifier_2, id_rep_st),
+                                  table) == TextTableError::None);
+    REQUIRE(ItemStatsTable::parse(table, items) == ItemStatsError::None);
+    REQUIRE(TextTable::parse_body(generation_random_items_body(), table) == TextTableError::None);
+    REQUIRE(RandomItemTable::parse(table, random_items) == RandomItemError::None);
+    REQUIRE(TextTable::parse_body(standard_bonuses_body(), table) == TextTableError::None);
+    REQUIRE(StandardBonusTable::parse(table, standard_bonuses) == StandardBonusError::None);
+    REQUIRE(TextTable::parse_body(special_bonuses_body(), table) == TextTableError::None);
+    REQUIRE(SpecialBonusTable::parse(table, special_bonuses) == SpecialBonusError::None);
 }
 
 }  // namespace
@@ -541,4 +601,89 @@ TEST_CASE("SPCITEMS rejects unknown treasure classes", "[item_generation]") {
     REQUIRE(TextTable::parse_body(body, table) == TextTableError::None);
     SpecialBonusTable bonuses;
     REQUIRE(SpecialBonusTable::parse(table, bonuses) == SpecialBonusError::BadTreasureClass);
+}
+
+TEST_CASE("item generation preserves equipment random-call order", "[item_generation]") {
+    ItemStatsTable items;
+    RandomItemTable random_items;
+    StandardBonusTable standard_bonuses;
+    SpecialBonusTable special_bonuses;
+    load_generation_tables("Armor", 0, 0, items, random_items, standard_bonuses, special_bonuses);
+
+    ArtifactGenerationState artifacts;
+    Mm6Random random(1);
+    GeneratedItem item;
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 3, random,
+                                 artifacts, item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE(item.standard_bonus == 1);
+    REQUIRE(item.standard_bonus_strength == 8);
+    REQUIRE(item.special_bonus == 0);
+    REQUIRE(item.identified);
+    REQUIRE(random.state() == UINT32_C(0xCAE1DF84));
+
+    Mm6Random special_random(38);
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 3,
+                                 special_random, artifacts, item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE(item.standard_bonus == 0);
+    REQUIRE(item.special_bonus == 1);
+    REQUIRE(special_random.state() == UINT32_C(0xFD6B0CCA));
+}
+
+TEST_CASE("item generation preserves weapon and wand random-call order", "[item_generation]") {
+    ItemStatsTable items;
+    RandomItemTable random_items;
+    StandardBonusTable standard_bonuses;
+    SpecialBonusTable special_bonuses;
+    ArtifactGenerationState artifacts;
+    GeneratedItem item;
+
+    load_generation_tables("Weapon", 0, 3, items, random_items, standard_bonuses, special_bonuses);
+    Mm6Random weapon_random(1);
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 6,
+                                 weapon_random, artifacts, item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE(item.special_bonus == 2);
+    REQUIRE_FALSE(item.identified);
+    REQUIRE(weapon_random.state() == UINT32_C(0xCAE1DF84));
+
+    load_generation_tables("WeaponW", 7, 0, items, random_items, standard_bonuses, special_bonuses);
+    Mm6Random wand_random(1);
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 3,
+                                 wand_random, artifacts, item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE(item.charges == 11);
+    REQUIRE(wand_random.state() == UINT32_C(0x18BE873A));
+}
+
+TEST_CASE("level-six item generation tracks the thirteen-artifact cap", "[item_generation]") {
+    ItemStatsTable items;
+    RandomItemTable random_items;
+    StandardBonusTable standard_bonuses;
+    SpecialBonusTable special_bonuses;
+    load_generation_tables("Armor", 0, 0, items, random_items, standard_bonuses, special_bonuses);
+
+    ArtifactGenerationState artifacts;
+    Mm6Random random(17);
+    GeneratedItem item;
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 6, random,
+                                 artifacts, item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 404);
+    REQUIRE(artifacts.found[4]);
+    REQUIRE_FALSE(item.identified);
+    REQUIRE(random.state() == UINT32_C(0x67EA7713));
+
+    load_generation_tables("Herb", 0, 0, items, random_items, standard_bonuses, special_bonuses);
+    ArtifactGenerationState capped_artifacts;
+    for (std::size_t index = 5; index < 18; ++index) {
+        capped_artifacts.found[index] = true;
+    }
+    Mm6Random capped_random(17);
+    REQUIRE(generate_random_item(random_items, items, standard_bonuses, special_bonuses, 6,
+                                 capped_random, capped_artifacts,
+                                 item) == ItemGenerationError::None);
+    REQUIRE(item.item_id == 1);
+    REQUIRE_FALSE(capped_artifacts.found[4]);
+    REQUIRE(capped_random.state() == UINT32_C(0x7541458A));
 }

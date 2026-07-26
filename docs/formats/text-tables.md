@@ -35,6 +35,7 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --random-items 160
 ./buildDir/data_info --standard-bonuses 1
 ./buildDir/data_info --special-bonuses 16
+./buildDir/data_info --generate-item 6:1
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -204,8 +205,9 @@ negative chest values −1…−6 request deferred random generation.
 `STDITEMS.TXT` and `SPCITEMS.TXT` expose 14 and 59 one-based bonus selectors.
 Its footer also supplies the three six-level bonus-chance arrays; the typed
 views expose standard strength ranges, special treasure-class eligibility,
-and deterministic weighted selection. The complete column maps, binary joins,
-probability branches, and item-instance layout are documented in
+compiled equipment types, and deterministic generation using the shared
+random sequence. The complete column maps, binary joins, probability branches,
+and item-instance layout are documented in
 [`items.md`](items.md). `observed`
 
 ## Invalid-input behavior

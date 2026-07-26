@@ -173,9 +173,82 @@ remaining item-type weights, and uses a one-based cumulative draw. Unlike base
 and standard selection, it therefore has no roll-zero off-by-one quirk.
 `observed`
 
-The typed helpers accept a deterministic roll rather than owning random state.
-This separates the established probability behavior from the still-unresolved
-global random-call sequence.
+## Compiled equipment types
+
+The `Equip Stat` strings in `ITEMS.TXT` are compiled case-insensitively into
+the numeric types used by generation:
+
+| Value | Table labels | Generation behavior |
+| ---: | --- | --- |
+| 0 | `Weapon`, `Weapon1or2` | one-handed/special-weapon column |
+| 1 | `Weapon2` | two-handed/special-weapon column |
+| 2 | `Missile` | missile/special-weapon column |
+| 3–11 | `Armor`, `Shield`, `Helm`, `Belt`, `Cloak`, `Gauntlets`, `Boots`, `Ring`, `Amulet` | standard and special equipment columns |
+| 12 | `WeaponW` | wand charges |
+| 13–18 | `Herb`, `Bottle`, `Sscroll`, `Book`, `Mscroll`, `Gold` | no enchantment through this branch |
+| 19 | anything else | other/unknown |
+
+Values 0–11 index `SPCITEMS.TXT` directly. Values 3–11 index
+`STDITEMS.TXT` after subtracting three. `observed`
+
+The compiled `Mod2` byte supplies a wand's base charges. Generation adds
+`random % 6`, so a wand receives `Mod2…Mod2+5` charges. The compiled
+`ID/Rep/St` byte also controls the initial identified flag: zero starts
+identified, while a nonzero value starts unidentified. `observed`
+
+## Shared random sequence
+
+MM6 owns one process-wide 32-bit random state. Startup calls Windows
+`GetTickCount` once and passes that millisecond value to the only state setter.
+Every draw then performs unsigned 32-bit wraparound:
+
+```text
+state = state * 0x343fd + 0x269ec3
+result = (state >> 16) & 0x7fff
+```
+
+The result is therefore in `0…32767`. This is the familiar Microsoft C
+runtime LCG formula, but the executable carries its own state and functions.
+`observed`
+
+Starhaven exposes this as `Mm6Random(seed)`. It deliberately requires an
+explicit seed: choosing wall-clock time is application policy, while explicit
+state makes saved games, tests, and compatibility traces reproducible.
+
+### Unrestricted item-generation choreography
+
+The deferred chest-placeholder path uses the following calls in exact order:
+
+1. Draw `random % 30` for an artifact candidate at **every** treasure level.
+   Levels 1–5 ignore this candidate but still consume the draw.
+2. At treasure level 6 only, draw `random % 100`. Values 0–4 award candidate
+   item id `400 + candidate` if that artifact has not appeared and fewer than
+   13 of the 30 candidates have appeared. Success marks it found and returns
+   immediately.
+3. Otherwise draw `random % baseWeightTotal` and select the base item.
+4. Continue according to its compiled equipment type:
+
+| Selected type/path | Additional draws |
+| --- | --- |
+| weapon, zero special chance | none |
+| weapon, nonzero special chance | percentile; special selector only on success |
+| equipment, zero standard chance | none |
+| equipment, no bonus | one percentile |
+| equipment, standard bonus | percentile, standard selector, strength |
+| equipment, special bonus | percentile, special selector |
+| wand | charges modulo 6 |
+| other | none |
+
+Consequently an ordinary non-level-6 item consumes at least two calls, not
+one. A failed level-6 artifact attempt consumes three calls before any
+type-specific work; a successful artifact consumes exactly two. Zero chance
+entries skip their percentile draw. All modulo operations use the 15-bit
+result above. `observed`
+
+`generate_random_item` reproduces this unrestricted path with explicit random
+and artifact state. It is safe on malformed synthetic tables: instead of the
+original executable's possible divide-by-zero, it returns a typed error when a
+required weight total or strength range is unavailable.
 
 ## Joins in shipped outdoor maps
 
@@ -207,6 +280,7 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --random-items       # weights and footer chances
 ./buildDir/data_info --standard-bonuses  # ranges and item-type totals
 ./buildDir/data_info --special-bonuses   # class-filtered totals
+./buildDir/data_info --generate-item 6:1 # deterministic level:seed probe
 ./buildDir/ddm_info outb2.ddm
 ```
 
@@ -216,9 +290,9 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 
 - Meanings of flag bits above bit 1 and direct MM6 evidence for `+0x18`.
 - The complete item-type-dependent interpretation of overloaded fields.
-- Mapping every `ITEMS.TXT` equipment label to the generator's compiled type,
-  especially hybrid one-or-two-handed weapons.
-- The shared random generator's seed ownership and exact call sequence around
-  map population.
+- How map population interleaves generator calls with other users of the
+  process-wide random state.
+- The restricted item-category argument accepted by the generator's non-chest
+  callers.
 - How the abbreviated modifier and material columns in `ITEMS.TXT` drive
   gameplay.

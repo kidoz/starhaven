@@ -27,6 +27,7 @@ minimp3_dep = dependency('minimp3', fallback: ['minimp3', 'minimp3_dep'])
 # Core engine library. Reused by the application, tools, and tests so that
 # parser behavior is exercised by the same code path in every target.
 starhaven_core_sources = files(
+  'src/core/random.cpp',
   'src/core/io/byte_reader.cpp',
   'src/core/lod/lod_archive.cpp',
   'src/core/lod/game_lod_archive.cpp',
