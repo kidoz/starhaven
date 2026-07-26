@@ -6,12 +6,13 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the sixteen tables parsed into typed
-rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
+Covers the container, the text format, and the nineteen tables parsed into
+typed rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
 `STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
 `SkillDes.txt`, `2DEvents.txt`, `NPCdata.txt`, `npcprof.txt`, `npctopic.txt`,
-`npctext.txt` and `NPCNews.txt`. The other 14 are readable through the same
-reader but not yet given typed views.
+`npctext.txt`, `NPCNews.txt`, `Quests.txt`, `Awards.txt` and `Autonote.txt`.
+The other 11 are readable through the same reader but not yet given typed
+views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -45,6 +46,8 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 ./buildDir/data_info --professions
 ./buildDir/data_info --dialogue 296
 ./buildDir/data_info --news
+./buildDir/data_info --quests 81
+./buildDir/data_info --autonotes
 ./buildDir/data_info --check          # joins MONSTERS.TXT to DMONLIST.BIN
 ./buildDir/data_info Spells.txt --rows 10
 ```
@@ -370,6 +373,36 @@ the Wolf, map 32, has value 30. `observed`
 Reading it as a `MapStats.txt` id would appear to succeed, because every value
 falls inside 1..67. That is the trap: the range check passes and the meaning is
 still wrong. The value is kept as written and what it indexes is `unknown`.
+
+## The journal: `Quests.txt`, `Awards.txt`, `Autonote.txt`
+
+Three tables keyed the same way. The game sets bit *N* when something happens
+and the journal shows line *N*, so the numbering is the interface and a line
+with nothing written is still a line.
+
+| Table | Bits | With text | Columns |
+| --- | ---: | ---: | --- |
+| `Quests.txt` | 512 | **52** | bit, note text, designers' notes, an older wording |
+| `Awards.txt` | 100 | 86 | bit, award, designers' notes |
+| `Autonote.txt` | 128 | 125 | bit, note text, category |
+
+### Most quest bits have no quest text
+
+Only 52 of the 512 carry player-facing text. All 512 carry a designers' note —
+`" 1 D09, key to open D05"` — and 238 carry an "Old Quest Note Text", of which
+43 are just the designers' note repeated. Where the other 460 bits get their
+wording from is `unknown`; it is not in this table. `observed`
+
+Autonotes are categorised: `Stat`, `Teacher`, and others, which is presumably
+how the journal groups them. `inferred`
+
+### `Autonotes.txt` is an older copy
+
+The archive holds both `Autonote.txt` (128 entries) and `Autonotes.txt` (116).
+They share 116 bits, 114 of them word for word; the two that differ are less
+specific in the shorter file — `"10 Hit points cured by the right side pool."`
+against `"…by the right side pool in Snergle's Iron Mines."`. `Autonote.txt` is
+the later one and the one StarHaven reads. `observed`
 
 ## Invalid-input behavior
 

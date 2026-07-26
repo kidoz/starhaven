@@ -154,6 +154,10 @@ interoperability and compatibility with a legally purchased copy.
   profession resolving to `npcprof.txt`. Each person's conversation topics are
   listed beside them, from `npctopic.txt` and `npctext.txt` — all 298 of the
   NPC table's references resolve, and all 298 have words.
+- Typed views over the **journal**: `Quests.txt`, `Awards.txt` and
+  `Autonote.txt` — 512 quest bits, 100 awards and 128 categorised automatic
+  notes. Only 52 quest bits carry player-facing text; the rest are recorded as
+  the blanks they are.
 - Typed views over the **character tables**: `Spells.txt` (99 spells across
   nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
   and `SkillDes.txt`. `data_info --spells Fireball` prints one.
