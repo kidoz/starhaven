@@ -130,6 +130,11 @@ interoperability and compatibility with a legally purchased copy.
   `campfire`, a fountain to `fountain`, a cauldron to `bubbling cauldron01`.
   Both walkers mix those sounds by distance, so New Sorpigal's fountains and a
   dungeon's braziers are audible as you approach them.
+- A decoder for the game's **bitmap fonts** and text drawing in the engine.
+  Thirteen of the fourteen `.FNT` entries decode — 225 glyphs each, heights 14
+  to 30 — and the engine draws the map's name in the game's own typeface.
+  `font_info <font> <text>` renders a string as ASCII art, which is how the
+  format was verified.
 - A portable install/data-path layer (no drive letters, registry, or hardcoded
   paths).
 - **`starhaven`, the engine itself**: `--maps` lists all 67 maps, and naming
@@ -155,6 +160,7 @@ interoperability and compatibility with a legally purchased copy.
   cross-checks `MONSTERS.TXT` against `DMONLIST.BIN`.
 - `sft_info`, a CLI that lists the sprite animations, dumps one, and verifies
   the frame table against itself, `SPRITES.LOD` and `DMONLIST.BIN`.
+- `font_info`, a CLI that lists the bitmap fonts and draws text as ASCII art.
 - A hermetic Catch2 unit-test suite with synthetic fixtures (no game content).
 
 The format specs are documented from observed behavior in

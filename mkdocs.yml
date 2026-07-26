@@ -16,6 +16,7 @@ nav:
       - Games.lod: formats/games-lod.md
       - Bitmaps: formats/bitmap.md
       - Sprites: formats/sprite.md
+      - Bitmap fonts: formats/font.md
       - Outdoor maps: formats/odm.md
       - Outdoor terrain: formats/odm-terrain.md
       - Outdoor models: formats/odm-models.md
