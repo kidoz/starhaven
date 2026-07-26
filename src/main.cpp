@@ -352,8 +352,14 @@ void draw_directory(render::SceneRenderer& scene, const image::Font& font,
     int y = 36;
     for (int i = 0; i < rows; ++i) {
         const auto& b = session.buildings[static_cast<std::size_t>(i)];
-        const std::string line = b.name + "  (" + b.type + ", " + std::to_string(b.opens) + "-" +
-                                 std::to_string(b.closes) + ")";
+        std::string line = b.name + "  (" + b.type + ", " + std::to_string(b.opens) + "-" +
+                           std::to_string(b.closes) + ")";
+        if (!b.occupants.empty()) {
+            line += "  \x97 " + b.occupants.front();
+            if (b.occupants.size() > 1) {
+                line += " +" + std::to_string(b.occupants.size() - 1);
+            }
+        }
         game::draw_text(scene.framebuffer(), font, 8, y, line, render::Color{220, 220, 220, 255},
                         render::Color{0, 0, 0, 255});
         y += line_height;

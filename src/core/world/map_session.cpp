@@ -9,6 +9,7 @@
 #include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/npc_stats.hpp"
 #include "core/image/bitmap.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/world/map_event.hpp"

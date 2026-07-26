@@ -54,6 +54,9 @@ struct SessionBuilding {
     std::string proprietor;
     int opens = 0;
     int closes = 0;
+
+    // The people the NPC table places inside, as "Name, Profession".
+    std::vector<std::string> occupants;
 };
 
 // One loot object or projectile lying on the map.
