@@ -69,3 +69,16 @@ count.
 - The remaining actor state and the roles of the repeated position triples.
 - The `variant` byte at `+0x35`, which ranges well past the three A/B/C
   variants.
+
+## What an actor record holds beyond its name and position
+
+The 548-byte record carries **three copies of the position**: at 0x7E, 0x92 and
+0x98. They are identical on **94 of 96** actors across the outdoor maps
+sampled, which is what a current, a previous and a home position look like in a
+file shipped before anything has moved. `inferred`
+
+The 14 bytes between the first copy and the second — 0x84 to 0x91, where a
+velocity and a facing would sit — are **zero on all 96**. `observed` So the
+file has room for which way an actor faces and how fast it is going, and ships
+neither: both are runtime state. An engine that makes monsters move and turn is
+not contradicting the data, and is not reproducing it either.

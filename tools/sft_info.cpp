@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -6,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "core/image/palette.hpp"
 #include "core/image/sprite.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
@@ -215,6 +217,79 @@ int do_check(const std::filesystem::path& data_dir, lod::LodArchive& icons,
     return failures == 0 ? 0 : 1;
 }
 
+// Research mode: are the five views of a directional sprite compass headings,
+// or angles relative to whoever is looking?
+//
+// A front or back view of a two-legged, two-armed creature is close to
+// left-right symmetric; a profile is not. Measuring symmetry per view index
+// answers the question without looking at a single picture.
+int do_views(const std::filesystem::path& data_dir, const world::SpriteFrameTable& table) {
+    lod::LodArchive sprites;
+    if (lod::LodArchive::open(data_dir / "SPRITES.LOD", sprites) != lod::LodError::None) {
+        std::cerr << "error: cannot open SPRITES.LOD\n";
+        return 1;
+    }
+    // Only the silhouette matters, so any palette will do.
+    image::Palette palette{};
+
+    std::array<double, world::kSpriteViewCount> total{};
+    std::array<std::size_t, world::kSpriteViewCount> counted{};
+    std::size_t groups = 0;
+
+    for (const auto& frame : table.frames()) {
+        if (!frame.view_directional()) {
+            continue;
+        }
+        std::array<double, world::kSpriteViewCount> score{};
+        bool complete = true;
+        for (int view = 0; view < world::kSpriteViewCount && complete; ++view) {
+            std::span<const std::byte> raw;
+            image::Sprite decoded;
+            if (sprites.payload(world::SpriteFrameTable::sprite_entry(frame, view), raw) !=
+                    lod::LodArchive::PayloadError::None ||
+                image::decode_sprite(raw, palette, decoded) != image::SpriteError::None ||
+                decoded.width == 0) {
+                complete = false;
+                break;
+            }
+            // The fraction of opaque pixels whose mirror image is also opaque.
+            std::size_t opaque = 0;
+            std::size_t mirrored = 0;
+            for (int y = 0; y < decoded.height; ++y) {
+                for (int x = 0; x < decoded.width; ++x) {
+                    const std::size_t i = (static_cast<std::size_t>(y) * decoded.width + x) * 4 + 3;
+                    if (decoded.rgba[i] == 0) {
+                        continue;
+                    }
+                    ++opaque;
+                    const int mx = decoded.width - 1 - x;
+                    const std::size_t j =
+                        (static_cast<std::size_t>(y) * decoded.width + mx) * 4 + 3;
+                    mirrored += decoded.rgba[j] != 0 ? 1 : 0;
+                }
+            }
+            score[static_cast<std::size_t>(view)] =
+                opaque == 0 ? 0.0 : static_cast<double>(mirrored) / static_cast<double>(opaque);
+        }
+        if (!complete) {
+            continue;
+        }
+        ++groups;
+        for (int view = 0; view < world::kSpriteViewCount; ++view) {
+            total[static_cast<std::size_t>(view)] += score[static_cast<std::size_t>(view)];
+            ++counted[static_cast<std::size_t>(view)];
+        }
+    }
+
+    std::cout << groups << " directional frames have all five views\n";
+    for (int view = 0; view < world::kSpriteViewCount; ++view) {
+        const auto i = static_cast<std::size_t>(view);
+        std::cout << "  view " << view << ": mean symmetry "
+                  << (counted[i] == 0 ? 0.0 : total[i] / static_cast<double>(counted[i])) << "\n";
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -253,6 +328,8 @@ int main(int argc, char** argv) {
         return do_list(table, limit);
     if (command == "--check")
         return do_check(data_dir, icons, table);
+    if (command == "--views")
+        return do_views(data_dir, table);
     if (command.rfind("--", 0) == 0) {
         print_usage(argv[0]);
         return 2;

@@ -81,7 +81,7 @@ void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world, std::span<cons
 }
 
 void SceneRenderer::draw_billboard(Vec3 base, float width, float height, const Texture& texture,
-                                   float shade) {
+                                   float shade, bool mirror) {
     if (texture.empty() || width <= 0.0f || height <= 0.0f) {
         return;
     }
@@ -92,12 +92,14 @@ void SceneRenderer::draw_billboard(Vec3 base, float width, float height, const T
     const Vec3 tl{bl.x, bl.y + height, bl.z};
 
     // Two triangles, with the texture spanning the quad exactly once.
+    const float u0 = mirror ? 1.0f : 0.0f;
+    const float u1 = mirror ? 0.0f : 1.0f;
     const std::array<Vec3, 3> first = {tl, bl, br};
-    const std::array<Vec2, 3> first_uv = {Vec2{0, 0}, Vec2{0, 1}, Vec2{1, 1}};
+    const std::array<Vec2, 3> first_uv = {Vec2{u0, 0}, Vec2{u0, 1}, Vec2{u1, 1}};
     draw_triangle(first, first_uv, shade, texture, WrapMode::Clamp, false);
 
     const std::array<Vec3, 3> second = {tl, br, tr};
-    const std::array<Vec2, 3> second_uv = {Vec2{0, 0}, Vec2{1, 1}, Vec2{1, 0}};
+    const std::array<Vec2, 3> second_uv = {Vec2{u0, 0}, Vec2{u1, 1}, Vec2{u1, 0}};
     draw_triangle(second, second_uv, shade, texture, WrapMode::Clamp, false);
 }
 

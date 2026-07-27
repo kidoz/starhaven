@@ -29,6 +29,7 @@
 #include "core/world/map_session.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/inspect.hpp"
+#include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/player.hpp"
 #include "game/sprites.hpp"
@@ -181,10 +182,12 @@ void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
 // Decorations, monsters and loot are all camera-facing billboards that pick
 // their current picture out of the sprite frame table.
 void draw_billboards(render::SceneRenderer& scene, const world::MapSession& session,
-                     assets::AssetCache& cache, std::uint32_t ticks) {
-    auto draw = [&](const std::string& animation, const render::Vec3& position, float scale) {
+                     assets::AssetCache& cache, std::uint32_t ticks, const game::Mob& mob,
+                     const render::Vec3& eye) {
+    auto draw = [&](const std::string& animation, const render::Vec3& position, float scale,
+                    game::SpriteView view = {}) {
         const game::SpriteChoice pick =
-            game::choose_sprite(session.sprite_frames, animation, ticks);
+            game::choose_sprite(session.sprite_frames, animation, ticks, view.index);
         if (pick.entry.empty()) {
             return;
         }
@@ -194,14 +197,18 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
         }
         const float size = scale * pick.scale;
         scene.draw_billboard(position, static_cast<float>(tex.width()) * size,
-                             static_cast<float>(tex.height()) * size, tex);
+                             static_cast<float>(tex.height()) * size, tex, 1.0f, view.mirror);
     };
 
     for (const auto& d : session.decorations) {
         draw(d.name, d.position, kDecorationScale);
     }
-    for (const auto& a : session.actors) {
-        draw(a.animation, a.position, kActorScale);
+    // A monster is drawn from the side you are standing on: the view is the
+    // angle between where it faces and where you are.
+    for (std::size_t i = 0; i < session.actors.size(); ++i) {
+        const auto& a = session.actors[i];
+        const float to_eye = std::atan2(eye.z - a.position.z, eye.x - a.position.x);
+        draw(a.animation, a.position, kActorScale, game::sprite_view(mob.facing(i), to_eye));
     }
     for (const auto& o : session.objects) {
         const auto* descriptor = session.object_descriptors.at(o.descriptor_index);
@@ -525,6 +532,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    // The tables the inspect panel reads. Both are already decoded; this is
+    // the first thing that shows them.
+    data::MonsterStatsTable monster_stats;
+    {
+        data::TextTable table;
+        if (data::load_text_table(data_dir, "MONSTERS.TXT", table) == data::GameDataError::None) {
+            (void)data::MonsterStatsTable::parse(table, monster_stats);
+        }
+    }
+
     // Benchmark mode: render frames into the framebuffer and report where the
     // time goes. It opens no window — what is being measured is the software
     // rasterizer, not the compositor — which also makes it usable anywhere.
@@ -534,6 +551,12 @@ int main(int argc, char** argv) {
             session.outdoor() ? render::Vec3{0.4f, 1.0f, 0.3f} : render::Vec3{0.3f, 1.0f, 0.2f});
         const render::Color bench_sky =
             session.outdoor() ? render::Color{135, 180, 220, 255} : render::Color{16, 16, 24, 255};
+
+        // The monsters stand still through a benchmark, but they are drawn
+        // from whichever side they face, as they are in the game.
+        game::Mob bench_mob;
+        bench_mob.reset(session, monster_stats,
+                        static_cast<std::uint32_t>(session.actors.size()) + 1u);
 
         std::vector<double> geometry;
         std::vector<double> billboards;
@@ -551,7 +574,8 @@ int main(int argc, char** argv) {
             const auto t1 = std::chrono::steady_clock::now();
             // Animation time advances with the frame so the billboard work is
             // not measured on one cached sprite.
-            draw_billboards(bench_scene, session, cache, static_cast<std::uint32_t>(i));
+            draw_billboards(bench_scene, session, cache, static_cast<std::uint32_t>(i), bench_mob,
+                            camera.position);
             const auto t2 = std::chrono::steady_clock::now();
 
             using ms = std::chrono::duration<double, std::milli>;
@@ -618,19 +642,14 @@ int main(int argc, char** argv) {
 
     const image::Font font = load_font(data_dir, "Lucida.fnt");
 
-    // The tables the inspect panel reads. Both are already decoded; this is
-    // the first thing that shows them.
-    data::MonsterStatsTable monster_stats;
-    {
-        data::TextTable table;
-        if (data::load_text_table(data_dir, "MONSTERS.TXT", table) == data::GameDataError::None) {
-            (void)data::MonsterStatsTable::parse(table, monster_stats);
-        }
-    }
     data::ItemStatsTable item_stats;
     (void)data::load_item_stats(data_dir, item_stats);
     data::SpellStatsTable spell_stats;
     (void)data::load_spell_stats(data_dir, spell_stats);
+
+    // The monsters start where the map put them and wander from there.
+    game::Mob mob;
+    mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
 
     render::SceneRenderer scene(kWidth, kHeight);
 
@@ -687,7 +706,9 @@ int main(int argc, char** argv) {
         } else {
             draw_indoor(scene, session, cache, light);
         }
-        draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()));
+        mob.update(in.dt, session, camera.position);
+        draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
+                        camera.position);
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }

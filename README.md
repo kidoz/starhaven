@@ -161,6 +161,13 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **Monsters that move, and that are drawn from the side you see them from**:
+  each wanders near where it started, as far and as fast as its `MONSTERS.TXT`
+  row says, and turns toward you — or away, if it is a Wimp — when you come
+  within range its AI type decides. The frame table's five views turned out to
+  be angles relative to the viewer rather than compass headings, measured by
+  the left-right symmetry of all 1,153 directional frames, so a monster now
+  shows you its front, its profile or its back.
 - **Monsters, spawned the way the map asks for them**: an outdoor map ships no
   wandering monsters, only places where they appear. Each spawn point names one
   of the map's three `MapStats.txt` encounter slots, the slot names a monster

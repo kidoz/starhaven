@@ -194,12 +194,37 @@ The parser rejects, deterministically and without reading out of bounds:
 A group whose length is zero is treated as a still image rather than divided
 by, so a hand-made table cannot make the animation code fault.
 
+## The five views are relative to the viewer
+
+A front or back view of a two-legged, two-armed creature is close to left-right
+symmetric; a profile is not. Measuring that over all **1,153** directional
+frames that have their five views answers the question without looking at a
+picture:
+
+| View | Mean symmetry |
+| --- | ---: |
+| 0 | 0.818 |
+| 1 | 0.631 |
+| 2 | 0.564 |
+| 3 | 0.631 |
+| 4 | 0.813 |
+
+The curve is symmetric about view 2 and views 1 and 3 agree to three decimal
+places. That is what relative angles look like: view 0 faces the viewer, view 4
+faces away, view 2 is the profile, and views 1 and 3 are the two half-turns
+between — the same two angles seen from opposite sides. Compass headings would
+have no reason to pair up this way. `observed`
+
+Five views therefore cover half a circle, and the other half is the same five
+**mirrored**. Which side is mirrored is `unknown` — nothing in the table says,
+and a sprite drawn on the wrong side is not something the data can contradict.
+
+Reproduce with `sft_info --views`.
+
 ## Open questions
 
 - The flag bits outside 0x1, 0x4, 0x10 and 0xE000 — including 0x0020, and the
   high bits that appear on 933 frames. `unknown`
-- Whether a directional sprite's five views are absolute compass headings or
-  relative to the viewer. `unknown`
 - The real length of a time unit. `inferred`
 - The sibling tables in the same archive that share this container:
   `DOBJLIST.BIN` (232 × 52), `DCHEST.BIN` (8 × 36), `DIFT.BIN` (61 × 32),

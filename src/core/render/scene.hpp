@@ -65,8 +65,10 @@ public:
     // Rasterize a camera-facing quad standing on `base`, `width` wide and
     // `height` tall. Fully transparent texels are skipped by the rasterizer,
     // which is what gives sprites their cut-out silhouette.
+    // `mirror` flips the texture left to right, which is how a sprite with
+    // five views covers the whole circle: see docs/formats/dsft.md.
     void draw_billboard(Vec3 base, float width, float height, const Texture& texture,
-                        float shade = 1.0f);
+                        float shade = 1.0f, bool mirror = false);
 
     // Project a world point for overlay drawing (lines, points). Returns false
     // when the point is behind the camera.

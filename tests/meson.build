@@ -200,6 +200,12 @@ test('interface_strings',
   workdir : meson.current_build_dir(),
 )
 
+test('monster_ai',
+  executable('test_monster_ai', 'test_monster_ai.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('monster_spawn',
   executable('test_monster_spawn', 'test_monster_spawn.cpp',
     dependencies : [starhaven_dep, catch2_main]),
