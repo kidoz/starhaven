@@ -31,6 +31,7 @@
 #include "game/inspect.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
+#include "game/party.hpp"
 #include "game/player.hpp"
 #include "game/sprites.hpp"
 #include "game/text.hpp"
@@ -63,6 +64,7 @@ void print_usage(const char* argv0) {
               << "  Mouse      look around\n"
               << "  Arrows     look left/right/up/down\n"
               << "  Tab        list the establishments on this map\n"
+              << "  C          the character sheet; 1-4 choose a character\n"
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
@@ -72,6 +74,7 @@ void print_usage(const char* argv0) {
               << "  --bench N           render N frames, report timings, and exit\n"
               << "  --boxes             overlay model bounding boxes\n"
               << "  --labels            name the monsters and loot in the world\n"
+              << "  --sheet N           open character N's sheet (1-4)\n"
               << "  --fly               disable gravity and collision\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
@@ -221,6 +224,149 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
             continue;
         }
         draw(frame.group_name, o.position, kObjectScale);
+    }
+}
+
+// Draw a decoded bitmap straight into the framebuffer, one pixel to one
+// pixel. The portraits are 59x79 and belong on the panel at their own size.
+void blit(render::Framebuffer& fb, const render::Texture& texture, int left, int top) {
+    if (texture.empty()) {
+        return;
+    }
+    auto pixels = fb.color();
+    const auto source = texture.pixels();
+    for (int y = 0; y < static_cast<int>(texture.height()); ++y) {
+        const int dy = top + y;
+        if (dy < 0 || dy >= fb.height()) {
+            continue;
+        }
+        for (int x = 0; x < static_cast<int>(texture.width()); ++x) {
+            const int dx = left + x;
+            if (dx < 0 || dx >= fb.width()) {
+                continue;
+            }
+            const auto si =
+                (static_cast<std::size_t>(y) * texture.width() + static_cast<std::size_t>(x)) * 4;
+            if (source[si + 3] == 0) {
+                continue;
+            }
+            const auto di =
+                (static_cast<std::size_t>(dy) * fb.width() + static_cast<std::size_t>(dx)) * 4;
+            pixels[di] = source[si];
+            pixels[di + 1] = source[si + 1];
+            pixels[di + 2] = source[si + 2];
+        }
+    }
+}
+
+// The character sheet: one member at a time, with the fields named the way the
+// design tables name them.
+void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                const game::Character& who, const data::DescriptionTable& stats,
+                const data::DescriptionTable& classes) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 5);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 5);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 5);
+        }
+    }
+
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{170, 170, 170, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+
+    blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face)), 24, 28);
+    game::draw_text(scene.framebuffer(), font, 100, 30, who.name, white, shadow);
+    game::draw_text(scene.framebuffer(), font, 100, 30 + line,
+                    who.class_name + ", level " + std::to_string(who.level), dim, shadow);
+
+    // The seven attributes, named and ordered by stats.txt itself.
+    int y = 120;
+    for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+        const std::string_view label = game::stat_label(stats, a);
+        const int value = who.attributes[a];
+        const int bonus = game::attribute_bonus(value);
+        std::string text = std::string(label) + "  " + std::to_string(value);
+        text += bonus == 0
+                    ? ""
+                    : (bonus > 0 ? "  +" + std::to_string(bonus) : "  " + std::to_string(bonus));
+        game::draw_text(scene.framebuffer(), font, 24, y, text, white, shadow);
+        y += line;
+    }
+
+    // And the derived numbers, in the same order the table lists them.
+    y = 120;
+    const std::array<std::pair<std::size_t, std::string>, 5> derived{{
+        {7, std::to_string(who.hit_points) + " / " + std::to_string(who.max_hit_points)},
+        {8, std::to_string(who.armor_class)},
+        {9, std::to_string(who.spell_points) + " / " + std::to_string(who.max_spell_points)},
+        {12, std::to_string(who.age)},
+        {14, std::to_string(who.experience)},
+    }};
+    for (const auto& [row, value] : derived) {
+        game::draw_text(scene.framebuffer(), font, 260, y,
+                        std::string(game::stat_label(stats, row)) + "  " + value, white, shadow);
+        y += line;
+    }
+
+    // What the class is, in the designers' own words.
+    if (const auto* described = classes.find(who.class_name);
+        described != nullptr && !described->text.empty()) {
+        const std::string text = data::cp1252_to_utf8(described->text.front());
+        int x = 24;
+        int wrap_y = y + line * 2;
+        std::string word;
+        for (std::size_t i = 0; i <= text.size(); ++i) {
+            const char ch = i < text.size() ? text[i] : ' ';
+            if (ch != ' ' && ch != '\n') {
+                word += ch;
+                continue;
+            }
+            const int width = font.text_width(word + " ");
+            if (x + width > kWidth - 24) {
+                x = 24;
+                wrap_y += line;
+            }
+            if (wrap_y < kHeight - line) {
+                game::draw_text(scene.framebuffer(), font, x, wrap_y, word, dim, shadow);
+            }
+            x += width;
+            word.clear();
+        }
+    }
+
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 6,
+                    "1-4 choose a character, C closes", dim, shadow);
+}
+
+// Who is in the party, along the bottom-left: enough to know they exist and
+// that the sheet keys mean something. The inspect panel sits bottom-right.
+void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
+                      const std::array<game::Character, 4>& party) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    const int line = font.height() + 2;
+    int y = kHeight - line * static_cast<int>(party.size()) - 8;
+    for (std::size_t i = 0; i < party.size(); ++i) {
+        const auto& who = party[i];
+        std::string text = std::to_string(i + 1) + " " + who.name + "  " +
+                           std::to_string(who.hit_points) + "/" +
+                           std::to_string(who.max_hit_points);
+        if (who.max_spell_points > 0) {
+            text += "  sp " + std::to_string(who.spell_points) + "/" +
+                    std::to_string(who.max_spell_points);
+        }
+        game::draw_text(scene.framebuffer(), font, 8, y, text, render::Color{215, 215, 215, 255},
+                        render::Color{0, 0, 0, 255});
+        y += line;
     }
 }
 
@@ -411,6 +557,7 @@ void draw_boxes(render::SceneRenderer& scene, const world::MapSession& session) 
 int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;
+    int open_sheet = 0;  // 1-4 to start with that character's sheet open
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -427,6 +574,8 @@ int main(int argc, char** argv) {
             list_only = true;
         } else if (a == "--bench" && i + 1 < argc) {
             bench_frames = std::atoi(argv[++i]);
+        } else if (a == "--sheet" && i + 1 < argc) {
+            open_sheet = std::atoi(argv[++i]);
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -647,6 +796,18 @@ int main(int argc, char** argv) {
     data::SpellStatsTable spell_stats;
     (void)data::load_spell_stats(data_dir, spell_stats);
 
+    // The party. Its names come from the game's own list; its numbers do not
+    // come from anywhere, because no shipped table holds them. See
+    // src/game/party.hpp.
+    data::NameTable given_names;
+    (void)data::load_names(data_dir, given_names);
+    data::DescriptionTable stat_descriptions;
+    data::DescriptionTable class_descriptions;
+    (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
+    (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
+    const std::array<game::Character, 4> party = game::make_party(given_names, 1);
+    int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
+
     // The monsters start where the map put them and wander from there.
     game::Mob mob;
     mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
@@ -670,6 +831,11 @@ int main(int argc, char** argv) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB) {
                 show_directory = !show_directory;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C) {
+                shown_member = shown_member < 0 ? 0 : -1;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && shown_member >= 0 &&
+                       event.key.key >= SDLK_1 && event.key.key <= SDLK_4) {
+                shown_member = static_cast<int>(event.key.key - SDLK_1);
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
@@ -718,6 +884,13 @@ int main(int argc, char** argv) {
         }
         if (show_directory) {
             draw_directory(scene, font, session);
+        }
+        if (shown_member < 0) {
+            draw_party_strip(scene, font, party);
+        }
+        if (shown_member >= 0) {
+            draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
+                       stat_descriptions, class_descriptions);
         }
         // A thing behind a wall is not being looked at, whatever the aim says.
         auto visible = [&](const render::Vec3& at) {

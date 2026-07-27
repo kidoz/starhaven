@@ -161,6 +161,12 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **A party, and the character sheet**: four characters with the game's own
+  portraits — twelve faces of 53 frames each, found in `icons.lod` — named from
+  `npcnames.txt`, classed from `Class.txt`, and laid out with the field names
+  `stats.txt` itself lists, in its order. **C** opens the sheet and **1**-**4**
+  choose whose. What a character *starts* with is not in any shipped table, so
+  those numbers are this engine's and say so where they are defined.
 - **Monsters that move, and that are drawn from the side you see them from**:
   each wanders near where it started, as far and as fast as its `MONSTERS.TXT`
   row says, and turns toward you — or away, if it is a Wimp — when you come
@@ -228,6 +234,7 @@ The format specs are documented from observed behavior in
 [`docs/formats/odm-model-facets.md`](docs/formats/odm-model-facets.md),
 [`docs/formats/odm-decorations.md`](docs/formats/odm-decorations.md),
 [`docs/formats/odm-tile-index.md`](docs/formats/odm-tile-index.md),
+[`docs/formats/portraits.md`](docs/formats/portraits.md),
 [`docs/formats/dtile.md`](docs/formats/dtile.md),
 [`docs/formats/event-data.md`](docs/formats/event-data.md),
 [`docs/formats/bitmap.md`](docs/formats/bitmap.md),

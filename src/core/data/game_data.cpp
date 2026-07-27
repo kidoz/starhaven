@@ -185,6 +185,18 @@ GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable&
     return GameDataError::None;
 }
 
+GameDataError load_names(const std::filesystem::path& data_dir, NameTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "npcnames.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (NameTable::parse(table, out) != NameTableError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_interface_strings(const std::filesystem::path& data_dir, InterfaceStrings& out) {
     TextTable table;
     if (const GameDataError e = load_text_table(data_dir, "GLOBAL.TXT", table);

@@ -31,6 +31,7 @@ nav:
       - Items and item instances: formats/items.md
       - Outdoor decorations: formats/odm-decorations.md
       - Outdoor tile index: formats/odm-tile-index.md
+      - Portraits and paperdolls: formats/portraits.md
       - Ground tiles: formats/dtile.md
       - Monster table: formats/dmonlist.md
       - Design data tables: formats/text-tables.md

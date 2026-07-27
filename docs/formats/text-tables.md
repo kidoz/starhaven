@@ -441,6 +441,25 @@ hostile register (`"%02, eh?  I'll remember that."`). `observed`
 
 The prose carries the same `%01`-style placeholders as `npcprof.txt`.
 
+## `stats.txt` is the character sheet's field list
+
+Twenty-five rows, each a field and the designers' description of it, in the
+order a sheet shows them: the seven attributes — Might, Intellect, Personality,
+Endurance, Accuracy, Speed, Luck — then Hit Points, Armor Class, Spell Points,
+Condition, Quick Spell, Age, Level, Experience, the four attack and shoot
+bonuses, five resistances and Skill Points. `observed`
+
+The table gives the names and the prose; it gives no numbers. What a character
+starts with, and what an attribute's bonus is, are in the original's
+executable, not in any shipped table. `observed`
+
+## `npcnames.txt`: two columns of given names
+
+540 names in two columns headed `Male` and `Female`. The columns are not the
+same length, so a blank cell is the end of that column rather than of the row.
+`observed` The game draws on this when it needs to name somebody, and so does
+this engine when it makes a party.
+
 ## `GLOBAL.TXT`: the interface's vocabulary
 
 596 numbered strings, ids **0 to 595** with no gaps: `AC`, `Accuracy`, `Add to

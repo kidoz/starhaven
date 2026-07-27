@@ -34,6 +34,10 @@ public:
     // empty texture when the name does not resolve.
     [[nodiscard]] const render::Texture& bitmap(const std::string& name);
 
+    // A bitmap from icons.lod: interface art, and the twelve character
+    // portraits. Same format as BITMAPS.LOD's, a different archive.
+    [[nodiscard]] const render::Texture& icon(const std::string& name);
+
     // A sprite from SPRITES.LOD, decoded through the shared palette its header
     // names. Returns an empty texture when the name does not resolve.
     [[nodiscard]] const render::Texture& sprite(const std::string& name);
@@ -53,14 +57,17 @@ public:
 
 private:
     lod::LodArchive bitmap_archive_;
+    lod::LodArchive icon_archive_;
     lod::LodArchive sprite_archive_;
     bool bitmaps_open_ = false;
+    bool icons_open_ = false;
     bool sprites_open_ = false;
 
     // Cached decodes, including failures: an empty texture means "looked up and
     // not found", so a missing name costs one archive probe rather than one
     // per frame.
     std::map<std::string, render::Texture> bitmaps_;
+    std::map<std::string, render::Texture> icons_;
     std::map<std::string, render::Texture> sprites_;
     std::map<std::uint16_t, image::Palette> palettes_;
 };

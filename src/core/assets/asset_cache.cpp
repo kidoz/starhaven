@@ -19,6 +19,8 @@ void AssetCache::open(const std::filesystem::path& data_dir) {
         lod::LodArchive::open(data_dir / "BITMAPS.LOD", bitmap_archive_) == lod::LodError::None;
     sprites_open_ =
         lod::LodArchive::open(data_dir / "SPRITES.LOD", sprite_archive_) == lod::LodError::None;
+    icons_open_ =
+        lod::LodArchive::open(data_dir / "icons.lod", icon_archive_) == lod::LodError::None;
 }
 
 std::size_t AssetCache::bitmap_count() const noexcept {
@@ -46,6 +48,22 @@ const render::Texture& AssetCache::bitmap(const std::string& name) {
     }
     // Cache failures too, so a name that never resolves is probed once.
     return bitmaps_.emplace(name, std::move(texture)).first->second;
+}
+
+const render::Texture& AssetCache::icon(const std::string& name) {
+    if (const auto it = icons_.find(name); it != icons_.end()) {
+        return it->second;
+    }
+    render::Texture texture;
+    std::span<const std::byte> raw;
+    if (icons_open_ && !name.empty() &&
+        icon_archive_.payload(name, raw) == lod::LodArchive::PayloadError::None) {
+        image::Bitmap bmp;
+        if (image::decode_bitmap(raw, bmp) == image::BitmapError::None) {
+            (void)render::Texture::create(bmp.width, bmp.height, std::move(bmp.rgba), texture);
+        }
+    }
+    return icons_.emplace(name, std::move(texture)).first->second;
 }
 
 bool AssetCache::has_sprite(const std::string& name) {

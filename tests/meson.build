@@ -200,6 +200,18 @@ test('interface_strings',
   workdir : meson.current_build_dir(),
 )
 
+test('name_table',
+  executable('test_name_table', 'test_name_table.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
+test('party',
+  executable('test_party', 'test_party.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('monster_ai',
   executable('test_monster_ai', 'test_monster_ai.cpp',
     dependencies : [starhaven_dep, catch2_main]),
