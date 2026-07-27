@@ -161,6 +161,14 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- The indoor **sector table** identified: the region in front of the
+  decorations opens with a room count and continues as count-and-pointer pairs
+  over arrays of face indices. The pointers are stale and cannot be followed,
+  but 9,247 of 13,728 consecutive ones across the 52 maps are exactly
+  `2 x count` bytes apart, which no coincidence produces. On `D01` every one of
+  its 2,291 faces is referenced and none only once — 2,051 exactly twice —
+  which is what a wall listed by the room on either side looks like. Which
+  faces belong to which room is still not readable.
 - The **indoor decoration block** decoded: an indoor map's decorations are a
   count followed by 28-byte placements and 32-byte names — the same shape an
   outdoor map uses — so all 52 maps now decode exactly rather than by scanning,

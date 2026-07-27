@@ -405,6 +405,40 @@ by searching rather than computed. What it does is make the count and the
 positions exact, and give the unknown region a hard right-hand edge —
 17,028 bytes on `D01.blv`, 45,008 on `CD1.blv`.
 
+## The region in front of the decorations is a sector table
+
+The region opens with a count — 59 on `D01.blv`, 23 on `D03`, 181 on `CD1`,
+13 on `T2` — which matches no header field and scales at roughly one per 20 to
+45 faces. That is what a room or sector count looks like. `inferred`
+
+What follows is **count-and-pointer pairs**: a small count, then a stale
+pointer. The pointers cannot be followed — record 0024 established that most of
+them address allocations that were never in the file — but they do not need to
+be, because their **differences** are checkable:
+
+- Sorted by pointer, **9,247 of 13,728** consecutive distinct pointers across
+  the 52 maps are exactly `2 × count` bytes apart. `observed` A pointer
+  difference matching a specific count by chance is a 2⁻³² event, so the
+  agreement is structural; the shortfall is false candidates, since a pair is
+  looked for at every word and nothing excludes a word that merely looks like
+  one.
+- Anchoring the lists so that the last ends at the decoration block,
+  **6,361 of 13,685** land entirely on values below the map's face count.
+  `observed`
+
+So the lists are arrays of `u16` face indices, laid out contiguously in pointer
+order, and the descriptors index into them.
+
+The array itself is visible directly: on `D01` it runs from the region's
+offset 6,844 to the decoration block at 17,028 — 5,092 entries against 2,291
+faces, **2.22 to 1**. Every face is referenced, and **none is referenced only
+once**: 2,051 appear exactly twice and 240 more often. `observed` That is what
+a wall listed by the room on either side of it looks like.
+
+What is still missing is the sector record's own layout — how many pairs each
+holds, and what else sits between them — and therefore which faces belong to
+which room. Reproduce the measurements with `blv_info <map> --sectors`.
+
 ## Open questions (next slice)
 
 - The sections between the face extras and the decorations: rooms/sectors, the

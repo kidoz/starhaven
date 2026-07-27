@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -47,6 +48,7 @@ int main(int argc, char** argv) {
     const bool dump_extras = argc == 3 && std::string(argv[2]) == "--extras";
     // Research mode: report and dump the region that is still unknown.
     const bool dump_region = argc >= 3 && std::string(argv[2]) == "--region";
+    const bool dump_sectors = argc >= 3 && std::string(argv[2]) == "--sectors";
     const std::string region_path = (dump_region && argc >= 4) ? argv[3] : std::string();
     const bool dump_faces = argc == 3 && std::string(argv[2]) == "--faces";
     const bool dump_uv = argc == 3 && std::string(argv[2]) == "--uv";
@@ -71,6 +73,103 @@ int main(int argc, char** argv) {
     if (const world::BlvError e = world::parse_blv(entry, map); e != world::BlvError::None) {
         std::cerr << "error: could not parse BLV (code " << static_cast<int>(e) << ")\n";
         return 1;
+    }
+
+    // Research mode: the sector list descriptors at the front of the undecoded
+    // region, and whether their pointers describe the face-index lists.
+    if (dump_sectors) {
+        const world::BlvDecorationBlock block = world::find_decoration_block(map);
+        const std::size_t start = static_cast<std::size_t>(map.decoded_bytes);
+        if (!block.found() || block.offset <= start) {
+            std::cerr << "error: no region to read\n";
+            return 1;
+        }
+        const auto& p = map.payload;
+        const auto u32_at = [&p](std::size_t at) {
+            std::uint32_t v = 0;
+            std::memcpy(&v, p.data() + at, sizeof(v));
+            return v;
+        };
+        const auto u16_at = [&p](std::size_t at) {
+            std::uint16_t v = 0;
+            std::memcpy(&v, p.data() + at, sizeof(v));
+            return v;
+        };
+
+        // A descriptor is a small count followed by a pointer into the same
+        // neighbourhood as every other pointer in the region.
+        struct Pair {
+            std::uint32_t count;
+            std::uint32_t pointer;
+        };
+        std::vector<Pair> pairs;
+        constexpr std::uint32_t kMaxCount = 5000;
+        const std::uint32_t base = map.pointer_base;
+        // At every word, not every other one: the descriptors are not aligned
+        // to the region's own start, and an eight-byte scan misses half of
+        // them. The cost is false candidates the filter cannot exclude, so the
+        // rates below are floors rather than fractions of a known population.
+        for (std::size_t at = start; at + 8 <= block.offset; at += 4) {
+            const std::uint32_t count = u32_at(at);
+            const std::uint32_t pointer = u32_at(at + 4);
+            if (count < kMaxCount && pointer > base && pointer - base < p.size()) {
+                pairs.push_back({count, pointer});
+            }
+        }
+
+        // Test one: consecutive distinct pointers, in pointer order, should be
+        // two bytes apart per entry of the earlier list.
+        std::vector<Pair> sorted = pairs;
+        std::sort(sorted.begin(), sorted.end(),
+                  [](const Pair& a, const Pair& b) { return a.pointer < b.pointer; });
+        std::size_t spaced = 0;
+        std::size_t compared = 0;
+        for (std::size_t i = 0; i + 1 < sorted.size(); ++i) {
+            if (sorted[i].pointer == sorted[i + 1].pointer) {
+                continue;
+            }
+            ++compared;
+            spaced += sorted[i + 1].pointer - sorted[i].pointer == 2 * sorted[i].count ? 1 : 0;
+        }
+
+        // Test two: anchor the lists so the last ends at the decoration block,
+        // then every list should hold face indices and nothing else.
+        std::uint32_t lowest = 0;
+        std::uint32_t highest = 0;
+        for (const auto& pair : sorted) {
+            if (pair.count == 0) {
+                continue;
+            }
+            lowest = lowest == 0 ? pair.pointer : std::min(lowest, pair.pointer);
+            highest = std::max(highest, pair.pointer + 2 * pair.count);
+        }
+        std::size_t inside = 0;
+        std::size_t landed = 0;
+        if (highest > lowest && block.offset > highest - lowest) {
+            const std::size_t anchor = block.offset - (highest - lowest);
+            for (const auto& pair : sorted) {
+                if (pair.count == 0) {
+                    continue;
+                }
+                const std::size_t at = anchor + (pair.pointer - lowest);
+                if (at + 2 * pair.count > block.offset) {
+                    continue;
+                }
+                ++landed;
+                bool all_faces = true;
+                for (std::uint32_t i = 0; i < pair.count && all_faces; ++i) {
+                    all_faces = u16_at(at + 2 * i) < map.faces.size();
+                }
+                inside += all_faces ? 1 : 0;
+            }
+        }
+
+        std::cout << "  region [" << start << ".." << block.offset << ") opens with "
+                  << u32_at(start) << "; " << pairs.size() << " count-and-pointer pairs\n";
+        std::cout << "  " << spaced << "/" << compared
+                  << " consecutive distinct pointers are two bytes apart per entry\n";
+        std::cout << "  " << inside << "/" << landed << " lists hold nothing but face indices\n";
+        return 0;
     }
 
     if (dump_region) {
