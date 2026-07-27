@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <span>
@@ -36,7 +37,7 @@ std::filesystem::path resolve_games_lod() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 3) {
+    if (argc < 2 || argc > 4) {
         print_usage(argv[0]);
         return 2;
     }
@@ -44,6 +45,9 @@ int main(int argc, char** argv) {
     // Research mode: dump each face-extra record as raw hex, since most of the
     // 36 bytes are still unidentified.
     const bool dump_extras = argc == 3 && std::string(argv[2]) == "--extras";
+    // Research mode: report and dump the region that is still unknown.
+    const bool dump_region = argc >= 3 && std::string(argv[2]) == "--region";
+    const std::string region_path = (dump_region && argc >= 4) ? argv[3] : std::string();
     const bool dump_faces = argc == 3 && std::string(argv[2]) == "--faces";
     const bool dump_uv = argc == 3 && std::string(argv[2]) == "--uv";
     // Research mode: the still-undecoded region after the face extras, raw.
@@ -67,6 +71,30 @@ int main(int argc, char** argv) {
     if (const world::BlvError e = world::parse_blv(entry, map); e != world::BlvError::None) {
         std::cerr << "error: could not parse BLV (code " << static_cast<int>(e) << ")\n";
         return 1;
+    }
+
+    if (dump_region) {
+        if (const world::BlvDecorationBlock block = world::find_decoration_block(map);
+            block.found()) {
+            const std::size_t scanned = world::find_decorations_offset(map);
+            std::cout << "  decoration block: count " << block.count << " at " << block.offset
+                      << ", ends " << block.end() << "; " << (map.payload.size() - block.end())
+                      << " bytes follow; name array "
+                      << (block.names() == scanned ? "agrees with" : "DISAGREES with")
+                      << " the scan\n";
+        }
+        const std::size_t start = static_cast<std::size_t>(map.decoded_bytes);
+        const std::size_t end = world::find_decorations_offset(map);
+        std::cout << "  region: [" << start << ".." << end
+                  << ") = " << (end > start ? end - start : 0) << " bytes of " << map.payload.size()
+                  << "\n";
+        if (!region_path.empty() && end > start) {
+            std::ofstream out(region_path, std::ios::binary);
+            out.write(reinterpret_cast<const char*>(map.payload.data() + start),
+                      static_cast<std::streamsize>(end - start));
+            std::cout << "  written to " << region_path << "\n";
+        }
+        return 0;
     }
 
     if (dump_extras) {

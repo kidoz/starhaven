@@ -365,6 +365,46 @@ That filter is strong in practice — 50 of the 52 maps yield decorations,
 none. Whether those two genuinely have no decorations or the scan misses them
 is `unknown`. The API keeps this separate from `parse_blv` for that reason.
 
+## The decoration block
+
+A map's decorations are **not** a bare array to be scanned for. They are a
+block with the same shape an outdoor map uses (see
+[`odm-decorations.md`](odm-decorations.md)):
+
+| Order | Contents | Size |
+| --- | --- | --- |
+| 1 | `u32` count | 4 |
+| 2 | placement records | 28 x count |
+| 3 | name records | 32 x count |
+
+The placement record carries a kind word and the position as **three `i32`**;
+the name record carries the name, flags and facing, and repeats the position as
+`i16`. The 32-bit copy is the authoritative one.
+
+| Offset | Size | Type | Field | Status |
+| --- | --- | --- | --- | --- |
+| +0x00 | 2 | u16 | zero on every shipped record | observed |
+| +0x02 | 2 | u16 | 1 on every shipped record | observed |
+| +0x04 | 4 | i32 | x | observed |
+| +0x08 | 4 | i32 | y | observed |
+| +0x0C | 4 | i32 | z | observed |
+| +0x10 | 12 | | mostly zero; two records in ten set a byte | unknown |
+
+**All 52 maps decode**, 5,776 decorations in total. `observed` On 49 of them the
+block's name array begins exactly where the old scan anchored, which is the
+cross-check; on the three with the fewest decorations — `Hive` (3),
+`Sci-Fi` (1), `zddb04` (3) — the scan anchored elsewhere and the block's names
+and coordinates are the plausible ones. `observed`
+
+A very small count passes the validity filter by accident before the real block
+on those same three maps, so the search keeps the **largest** candidate rather
+than the first.
+
+This does not open the region before it: the block's own offset is still found
+by searching rather than computed. What it does is make the count and the
+positions exact, and give the unknown region a hard right-hand edge —
+17,028 bytes on `D01.blv`, 45,008 on `CD1.blv`.
+
 ## Open questions (next slice)
 
 - The sections between the face extras and the decorations: rooms/sectors, the
@@ -389,7 +429,7 @@ is `unknown`. The API keeps this separate from `parse_blv` for that reason.
      first search attempt, and it turned out not to be a section at all: it is
      the face-extra name array, now decoded. Finding it moved the boundary
      forward but did not make the count-prefixed model work for what follows.
-- Whatever follows the decoration array — 32 KB on `d01.blv`, 70 KB on
+- Whatever follows the decoration block — 32,456 bytes on `D01.blv`, 70,020 on
   `CD1.blv`. `unknown`
 - The header fields at 0x00, 0x6C and 0x70. `unknown`
 - The region after the face extras — rooms, BSP, lights and doors — remains

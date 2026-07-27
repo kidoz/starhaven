@@ -390,15 +390,148 @@ struct Extent {
     out.flags = flags;
     out.x = c[0];
     out.y = c[1];
-    out.z = c[2];
+    out.z = c[2];  // the scan's fallback reads 16-bit coordinates
     out.angle = i16_at(kDecoAngleOff);
     return true;
 }
 
 }  // namespace
 
+BlvDecorationBlock find_decoration_block(const BlvMap& map) {
+    BlvDecorationBlock out;
+    if (map.vertices.empty() || map.decoded_bytes >= map.payload.size()) {
+        return out;
+    }
+    const Extent extent = vertex_extent(map);
+    // A decoration can stand a little outside the geometry's own bounds.
+    constexpr std::int32_t kMargin = 2048;
+    const auto printable = [](const std::vector<std::uint8_t>& p, std::size_t at,
+                              std::size_t size) {
+        std::size_t length = 0;
+        while (length < size && p[at + length] != 0) {
+            const std::uint8_t c = p[at + length];
+            if (c < 32 || c >= 127) {
+                return false;
+            }
+            ++length;
+        }
+        return length > 0 && length < size;
+    };
+
+    const auto& p = map.payload;
+    const auto i32_at = [&p](std::size_t at) {
+        std::int32_t v = 0;
+        std::memcpy(&v, p.data() + at, sizeof(v));
+        return v;
+    };
+    const auto u32_at = [&p](std::size_t at) {
+        std::uint32_t v = 0;
+        std::memcpy(&v, p.data() + at, sizeof(v));
+        return v;
+    };
+
+    constexpr std::uint32_t kMaxDecorations = 8192;
+    for (std::size_t at = static_cast<std::size_t>(map.decoded_bytes); at + 4 <= p.size();
+         at += 2) {
+        const std::uint32_t count = u32_at(at);
+        if (count == 0 || count > kMaxDecorations) {
+            continue;
+        }
+        const std::size_t records = at + 4;
+        const std::size_t names =
+            records + static_cast<std::size_t>(count) * kBlvDecorationRecordSize;
+        const std::size_t end = names + static_cast<std::size_t>(count) * kBlvDecorationSize;
+        if (end > p.size()) {
+            continue;
+        }
+
+        // Every placement has to sit near the level, and every name has to be
+        // a name. Both together are a strong enough filter that no shipped map
+        // has a second offset passing it.
+        bool plausible = true;
+        for (std::uint32_t i = 0; i < count && plausible; ++i) {
+            const std::size_t o = records + static_cast<std::size_t>(i) * kBlvDecorationRecordSize;
+            const std::int32_t c[3] = {i32_at(o + 4), i32_at(o + 8), i32_at(o + 12)};
+            for (int k = 0; k < 3 && plausible; ++k) {
+                plausible = c[k] >= extent.lo[k] - kMargin && c[k] <= extent.hi[k] + kMargin;
+            }
+        }
+        for (std::uint32_t i = 0; i < count && plausible; ++i) {
+            const std::size_t o = names + static_cast<std::size_t>(i) * kBlvDecorationSize;
+            plausible = printable(p, o, kBlvDecorationNameSize);
+        }
+        // Keep looking: a very small count passes the filter by accident on
+        // three of the 52 maps, always before the real block. The real one
+        // holds more, so the largest candidate is the one meant.
+        if (plausible && count > out.count) {
+            out.offset = at;
+            out.count = count;
+        }
+    }
+    return out;
+}
+
+std::size_t find_decorations_offset(const BlvMap& map) {
+    if (map.vertices.empty() || map.decoded_bytes >= map.payload.size()) {
+        return map.payload.size();
+    }
+    const Extent extent = vertex_extent(map);
+    std::size_t anchor = map.payload.size();
+    for (std::size_t off = static_cast<std::size_t>(map.decoded_bytes);
+         off + kMinRun * kBlvDecorationSize <= map.payload.size(); off += 2) {
+        bool run = true;
+        for (std::size_t k = 0; k < kMinRun; ++k) {
+            BlvDecoration probe;
+            if (!read_decoration(map.payload, off + k * kBlvDecorationSize, extent, probe)) {
+                run = false;
+                break;
+            }
+        }
+        if (run) {
+            anchor = off;
+            break;
+        }
+    }
+    if (anchor == map.payload.size()) {
+        return anchor;
+    }
+    std::size_t start = anchor;
+    while (start >= kBlvDecorationSize && start - kBlvDecorationSize >= map.decoded_bytes) {
+        BlvDecoration probe;
+        if (!read_decoration(map.payload, start - kBlvDecorationSize, extent, probe)) {
+            break;
+        }
+        start -= kBlvDecorationSize;
+    }
+    return start;
+}
+
 std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
     std::vector<BlvDecoration> out;
+
+    // The exact path: the block says how many there are, where each stands in
+    // full 32-bit coordinates, and what each is called.
+    if (const BlvDecorationBlock block = find_decoration_block(map); block.found()) {
+        const auto& p = map.payload;
+        out.reserve(block.count);
+        for (std::uint32_t i = 0; i < block.count; ++i) {
+            const std::size_t r =
+                block.records() + static_cast<std::size_t>(i) * kBlvDecorationRecordSize;
+            const std::size_t n = block.names() + static_cast<std::size_t>(i) * kBlvDecorationSize;
+            BlvDecoration d;
+            for (std::size_t k = 0; k < kBlvDecorationNameSize && p[n + k] != 0; ++k) {
+                d.name.push_back(static_cast<char>(p[n + k]));
+            }
+            std::memcpy(&d.x, p.data() + r + 4, sizeof(d.x));
+            std::memcpy(&d.y, p.data() + r + 8, sizeof(d.y));
+            std::memcpy(&d.z, p.data() + r + 12, sizeof(d.z));
+            std::memcpy(&d.flags, p.data() + n + kDecoFlagsOff, sizeof(d.flags));
+            std::memcpy(&d.angle, p.data() + n + kDecoAngleOff, sizeof(d.angle));
+            out.push_back(std::move(d));
+        }
+        return out;
+    }
+
     if (map.vertices.empty() || map.decoded_bytes >= map.payload.size()) {
         return out;
     }

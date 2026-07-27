@@ -145,14 +145,41 @@ struct BlvMap {
     std::uint64_t decoded_bytes = 0;
 };
 
+constexpr std::uint32_t kBlvDecorationSize = 32;        // the name records
+constexpr std::uint32_t kBlvDecorationRecordSize = 28;  // the placement records
+constexpr std::size_t kBlvDecorationNameSize = 0x16;
+
 // One placed decoration: a named sprite (torch, barrel, tree, campfire) or a
 // marker such as the party's start point.
 struct BlvDecoration {
     std::string name;
     std::uint16_t flags = 0;  // 0 or 1; meaning unknown
-    std::int16_t x = 0, y = 0, z = 0;
+    std::int32_t x = 0, y = 0, z = 0;
     std::int16_t angle = 0;  // facing; units unconfirmed
 };
+
+// Where a map's decoration block is, and how many decorations it holds.
+//
+// The block has the same shape as an outdoor map's: a count, then that many
+// 28-byte records carrying a kind and 32-bit coordinates, then that many
+// 32-byte records carrying the name. See docs/formats/blv.md.
+struct BlvDecorationBlock {
+    std::size_t offset = 0;  // of the count
+    std::uint32_t count = 0;
+
+    [[nodiscard]] bool found() const noexcept { return count > 0; }
+    [[nodiscard]] std::size_t records() const noexcept { return offset + 4; }
+    [[nodiscard]] std::size_t names() const noexcept {
+        return records() + static_cast<std::size_t>(count) * kBlvDecorationRecordSize;
+    }
+    [[nodiscard]] std::size_t end() const noexcept {
+        return names() + static_cast<std::size_t>(count) * kBlvDecorationSize;
+    }
+};
+
+// Find that block. Returns a block with `found() == false` when no offset in
+// the undecoded region begins one.
+[[nodiscard]] BlvDecorationBlock find_decoration_block(const BlvMap& map);
 
 // Locate a map's decoration array.
 //
@@ -168,10 +195,13 @@ struct BlvDecoration {
 // Returns the records in file order.
 [[nodiscard]] std::vector<BlvDecoration> find_decorations(const BlvMap& map);
 
+// Where that scan believes the decoration array begins, or the payload size
+// when it finds none. Exposed for research: the region between `decoded_bytes`
+// and this is exactly what is still unknown.
+[[nodiscard]] std::size_t find_decorations_offset(const BlvMap& map);
+
 constexpr std::uint32_t kBlvFaceExtraSize = 36;
 constexpr std::uint32_t kBlvFaceExtraNameSize = 10;
-constexpr std::uint32_t kBlvDecorationSize = 32;
-constexpr std::size_t kBlvDecorationNameSize = 0x16;
 
 // Parse a raw `.blv` entry (as read from Games.lod). Handles the 8-byte zlib
 // wrapper, the header, the vertex array, the face array, the per-face index

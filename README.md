@@ -161,6 +161,11 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- The **indoor decoration block** decoded: an indoor map's decorations are a
+  count followed by 28-byte placements and 32-byte names — the same shape an
+  outdoor map uses — so all 52 maps now decode exactly rather than by scanning,
+  5,776 decorations in full 32-bit coordinates. One map gains six the scan had
+  been rejecting. What lies before the block is still undescribed.
 - **Day and night**: outdoors the sky and the sun follow the clock — dark blue
   before dawn, warm at the edges of the day, blue overhead at noon — and the
   world is lit by where the sun actually is. **Tab** now marks each

@@ -175,6 +175,47 @@ std::vector<std::byte> wrap(const std::vector<std::uint8_t>& payload, bool corru
     return entry;
 }
 
+// Append a whole decoration block: the count, then a 28-byte placement record
+// per decoration, then a 32-byte name record per decoration. This is the shape
+// the shipped maps use; see docs/formats/blv.md.
+void append_decoration_block(std::vector<std::uint8_t>& p,
+                             const std::vector<std::tuple<std::string, std::int32_t, std::int32_t,
+                                                          std::int32_t, std::int16_t>>& decos) {
+    auto put_u32 = [&p](std::size_t base, std::uint32_t v) {
+        for (int i = 0; i < 4; ++i) {
+            p[base + static_cast<std::size_t>(i)] =
+                static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF);
+        }
+    };
+    std::size_t base = p.size();
+    p.resize(base + 4, 0);
+    put_u32(base, static_cast<std::uint32_t>(decos.size()));
+
+    for (const auto& [name, x, y, z, angle] : decos) {
+        (void)name;
+        (void)angle;
+        base = p.size();
+        p.resize(base + kBlvDecorationRecordSize, 0);
+        p[base + 2] = 1;  // the kind word every shipped record carries
+        put_u32(base + 4, static_cast<std::uint32_t>(x));
+        put_u32(base + 8, static_cast<std::uint32_t>(y));
+        put_u32(base + 12, static_cast<std::uint32_t>(z));
+    }
+    for (const auto& [name, x, y, z, angle] : decos) {
+        (void)x;
+        (void)y;
+        (void)z;
+        base = p.size();
+        p.resize(base + kBlvDecorationSize, 0);
+        for (std::size_t i = 0; i < name.size() && i < kBlvDecorationNameSize - 1; ++i) {
+            p[base + i] = static_cast<std::uint8_t>(name[i]);
+        }
+        const auto u = static_cast<std::uint16_t>(angle);
+        p[base + 0x1E] = static_cast<std::uint8_t>(u & 0xFF);
+        p[base + 0x1F] = static_cast<std::uint8_t>((u >> 8) & 0xFF);
+    }
+}
+
 // Append decoration records to a payload: 32 bytes each, name then flags,
 // position and facing.
 void append_decorations(std::vector<std::uint8_t>& p,
@@ -565,4 +606,70 @@ TEST_CASE("faces that disagree on the load address report none", "[blv]") {
     BlvMap map;
     REQUIRE(parse_blv(entry, map) == BlvError::None);
     REQUIRE(map.pointer_base == 0);
+}
+
+TEST_CASE("a decoration block decodes by its own count", "[blv]") {
+    // Not a scan: the block says how many decorations there are, where each
+    // stands in full 32-bit coordinates, and what each is called.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    payload.resize(payload.size() + 200, 0x11);
+    append_decoration_block(payload, {
+                                         {"Party Start", 100, 120, 0, 0},
+                                         {"Torch01", 40, 60, 0, 64},
+                                         {"Barrel", 200, 30, 0, 128},
+                                     });
+    auto entry = wrap(payload);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+
+    const BlvDecorationBlock block = find_decoration_block(map);
+    REQUIRE(block.found());
+    REQUIRE(block.count == 3);
+    REQUIRE(block.names() == block.records() + 3 * kBlvDecorationRecordSize);
+    REQUIRE(block.end() == block.names() + 3 * kBlvDecorationSize);
+
+    const auto decos = find_decorations(map);
+    REQUIRE(decos.size() == 3);
+    REQUIRE(decos[0].name == "Party Start");
+    REQUIRE(decos[0].x == 100);
+    REQUIRE(decos[0].y == 120);
+    REQUIRE(decos[1].name == "Torch01");
+    REQUIRE(decos[1].angle == 64);
+    REQUIRE(decos[2].name == "Barrel");
+    REQUIRE(decos[2].x == 200);
+}
+
+TEST_CASE("the biggest block wins over an accidental small one", "[blv]") {
+    // On three of the 52 shipped maps a count of one or three passes the
+    // filter somewhere before the real block. The real one holds more.
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    payload.resize(payload.size() + 64, 0x00);
+    append_decoration_block(payload, {{"Decoy", 10, 10, 0, 0}});
+    payload.resize(payload.size() + 64, 0x00);
+    append_decoration_block(payload, {
+                                         {"Party Start", 100, 120, 0, 0},
+                                         {"Torch01", 40, 60, 0, 64},
+                                         {"Barrel", 200, 30, 0, 128},
+                                     });
+    auto entry = wrap(payload);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    const BlvDecorationBlock block = find_decoration_block(map);
+    REQUIRE(block.count == 3);
+    REQUIRE(find_decorations(map)[0].name == "Party Start");
+}
+
+TEST_CASE("a payload with no block at all finds none", "[blv]") {
+    const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
+    auto payload = make_payload(kSquare, faces);
+    payload.resize(payload.size() + 400, 0x7F);
+    auto entry = wrap(payload);
+
+    BlvMap map;
+    REQUIRE(parse_blv(entry, map) == BlvError::None);
+    REQUIRE_FALSE(find_decoration_block(map).found());
 }
