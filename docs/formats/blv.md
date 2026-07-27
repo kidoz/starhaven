@@ -435,8 +435,31 @@ faces, **2.22 to 1**. Every face is referenced, and **none is referenced only
 once**: 2,051 appear exactly twice and 240 more often. `observed` That is what
 a wall listed by the room on either side of it looks like.
 
-What is still missing is the sector record's own layout — how many pairs each
-holds, and what else sits between them — and therefore which faces belong to
+### The record is 116 bytes, and holds six lists
+
+`116 × count` lands **exactly** where the face-index array begins — 6,844 on
+`D01.blv`, which is where an independent scan for a run of in-range indices
+puts it, and the same on 46 of 51 maps. `observed`
+
+Within a record, the pairs that pass the difference test sit at six fixed
+offsets, the same six on 42 of the 49 maps where enough pairs validate:
+
+| Offset in record | Validated pairs on `CD1` |
+| --- | ---: |
+| +0x08 | 99 |
+| +0x10 | 180 |
+| +0x18 | 180 |
+| +0x48 | 61 |
+| +0x50 | (fewer) |
+| +0x58 | 81 |
+
+So a sector carries **six count-and-pointer lists**, not one. Which is faces,
+which portals, which decorations and which the rest is `unknown`; the two that
+validate on nearly every record — +0x10 and +0x18 — are the likeliest
+candidates for the face lists, since those are the ones every sector has.
+
+What is still missing is the rest of the 116 bytes — the bounding box and
+whatever else sits between the pairs — and therefore which faces belong to
 which room. Reproduce the measurements with `blv_info <map> --sectors`.
 
 ## Open questions (next slice)

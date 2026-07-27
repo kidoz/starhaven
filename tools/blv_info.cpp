@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <set>
 #include <span>
 #include <string>
@@ -101,7 +102,11 @@ int main(int argc, char** argv) {
         struct Pair {
             std::uint32_t count;
             std::uint32_t pointer;
+            std::size_t at;
         };
+        // See docs/formats/blv.md: 116 x the leading count is exactly where
+        // the face-index array starts.
+        constexpr std::size_t kSectorRecordSize = 116;
         std::vector<Pair> pairs;
         constexpr std::uint32_t kMaxCount = 5000;
         const std::uint32_t base = map.pointer_base;
@@ -113,7 +118,7 @@ int main(int argc, char** argv) {
             const std::uint32_t count = u32_at(at);
             const std::uint32_t pointer = u32_at(at + 4);
             if (count < kMaxCount && pointer > base && pointer - base < p.size()) {
-                pairs.push_back({count, pointer});
+                pairs.push_back({count, pointer, at});
             }
         }
 
@@ -169,6 +174,30 @@ int main(int argc, char** argv) {
         std::cout << "  " << spaced << "/" << compared
                   << " consecutive distinct pointers are two bytes apart per entry\n";
         std::cout << "  " << inside << "/" << landed << " lists hold nothing but face indices\n";
+
+        // The records are 116 bytes: that many times the leading count lands
+        // exactly where the face-index array begins. Within a record the
+        // validated pairs sit at six fixed offsets.
+        const std::uint32_t rooms = u32_at(start);
+        std::cout << "  " << rooms << " sectors x " << kSectorRecordSize << " bytes ends at "
+                  << start + static_cast<std::size_t>(rooms) * kSectorRecordSize << " of [" << start
+                  << ".." << block.offset << ")\n";
+
+        std::map<std::size_t, std::size_t> residues;
+        for (std::size_t i = 0; i + 1 < sorted.size(); ++i) {
+            if (sorted[i].pointer == sorted[i + 1].pointer ||
+                sorted[i + 1].pointer - sorted[i].pointer != 2 * sorted[i].count) {
+                continue;
+            }
+            residues[(sorted[i].at - start) % kSectorRecordSize] += 1;
+        }
+        std::cout << "  validated pairs by offset within a record:";
+        for (const auto& [offset, count] : residues) {
+            if (count >= 2) {
+                std::cout << " +" << offset << "(" << count << ")";
+            }
+        }
+        std::cout << "\n";
         return 0;
     }
 

@@ -168,7 +168,9 @@ interoperability and compatibility with a legally purchased copy.
   `2 x count` bytes apart, which no coincidence produces. On `D01` every one of
   its 2,291 faces is referenced and none only once — 2,051 exactly twice —
   which is what a wall listed by the room on either side looks like. Which
-  faces belong to which room is still not readable.
+  faces belong to which room is still not readable — but the record's size is:
+  116 bytes, holding six lists apiece, `116 x count` landing exactly where the
+  face-index array begins.
 - The **indoor decoration block** decoded: an indoor map's decorations are a
   count followed by 28-byte placements and 32-byte names — the same shape an
   outdoor map uses — so all 52 maps now decode exactly rather than by scanning,
