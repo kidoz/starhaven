@@ -161,7 +161,12 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
-- **Fighting**: **Space** strikes whatever you are aiming at within reach, with
+- **Fighting, with consequences**: a monster flinches into its Wince animation
+  when hit and keeps its Death picture where it fell; the party splits the
+  experience the monster's own row is worth; a character at zero hit points
+  goes down, stops swinging and stops being a target. Every monster carries
+  eight animation names and 1,382 of the 1,384 resolve, so the pictures are the
+  game's own. **Space** strikes whatever you are aiming at within reach, with
   the weapon that character is carrying — a longsword rolls the `3d3` its own
   `ITEMS.TXT` row gives — and the monsters strike back on the recovery their
   rows give, for the damage their rows give, answered by the resistances their

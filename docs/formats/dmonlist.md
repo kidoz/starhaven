@@ -110,3 +110,13 @@ The parser rejects, deterministically and without reading out of bounds:
 - Whether the record's unknown bytes carry animation or rendering data; the
   statistics live in `MONSTERS.TXT` and the palettes in `DSFT.BIN`, so neither
   is what they hold. `unknown`
+
+## The eight animations are used, not just listed
+
+Each record names eight animation groups — Stand, Walk, two Attacks, Wince,
+Death, Defend and Fidget. **1,382 of the 1,384** names resolve to a group in
+`DSFT.BIN`. `observed` A monster's variants share the A variant's art, so a
+name that resolves for none of a triple falls back to the first of the three;
+see [`dsft.md`](dsft.md).
+
+Reproduce with `sft_info --check`.

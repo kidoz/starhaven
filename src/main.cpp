@@ -189,10 +189,11 @@ void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
 
 // Decorations, monsters and loot are all camera-facing billboards that pick
 // their current picture out of the sprite frame table.
-template <typename AliveFn>
+// `shown` is the animation each actor is currently in, which the fight
+// changes: a monster flinches when hit and keeps its death picture after.
 void draw_billboards(render::SceneRenderer& scene, const world::MapSession& session,
                      assets::AssetCache& cache, std::uint32_t ticks, const game::Mob& mob,
-                     const render::Vec3& eye, AliveFn alive) {
+                     const render::Vec3& eye, const std::vector<std::string>& shown) {
     auto draw = [&](const std::string& animation, const render::Vec3& position, float scale,
                     game::SpriteView view = {}) {
         const game::SpriteChoice pick =
@@ -215,12 +216,10 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
     // A monster is drawn from the side you are standing on: the view is the
     // angle between where it faces and where you are.
     for (std::size_t i = 0; i < session.actors.size(); ++i) {
-        if (!alive(i)) {
-            continue;  // the dead are not drawn; their art is a slice of its own
-        }
         const auto& a = session.actors[i];
         const float to_eye = std::atan2(eye.z - a.position.z, eye.x - a.position.x);
-        draw(a.animation, a.position, kActorScale, game::sprite_view(mob.facing(i), to_eye));
+        draw(shown[i].empty() ? a.animation : shown[i], a.position, kActorScale,
+             game::sprite_view(mob.facing(i), to_eye));
     }
     for (const auto& o : session.objects) {
         const auto* descriptor = session.object_descriptors.at(o.descriptor_index);
@@ -369,12 +368,15 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
         std::string text = std::to_string(i + 1) + " " + who.name + "  " +
                            std::to_string(who.hit_points) + "/" +
                            std::to_string(who.max_hit_points);
-        if (who.max_spell_points > 0) {
+        if (who.hit_points <= 0) {
+            text += "  down";
+        } else if (who.max_spell_points > 0) {
             text += "  sp " + std::to_string(who.spell_points) + "/" +
                     std::to_string(who.max_spell_points);
         }
-        game::draw_text(scene.framebuffer(), font, 8, y, text, render::Color{215, 215, 215, 255},
-                        render::Color{0, 0, 0, 255});
+        const render::Color colour = who.hit_points <= 0 ? render::Color{170, 110, 110, 255}
+                                                         : render::Color{215, 215, 215, 255};
+        game::draw_text(scene.framebuffer(), font, 8, y, text, colour, render::Color{0, 0, 0, 255});
         y += line;
     }
 }
@@ -789,6 +791,7 @@ int main(int argc, char** argv) {
         game::Mob bench_mob;
         bench_mob.reset(session, monster_stats,
                         static_cast<std::uint32_t>(session.actors.size()) + 1u);
+        const std::vector<std::string> bench_shown(session.actors.size());
 
         std::vector<double> geometry;
         std::vector<double> billboards;
@@ -807,7 +810,7 @@ int main(int argc, char** argv) {
             // Animation time advances with the frame so the billboard work is
             // not measured on one cached sprite.
             draw_billboards(bench_scene, session, cache, static_cast<std::uint32_t>(i), bench_mob,
-                            camera.position, [](std::size_t) { return true; });
+                            camera.position, bench_shown);
             const auto t2 = std::chrono::steady_clock::now();
 
             using ms = std::chrono::duration<double, std::milli>;
@@ -903,6 +906,13 @@ int main(int argc, char** argv) {
     float party_recovery = 0.0f;
     int striker = 0;  // whose turn it is to swing
 
+    // The animation each monster is drawn in, re-resolved only when the fight
+    // changes it: looking a name up through the frame table every frame for
+    // every monster is work nothing asked for.
+    std::vector<world::MonsterAnimation> shown_kind(session.actors.size(),
+                                                    world::MonsterAnimation::Stand);
+    std::vector<std::string> shown_animation(session.actors.size());
+
     render::SceneRenderer scene(kWidth, kHeight);
 
     float fall_speed = 0.0f;
@@ -984,6 +994,16 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
         party_recovery = std::max(0.0f, party_recovery - in.dt);
+        battle.award(party);
+        for (std::size_t i = 0; i < shown_kind.size(); ++i) {
+            if (const world::MonsterAnimation kind = battle.animation_of(i);
+                kind != shown_kind[i]) {
+                shown_kind[i] = kind;
+                shown_animation[i] =
+                    game::actor_animation(session.monsters, session.sprite_frames, cache,
+                                          session.actors[i].monster_id, kind);
+            }
+        }
 
         // A blow lands on whatever the party is aiming at, in reach, alive.
         if (want_strike && party_recovery <= 0.0f) {
@@ -1015,7 +1035,7 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
-                        camera.position, [&](std::size_t actor) { return battle.alive(actor); });
+                        camera.position, shown_animation);
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }

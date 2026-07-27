@@ -48,11 +48,17 @@ inline constexpr float kPartyRecovery = 1.0f;
 // about two seconds between blows. `inferred`
 inline constexpr float kMonsterRecoveryScale = 0.01f;
 
+// How long a monster shows its flinch before standing again, in seconds. The
+// frame table gives each group a length, but not in any unit this engine has
+// pinned down, so this is a plain duration. `inferred`
+inline constexpr float kWinceSeconds = 0.4f;
+
 // What a monster is doing in the fight, one per session actor.
 struct Combatant {
     int hit_points = 0;
     int max_hit_points = 0;
     float recovery = 0.0f;  // seconds until it can strike again
+    float wince = 0.0f;     // seconds left of flinching
     bool alive = true;
 };
 
@@ -136,6 +142,7 @@ public:
     void reset(const world::MapSession& session, const data::MonsterStatsTable& monsters,
                std::uint32_t seed) {
         random_ = Mm6Random{seed};
+        experience_ = 0;
         combatants_.clear();
         combatants_.reserve(session.actors.size());
         for (const auto& actor : session.actors) {
@@ -154,6 +161,44 @@ public:
         return actor < combatants_.size() && combatants_[actor].alive;
     }
     [[nodiscard]] std::size_t size() const noexcept { return combatants_.size(); }
+
+    // Which of its eight animations a monster should be drawn in. The dead
+    // stay dead: a corpse keeps its death picture rather than disappearing.
+    [[nodiscard]] world::MonsterAnimation animation_of(std::size_t actor) const noexcept {
+        if (actor >= combatants_.size()) {
+            return world::MonsterAnimation::Stand;
+        }
+        if (!combatants_[actor].alive) {
+            return world::MonsterAnimation::Death;
+        }
+        return combatants_[actor].wince > 0.0f ? world::MonsterAnimation::Wince
+                                               : world::MonsterAnimation::Stand;
+    }
+
+    // Experience earned and not yet handed out.
+    [[nodiscard]] int unclaimed_experience() const noexcept { return experience_; }
+
+    // Share it among whoever is still standing, the way a party splits a kill.
+    // Nobody standing means nobody collects, and it waits. `inferred`
+    void award(std::array<Character, 4>& party) {
+        if (experience_ <= 0) {
+            return;
+        }
+        int standing = 0;
+        for (const auto& who : party) {
+            standing += who.hit_points > 0 ? 1 : 0;
+        }
+        if (standing == 0) {
+            return;
+        }
+        const int each = experience_ / standing;
+        for (auto& who : party) {
+            if (who.hit_points > 0) {
+                who.experience += each;
+            }
+        }
+        experience_ = 0;
+    }
 
     // The party strikes one monster. Returns what happened, for the message
     // line, or empty when the blow was not possible at all.
@@ -186,10 +231,13 @@ public:
 
         Combatant& target = combatants_[actor];
         target.hit_points -= damage;
+        target.wince = kWinceSeconds;
         std::string what = who.name + " hits " + monster.name + " for " + std::to_string(damage);
         if (target.hit_points <= 0) {
             target.alive = false;
             target.hit_points = 0;
+            target.wince = 0.0f;
+            experience_ += monster.experience;
             what += " and kills it";
         }
         return what;
@@ -209,6 +257,7 @@ public:
             if (!c.alive) {
                 continue;
             }
+            c.wince = c.wince > dt ? c.wince - dt : 0.0f;
             c.recovery -= dt;
             if (c.recovery > 0.0f) {
                 continue;
@@ -274,6 +323,7 @@ private:
     }
 
     std::vector<Combatant> combatants_;
+    int experience_ = 0;
     Mm6Random random_{1};
 };
 

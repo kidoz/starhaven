@@ -191,3 +191,123 @@ TEST_CASE("the party aims at what it is looking at", "[combat]") {
     REQUIRE(aimed_actor(session, battle, {0, 0, 0}, {0, 0, 1}, kPartyReach) == kNoActor);
     REQUIRE(aimed_actor(session, battle, {0, 0, 0}, {0, 0, -1}, 100.0f) == kNoActor);
 }
+
+TEST_CASE("a monster flinches when hit and lies there when killed", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("6", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
+
+    Character who = fighter();
+    Pack pack;
+    // Land one blow, whatever it takes.
+    while (battle.alive(0) && battle.animation_of(0) == world::MonsterAnimation::Stand) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    if (battle.alive(0)) {
+        REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Wince);
+    }
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
+
+    // A corpse stays a corpse: no amount of time stands it back up.
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    for (int i = 0; i < 20; ++i) {
+        (void)battle.update(1.0f, session, table, party, {0, 0, 0});
+    }
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
+}
+
+TEST_CASE("a flinch passes", "[combat]") {
+    auto session = with_monster({0, 0, kMeleeRange * 4});
+    const auto table = monsters("100", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.animation_of(0) == world::MonsterAnimation::Stand) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    (void)battle.update(kWinceSeconds * 2.0f, session, table, party, {0, 0, 0});
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
+}
+
+TEST_CASE("a kill is worth what the monster's row says", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("6", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+    REQUIRE(battle.unclaimed_experience() == 0);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    // The fixture's row gives 24.
+    REQUIRE(battle.unclaimed_experience() == 24);
+
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    battle.award(party);
+    REQUIRE(battle.unclaimed_experience() == 0);
+    for (const auto& member : party) {
+        REQUIRE(member.experience == 6);
+    }
+}
+
+TEST_CASE("only the standing collect", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("6", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    party[0].hit_points = 0;
+    party[1].hit_points = 0;
+    battle.award(party);
+    REQUIRE(party[0].experience == 0);
+    REQUIRE(party[2].experience == 12);
+}
+
+TEST_CASE("a party with nobody standing keeps what it has earned", "[combat]") {
+    // Otherwise a kill that drops the last character loses its experience.
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("6", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    for (auto& member : party) {
+        member.hit_points = 0;
+    }
+    battle.award(party);
+    REQUIRE(battle.unclaimed_experience() == 24);
+}
+
+TEST_CASE("someone who is down cannot swing", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("20", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    who.hit_points = 0;
+    Pack pack;
+    REQUIRE(battle.strike(0, who, pack, session, table, items()).empty());
+    REQUIRE(battle.alive(0));
+}

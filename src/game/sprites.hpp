@@ -58,7 +58,8 @@ inline SpriteChoice choose_sprite(const world::SpriteFrameTable& frames, const s
 // `DMONLIST` with the raw id draws the next monster's sprite.
 inline std::string actor_animation(const world::MonsterList& monsters,
                                    const world::SpriteFrameTable& frames, assets::AssetCache& cache,
-                                   int monster_id) {
+                                   int monster_id,
+                                   world::MonsterAnimation kind = world::MonsterAnimation::Stand) {
     auto drawable = [&](const std::string& animation) {
         if (animation.empty())
             return false;
@@ -75,14 +76,14 @@ inline std::string actor_animation(const world::MonsterList& monsters,
     if (entry == nullptr) {
         return {};
     }
-    std::string animation = entry->animation(world::MonsterAnimation::Stand);
+    std::string animation = entry->animation(kind);
     // Monsters come in A/B/C triples; with 1-based ids the A variant of id is
     // id - ((id - 1) % 3). Falling back to it draws a variant whose own art is
     // missing rather than drawing nothing.
     if (!drawable(animation)) {
         const auto a_index = static_cast<std::size_t>(monster_id - 1 - ((monster_id - 1) % 3));
         if (const auto* a = monsters.at(a_index); a != nullptr) {
-            const std::string& alt = a->animation(world::MonsterAnimation::Stand);
+            const std::string& alt = a->animation(kind);
             if (drawable(alt))
                 return alt;
         }
