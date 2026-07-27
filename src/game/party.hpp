@@ -17,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+#include "core/data/monster_stats.hpp"
 #include "core/data/name_table.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/random.hpp"
@@ -82,6 +83,11 @@ struct Character {
     int max_spell_points = 0;
     int armor_class = 0;
     int skill_points = 0;
+
+    // Fire, Electricity, Cold, Poison and Magic, in the order `stats.txt`
+    // lists them and `MONSTERS.TXT` carries them. A starting character has
+    // none of any. `inferred`
+    std::array<int, data::kResistanceCount> resistances{};
 
     [[nodiscard]] int attribute(Attribute a) const noexcept {
         return attributes[static_cast<std::size_t>(a)];

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "core/data/building_stats.hpp"
+#include "core/data/dice.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/interface_strings.hpp"
 #include "core/data/item_stats.hpp"
@@ -49,6 +50,7 @@ void print_usage(const char* argv0) {
               << "  --awards           Awards.txt\n"
               << "  --autonotes        Autonote.txt\n"
               << "  --encounters       MapStats encounter slots against MONSTERS.TXT\n"
+              << "  --dice             damage notation across MONSTERS.TXT and ITEMS.TXT\n"
               << "  --personalities    npcbtb.txt reactions and phrasing\n"
               << "  --strings [id]     GLOBAL.TXT interface words\n"
               << "  --classes          Class.txt\n"
@@ -704,6 +706,56 @@ int do_journal(const std::string& label, const data::JournalTable& table, const 
     return 0;
 }
 
+// Research mode: does every damage cell in either table parse?
+int do_dice(const std::filesystem::path& data_dir) {
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    data::ItemStatsTable items;
+    if (data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: could not load the tables\n";
+        return 1;
+    }
+
+    std::size_t attacks = 0;
+    std::size_t parsed = 0;
+    for (const auto& m : monsters.entries()) {
+        for (const auto& a : m.attacks) {
+            if (a.damage.empty() || a.damage == "0") {
+                continue;
+            }
+            ++attacks;
+            const data::Dice dice = data::parse_dice(a.damage);
+            parsed += dice.empty() ? 0 : 1;
+            if (dice.empty()) {
+                std::cout << "  unparsed: " << m.name << " \"" << a.damage << "\"\n";
+            }
+        }
+    }
+    std::cout << parsed << "/" << attacks << " monster attack damages parse\n";
+
+    // Only the things you hit with carry dice; armour's modifier is a flat
+    // number and a wand's is charges.
+    std::size_t weapons = 0;
+    std::size_t weapon_dice = 0;
+    for (const auto& item : items.entries()) {
+        const bool hits = item.equip_type == data::ItemEquipType::Weapon ||
+                          item.equip_type == data::ItemEquipType::TwoHandedWeapon ||
+                          item.equip_type == data::ItemEquipType::Missile;
+        if (!hits) {
+            continue;
+        }
+        ++weapons;
+        weapon_dice += data::parse_dice(item.modifier_1).empty() ? 0 : 1;
+        if (data::parse_dice(item.modifier_1).empty()) {
+            std::cout << "  no dice: " << item.name << " \"" << item.modifier_1 << "\"\n";
+        }
+    }
+    std::cout << weapon_dice << "/" << weapons << " weapons carry damage dice\n";
+    return 0;
+}
+
 int do_encounters(const std::filesystem::path& data_dir) {
     data::MapStatsTable maps;
     data::TextTable text;
@@ -1008,6 +1060,8 @@ int main(int argc, char** argv) {
         }
         return do_journal(command.substr(2), table, argument);
     }
+    if (command == "--dice")
+        return do_dice(data_dir);
     if (command == "--encounters")
         return do_encounters(data_dir);
     if (command == "--personalities")

@@ -139,13 +139,24 @@ public:
     }
 
     // Move everything one step. The session's actor positions are what change.
-    void update(float dt, world::MapSession& session, const render::Vec3& party) {
+    //
+    // `is_alive` says which actors still move; a caller with no fight going on
+    // can pass one that always says yes.
+    template <typename AliveFn>
+    void update(float dt, world::MapSession& session, const render::Vec3& party, AliveFn is_alive) {
         if (states_.size() != session.actors.size() || dt <= 0.0f) {
             return;
         }
         for (std::size_t i = 0; i < states_.size(); ++i) {
+            if (!is_alive(i)) {
+                continue;
+            }
             step(dt, states_[i], session.actors[i], session, party);
         }
+    }
+
+    void update(float dt, world::MapSession& session, const render::Vec3& party) {
+        update(dt, session, party, [](std::size_t) { return true; });
     }
 
     [[nodiscard]] float facing(std::size_t actor) const noexcept {

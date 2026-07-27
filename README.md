@@ -161,6 +161,13 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **Fighting**: **Space** strikes whatever you are aiming at within reach, with
+  the weapon that character is carrying — a longsword rolls the `3d3` its own
+  `ITEMS.TXT` row gives — and the monsters strike back on the recovery their
+  rows give, for the damage their rows give, answered by the resistances their
+  rows give. The damage notation parses everywhere it appears: 212 of 212
+  monster attacks and 78 of 78 weapons. What a *character* hits for is not in
+  any table, and is marked as this engine's where it is defined.
 - **Loot you can pick up, and somewhere to put it**: walk over a thing lying
   on a map and the first character with room takes it. **I** opens a pack,
   drawn with the game's own item icons — all 229 of them resolve out of

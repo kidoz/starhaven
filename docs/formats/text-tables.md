@@ -441,6 +441,21 @@ hostile register (`"%02, eh?  I'll remember that."`). `observed`
 
 The prose carries the same `%01`-style placeholders as `npcprof.txt`.
 
+## The damage notation
+
+`MONSTERS.TXT`'s two attack columns and `ITEMS.TXT`'s weapon modifier write
+damage the same way, in one of exactly two forms: `NdN` and `NdN+N`. The letter
+is written both ways — `3d3` and `1D6+1`. `observed`
+
+- **212 of 212** monster attack damages parse. `observed`
+- **78 of 78** weapons — the things whose equip type is a weapon, a two-handed
+  weapon or a missile — carry dice. `observed`
+- Everything else's modifier is not dice: armour's is a flat number, a wand's
+  is charges. A cell reading `0` means no attack, and must not be read as a
+  roll of nothing that still pays its bonus. `observed`
+
+Reproduce with `data_info --dice`.
+
 ## `stats.txt` is the character sheet's field list
 
 Twenty-five rows, each a field and the designers' description of it, in the

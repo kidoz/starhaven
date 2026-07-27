@@ -28,6 +28,7 @@
 #include "core/render/scene.hpp"
 #include "core/world/map_session.hpp"
 #include "game/ambient_mixer.hpp"
+#include "game/combat.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
 #include "game/monster_ai.hpp"
@@ -67,6 +68,7 @@ void print_usage(const char* argv0) {
               << "  Tab        list the establishments on this map\n"
               << "  C          the character sheet; 1-4 choose a character\n"
               << "  I          the inventory; walk over a thing to pick it up\n"
+              << "  Space      strike whatever you are aiming at, in reach\n"
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
@@ -187,9 +189,10 @@ void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
 
 // Decorations, monsters and loot are all camera-facing billboards that pick
 // their current picture out of the sprite frame table.
+template <typename AliveFn>
 void draw_billboards(render::SceneRenderer& scene, const world::MapSession& session,
                      assets::AssetCache& cache, std::uint32_t ticks, const game::Mob& mob,
-                     const render::Vec3& eye) {
+                     const render::Vec3& eye, AliveFn alive) {
     auto draw = [&](const std::string& animation, const render::Vec3& position, float scale,
                     game::SpriteView view = {}) {
         const game::SpriteChoice pick =
@@ -212,6 +215,9 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
     // A monster is drawn from the side you are standing on: the view is the
     // angle between where it faces and where you are.
     for (std::size_t i = 0; i < session.actors.size(); ++i) {
+        if (!alive(i)) {
+            continue;  // the dead are not drawn; their art is a slice of its own
+        }
         const auto& a = session.actors[i];
         const float to_eye = std::atan2(eye.z - a.position.z, eye.x - a.position.x);
         draw(a.animation, a.position, kActorScale, game::sprite_view(mob.facing(i), to_eye));
@@ -801,7 +807,7 @@ int main(int argc, char** argv) {
             // Animation time advances with the frame so the billboard work is
             // not measured on one cached sprite.
             draw_billboards(bench_scene, session, cache, static_cast<std::uint32_t>(i), bench_mob,
-                            camera.position);
+                            camera.position, [](std::size_t) { return true; });
             const auto t2 = std::chrono::steady_clock::now();
 
             using ms = std::chrono::duration<double, std::milli>;
@@ -882,7 +888,7 @@ int main(int argc, char** argv) {
     data::DescriptionTable class_descriptions;
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
     (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
-    const std::array<game::Character, 4> party = game::make_party(given_names, 1);
+    std::array<game::Character, 4> party = game::make_party(given_names, 1);
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
     int shown_pack = open_pack >= 1 && open_pack <= 4 ? open_pack - 1 : -1;
@@ -892,6 +898,10 @@ int main(int argc, char** argv) {
     // The monsters start where the map put them and wander from there.
     game::Mob mob;
     mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
+    game::Battle battle;
+    battle.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 7u);
+    float party_recovery = 0.0f;
+    int striker = 0;  // whose turn it is to swing
 
     render::SceneRenderer scene(kWidth, kHeight);
 
@@ -904,6 +914,7 @@ int main(int argc, char** argv) {
         music.update();
         ambient.update(camera.position, ambient_sources, session.sounds);
 
+        bool want_strike = false;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
@@ -926,6 +937,9 @@ int main(int argc, char** argv) {
                 } else if (shown_pack >= 0) {
                     shown_pack = chosen;
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE &&
+                       shown_member < 0 && shown_pack < 0) {
+                want_strike = true;
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
@@ -962,7 +976,38 @@ int main(int argc, char** argv) {
         } else {
             draw_indoor(scene, session, cache, light);
         }
-        mob.update(in.dt, session, camera.position);
+        mob.update(in.dt, session, camera.position,
+                   [&](std::size_t actor) { return battle.alive(actor); });
+        if (std::string blow = battle.update(in.dt, session, monster_stats, party, camera.position);
+            !blow.empty()) {
+            pick_up_message = std::move(blow);
+            pick_up_shown = SDL_GetTicks();
+        }
+        party_recovery = std::max(0.0f, party_recovery - in.dt);
+
+        // A blow lands on whatever the party is aiming at, in reach, alive.
+        if (want_strike && party_recovery <= 0.0f) {
+            const render::Vec3 forward = camera.forward();
+            if (const std::size_t target =
+                    game::aimed_actor(session, battle, camera.position, forward, game::kPartyReach);
+                target != game::kNoActor) {
+                for (int tries = 0; tries < 4; ++tries) {
+                    const auto who = static_cast<std::size_t>(striker);
+                    striker = (striker + 1) % static_cast<int>(party.size());
+                    if (party[who].hit_points <= 0) {
+                        continue;
+                    }
+                    std::string blow = battle.strike(target, party[who], packs[who], session,
+                                                     monster_stats, item_stats);
+                    if (!blow.empty()) {
+                        pick_up_message = std::move(blow);
+                        pick_up_shown = SDL_GetTicks();
+                        party_recovery = game::kPartyRecovery;
+                    }
+                    break;
+                }
+            }
+        }
         if (const auto taken =
                 game::take_nearby(session, item_stats, cache, camera.position, packs);
             !taken.empty()) {
@@ -970,7 +1015,7 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
-                        camera.position);
+                        camera.position, [&](std::size_t actor) { return battle.alive(actor); });
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }
