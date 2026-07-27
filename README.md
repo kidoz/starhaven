@@ -161,6 +161,10 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **Loot you can pick up, and somewhere to put it**: walk over a thing lying
+  on a map and the first character with room takes it. **I** opens a pack,
+  drawn with the game's own item icons — all 229 of them resolve out of
+  `icons.lod` — on a grid, with what each thing is and what it is worth.
 - **A party, and the character sheet**: four characters with the game's own
   portraits — twelve faces of 53 frames each, found in `icons.lod` — named from
   `npcnames.txt`, classed from `Class.txt`, and laid out with the field names

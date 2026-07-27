@@ -206,6 +206,12 @@ test('name_table',
   workdir : meson.current_build_dir(),
 )
 
+test('inventory',
+  executable('test_inventory', 'test_inventory.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('party',
   executable('test_party', 'test_party.cpp',
     dependencies : [starhaven_dep, catch2_main]),

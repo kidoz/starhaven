@@ -384,3 +384,19 @@ counts by class.
 - The higher-level purpose of the mirrored cloak/boots inventory paths.
 - How the abbreviated modifier and material columns in `ITEMS.TXT` drive
   gameplay.
+
+## Inventory icons
+
+Every item row names a picture, and all **229** distinct picture names resolve
+to an entry in `icons.lod` — the 583 items share them. `observed`
+
+The icons are **9 to 140 pixels wide and 12 to 289 tall**, and neither
+dimension is a multiple of anything. `observed` So how many cells of an
+inventory grid an item occupies is not something the art states, and no table
+states it either: the `Shape`, `Equip X` and `Equip Y` columns do not give a
+width and a height in cells. `observed`
+
+StarHaven uses a 14 x 9 grid of 32-pixel cells and lets an icon overhang a cell
+by up to 14 pixels before it claims the next one. That threshold is chosen, not
+read: it is what makes all 229 icons fit a pack that size, where rounding up
+outright leaves one that could never be carried. `inferred`

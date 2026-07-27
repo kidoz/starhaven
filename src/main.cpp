@@ -29,6 +29,7 @@
 #include "core/world/map_session.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/inspect.hpp"
+#include "game/inventory.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/party.hpp"
@@ -65,6 +66,7 @@ void print_usage(const char* argv0) {
               << "  Arrows     look left/right/up/down\n"
               << "  Tab        list the establishments on this map\n"
               << "  C          the character sheet; 1-4 choose a character\n"
+              << "  I          the inventory; walk over a thing to pick it up\n"
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
@@ -75,6 +77,7 @@ void print_usage(const char* argv0) {
               << "  --boxes             overlay model bounding boxes\n"
               << "  --labels            name the monsters and loot in the world\n"
               << "  --sheet N           open character N's sheet (1-4)\n"
+              << "  --pack N            open character N's inventory (1-4)\n"
               << "  --fly               disable gravity and collision\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
@@ -370,6 +373,77 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
     }
 }
 
+// One character's pack, on the grid, with the item art the game draws.
+void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+               const game::Character& who, const game::Pack& pack,
+               const data::ItemStatsTable& items) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{160, 160, 160, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    constexpr int kLeft = 40;
+    constexpr int kTop = 60;
+
+    game::draw_text(scene.framebuffer(), font, kLeft, 24,
+                    who.name + " is carrying " + std::to_string(pack.size()) +
+                        (pack.size() == 1 ? " thing" : " things"),
+                    white, shadow);
+
+    // The empty grid first, so a pack with nothing in it still reads as a pack.
+    for (int y = 0; y <= game::kPackHeight; ++y) {
+        const int py = kTop + y * game::kCellSize;
+        for (int x = 0; x < game::kPackWidth * game::kCellSize; ++x) {
+            const int px = kLeft + x;
+            if (px < 0 || px >= kWidth || py < 0 || py >= kHeight) {
+                continue;
+            }
+            const auto i =
+                (static_cast<std::size_t>(py) * kWidth + static_cast<std::size_t>(px)) * 4;
+            pixels[i] = 70;
+            pixels[i + 1] = 70;
+            pixels[i + 2] = 60;
+        }
+    }
+
+    for (const auto& carried : pack.items()) {
+        const auto* row = items.at(static_cast<std::size_t>(carried.item_id));
+        if (row == nullptr) {
+            continue;
+        }
+        blit(scene.framebuffer(), cache.icon(row->picture), kLeft + carried.x * game::kCellSize,
+             kTop + carried.y * game::kCellSize);
+    }
+
+    // And the list, since the art alone does not say what anything is worth.
+    int y = kTop + (game::kPackHeight + 1) * game::kCellSize + 6;
+    for (const auto& carried : pack.items()) {
+        const auto* row = items.at(static_cast<std::size_t>(carried.item_id));
+        if (row == nullptr || y > kHeight - font.height() - 20) {
+            continue;
+        }
+        game::draw_text(scene.framebuffer(), font, kLeft, y,
+                        data::cp1252_to_utf8(row->name) + "  " + std::to_string(row->value) +
+                            " gold",
+                        dim, shadow);
+        y += font.height() + 1;
+    }
+
+    game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
+                    "1-4 choose a character, I closes", dim, shadow);
+}
+
 // The game's own interface font. A missing font is not fatal: the world still
 // renders, without the overlay.
 image::Font load_font(const std::filesystem::path& data_dir, const char* name) {
@@ -558,6 +632,7 @@ int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;
     int open_sheet = 0;  // 1-4 to start with that character's sheet open
+    int open_pack = 0;   // and the same for the inventory
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -576,6 +651,8 @@ int main(int argc, char** argv) {
             bench_frames = std::atoi(argv[++i]);
         } else if (a == "--sheet" && i + 1 < argc) {
             open_sheet = std::atoi(argv[++i]);
+        } else if (a == "--pack" && i + 1 < argc) {
+            open_pack = std::atoi(argv[++i]);
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -806,7 +883,11 @@ int main(int argc, char** argv) {
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
     (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
     const std::array<game::Character, 4> party = game::make_party(given_names, 1);
+    std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
+    int shown_pack = open_pack >= 1 && open_pack <= 4 ? open_pack - 1 : -1;
+    std::string pick_up_message;
+    std::uint64_t pick_up_shown = 0;
 
     // The monsters start where the map put them and wander from there.
     game::Mob mob;
@@ -833,9 +914,18 @@ int main(int argc, char** argv) {
                 show_directory = !show_directory;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C) {
                 shown_member = shown_member < 0 ? 0 : -1;
-            } else if (event.type == SDL_EVENT_KEY_DOWN && shown_member >= 0 &&
-                       event.key.key >= SDLK_1 && event.key.key <= SDLK_4) {
-                shown_member = static_cast<int>(event.key.key - SDLK_1);
+                shown_pack = -1;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
+                shown_pack = shown_pack < 0 ? 0 : -1;
+                shown_member = -1;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
+                       event.key.key <= SDLK_4) {
+                const int chosen = static_cast<int>(event.key.key - SDLK_1);
+                if (shown_member >= 0) {
+                    shown_member = chosen;
+                } else if (shown_pack >= 0) {
+                    shown_pack = chosen;
+                }
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
@@ -873,6 +963,12 @@ int main(int argc, char** argv) {
             draw_indoor(scene, session, cache, light);
         }
         mob.update(in.dt, session, camera.position);
+        if (const auto taken =
+                game::take_nearby(session, item_stats, cache, camera.position, packs);
+            !taken.empty()) {
+            pick_up_message = taken;
+            pick_up_shown = SDL_GetTicks();
+        }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
                         camera.position);
         if (show_boxes && session.outdoor()) {
@@ -885,12 +981,20 @@ int main(int argc, char** argv) {
         if (show_directory) {
             draw_directory(scene, font, session);
         }
-        if (shown_member < 0) {
+        if (shown_member < 0 && shown_pack < 0) {
             draw_party_strip(scene, font, party);
+            if (!pick_up_message.empty() && SDL_GetTicks() - pick_up_shown < 3000) {
+                game::draw_text(scene.framebuffer(), font, 8, 8, pick_up_message,
+                                render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
+            }
         }
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
                        stat_descriptions, class_descriptions);
+        }
+        if (shown_pack >= 0) {
+            const auto who = static_cast<std::size_t>(shown_pack);
+            draw_pack(scene, font, cache, party[who], packs[who], item_stats);
         }
         // A thing behind a wall is not being looked at, whatever the aim says.
         auto visible = [&](const render::Vec3& at) {
