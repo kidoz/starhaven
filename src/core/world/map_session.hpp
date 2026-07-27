@@ -88,6 +88,7 @@ struct MapSession {
     std::string file_name;     // the Games.lod entry, e.g. "OutA1.Odm"
     std::string display_name;  // from MapStats.txt; empty when unlisted
     int music_track = 0;       // the N in Sounds/N.mp3; 0 when unlisted
+    int refill_days = 0;       // how long this map takes to refill with monsters
 
     // Outdoor geometry.
     OdmMap odm;

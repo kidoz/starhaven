@@ -206,6 +206,12 @@ test('name_table',
   workdir : meson.current_build_dir(),
 )
 
+test('clock',
+  executable('test_clock', 'test_clock.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('combat',
   executable('test_combat', 'test_combat.cpp',
     dependencies : [starhaven_dep, catch2_main]),

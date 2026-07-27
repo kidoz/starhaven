@@ -161,6 +161,12 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **Time, and somewhere to sleep**: a clock in the corner counting the hours,
+  the days and the seven weekdays `PROFTEXT.txt` names; **R** rests eight hours
+  and everyone still standing wakes up whole, unless something alive is close
+  enough to object. Each map refills with monsters on the interval its own
+  `MapStats.txt` row gives — 168, 224 or 672 days — which is the first use of
+  three columns that had been decoded and unread.
 - **Fighting, with consequences**: a monster flinches into its Wince animation
   when hit and keeps its Death picture where it fell; the party splits the
   experience the monster's own row is worth; a character at zero hit points

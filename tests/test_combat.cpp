@@ -311,3 +311,39 @@ TEST_CASE("someone who is down cannot swing", "[combat]") {
     REQUIRE(battle.strike(0, who, pack, session, table, items()).empty());
     REQUIRE(battle.alive(0));
 }
+
+TEST_CASE("a refill puts the fallen back on their feet", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("6", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
+
+    battle.refill();
+    REQUIRE(battle.alive(0));
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
+}
+
+TEST_CASE("what is near is what is alive and near", "[combat]") {
+    auto session = with_monster({0, 0, 300});
+    const auto table = monsters("6", "0", "1d4");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    REQUIRE(battle.anything_near(session, {0, 0, 0}, 1000.0f));
+    REQUIRE_FALSE(battle.anything_near(session, {0, 0, 0}, 100.0f));
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items());
+    }
+    // A corpse is not company.
+    REQUIRE_FALSE(battle.anything_near(session, {0, 0, 0}, 1000.0f));
+}

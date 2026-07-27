@@ -28,6 +28,7 @@
 #include "core/render/scene.hpp"
 #include "core/world/map_session.hpp"
 #include "game/ambient_mixer.hpp"
+#include "game/clock.hpp"
 #include "game/combat.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
@@ -35,6 +36,7 @@
 #include "game/music_player.hpp"
 #include "game/party.hpp"
 #include "game/player.hpp"
+#include "game/rest.hpp"
 #include "game/sprites.hpp"
 #include "game/text.hpp"
 
@@ -69,6 +71,7 @@ void print_usage(const char* argv0) {
               << "  C          the character sheet; 1-4 choose a character\n"
               << "  I          the inventory; walk over a thing to pick it up\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
+              << "  R          rest, if nothing is close enough to object\n"
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
@@ -906,6 +909,12 @@ int main(int argc, char** argv) {
     float party_recovery = 0.0f;
     int striker = 0;  // whose turn it is to swing
 
+    // Time, and when this map is next due to refill. The interval is the map's
+    // own: see docs/formats/text-tables.md.
+    game::GameClock clock;
+    std::int64_t next_refill = session.refill_days > 0 ? clock.day() + session.refill_days
+                                                       : std::numeric_limits<std::int64_t>::max();
+
     // The animation each monster is drawn in, re-resolved only when the fight
     // changes it: looking a name up through the frame table every frame for
     // every monster is work nothing asked for.
@@ -925,6 +934,7 @@ int main(int argc, char** argv) {
         ambient.update(camera.position, ambient_sources, session.sounds);
 
         bool want_strike = false;
+        bool want_rest = false;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
@@ -950,6 +960,9 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE &&
                        shown_member < 0 && shown_pack < 0) {
                 want_strike = true;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R &&
+                       shown_member < 0 && shown_pack < 0) {
+                want_rest = true;
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
@@ -994,7 +1007,17 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
         party_recovery = std::max(0.0f, party_recovery - in.dt);
+        clock.advance_seconds(in.dt);
         battle.award(party);
+
+        // The map refills on its own interval, whether the party slept
+        // through it or walked through it.
+        if (clock.day() >= next_refill) {
+            battle.refill();
+            next_refill = clock.day() + session.refill_days;
+            pick_up_message = session.title() + " has filled with monsters again";
+            pick_up_shown = SDL_GetTicks();
+        }
         for (std::size_t i = 0; i < shown_kind.size(); ++i) {
             if (const world::MonsterAnimation kind = battle.animation_of(i);
                 kind != shown_kind[i]) {
@@ -1003,6 +1026,14 @@ int main(int argc, char** argv) {
                     game::actor_animation(session.monsters, session.sprite_frames, cache,
                                           session.actors[i].monster_id, kind);
             }
+        }
+
+        if (want_rest) {
+            const bool disturbed =
+                battle.anything_near(session, camera.position, game::kRestDisturbance);
+            const game::RestResult result = game::rest(party, clock, disturbed);
+            pick_up_message = game::rest_message(result, clock);
+            pick_up_shown = SDL_GetTicks();
         }
 
         // A blow lands on whatever the party is aiming at, in reach, alive.
@@ -1048,6 +1079,9 @@ int main(int argc, char** argv) {
         }
         if (shown_member < 0 && shown_pack < 0) {
             draw_party_strip(scene, font, party);
+            game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
+                            8, clock.text(), render::Color{210, 205, 185, 255},
+                            render::Color{0, 0, 0, 255});
             if (!pick_up_message.empty() && SDL_GetTicks() - pick_up_shown < 3000) {
                 game::draw_text(scene.framebuffer(), font, 8, 8, pick_up_message,
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});

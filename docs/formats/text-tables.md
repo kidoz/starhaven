@@ -375,6 +375,20 @@ Reading it as a `MapStats.txt` id would appear to succeed, because every value
 falls inside 1..67. That is the trap: the range check passes and the meaning is
 still wrong. The value is kept as written and what it indexes is `unknown`.
 
+## What `MapStats.txt` says about time
+
+Three columns count days, and all three are per map: **Reset #**, **First
+Visit Day** and **Refil Days**. The refill interval is 168, 224 or 672 days
+across the 79 maps — twenty-four, thirty-two or ninety-six weeks. `observed`
+What resets on the reset count, and what the first-visit day is measured from,
+are `unknown`.
+
+The tables know about time in two other places: `2DEvents.txt` gives every
+establishment an opening and a closing hour, some of them across midnight, and
+`PROFTEXT.txt` gives a hired NPC a different thing to say on each of seven
+named days. Together they establish hours, a seven-day week, and days that
+count. **How fast time passes is in none of them.** `observed`
+
 ## `MapStats.txt`'s encounter slots
 
 Each map row carries three encounter slots — a picture, a monster name, a

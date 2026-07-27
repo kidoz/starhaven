@@ -175,6 +175,39 @@ public:
                                                : world::MonsterAnimation::Stand;
     }
 
+    // Put every fallen monster back on its feet at full health, which is what
+    // a map refilling comes to here. `MapStats.txt` says how many days that
+    // takes for each map; this engine's approximation is that the ones that
+    // died come back rather than new ones being rolled. `inferred`
+    void refill() {
+        for (auto& c : combatants_) {
+            c.hit_points = c.max_hit_points;
+            c.alive = c.max_hit_points > 0;
+            c.wince = 0.0f;
+            c.recovery = 0.0f;
+        }
+    }
+
+    // Whether anything on the map is still standing near a point.
+    [[nodiscard]] bool anything_near(const world::MapSession& session, const render::Vec3& at,
+                                     float range) const noexcept {
+        if (combatants_.size() != session.actors.size()) {
+            return false;
+        }
+        for (std::size_t i = 0; i < combatants_.size(); ++i) {
+            if (!combatants_[i].alive) {
+                continue;
+            }
+            const auto& p = session.actors[i].position;
+            const float dx = p.x - at.x;
+            const float dz = p.z - at.z;
+            if (dx * dx + dz * dz <= range * range) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Experience earned and not yet handed out.
     [[nodiscard]] int unclaimed_experience() const noexcept { return experience_; }
 

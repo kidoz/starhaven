@@ -481,6 +481,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
         if (const auto* stats = maps.find(map_name); stats != nullptr) {
             out.display_name = data::cp1252_to_utf8(stats->name);
             out.music_track = stats->music_track;
+            out.refill_days = stats->refill_days;
         }
     }
 
