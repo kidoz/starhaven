@@ -47,6 +47,7 @@ starhaven_core_sources = files(
   'src/core/data/dice.cpp',
   'src/core/data/interface_strings.cpp',
   'src/core/data/journal.cpp',
+  'src/core/data/merchant_text.cpp',
   'src/core/data/name_table.cpp',
   'src/core/data/profession_text.cpp',
   'src/core/data/game_data.cpp',

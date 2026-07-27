@@ -201,6 +201,12 @@ interoperability and compatibility with a legally purchased copy.
   rows give. The damage notation parses everywhere it appears: 212 of 212
   monster attacks and 78 of 78 weapons. What a *character* hits for is not in
   any table, and is marked as this engine's where it is defined.
+- **Shops you can trade with**: **Tab** then a number opens an establishment's
+  counter. Its shelves are *generated*, not invented — the row's own
+  `"L1 Weap"`-style stock line feeds the random-item generator that reproduces
+  the original's item path — and priced by the multiplier the row gives, 1.5 or
+  2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
+  filled. Selling is this engine's arithmetic and says so.
 - **Loot you can pick up, and somewhere to put it**: walk over a thing lying
   on a map and the first character with room takes it. **I** opens a pack,
   drawn with the game's own item icons — all 229 of them resolve out of
@@ -212,7 +218,8 @@ interoperability and compatibility with a legally purchased copy.
   choose whose. What a character *starts* with is not in any shipped table, so
   those numbers are this engine's and say so where they are defined.
 - **Monsters that collide**: they no longer walk through walls, buildings,
-  trees or each other, or stand inside the party to attack it. Trees block them
+  trees or each other, or stand inside the party to attack it — and the party
+  cannot walk through them either. Trees block them
   by the radius `DDECLIST.BIN` gives each kind — a field that had been unknown,
   and that no two decorations on a map are ever placed closer together than.
 - **Monsters that move, and that are drawn from the side you see them from**:

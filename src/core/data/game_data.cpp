@@ -198,6 +198,18 @@ GameDataError load_profession_text(const std::filesystem::path& data_dir,
     return GameDataError::None;
 }
 
+GameDataError load_merchant_text(const std::filesystem::path& data_dir, MerchantTextTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "Merchant.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (MerchantTextTable::parse(table, out) != MerchantTextError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_names(const std::filesystem::path& data_dir, NameTable& out) {
     TextTable table;
     if (const GameDataError e = load_text_table(data_dir, "npcnames.txt", table);

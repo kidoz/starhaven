@@ -488,6 +488,31 @@ is written both ways — `3d3` and `1D6+1`. `observed`
 
 Reproduce with `data_info --dice`.
 
+## What a shop's row says it sells
+
+`2DEvents.txt` gives every establishment a price multiplier — the column headed
+`Val`, **1.5 or 2** on the shipped rows — and two stock specifications written
+the designers' way: `"L1 Weap"`, `"L2 Sword,Dagger"`, `"L2 Bows"`, plus a
+count. `observed`
+
+The `Ln` is a treasure level and the words after it name a kind, which is
+exactly what the random-item generator takes (see [`items.md`](items.md)), so a
+shop's shelves can be generated rather than invented. The generator's kinds are
+equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
+*weapon*. `inferred`
+
+## `Merchant.txt`: what the shopkeeper says
+
+Six situations by four actions — buy, sell, repair, identify — and **21 of the
+24 cells** are filled; the other three say `n/a`, which is where the situation
+cannot arise for that action. A merchant of the wrong type has nothing to say
+about your buying, only about your selling. `observed`
+
+The rows are: not enough gold, no merchant skill, regular merchant skill, good
+merchant skill, wrong type of merchant, and unnecessary. So haggling is a skill
+with three bands, and the prose carries the same `%01`-style placeholders as
+the NPC tables — `%24` for the item and `%25` for a price. `observed`
+
 ## `stats.txt` is the character sheet's field list
 
 Twenty-five rows, each a field and the designers' description of it, in the

@@ -226,7 +226,7 @@ TEST_CASE("a monster does not stand inside the party", "[ai]") {
         mob.update(1.0f / 60.0f, session, party);
     }
     const auto& at = session.actors[0].position;
-    REQUIRE(std::sqrt(at.x * at.x + at.z * at.z) >= Mob::kPartySpacing * 0.99f);
+    REQUIRE(std::sqrt(at.x * at.x + at.z * at.z) >= kPartySpacing * 0.99f);
 }
 
 TEST_CASE("a monster does not walk through a tree", "[ai]") {

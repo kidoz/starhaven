@@ -111,6 +111,28 @@ struct SpriteView {
 // How long a monster keeps one heading before choosing another, in seconds.
 inline constexpr float kWanderInterval = 3.0f;
 
+// How near a monster and the party come to each other before one is pushed
+// back out: a monster's radius plus a body's. `inferred`
+inline constexpr float kPartySpacing = 96.0f;
+
+// Move `at` out of a circle of `radius` around `centre`, if it is inside.
+[[nodiscard]] inline render::Vec3 push_out_of(render::Vec3 at, const render::Vec3& centre,
+                                              float radius) noexcept {
+    const float dx = at.x - centre.x;
+    const float dz = at.z - centre.z;
+    const float squared = dx * dx + dz * dz;
+    if (squared >= radius * radius) {
+        return at;
+    }
+    // Dead centre has no direction to leave by; any one will do.
+    const float length = std::sqrt(squared);
+    const float nx = length > 0.001f ? dx / length : 1.0f;
+    const float nz = length > 0.001f ? dz / length : 0.0f;
+    at.x = centre.x + nx * radius;
+    at.z = centre.z + nz * radius;
+    return at;
+}
+
 // How wide a monster is, and how tall, for the purpose of not walking through
 // things. The monster table gives neither. `inferred`
 inline constexpr float kMonsterRadius = 48.0f;
@@ -176,10 +198,6 @@ public:
     void update(float dt, world::MapSession& session, const render::Vec3& party) {
         update(dt, session, party, [](std::size_t) { return true; });
     }
-
-    // How near a monster comes to the party before it is pushed back out.
-    // Its own radius plus the party's. `inferred`
-    static constexpr float kPartySpacing = 96.0f;
 
     [[nodiscard]] float facing(std::size_t actor) const noexcept {
         return actor < states_.size() ? states_[actor].facing : 0.0f;
@@ -247,22 +265,9 @@ private:
         return z * kBucketStride + x;
     }
 
-    // Move `at` out of a circle of `radius` around `centre`, if it is inside.
     static render::Vec3 push_out(render::Vec3 at, const render::Vec3& centre,
                                  float radius) noexcept {
-        const float dx = at.x - centre.x;
-        const float dz = at.z - centre.z;
-        const float squared = dx * dx + dz * dz;
-        if (squared >= radius * radius) {
-            return at;
-        }
-        // Dead centre has no direction to leave by; any one will do.
-        const float length = std::sqrt(squared);
-        const float nx = length > 0.001f ? dx / length : 1.0f;
-        const float nz = length > 0.001f ? dz / length : 0.0f;
-        at.x = centre.x + nx * radius;
-        at.z = centre.z + nz * radius;
-        return at;
+        return push_out_of(at, centre, radius);
     }
 
     static float distance_xz(const render::Vec3& a, const render::Vec3& b) noexcept {

@@ -20,6 +20,10 @@ struct BuildingStatsEntry {
     std::string proprietor;
     std::string title;  // "Blacksmith", "Barkeep", ...
 
+    // What the shop charges over an item's value: 1.5 or 2 on the shipped
+    // rows. The column is headed "Val".
+    float price_factor = 1.0f;
+
     // What it stocks or offers, at the three quality levels the table gives.
     std::string stock_a;
     std::string stock_b;

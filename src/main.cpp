@@ -38,6 +38,7 @@
 #include "game/party.hpp"
 #include "game/player.hpp"
 #include "game/rest.hpp"
+#include "game/shop.hpp"
 #include "game/sprites.hpp"
 #include "game/text.hpp"
 
@@ -73,6 +74,7 @@ void print_usage(const char* argv0) {
               << "  I          the inventory; walk over a thing to pick it up\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
+              << "  Tab then 1-9  trade with an establishment on this map\n"
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
@@ -85,6 +87,7 @@ void print_usage(const char* argv0) {
               << "  --sheet N           open character N's sheet (1-4)\n"
               << "  --pack N            open character N's inventory (1-4)\n"
               << "  --time HOUR         start at this hour of day (0-23)\n"
+              << "  --shop N            open the Nth establishment's counter\n"
               << "  --fly               disable gravity and collision\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
@@ -457,6 +460,67 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
                     "1-4 choose a character, I closes", dim, shadow);
 }
 
+// A shop's counter: what it has, what it wants for it, and what the
+// shopkeeper says about the state of your purse.
+void draw_shop(render::SceneRenderer& scene, const image::Font& font,
+               const data::BuildingStatsEntry& shop, const std::vector<game::StockItem>& stock,
+               const data::ItemStatsTable& items, const data::MerchantTextTable& words, int gold,
+               const std::string& said) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{165, 165, 165, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 24;
+
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
+                        data::cp1252_to_utf8(shop.proprietor),
+                    white, shadow);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y, "you have " + std::to_string(gold) + " gold",
+                    dim, shadow);
+    y += line * 2;
+
+    const std::size_t shown = std::min<std::size_t>(stock.size(), 9);
+    for (std::size_t i = 0; i < shown; ++i) {
+        const auto* row = items.at(static_cast<std::size_t>(stock[i].item_id));
+        if (row == nullptr) {
+            continue;
+        }
+        game::draw_text(scene.framebuffer(), font, 24, y,
+                        std::to_string(i + 1) + "  " + data::cp1252_to_utf8(row->name) + "  " +
+                            std::to_string(stock[i].price) + " gold",
+                        stock[i].price <= gold ? white : dim, shadow);
+        y += line;
+    }
+    if (stock.empty()) {
+        game::draw_text(scene.framebuffer(), font, 24, y, "The shelves are bare.", dim, shadow);
+        y += line;
+    }
+
+    // The shopkeeper's own words, from Merchant.txt.
+    if (!said.empty()) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+                        shadow);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "1-9 buy, S sell the first thing you carry, B closes", dim, shadow);
+}
+
 // The game's own interface font. A missing font is not fatal: the world still
 // renders, without the overlay.
 image::Font load_font(const std::filesystem::path& data_dir, const char* name) {
@@ -660,6 +724,7 @@ int main(int argc, char** argv) {
     int open_sheet = 0;   // 1-4 to start with that character's sheet open
     int open_pack = 0;    // and the same for the inventory
     int start_hour = -1;  // --time, for looking at the world at a given hour
+    int start_shop = 0;   // --shop, to open a counter straight away
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -682,6 +747,8 @@ int main(int argc, char** argv) {
             open_pack = std::atoi(argv[++i]);
         } else if (a == "--time" && i + 1 < argc) {
             start_hour = std::atoi(argv[++i]);
+        } else if (a == "--shop" && i + 1 < argc) {
+            start_shop = std::atoi(argv[++i]);
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -920,6 +987,31 @@ int main(int argc, char** argv) {
     std::string pick_up_message;
     std::uint64_t pick_up_shown = 0;
 
+    // Trading. The directory picks a shop; the counter is the screen.
+    data::MerchantTextTable merchant_words;
+    (void)data::load_merchant_text(data_dir, merchant_words);
+    data::BuildingStatsTable all_buildings;
+    (void)data::load_building_stats(data_dir, all_buildings);
+    data::RandomItemTable random_items;
+    data::StandardBonusTable standard_bonuses;
+    data::SpecialBonusTable special_bonuses;
+    (void)data::load_random_items(data_dir, random_items);
+    (void)data::load_standard_bonuses(data_dir, standard_bonuses);
+    (void)data::load_special_bonuses(data_dir, special_bonuses);
+    const auto shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
+
+    int gold = game::kStartingGold;
+    int open_shop = -1;  // an index into shops_here, or none
+    std::vector<game::StockItem> shop_stock;
+    std::string shop_said;
+    if (start_shop >= 1 && start_shop <= static_cast<int>(shops_here.size())) {
+        open_shop = start_shop - 1;
+        const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+        shop_stock =
+            game::stock_of(shop, random_items, item_stats, standard_bonuses, special_bonuses,
+                           static_cast<std::uint32_t>(shop.id) * 2654435761U);
+    }
+
     // The monsters start where the map put them and wander from there.
     game::Mob mob;
     mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
@@ -971,12 +1063,69 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
                 shown_member = -1;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
+                       open_shop >= 0) {
+                open_shop = -1;
+                shop_said.clear();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       event.key.key == SDLK_S) {
+                // Sell the first thing the first character is carrying.
+                for (auto& pack : packs) {
+                    if (pack.empty()) {
+                        continue;
+                    }
+                    const auto carried = pack.items().front();
+                    const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
+                    if (row == nullptr) {
+                        break;
+                    }
+                    gold += game::offer_price(*row);
+                    pack.remove(carried.x, carried.y);
+                    shop_said = std::string(
+                        game::merchant_line(merchant_words, data::MerchantAction::Sell, true));
+                    break;
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
-                       event.key.key <= SDLK_4) {
+                       event.key.key <= SDLK_9) {
                 const int chosen = static_cast<int>(event.key.key - SDLK_1);
-                if (shown_member >= 0) {
+                if (open_shop >= 0) {
+                    // Buy, if the purse and somebody's pack allow it.
+                    if (static_cast<std::size_t>(chosen) < shop_stock.size()) {
+                        const auto& offered = shop_stock[static_cast<std::size_t>(chosen)];
+                        const auto* row = item_stats.at(static_cast<std::size_t>(offered.item_id));
+                        const bool affordable = row != nullptr && offered.price <= gold;
+                        bool carried = false;
+                        if (affordable) {
+                            const render::Texture& icon = cache.icon(row->picture);
+                            const int w =
+                                std::max(1, game::cells_across(static_cast<int>(icon.width())));
+                            const int h =
+                                std::max(1, game::cells_across(static_cast<int>(icon.height())));
+                            for (auto& pack : packs) {
+                                if (pack.add(offered.item_id, w, h)) {
+                                    carried = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (carried) {
+                            gold -= offered.price;
+                            shop_stock.erase(shop_stock.begin() + chosen);
+                        }
+                        shop_said = std::string(game::merchant_line(
+                            merchant_words, data::MerchantAction::Buy, affordable));
+                    }
+                } else if (show_directory && chosen < static_cast<int>(shops_here.size())) {
+                    open_shop = chosen;
+                    show_directory = false;
+                    const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+                    shop_stock = game::stock_of(shop, random_items, item_stats, standard_bonuses,
+                                                special_bonuses,
+                                                static_cast<std::uint32_t>(shop.id) * 2654435761U);
+                    shop_said.clear();
+                } else if (shown_member >= 0 && chosen < 4) {
                     shown_member = chosen;
-                } else if (shown_pack >= 0) {
+                } else if (shown_pack >= 0 && chosen < 4) {
                     shown_pack = chosen;
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE &&
@@ -1003,6 +1152,17 @@ int main(int argc, char** argv) {
 
         game::step_player(camera, fall_speed, fly, in, session.collision,
                           [&](float x, float z) { return session.terrain_height_at(x, z); });
+
+        // And monsters block the party, the way the party blocks them.
+        if (!fly) {
+            for (std::size_t i = 0; i < session.actors.size(); ++i) {
+                if (!battle.alive(i)) {
+                    continue;
+                }
+                camera.position = game::push_out_of(camera.position, session.actors[i].position,
+                                                    game::kPartySpacing);
+            }
+        }
 
         if (keys[SDL_SCANCODE_LEFT])
             camera.yaw -= game::kLookSpeed * in.dt;
@@ -1102,7 +1262,7 @@ int main(int argc, char** argv) {
         if (show_directory) {
             draw_directory(scene, font, session, clock, trade_talk);
         }
-        if (shown_member < 0 && shown_pack < 0) {
+        if (shown_member < 0 && shown_pack < 0 && open_shop < 0) {
             draw_party_strip(scene, font, party);
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
@@ -1115,6 +1275,10 @@ int main(int argc, char** argv) {
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
                        stat_descriptions, class_descriptions);
+        }
+        if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
+            draw_shop(scene, font, *shops_here[static_cast<std::size_t>(open_shop)], shop_stock,
+                      item_stats, merchant_words, gold, shop_said);
         }
         if (shown_pack >= 0) {
             const auto who = static_cast<std::size_t>(shown_pack);

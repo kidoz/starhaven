@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstddef>
+#include <cstdlib>
 
 namespace starhaven::data {
 
@@ -14,6 +15,7 @@ constexpr std::size_t kColMap = 3;
 constexpr std::size_t kColName = 5;
 constexpr std::size_t kColProprietor = 6;
 constexpr std::size_t kColTitle = 7;
+constexpr std::size_t kColPriceFactor = 12;
 constexpr std::size_t kColStockA = 13;
 constexpr std::size_t kColStockB = 14;
 constexpr std::size_t kColStockC = 15;
@@ -84,6 +86,14 @@ BuildingStatsError BuildingStatsTable::parse(const TextTable& table, BuildingSta
         e.name = std::move(name);
         e.proprietor = cell_text(table, r, kColProprietor);
         e.title = cell_text(table, r, kColTitle);
+        // "1.5" and "2": a plain multiplier, so a bare integer parse loses
+        // the half.
+        if (const std::string factor = cell_text(table, r, kColPriceFactor); !factor.empty()) {
+            e.price_factor = std::strtof(factor.c_str(), nullptr);
+            if (!(e.price_factor > 0.0f)) {
+                e.price_factor = 1.0f;
+            }
+        }
         e.stock_a = cell_text(table, r, kColStockA);
         e.stock_b = cell_text(table, r, kColStockB);
         e.stock_c = cell_text(table, r, kColStockC);

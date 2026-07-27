@@ -90,6 +90,18 @@ public:
         return nullptr;
     }
 
+    // Take out whatever covers a cell. Returns its item id, or 0.
+    int remove(int x, int y) {
+        for (auto it = items_.begin(); it != items_.end(); ++it) {
+            if (x >= it->x && x < it->x + it->width && y >= it->y && y < it->y + it->height) {
+                const int id = it->item_id;
+                items_.erase(it);
+                return id;
+            }
+        }
+        return 0;
+    }
+
     void clear() noexcept { items_.clear(); }
 
 private:
