@@ -16,7 +16,12 @@ struct DecorationTableEntry {
     std::string name;   // matches a map's decoration name, e.g. "CampfireOn"
     std::string group;  // e.g. "tree", "cactus", "test"
 
-    std::uint16_t unknown_42 = 0;  // 96 for trees, 52 for cacti; plausibly a radius
+    // How much room the decoration takes, in world units: 96 for trees, 52
+    // for cacti. No two decorations on a map are ever placed closer than the
+    // sum of their values — 0 of 1,737 near pairs on Sweet Water, against
+    // violations when a single constant is used for every kind — which is what
+    // a collision radius does to a level's layout. `inferred`
+    std::uint16_t radius = 0;      // +0x42
     std::uint16_t unknown_44 = 0;  // 76 for trees
     std::uint16_t sprite_id = 0;   // consecutive across sibling entries
 

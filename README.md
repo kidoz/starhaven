@@ -211,6 +211,10 @@ interoperability and compatibility with a legally purchased copy.
   `stats.txt` itself lists, in its order. **C** opens the sheet and **1**-**4**
   choose whose. What a character *starts* with is not in any shipped table, so
   those numbers are this engine's and say so where they are defined.
+- **Monsters that collide**: they no longer walk through walls, buildings,
+  trees or each other, or stand inside the party to attack it. Trees block them
+  by the radius `DDECLIST.BIN` gives each kind — a field that had been unknown,
+  and that no two decorations on a map are ever placed closer together than.
 - **Monsters that move, and that are drawn from the side you see them from**:
   each wanders near where it started, as far and as fast as its `MONSTERS.TXT`
   row says, and turns toward you — or away, if it is a Wimp — when you come

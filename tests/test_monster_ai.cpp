@@ -156,3 +156,103 @@ TEST_CASE("a mob that does not match its session does nothing", "[ai]") {
     REQUIRE(session.actors[0].position.x == 0.0f);
     REQUIRE(session.actors[1].position.x == 500.0f);
 }
+
+namespace {
+
+// A session with one wall across the monster's path, and one tree.
+world::MapSession walled() {
+    world::MapSession s = one_monster();
+    const std::array<render::Vec3, 4> wall{render::Vec3{-500, 0, 300}, render::Vec3{500, 0, 300},
+                                           render::Vec3{500, 400, 300},
+                                           render::Vec3{-500, 400, 300}};
+    s.collision.add_polygon(wall, {0, 0, -1});
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("a monster does not walk through a wall", "[ai]") {
+    auto session = walled();
+    Mob mob;
+    mob.reset(session, monsters("Med", "Aggress", "4", "200"), 7);
+
+    // The party stands beyond the wall, so the monster walks straight at it.
+    const render::Vec3 party{0, 0, 2000};
+    for (int i = 0; i < 600; ++i) {
+        mob.update(1.0f / 60.0f, session, party);
+    }
+    REQUIRE(session.actors[0].position.z < 300.0f);
+}
+
+TEST_CASE("a monster far from the party is not swept against the level", "[ai]") {
+    // Four hundred monsters against three thousand polygons is five
+    // milliseconds a frame; the ones you cannot see are left to drift.
+    auto session = walled();
+    session.actors[0].position = {0, 0, kWallTestRange * 2};
+    Mob mob;
+    mob.reset(session, monsters("Med", "Aggress", "4", "200"), 7);
+    const float before = session.actors[0].position.z;
+    mob.update(1.0f / 60.0f, session, {0, 0, 0});
+    REQUIRE(session.actors[0].position.z != before);
+}
+
+TEST_CASE("monsters do not stand inside each other", "[ai]") {
+    world::MapSession session;
+    session.kind = world::MapKind::Indoor;
+    for (int i = 0; i < 4; ++i) {
+        session.actors.push_back({"ratA", "Common Rat", 1, {0, 0, 0}});
+    }
+    Mob mob;
+    mob.reset(session, monsters("Med", "Aggress", "4", "200"), 5);
+    mob.update(1.0f / 60.0f, session, {5000, 0, 0});
+
+    for (std::size_t i = 0; i < session.actors.size(); ++i) {
+        for (std::size_t j = i + 1; j < session.actors.size(); ++j) {
+            const float dx = session.actors[i].position.x - session.actors[j].position.x;
+            const float dz = session.actors[i].position.z - session.actors[j].position.z;
+            REQUIRE(std::sqrt(dx * dx + dz * dz) > kMonsterSpacing * 0.99f);
+        }
+    }
+}
+
+TEST_CASE("a monster does not stand inside the party", "[ai]") {
+    auto session = one_monster();
+    session.actors[0].position = {0, 0, 0};
+    Mob mob;
+    mob.reset(session, monsters("Med", "Aggress", "4", "200"), 5);
+
+    const render::Vec3 party{0, 0, 0};
+    for (int i = 0; i < 120; ++i) {
+        mob.update(1.0f / 60.0f, session, party);
+    }
+    const auto& at = session.actors[0].position;
+    REQUIRE(std::sqrt(at.x * at.x + at.z * at.z) >= Mob::kPartySpacing * 0.99f);
+}
+
+TEST_CASE("a monster does not walk through a tree", "[ai]") {
+    // The decoration's own radius is what it takes up; see DecorationTable.
+    auto session = one_monster();
+    session.kind = world::MapKind::Outdoor;
+    session.decorations.push_back({"tree01", {0, 0, 300}, 0, 96});
+    constexpr int kTiles = world::OdmTileIndex::kDim * world::OdmTileIndex::kDim;
+    session.tile_index.starts.assign(static_cast<std::size_t>(kTiles), 0);
+    const int listed = world::OdmTileIndex::tile_y_of(300.0f) * world::OdmTileIndex::kDim +
+                       world::OdmTileIndex::tile_x_of(0.0f);
+    for (int t = 0; t < kTiles; ++t) {
+        session.tile_index.starts[static_cast<std::size_t>(t)] =
+            static_cast<std::uint32_t>(session.tile_index.entries.size());
+        if (t == listed) {
+            session.tile_index.entries.push_back(world::kPidDecoration);  // id 0
+        }
+        session.tile_index.entries.push_back(0);
+    }
+
+    Mob mob;
+    mob.reset(session, monsters("Med", "Aggress", "4", "200"), 7);
+    for (int i = 0; i < 300; ++i) {
+        mob.update(1.0f / 60.0f, session, {0, 0, 1000});
+    }
+    const auto& at = session.actors[0].position;
+    const float dz = at.z - 300.0f;
+    REQUIRE(std::sqrt(at.x * at.x + dz * dz) >= 96.0f + kMonsterRadius - 1.0f);
+}

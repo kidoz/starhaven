@@ -142,3 +142,15 @@ The decoder rejects, deterministically and without reading out of bounds:
 
   The header's three 128×128 grids show the format is willing to store large
   fixed tables, which is the obvious thing to test next.
+
+## The field at +0x42 is a radius
+
+`DDECLIST.BIN`'s `+0x42` is 96 for trees and 52 for cacti, and it behaves like
+the room a decoration takes up: across the near pairs of decorations on a map,
+**none is ever placed closer than the sum of the two values** — 0 of 1,737 on
+Sweet Water and 0 of 2,001 on New Sorpigal — while giving every kind the same
+96 does produce violations (8 on New Sorpigal, 15 on Goblinwatch). It is the
+*variation* between kinds that the layout respects, which a constant cannot
+explain. `inferred`
+
+The engine uses it as the collision radius for monsters walking past.

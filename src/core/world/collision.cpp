@@ -88,6 +88,12 @@ void CollisionWorld::add_polygon(std::span<const Vec3> vertices, Vec3 normal) {
     // Anchor the plane on the first vertex.
     const Vec3 a = poly.vertices.front();
     poly.distance = -(poly.normal.x * a.x + poly.normal.y * a.y + poly.normal.z * a.z);
+
+    poly.lo = poly.hi = a;
+    for (const Vec3& v : poly.vertices) {
+        poly.lo = {std::min(poly.lo.x, v.x), std::min(poly.lo.y, v.y), std::min(poly.lo.z, v.z)};
+        poly.hi = {std::max(poly.hi.x, v.x), std::max(poly.hi.y, v.y), std::max(poly.hi.z, v.z)};
+    }
     polygons_.push_back(std::move(poly));
 }
 
@@ -135,9 +141,26 @@ Vec3 CollisionWorld::slide(Vec3 from, Vec3 to, float radius, float height) const
     // A few passes let a corner push the player out of both walls.
     for (int pass = 0; pass < 4; ++pass) {
         bool moved = false;
+
+        // The bounds of the whole step, computed once rather than per polygon.
+        // They have to cover where the move started as well as where it ends:
+        // a fast step is stopped by comparing the two, and dismissing a wall
+        // the destination has already passed through would let it tunnel.
+        const float lo_x = std::min(from.x, pos.x) - radius;
+        const float hi_x = std::max(from.x, pos.x) + radius;
+        const float lo_z = std::min(from.z, pos.z) - radius;
+        const float hi_z = std::max(from.z, pos.z) + radius;
+        const float lo_y = std::min(from.y, pos.y);
+        const float hi_y = std::max(from.y, pos.y) + height;
+
         for (const auto& poly : polygons_) {
             if (poly.normal.y >= kFloorNormalY) {
                 continue;  // floors are handled by gravity, not by pushing
+            }
+            // Nowhere near the whole step.
+            if (hi_x < poly.lo.x || lo_x > poly.hi.x || hi_z < poly.lo.z || lo_z > poly.hi.z ||
+                hi_y < poly.lo.y || lo_y > poly.hi.y) {
+                continue;
             }
             for (const float dy : samples) {
                 const Vec3 probe{pos.x, pos.y + dy, pos.z};

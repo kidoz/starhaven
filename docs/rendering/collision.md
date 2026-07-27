@@ -115,3 +115,19 @@ which is wider than most walls are thick.
 - The rise limit uses the sampled height at the destination, so a thin spike
   between two walkable points is not seen.
 - Vertical movement is not swept; only the horizontal component is.
+
+## Bounds, and who gets tested
+
+Each polygon keeps its own bounding box, and a sweep dismisses a polygon by
+comparing boxes before touching its plane. The box has to cover the **whole
+step**, start and end: the one-sided plane test is what stops a fast step from
+tunnelling, and dismissing a wall the destination has already passed through
+brings the tunnelling back. A test caught exactly that.
+
+Monsters use the same sweep, with one restriction: only those within 6,000
+units of the party are swept against the level at all. On Mire of the Damned —
+408 monsters against 3,062 polygons — sweeping all of them costs **5.2 ms per
+update**, a third of a frame at sixty; sweeping the ones near the party costs
+**0.21 ms**. A monster that drifts into a wall while the party is elsewhere is
+pushed out on the step after they come near. `inferred`, and a trade rather
+than a finding.

@@ -71,7 +71,7 @@ DecorationTableError DecorationTable::parse(std::span<const std::byte> entry,
         if (!f.seek(base + kUnknown42Offset)) {
             return DecorationTableError::BadCount;
         }
-        e.unknown_42 = f.read_u16_le();
+        e.radius = f.read_u16_le();
         e.unknown_44 = f.read_u16_le();
         if (!f.seek(base + kSpriteIdOffset)) {
             return DecorationTableError::BadCount;

@@ -35,6 +35,7 @@ struct SessionDecoration {
     std::string name;  // also the sprite frame table's animation name
     render::Vec3 position;
     std::uint16_t sound_id = 0;  // 0 when the decoration is silent
+    std::uint16_t radius = 0;    // how much room it takes; see DecorationTable
 };
 
 // One monster standing on the map, already resolved to a drawable animation.
@@ -138,6 +139,10 @@ struct MapSession {
     // a search: outdoor maps ship the list. Indoor maps have no such index and
     // get an empty answer, so callers keep whatever they did before.
     [[nodiscard]] std::vector<std::size_t> decorations_near(float x, float z) const;
+
+    // The same answer without allocating, for callers asking once per monster
+    // per frame. `out` is cleared first.
+    void decorations_near(float x, float z, std::vector<std::size_t>& out) const;
 };
 
 // Load a map by its Games.lod entry name, e.g. "OutA1.Odm" or "D01.blv".

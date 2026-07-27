@@ -291,7 +291,8 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
     for (const auto& d : decorations) {
         const auto* type = out.decoration_types.at(d.kind);
         out.decorations.push_back({d.name, to_render_space(d.x, d.y, d.z),
-                                   type == nullptr ? std::uint16_t{0} : type->sound_id});
+                                   type == nullptr ? std::uint16_t{0} : type->sound_id,
+                                   type == nullptr ? std::uint16_t{0} : type->radius});
     }
 
     // The map's own index of what stands near each tile, and where it spawns
@@ -394,7 +395,8 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
     for (const auto& d : find_decorations(out.blv)) {
         const auto* type = out.decoration_types.find(d.name);
         out.decorations.push_back({d.name, to_render_space(d.x, d.y, d.z),
-                                   type == nullptr ? std::uint16_t{0} : type->sound_id});
+                                   type == nullptr ? std::uint16_t{0} : type->sound_id,
+                                   type == nullptr ? std::uint16_t{0} : type->radius});
     }
     out.spawn = indoor_spawn(out.blv, out.decorations);
     return MapSessionError::None;
@@ -404,8 +406,14 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
 
 std::vector<std::size_t> MapSession::decorations_near(float x, float z) const {
     std::vector<std::size_t> out;
+    decorations_near(x, z, out);
+    return out;
+}
+
+void MapSession::decorations_near(float x, float z, std::vector<std::size_t>& out) const {
+    out.clear();
     if (!outdoor()) {
-        return out;
+        return;
     }
     // The renderer's z is the map's y; see to_render_space.
     const auto run = tile_index.at(OdmTileIndex::tile_x_of(x), OdmTileIndex::tile_y_of(z));
@@ -418,7 +426,6 @@ std::vector<std::size_t> MapSession::decorations_near(float x, float z) const {
             out.push_back(id);
         }
     }
-    return out;
 }
 
 float MapSession::terrain_height_at(float x, float z) const {

@@ -14,6 +14,12 @@ struct CollisionPolygon {
     std::vector<render::Vec3> vertices;
     render::Vec3 normal{0, 1, 0};  // unit length
     float distance = 0.0f;         // plane: dot(normal, p) + distance == 0
+
+    // The polygon's own bounds, kept so that a query can dismiss it without
+    // touching its plane. A map with four hundred monsters asks this question
+    // four hundred times a frame, and most polygons are nowhere near.
+    render::Vec3 lo{};
+    render::Vec3 hi{};
 };
 
 // A static collision world: the level's polygons, queried for standing on and

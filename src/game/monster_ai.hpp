@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <map>
 #include <string_view>
 #include <vector>
 
@@ -110,6 +111,22 @@ struct SpriteView {
 // How long a monster keeps one heading before choosing another, in seconds.
 inline constexpr float kWanderInterval = 3.0f;
 
+// How wide a monster is, and how tall, for the purpose of not walking through
+// things. The monster table gives neither. `inferred`
+inline constexpr float kMonsterRadius = 48.0f;
+inline constexpr float kMonsterHeight = 160.0f;
+
+// How far apart two monsters keep. Less than twice the radius, because a crowd
+// that cannot overlap at all jams in a corridor. `inferred`
+inline constexpr float kMonsterSpacing = 72.0f;
+
+// How far from the party a monster still tests itself against the level's
+// walls. Sweeping four hundred monsters against three thousand polygons costs
+// five milliseconds a frame; sweeping the dozen you could see costs nothing,
+// and one that has drifted into a wall while you were elsewhere is pushed out
+// on the step after you come near. `inferred`
+inline constexpr float kWallTestRange = 6000.0f;
+
 // The moving monsters of one loaded map.
 //
 // The map's event file has room for a facing and a velocity per actor, and
@@ -153,11 +170,16 @@ public:
             }
             step(dt, states_[i], session.actors[i], session, party);
         }
+        separate(session, party, is_alive);
     }
 
     void update(float dt, world::MapSession& session, const render::Vec3& party) {
         update(dt, session, party, [](std::size_t) { return true; });
     }
+
+    // How near a monster comes to the party before it is pushed back out.
+    // Its own radius plus the party's. `inferred`
+    static constexpr float kPartySpacing = 96.0f;
 
     [[nodiscard]] float facing(std::size_t actor) const noexcept {
         return actor < states_.size() ? states_[actor].facing : 0.0f;
@@ -176,6 +198,71 @@ private:
     static float angle_of(std::uint16_t r) noexcept {
         constexpr float kTwoPi = 6.2831853f;
         return static_cast<float>(r % 4096) / 4096.0f * kTwoPi;
+    }
+
+    // Nobody stands inside anybody. Monsters are bucketed by terrain tile so
+    // that a map with four hundred of them does not cost four hundred squared
+    // comparisons a frame.
+    template <typename AliveFn>
+    void separate(world::MapSession& session, const render::Vec3& party, AliveFn is_alive) {
+        buckets_.clear();
+        for (std::size_t i = 0; i < states_.size(); ++i) {
+            if (!is_alive(i)) {
+                continue;
+            }
+            auto& actor = session.actors[i];
+            actor.position = push_out(actor.position, party, kPartySpacing);
+            buckets_[key_of(actor.position)].push_back(i);
+        }
+
+        for (const auto& [key, here] : buckets_) {
+            for (const std::size_t i : here) {
+                for (int dz = -1; dz <= 1; ++dz) {
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        const auto neighbour =
+                            buckets_.find(key + static_cast<std::int64_t>(dz) * kBucketStride +
+                                          static_cast<std::int64_t>(dx));
+                        if (neighbour == buckets_.end()) {
+                            continue;
+                        }
+                        for (const std::size_t j : neighbour->second) {
+                            if (j <= i) {
+                                continue;
+                            }
+                            session.actors[i].position =
+                                push_out(session.actors[i].position, session.actors[j].position,
+                                         kMonsterSpacing);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // One bucket per terrain tile, flattened into a single integer.
+    static constexpr std::int64_t kBucketStride = 1 << 20;
+    static std::int64_t key_of(const render::Vec3& at) noexcept {
+        const auto x = static_cast<std::int64_t>(std::floor(at.x / 512.0f));
+        const auto z = static_cast<std::int64_t>(std::floor(at.z / 512.0f));
+        return z * kBucketStride + x;
+    }
+
+    // Move `at` out of a circle of `radius` around `centre`, if it is inside.
+    static render::Vec3 push_out(render::Vec3 at, const render::Vec3& centre,
+                                 float radius) noexcept {
+        const float dx = at.x - centre.x;
+        const float dz = at.z - centre.z;
+        const float squared = dx * dx + dz * dz;
+        if (squared >= radius * radius) {
+            return at;
+        }
+        // Dead centre has no direction to leave by; any one will do.
+        const float length = std::sqrt(squared);
+        const float nx = length > 0.001f ? dx / length : 1.0f;
+        const float nz = length > 0.001f ? dz / length : 0.0f;
+        at.x = centre.x + nx * radius;
+        at.z = centre.z + nz * radius;
+        return at;
     }
 
     static float distance_xz(const render::Vec3& a, const render::Vec3& b) noexcept {
@@ -222,8 +309,29 @@ private:
             return;
         }
         const float distance = state.motion.speed * dt;
-        actor.position.x += std::cos(state.facing) * distance;
-        actor.position.z += std::sin(state.facing) * distance;
+        const render::Vec3 from = actor.position;
+        render::Vec3 to{from.x + std::cos(state.facing) * distance, from.y,
+                        from.z + std::sin(state.facing) * distance};
+
+        // Walls and buildings: the same swept cylinder the party uses, but
+        // only for monsters near enough to be seen doing it.
+        if (to_party < kWallTestRange) {
+            to = session.collision.slide(from, to, kMonsterRadius, kMonsterHeight);
+        }
+
+        // Trees, rocks and barrels: the map's own list of what stands near
+        // this tile, and each kind's own radius.
+        session.decorations_near(to.x, to.z, nearby_);
+        for (const std::size_t id : nearby_) {
+            const auto& decoration = session.decorations[id];
+            if (decoration.radius == 0) {
+                continue;
+            }
+            to = push_out(to, decoration.position,
+                          static_cast<float>(decoration.radius) + kMonsterRadius);
+        }
+
+        actor.position = to;
         if (session.outdoor()) {
             actor.position.y = session.terrain_height_at(actor.position.x, actor.position.z);
         }
@@ -233,6 +341,8 @@ private:
     static constexpr float kStandOff = 200.0f;
 
     std::vector<State> states_;
+    std::vector<std::size_t> nearby_;  // reused so a step allocates nothing
+    std::map<std::int64_t, std::vector<std::size_t>> buckets_;
     Mm6Random random_{1};
 };
 
