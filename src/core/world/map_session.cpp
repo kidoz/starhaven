@@ -525,6 +525,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
                         who += " (" + topics + ")";
                     }
                     entry.occupants.push_back(std::move(who));
+                    entry.occupant_professions.push_back(n->profession_id);
                 }
                 out.buildings.push_back(std::move(entry));
             }

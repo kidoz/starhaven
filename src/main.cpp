@@ -30,6 +30,7 @@
 #include "game/ambient_mixer.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
+#include "game/daylight.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
 #include "game/monster_ai.hpp"
@@ -83,6 +84,7 @@ void print_usage(const char* argv0) {
               << "  --labels            name the monsters and loot in the world\n"
               << "  --sheet N           open character N's sheet (1-4)\n"
               << "  --pack N            open character N's inventory (1-4)\n"
+              << "  --time HOUR         start at this hour of day (0-23)\n"
               << "  --fly               disable gravity and collision\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
@@ -112,7 +114,7 @@ int list_maps(const std::filesystem::path& data_dir) {
 }
 
 void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session,
-                  assets::AssetCache& cache, const render::Vec3& sun) {
+                  assets::AssetCache& cache, const render::Vec3& sun, float level = 1.0f) {
     const auto& mesh = session.terrain_mesh;
     for (std::size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
         std::array<render::Vec3, 3> w{};
@@ -126,7 +128,7 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
             render::normalize((mesh.normals[mesh.indices[i]] + mesh.normals[mesh.indices[i + 1]] +
                                mesh.normals[mesh.indices[i + 2]]) *
                               (1.0f / 3.0f));
-        const float lambert = std::clamp(render::dot(n, sun), 0.0f, 1.0f) * 0.8f + 0.2f;
+        const float lambert = (std::clamp(render::dot(n, sun), 0.0f, 1.0f) * 0.8f + 0.2f) * level;
         // UVs are in cell units, so Repeat lays one tile per cell.
         scene.draw_triangle(w, uv, lambert, session.tiles.texture_for(mesh.tile_ids[i / 3]),
                             render::WrapMode::Repeat, true);
@@ -142,7 +144,7 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
             }
             const render::Vec3 n = render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
             const float lambert =
-                std::clamp(std::abs(render::dot(n, sun)), 0.0f, 1.0f) * 0.8f + 0.2f;
+                (std::clamp(std::abs(render::dot(n, sun)), 0.0f, 1.0f) * 0.8f + 0.2f) * level;
             const render::Texture& tex = cache.bitmap(f.texture_name);
             const float inv_w = tex.width() > 0 ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
             const float inv_h = tex.height() > 0 ? 1.0f / static_cast<float>(tex.height()) : 0.0f;
@@ -568,7 +570,8 @@ void draw_panel(render::SceneRenderer& scene, const image::Font& font,
 // drawn down the left edge. They have no position in the world, so a list is
 // the honest way to show them.
 void draw_directory(render::SceneRenderer& scene, const image::Font& font,
-                    const world::MapSession& session) {
+                    const world::MapSession& session, const game::GameClock& clock,
+                    const data::ProfessionTextTable& trade_talk) {
     if (session.buildings.empty() || font.glyph_count() == 0) {
         return;
     }
@@ -590,12 +593,24 @@ void draw_directory(render::SceneRenderer& scene, const image::Font& font,
     int y = 36;
     for (int i = 0; i < rows; ++i) {
         const auto& b = session.buildings[static_cast<std::size_t>(i)];
+        // Open or shut, against the hours 2DEvents.txt gives this one.
         std::string line = b.name + "  (" + b.type + ", " + std::to_string(b.opens) + "-" +
-                           std::to_string(b.closes) + ")";
+                           std::to_string(b.closes) +
+                           (clock.open(b.opens, b.closes) ? ", open)" : ", shut)");
         if (!b.occupants.empty()) {
             line += "  \x97 " + b.occupants.front();
             if (b.occupants.size() > 1) {
                 line += " +" + std::to_string(b.occupants.size() - 1);
+            }
+            // What that trade has to say on today's day of the week.
+            const int profession =
+                b.occupant_professions.empty() ? 0 : b.occupant_professions.front();
+            if (const auto* said = trade_talk.at(profession); said != nullptr) {
+                const std::size_t day = static_cast<std::size_t>(clock.day() % 7);
+                if (!said->days[day].topic.empty()) {
+                    line += "  on " + std::string(clock.weekday()) + ": " +
+                            data::cp1252_to_utf8(said->days[day].topic);
+                }
             }
         }
         game::draw_text(scene.framebuffer(), font, 8, y, line, render::Color{220, 220, 220, 255},
@@ -642,8 +657,9 @@ void draw_boxes(render::SceneRenderer& scene, const world::MapSession& session) 
 int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;
-    int open_sheet = 0;  // 1-4 to start with that character's sheet open
-    int open_pack = 0;   // and the same for the inventory
+    int open_sheet = 0;   // 1-4 to start with that character's sheet open
+    int open_pack = 0;    // and the same for the inventory
+    int start_hour = -1;  // --time, for looking at the world at a given hour
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -664,6 +680,8 @@ int main(int argc, char** argv) {
             open_sheet = std::atoi(argv[++i]);
         } else if (a == "--pack" && i + 1 < argc) {
             open_pack = std::atoi(argv[++i]);
+        } else if (a == "--time" && i + 1 < argc) {
+            start_hour = std::atoi(argv[++i]);
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -872,11 +890,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Outdoors the sun; indoors a fixed overhead lamp, since a level has no sky.
-    const render::Vec3 light = render::normalize(
-        session.outdoor() ? render::Vec3{0.4f, 1.0f, 0.3f} : render::Vec3{0.3f, 1.0f, 0.2f});
-    const render::Color sky =
-        session.outdoor() ? render::Color{135, 180, 220, 255} : render::Color{16, 16, 24, 255};
+    // Indoors a fixed overhead lamp, since a level has no sky; outdoors the
+    // sun, which moves with the clock (see src/game/daylight.hpp).
+    const render::Vec3 lamp = render::normalize(render::Vec3{0.3f, 1.0f, 0.2f});
+    const render::Color indoor_sky{16, 16, 24, 255};
 
     const image::Font font = load_font(data_dir, "Lucida.fnt");
 
@@ -890,6 +907,8 @@ int main(int argc, char** argv) {
     // src/game/party.hpp.
     data::NameTable given_names;
     (void)data::load_names(data_dir, given_names);
+    data::ProfessionTextTable trade_talk;
+    (void)data::load_profession_text(data_dir, trade_talk);
     data::DescriptionTable stat_descriptions;
     data::DescriptionTable class_descriptions;
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
@@ -912,6 +931,9 @@ int main(int argc, char** argv) {
     // Time, and when this map is next due to refill. The interval is the map's
     // own: see docs/formats/text-tables.md.
     game::GameClock clock;
+    if (start_hour >= 0 && start_hour < game::kHoursPerDay) {
+        clock = game::GameClock{static_cast<std::int64_t>(start_hour) * game::kMinutesPerHour};
+    }
     std::int64_t next_refill = session.refill_days > 0 ? clock.day() + session.refill_days
                                                        : std::numeric_limits<std::int64_t>::max();
 
@@ -993,11 +1015,14 @@ int main(int argc, char** argv) {
         camera.pitch =
             std::clamp(camera.pitch, -render::Camera::kMaxPitch, render::Camera::kMaxPitch);
 
+        // Outdoors, both the sun and the sky follow the clock.
+        const render::Color sky = session.outdoor() ? game::sky_colour(clock) : indoor_sky;
         scene.begin(camera, sky);
         if (session.outdoor()) {
-            draw_outdoor(scene, session, cache, light);
+            draw_outdoor(scene, session, cache, game::sun_direction(clock),
+                         game::light_level(clock));
         } else {
-            draw_indoor(scene, session, cache, light);
+            draw_indoor(scene, session, cache, lamp);
         }
         mob.update(in.dt, session, camera.position,
                    [&](std::size_t actor) { return battle.alive(actor); });
@@ -1075,7 +1100,7 @@ int main(int argc, char** argv) {
             draw_labels(scene, session, font, camera.position);
         }
         if (show_directory) {
-            draw_directory(scene, font, session);
+            draw_directory(scene, font, session, clock, trade_talk);
         }
         if (shown_member < 0 && shown_pack < 0) {
             draw_party_strip(scene, font, party);

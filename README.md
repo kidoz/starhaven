@@ -161,6 +161,13 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **Day and night**: outdoors the sky and the sun follow the clock — dark blue
+  before dawn, warm at the edges of the day, blue overhead at noon — and the
+  world is lit by where the sun actually is. **Tab** now marks each
+  establishment open or shut against the hours `2DEvents.txt` gives it, and
+  tells you what the trade inside talks about *today*: `PROFTEXT.txt` is
+  decoded, the largest table in the archive, and all 77 hireable professions
+  resolve with all 539 of their profession-days filled.
 - **Time, and somewhere to sleep**: a clock in the corner counting the hours,
   the days and the seven weekdays `PROFTEXT.txt` names; **R** rests eight hours
   and everyone still standing wakes up whole, unless something alive is close

@@ -206,6 +206,18 @@ test('name_table',
   workdir : meson.current_build_dir(),
 )
 
+test('profession_text',
+  executable('test_profession_text', 'test_profession_text.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
+test('daylight',
+  executable('test_daylight', 'test_daylight.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('clock',
   executable('test_clock', 'test_clock.cpp',
     dependencies : [starhaven_dep, catch2_main]),

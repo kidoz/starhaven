@@ -185,6 +185,19 @@ GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable&
     return GameDataError::None;
 }
 
+GameDataError load_profession_text(const std::filesystem::path& data_dir,
+                                   ProfessionTextTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "PROFTEXT.txt", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (ProfessionTextTable::parse(table, out) != ProfessionTextError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_names(const std::filesystem::path& data_dir, NameTable& out) {
     TextTable table;
     if (const GameDataError e = load_text_table(data_dir, "npcnames.txt", table);

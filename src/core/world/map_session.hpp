@@ -55,8 +55,11 @@ struct SessionBuilding {
     int opens = 0;
     int closes = 0;
 
-    // The people the NPC table places inside, as "Name, Profession".
+    // The people the NPC table places inside, as "Name, Profession", and the
+    // `npcprof.txt` id of each — which is what `PROFTEXT.txt` is keyed by, so
+    // an occupant can be asked what their trade says today.
     std::vector<std::string> occupants;
+    std::vector<int> occupant_professions;
 };
 
 // One loot object or projectile lying on the map.

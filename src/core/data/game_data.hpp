@@ -12,6 +12,7 @@
 #include "core/data/map_stats.hpp"
 #include "core/data/name_table.hpp"
 #include "core/data/npc_stats.hpp"
+#include "core/data/profession_text.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 
@@ -72,6 +73,10 @@ enum class GameDataError {
 [[nodiscard]] GameDataError load_npc_dialogue(const std::filesystem::path& data_dir,
                                               NpcDialogueTable& out);
 [[nodiscard]] GameDataError load_npc_news(const std::filesystem::path& data_dir, NpcNewsTable& out);
+
+// Load `PROFTEXT.txt`, what a hired NPC says on each day of the week.
+[[nodiscard]] GameDataError load_profession_text(const std::filesystem::path& data_dir,
+                                                 ProfessionTextTable& out);
 
 // Load `npcnames.txt`, the game's own list of given names.
 [[nodiscard]] GameDataError load_names(const std::filesystem::path& data_dir, NameTable& out);

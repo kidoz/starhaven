@@ -52,6 +52,7 @@ void print_usage(const char* argv0) {
               << "  --encounters       MapStats encounter slots against MONSTERS.TXT\n"
               << "  --dice             damage notation across MONSTERS.TXT and ITEMS.TXT\n"
               << "  --personalities    npcbtb.txt reactions and phrasing\n"
+              << "  --proftext [id]    PROFTEXT.txt, what a hire says on each day\n"
               << "  --strings [id]     GLOBAL.TXT interface words\n"
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
@@ -806,6 +807,53 @@ int do_encounters(const std::filesystem::path& data_dir) {
     return 0;
 }
 
+int do_profession_text(const std::filesystem::path& data_dir, const std::string& want) {
+    data::ProfessionTextTable said;
+    data::NpcProfessionTable professions;
+    if (data::load_profession_text(data_dir, said) != data::GameDataError::None) {
+        std::cerr << "error: could not load PROFTEXT.txt\n";
+        return 1;
+    }
+    (void)data::load_npc_professions(data_dir, professions);
+
+    if (!want.empty()) {
+        const auto* row = said.at(std::atoi(want.c_str()));
+        if (row == nullptr) {
+            std::cerr << "error: no profession with id " << want << "\n";
+            return 1;
+        }
+        std::cout << row->id << "  " << row->name << "\n";
+        static constexpr std::array<const char*, data::kProfessionDayCount> kDays{
+            "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+        for (std::size_t d = 0; d < data::kProfessionDayCount; ++d) {
+            std::cout << "  " << kDays[d] << ": " << data::cp1252_to_utf8(row->days[d].topic)
+                      << " \u2014 " << data::cp1252_to_utf8(row->days[d].text) << "\n";
+        }
+        return 0;
+    }
+
+    // Every profession that can be hired should have something to say.
+    std::size_t matched = 0;
+    std::size_t named = 0;
+    for (const auto& p : professions.entries()) {
+        const auto* row = said.at(p.id);
+        matched += row != nullptr ? 1 : 0;
+        named += row != nullptr && row->name == p.name ? 1 : 0;
+    }
+    std::size_t days = 0;
+    for (const auto& row : said.entries()) {
+        for (const auto& day : row.days) {
+            days += day.empty() ? 0 : 1;
+        }
+    }
+    std::cout << said.size() << " professions have something to say; " << matched << "/"
+              << professions.size() << " of npcprof.txt's resolve here, " << named
+              << " with the same name\n";
+    std::cout << days << "/" << said.size() * data::kProfessionDayCount
+              << " profession-days are filled in\n";
+    return 0;
+}
+
 int do_personalities(const std::filesystem::path& data_dir) {
     data::NpcPersonalityTable personalities;
     if (data::load_npc_personalities(data_dir, personalities) != data::GameDataError::None) {
@@ -1064,6 +1112,8 @@ int main(int argc, char** argv) {
         return do_dice(data_dir);
     if (command == "--encounters")
         return do_encounters(data_dir);
+    if (command == "--proftext")
+        return do_profession_text(data_dir, argument);
     if (command == "--personalities")
         return do_personalities(data_dir);
     if (command == "--strings")

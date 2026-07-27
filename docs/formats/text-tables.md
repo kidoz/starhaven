@@ -375,6 +375,24 @@ Reading it as a `MapStats.txt` id would appear to succeed, because every value
 falls inside 1..67. That is the trap: the range check passes and the meaning is
 still wrong. The value is kept as written and what it indexes is `unknown`.
 
+## `PROFTEXT.txt`: what a hire says, day by day
+
+79 rows and 16 columns: an id, a profession, and then a **topic and a line for
+each of the seven days**, Sunday first. It is the largest table in the archive
+and the last one of any size to be read.
+
+- The id is the one `npcprof.txt` gives the profession: **77 of 77** hireable
+  professions resolve here. `observed`
+- **539 of 539** profession-days are filled in — seven for every one of the 77.
+  `observed`
+- 76 of the 77 names match `npcprof.txt` outright; the odd one is spelled
+  `Stonecutter` here and `Stone Cutter` there. `observed`
+
+The prose carries the same `%01`-style placeholders as the rest of the NPC
+tables.
+
+Reproduce with `data_info --proftext` and `data_info --proftext 1`.
+
 ## What `MapStats.txt` says about time
 
 Three columns count days, and all three are per map: **Reset #**, **First
@@ -550,7 +568,7 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   `Bonus`, `Hst`, `Rec` — and of the `Misc Special` column. `unknown`
 - What the `%01`-style placeholders in the NPC prose stand for. `unknown`
 - What indexes `GLOBAL.TXT` by id. `unknown`
-- The remaining tables without typed views — `npcnames.txt`, `PROFTEXT.txt`,
-  shop behaviour — are readable but not yet modelled. `unknown`
+- The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
+  `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`
 - Where `MONSTERS.TXT`'s treasure codes (`"5%6D20+L2Bow"`) are interpreted, and
   how they index `ITEMS.TXT`. `unknown`
