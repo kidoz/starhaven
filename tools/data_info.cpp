@@ -48,6 +48,7 @@ void print_usage(const char* argv0) {
               << "  --quests [bit]     Quests.txt\n"
               << "  --awards           Awards.txt\n"
               << "  --autonotes        Autonote.txt\n"
+              << "  --encounters       MapStats encounter slots against MONSTERS.TXT\n"
               << "  --personalities    npcbtb.txt reactions and phrasing\n"
               << "  --strings [id]     GLOBAL.TXT interface words\n"
               << "  --classes          Class.txt\n"
@@ -624,6 +625,7 @@ int do_dialogue(const std::filesystem::path& data_dir, const std::string& want) 
     data::NpcTable npcs;
     std::size_t referenced = 0;
     std::size_t resolved = 0;
+    std::size_t named = 0;
     std::size_t spoken = 0;
     if (data::load_npcs(data_dir, npcs) == data::GameDataError::None) {
         for (const auto& n : npcs.entries()) {
@@ -699,6 +701,56 @@ int do_journal(const std::string& label, const data::JournalTable& table, const 
         }
         std::cout << data::cp1252_to_utf8(e.text).substr(0, 90) << "\n";
     }
+    return 0;
+}
+
+int do_encounters(const std::filesystem::path& data_dir) {
+    data::MapStatsTable maps;
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    if (data::load_map_stats(data_dir, maps) != data::GameDataError::None ||
+        data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: could not load the tables\n";
+        return 1;
+    }
+
+    // Each slot names a monster; the spawn points reference the slot. Whether
+    // the name is one MONSTERS.TXT has is the join worth measuring.
+    std::size_t filled = 0;
+    std::size_t resolved = 0;
+    std::size_t named = 0;
+    for (const auto& m : maps.entries()) {
+        for (const auto& e : m.monsters) {
+            if (e.empty()) {
+                continue;
+            }
+            ++filled;
+            bool found = false;
+            for (std::size_t i = 0; i < monsters.entries().size() && !found; ++i) {
+                found = monsters.entries()[i].name == e.monster;
+            }
+            // The picture names a triple: "Rat" is RatA, RatB and RatC, and
+            // the slot's own name is the first of the three.
+            // Uniques have no triple: the table prefixes theirs with a "z".
+            const auto* row = monsters.find(e.picture + "A");
+            if (row == nullptr) {
+                row = monsters.find(e.picture);
+            }
+            if (row == nullptr) {
+                row = monsters.find("z" + e.picture);
+            }
+            resolved += row != nullptr ? 1 : 0;
+            named += row != nullptr && row->name == e.monster ? 1 : 0;
+            if (row == nullptr) {
+                std::cout << "  unresolved: " << m.file_name << " \"" << e.monster << "\" ("
+                          << e.picture << ")\n";
+            }
+        }
+    }
+    std::cout << resolved << "/" << filled
+              << " filled encounter slots resolve to a MONSTERS.TXT row through their picture; "
+              << named << " of those also match its name\n";
     return 0;
 }
 
@@ -956,6 +1008,8 @@ int main(int argc, char** argv) {
         }
         return do_journal(command.substr(2), table, argument);
     }
+    if (command == "--encounters")
+        return do_encounters(data_dir);
     if (command == "--personalities")
         return do_personalities(data_dir);
     if (command == "--strings")

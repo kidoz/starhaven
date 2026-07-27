@@ -47,6 +47,7 @@ starhaven_core_sources = files(
   'src/core/data/interface_strings.cpp',
   'src/core/data/journal.cpp',
   'src/core/data/game_data.cpp',
+  'src/core/world/monster_spawn.cpp',
   'src/core/world/odm_map.cpp',
   'src/core/world/map_event.cpp',
   'src/core/world/tile_table.cpp',

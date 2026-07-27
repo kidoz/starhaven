@@ -27,6 +27,11 @@ nothing about the renderer:
 | billboards | 1.50 ms | 0.27 ms |
 | median fps | **19** | **136** |
 
+Outdoor maps populate themselves from their spawn points now (see
+[`odm-tile-index.md`](../formats/odm-tile-index.md)), so every one of them
+carries 60 to 400 monsters where it used to carry none. That is what moved the
+billboard time; the release build still runs every outdoor map above 100 fps.
+
 A factor of seven. `just bench` always builds optimised for this reason.
 
 ## All 67 maps
@@ -63,8 +68,8 @@ Geometry dominates on indoor maps, billboards on busy outdoor ones:
 | --- | ---: | ---: |
 | `CD1.Blv` (5,315 faces) | 11.1 ms | 1.3 ms |
 | `D01.blv` (2,291 faces) | 7.1 ms | 0.27 ms |
-| `OutE3.Odm` (New Sorpigal, 478 decorations, 38 monsters) | 4.9 ms | 4.0 ms |
-| `Outa1.odm` (727 decorations) | 4.8 ms | 0.94 ms |
+| `OutE3.Odm` (New Sorpigal, 478 decorations, 260 monsters) | 5.1 ms | 4.3 ms |
+| `Outa1.odm` (727 decorations, 62 monsters) | 5.2 ms | 1.1 ms |
 
 New Sorpigal is the one map where billboards cost as much as the world, which
 is what a town full of animated townsfolk and torches should look like.

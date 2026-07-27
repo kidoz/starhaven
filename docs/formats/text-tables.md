@@ -375,6 +375,33 @@ Reading it as a `MapStats.txt` id would appear to succeed, because every value
 falls inside 1..67. That is the trap: the range check passes and the meaning is
 still wrong. The value is kept as written and what it indexes is `unknown`.
 
+## `MapStats.txt`'s encounter slots
+
+Each map row carries three encounter slots — a picture, a monster name, a
+difficulty and an appearance range written `"2-4"` — and the outdoor maps'
+spawn points reference them by number (see
+[`odm-tile-index.md`](odm-tile-index.md)).
+
+### The picture names a triple, and the slot means its first
+
+Monsters come in A/B/C triples sharing one picture stem: `RatA`, `RatB` and
+`RatC` are Common, Large and Giant Rat. A slot gives the stem, `"Rat"`, and its
+name column is the **A** variant's. **138 of 138** filled slots across all 79
+maps resolve this way. `observed`
+
+The one that has no triple is the Demon Queen, a unique; `MONSTERS.TXT` carries
+uniques with a `z` in front of the picture instead — `zDemonqueen`. `observed`
+
+The slot's own name column agrees with the resolved row on 113 of the 138. The
+disagreements are spelling — the slot says `"Bloodsucker"` where the row says
+`"Blood Sucker"` — so the picture is the join and the name is not. `observed`
+
+The `Dif 1-5` column does **not** select the variant: 111 of the resolved slots
+name the A variant at every difficulty from 1 to 5. What it drives is
+`unknown`. `observed`
+
+Reproduce with `data_info --encounters`.
+
 ## `npcbtb.txt`: what works on whom, and how they say it
 
 The name is the file's own shorthand: **b**eg, **b**ribe, **t**hreat, the three

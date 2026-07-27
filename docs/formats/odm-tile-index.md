@@ -116,8 +116,15 @@ Twenty bytes each:
 - **z** is 0 on 793 of the 848, and the 55 non-zero ones sit at heights the
   terrain does not explain, so the field is a height that is usually left for
   the ground to supply. `inferred`
-- **index** runs 1 to 12, with 1, 2 and 3 covering 808 of the 848. What it
-  selects — which monsters appear, or how hard they are — is `unknown`.
+- **index** selects one of the map's three encounter slots in `MapStats.txt`.
+  Every map's set of indices is exactly the slots that map fills — Sweet Water
+  fills two and uses `{1, 2}`, Hermit's Isle fills three and uses `{1, 2, 3}`.
+  808 of the 848 carry 1, 2 or 3. `observed`
+- The remaining 40, on four maps, carry 6, 9, 10, 11 or 12. Wrapping those onto
+  three — `((index - 1) mod 3) + 1` — lands each on a slot its own map fills,
+  including on New Sorpigal, which fills only two. That is what the engine
+  does, but the evidence is 40 points on four maps, so the reading is
+  `inferred` and what the higher numbers mean beyond the slot is `unknown`.
 
 ## Invalid-input behavior
 
@@ -133,7 +140,7 @@ error: positions at the map's edge ask about neighbours that do not exist.
 
 ## Open questions
 
-- What the spawn `index` selects. `unknown`
+- What a spawn index above 3 means beyond the slot it wraps onto. `unknown`
 - Whether indoor maps carry an equivalent index; the `.blv` tail remains
   undescribed (see [`blv.md`](blv.md)). `unknown`
 - The six unused entry types. `unknown`

@@ -161,6 +161,14 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- **Monsters, spawned the way the map asks for them**: an outdoor map ships no
+  wandering monsters, only places where they appear. Each spawn point names one
+  of the map's three `MapStats.txt` encounter slots, the slot names a monster
+  and how many of it appear, and all 138 filled slots across the 79 maps
+  resolve to a `MONSTERS.TXT` row. All fifteen outdoor maps now populate — 62
+  monsters in Sweet Water, 260 in New Sorpigal — placed on the ground around
+  their points, from a seed fixed by the map so a place always populates the
+  same way.
 - Typed views over **how NPCs react**: `npcbtb.txt` says which of begging,
   bribing and threatening works on each personality, and how each phrases the
   twenty-four things it can say. All twelve personalities the professions name

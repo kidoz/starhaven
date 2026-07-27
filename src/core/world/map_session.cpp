@@ -1,5 +1,8 @@
 #include "core/world/map_session.hpp"
 
+#include "core/random.hpp"
+#include "core/world/monster_spawn.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -154,6 +157,64 @@ std::string actor_animation(const MapSession& session, assets::AssetCache& cache
         }
     }
     return {};
+}
+
+// The monsters an outdoor map's own spawn points call for. Each point names an
+// encounter slot, the slot names a monster and how many of it appear, and the
+// group is spread around the point at whatever height the terrain is.
+void spawn_from_points(const std::filesystem::path& data_dir, const data::MapStatsEntry& stats,
+                       assets::AssetCache& cache, MapSession& out) {
+    if (out.monster_spawns.empty()) {
+        return;
+    }
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    if (data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
+        return;
+    }
+
+    // Seeded from the map's own row so a map always populates the same way:
+    // screenshots, benchmarks and bug reports all depend on it.
+    Mm6Random random{static_cast<std::uint32_t>(stats.id) * 2654435761U};
+
+    for (const auto& point : out.monster_spawns) {
+        const int slot = encounter_slot_of(point.index);
+        if (slot < 0 || static_cast<std::size_t>(slot) >= stats.monsters.size()) {
+            continue;
+        }
+        const auto& encounter = stats.monsters[static_cast<std::size_t>(slot)];
+        const int monster_id = encounter_monster_id(monsters, encounter);
+        const SpawnCount count = parse_spawn_count(encounter.count);
+        if (monster_id <= 0 || count.empty()) {
+            continue;
+        }
+        std::string animation = actor_animation(out, cache, monster_id);
+        if (animation.empty()) {
+            continue;
+        }
+        const auto& rows = monsters.entries();
+        const auto index = static_cast<std::size_t>(monster_id - 1);
+        const std::string name =
+            index < rows.size() ? data::cp1252_to_utf8(rows[index].name) : std::string{};
+
+        const int span = count.high - count.low + 1;
+        const int group = count.low + static_cast<int>(random.next() % static_cast<unsigned>(span));
+        for (int i = 0; i < group; ++i) {
+            const auto [dx, dy] = spawn_offset(i, group);
+            const float x = static_cast<float>(point.x) + dx;
+            const float y = static_cast<float>(point.y) + dy;
+            // The point's own height is zero on most of them; the ground is
+            // what the map means. See docs/formats/odm-tile-index.md.
+            const render::Vec3 position =
+                to_render_space(static_cast<int>(x), static_cast<int>(y), point.z);
+            out.actors.push_back(
+                {animation,
+                 name,
+                 monster_id,
+                 {position.x, out.terrain_height_at(position.x, position.z), position.z}});
+        }
+    }
 }
 
 // Actors and loot come from the map's event file, whichever kind it is. Their
@@ -476,6 +537,17 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
     }
 
     load_placed_things(archive, data_dir, out.file_name, cache, out);
+
+    // An outdoor map's event file holds the actors the designers placed —
+    // townspeople, mostly, and on nine of the fifteen maps none at all. The
+    // wandering monsters are not in it: the map ships spawn points and the
+    // design table says what appears at them. Both are placed, because
+    // nothing here writes the event file back.
+    if (out.outdoor()) {
+        if (const auto* stats = maps.find(out.file_name); stats != nullptr) {
+            spawn_from_points(data_dir, *stats, cache, out);
+        }
+    }
     return MapSessionError::None;
 }
 
