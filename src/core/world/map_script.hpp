@@ -45,8 +45,8 @@ inline constexpr std::uint8_t kOpcodeChest = 7;
 
 // Move the party. The argument is a spawn point — X, Y, Z and a facing in
 // MM6's own units — and a destination map file name, or `"0"` to stay on the
-// map it is on: a teleporter rather than a door out. Across all scripts, 91 of
-// the 93 named destinations are maps the design table lists, and the pairs are
+// map it is on: a teleporter rather than a door out. Across all scripts, 97 of
+// the 99 named destinations are maps the design table lists, and the pairs are
 // symmetric — GoblinWatch's exit names New Sorpigal's map and New Sorpigal
 // names GoblinWatch's. Reproduce with `evt_info --transitions`.
 inline constexpr std::uint8_t kOpcodeTravel = 6;
@@ -55,9 +55,9 @@ inline constexpr std::uint8_t kOpcodeTravel = 6;
 // see docs/formats/map-events.md, and reproduce with `evt_info --variables`.
 //
 // A check is `[type u8][value u32][step u8]` and jumps to the step when it
-// passes: its trailing byte is a step of its own event on 1,852 of 1,852
+// passes: its trailing byte is a step of its own event on 1,951 of 1,951
 // uses. Give, take and set are `[type u8][value u32]`. The end opcode closes
-// every event; the goto's byte is a step on 345 of 345 uses.
+// every event; the goto's byte is a step on 368 of 368 uses.
 // An event's opening step, present on 2,182 of 3,332 events, always first.
 // What it declares is still unread.
 inline constexpr std::uint8_t kOpcodeHeader = 4;
@@ -72,7 +72,7 @@ inline constexpr std::uint8_t kOpcodeGoto = 36;
 
 // The variable types whose meaning is established. A quest bit's value is
 // the bit's number in `Quests.txt` (1..376 of 512 used); an item's is an
-// `ITEMS.TXT` id (never past 578 across 704 uses); gold's is an amount.
+// `ITEMS.TXT` id (never past 578 across 641 uses); gold's is an amount.
 // Everything else is treated as a numbered variable.
 inline constexpr std::uint8_t kVarQuestBit = 16;
 inline constexpr std::uint8_t kVarItem = 17;

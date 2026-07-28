@@ -185,8 +185,8 @@ interoperability and compatibility with a legally purchased copy.
   unread after four rejected readings.
 - **Opcode 6 is the door out, and the world is connected**: its argument is a
   spawn point — X, Y, Z and a facing — and a NUL-terminated destination, either
-  `"0"` for a teleport within the map or a map file name. Of the 93 named
-  destinations across all scripts, 91 are maps the design table lists, and the
+  `"0"` for a teleport within the map or a map file name. Of the 99 named
+  destinations across all scripts, 97 are maps the design table lists, and the
   pairs are symmetric: GoblinWatch's exit names New Sorpigal's map and New
   Sorpigal's cellar door names GoblinWatch's. The engine walks them — using an
   exit door loads the destination map through the same one-path loader and
@@ -194,7 +194,7 @@ interoperability and compatibility with a legally purchased copy.
   rather than 67 command lines.
 - **The conditional machinery, decoded and running**: seven more opcodes fall
   together as one machine — check-and-jump (its jump target is a step of its
-  own event on 1,852 of 1,852 uses), give, take, set, goto, end, and a door
+  own event on 1,951 of 1,951 uses), give, take, set, goto, end, and a door
   toggle. Three variable types are pinned by their closed sets: item ids that
   never leave 1..578, quest bits at 1..376 of `Quests.txt`'s 512, and round
   gold amounts. Whole shipped events confirm the flow: New Sorpigal's fountain

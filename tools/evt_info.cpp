@@ -13,6 +13,7 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
+#include "core/world/sound_table.hpp"
 
 namespace {
 
@@ -25,6 +26,18 @@ void print_usage(const char* argv0) {
               << "           argument sizes, and any map file name in its arguments\n"
               << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
+}
+
+// Two of the 83 scripts ship with a lowercase extension — D08.evt and
+// Pyramid.evt — so the extension test must not care about case.
+bool is_script(const std::string& name) {
+    if (name.size() < 4) {
+        return false;
+    }
+    const std::string tail = name.substr(name.size() - 4);
+    return tail[0] == '.' && std::tolower(static_cast<unsigned char>(tail[1])) == 'e' &&
+           std::tolower(static_cast<unsigned char>(tail[2])) == 'v' &&
+           std::tolower(static_cast<unsigned char>(tail[3])) == 't';
 }
 
 // Research mode: what does each opcode look like across every script, and do
@@ -46,7 +59,7 @@ int do_scan(const starhaven::lod::LodArchive& icons) {
 
     for (const auto& entry : icons.entries()) {
         const std::string& name = entry.name;
-        if (name.size() < 4 || name.substr(name.size() - 4) != ".EVT") {
+        if (!is_script(name)) {
             continue;
         }
         std::span<const std::byte> raw;
@@ -138,7 +151,7 @@ int do_transitions(const starhaven::lod::LodArchive& icons,
 
     for (const auto& entry : icons.entries()) {
         const std::string& name = entry.name;
-        if (name.size() < 4 || name.substr(name.size() - 4) != ".EVT") {
+        if (!is_script(name)) {
             continue;
         }
         std::span<const std::byte> raw;
@@ -212,6 +225,35 @@ int do_transitions(const starhaven::lod::LodArchive& icons,
     for (const auto& [pattern, count] : middle_patterns) {
         std::cout << "  " << pattern << " x" << count << "\n";
     }
+
+    // Are bytes 24..25 a sound id? Test the u16 against the global table.
+    world::SoundTable sound_table;
+    std::span<const std::byte> sound_raw;
+    if (icons.payload("DSOUNDS.BIN", sound_raw) == lod::LodArchive::PayloadError::None &&
+        world::SoundTable::parse(sound_raw, sound_table) == world::SoundTableError::None) {
+        std::map<std::string, std::size_t> named_sounds;
+        std::size_t with_value = 0;
+        std::size_t resolve = 0;
+        for (const auto& [pattern, count] : middle_patterns) {
+            unsigned low = 0, high = 0;
+            std::sscanf(pattern.c_str() + 24, "%x", &low);
+            std::sscanf(pattern.c_str() + 27, "%x", &high);
+            const std::uint32_t value = low | (high << 8);
+            if (value == 0) {
+                continue;
+            }
+            with_value += count;
+            if (const auto* entry = sound_table.find(value); entry != nullptr) {
+                resolve += count;
+                named_sounds[entry->name] += count;
+            }
+        }
+        std::cout << "bytes 24..25 as a sound id: " << resolve << "/" << with_value
+                  << " nonzero values resolve\n";
+        for (const auto& [sound, count] : named_sounds) {
+            std::cout << "  " << sound << " x" << count << "\n";
+        }
+    }
     for (const auto& [pair, count] : destinations) {
         std::cout << "  " << pair << " x" << count << "\n";
     }
@@ -250,7 +292,7 @@ int do_variables(const starhaven::lod::LodArchive& icons) {
 
     for (const auto& entry : icons.entries()) {
         const std::string& name = entry.name;
-        if (name.size() < 4 || name.substr(name.size() - 4) != ".EVT") {
+        if (!is_script(name)) {
             continue;
         }
         std::span<const std::byte> raw;

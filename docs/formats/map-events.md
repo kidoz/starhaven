@@ -14,8 +14,9 @@ names one, and the opcodes that have been pinned down.
 `Games.lod` holds only geometry and saved state — 52 `.blv`, 52 `.dlv`, 15
 `.odm`, 15 `.ddm`, and nothing else. `observed` The scripts are in
 **`icons.lod`**, alongside the design tables: **83 `.EVT`** entries and
-**76 `.STR`**, one pair per map, 738 to about 2,000 stored bytes each.
-`observed`
+**76 `.STR`**, 738 to about 2,000 stored bytes each. Sixty-seven of the
+scripts are the maps'; the other sixteen have no map of their own — see
+"The scripts without maps" below. `observed`
 
 That is worth stating because two earlier searches for map events looked in the
 wrong file. The `.odm` payload is now accounted for byte for byte with no room
@@ -184,10 +185,14 @@ wide.
 
 ### Opcode 6 moves the party
 
-A transition has to name where it goes, and 93 of opcode 6's 232 uses carry an
+A transition has to name where it goes, and 99 of opcode 6's 242 uses carry an
 ASCII map file name in their arguments — no other opcode carries one anywhere
 in the 15,504 records, apart from two designer leftovers in scripts no shipped
 map uses. `observed` Reproduce with `evt_info --scan`.
+
+Note when measuring this yourself: two of the 83 scripts — `D08.evt` and
+`Pyramid.evt` — ship with a lowercase extension, so a case-sensitive filter
+scans 81 and quietly loses both maps' transitions. An earlier pass here did.
 
 The argument's shape, from `evt_info --transitions`:
 
@@ -197,10 +202,11 @@ The argument's shape, from `evt_info --transitions`:
 | +16 | 10 | undecoded | bytes 16..23 zero on all but one use; 24..25 small values, 0 on 132 |
 | +26 | n | destination, NUL-terminated | `"0"` on 126 uses, a map file name on 93 |
 
-Of the 93 named destinations, **91 are maps the design table lists** (52
-distinct); the two others are `d8.blv`, twice, in `LWSPIRAL.EVT` — a script
-with no shipped map, naming a file that is not in `Games.lod`. Thirteen more
-uses carry zero or one argument byte and cannot travel. `observed`
+Of the 99 named destinations, **97 are maps the design table lists**; the
+two others are `d8.blv`, twice, in `LWSPIRAL.EVT` — a script with no shipped
+map, naming a file that is not in `Games.lod` (`D08.blv`'s own script spells
+its name with the zero). Thirteen more uses carry zero or one argument byte
+and cannot travel. 130 say `"0"`. `observed`
 
 The pairs settle the reading independently: they are **symmetric**. Every
 dungeon's exit names its region's outdoor map and that outdoor map's entrance
@@ -212,6 +218,21 @@ The engine walks them: using an exit door loads the named map through the same
 loader the command line uses and stands the party at the recorded X, Y, Z,
 facing where the record says. How the 0..2047 facing maps onto the renderer's
 yaw is `inferred`.
+
+### The scripts without maps
+
+Sixteen of the 83 scripts name no map: `GLOBAL`, `OUT`, `LWSPIRAL`, `SCI-FI`,
+`D4BM`, `DBM1`..`DBM5`, `DDB1`, `DWJ1`, and `ZDTL01`/`ZDTL02`/`ZDTL1`/`ZDTL2`.
+`observed`
+
+`OUT.EVT` stands apart: 89 events, **no strings**, and its records do not
+frame the way every map script's do — the walk misreads them, yet the
+arguments carry the same spawn-point payload. Read at a three-byte shift, its
+`Sewer.blv` record holds coordinates (-1786, 945, 500) in world range and a
+NUL-terminated map name, exactly a travel destination. A table of places the
+party can be sent — which is what the coach and boat routes `Trans.txt`
+prices would need — is the natural reading; the join to `Trans.txt` is
+untested. `inferred`
 
 ### Opcode 7 opens a chest
 
@@ -233,24 +254,24 @@ Seven more opcodes fall together as one machine. Reproduce with
 
 | Opcode | Uses | Shape | Reading |
 | ---: | ---: | --- | --- |
-| 14 | 1,852 | `[type u8][value u32][step u8]` | check, jump on pass |
-| 16 | 1,071 | `[type u8][value u32]` | give / add |
-| 17 | 303 | `[type u8][value u32]` | take / subtract |
-| 18 | 849 | `[type u8][value u32]` | set |
-| 36 | 345 | `[step u8]` | goto |
-| 1 | 1,562 | `[u8 0..2]` | end of event |
-| 15 | 1,083 | `[door u8][state u8]` | open or shut a door |
+| 14 | 1,951 | `[type u8][value u32][step u8]` | check, jump on pass |
+| 16 | 1,090 | `[type u8][value u32]` | give / add |
+| 17 | 330 | `[type u8][value u32]` | take / subtract |
+| 18 | 948 | `[type u8][value u32]` | set |
+| 36 | 368 | `[step u8]` | goto |
+| 1 | 1,653 | `[u8 0..2]` | end of event |
+| 15 | 1,136 | `[door u8][state u8]` | open or shut a door |
 
 The step bytes are what settles the control flow: opcode 14's trailing byte
-is a sequence number of **its own event on 1,852 of 1,852 uses**, and opcode
-36's byte on 345 of 345. Opcode 1 closes essentially every event and its byte
-never passes 2. Opcode 15's first byte is **not** a step (86 of 1,089) — it
-runs 1..60 with a second byte of 0..2, a door and a state. `observed`
+is a sequence number of **its own event on 1,951 of 1,951 uses**, and opcode
+36's byte on 368 of 368. Opcode 1 closes essentially every event and its byte
+never passes 2. Opcode 15's first byte is **not** a step (97 of 1,142) — it
+runs 1..64 with a second byte of 0..2, a door and a state. `observed`
 
 The four typed opcodes share one type vocabulary, and three types are
 established by their closed sets:
 
-- **type 17 is an item id**: across 704 uses it never leaves 1..578, and 578
+- **type 17 is an item id**: across 641 uses it never leaves 1..578, and 578
   is exactly the item table's last row. What opcode 16 gives spans the whole
   table; what opcode 17 takes is 433..578 — the quest-item rows, which is
   what a turn-in takes off you. `observed`
@@ -334,7 +355,12 @@ using one prints its message.
 
 - Most opcodes. `unknown`
 - Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
-  on the rest, including consecutive runs within one script. `unknown`
+  on the rest, including consecutive runs within one script. Two readings are
+  tested and fail: `2DEvents.txt` row ids (the values run past the table's
+  557), and sound ids (19 of 89 nonzero values resolve, to monster attack
+  noises — the dense id region, not a meaning). `unknown`
+- `OUT.EVT`'s own record framing, and whether its 89 destinations are what
+  `Trans.txt`'s routes point at. `unknown`
 - Opcode 15's door numbers against the indoor maps' own door records, and
   what state 2 is where 0 and 1 read as shut and open. `unknown`
 - Opcode 11's embedded ASCII name, which reads like a sound effect. `unknown`
