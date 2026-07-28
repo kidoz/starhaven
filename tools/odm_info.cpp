@@ -15,7 +15,7 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <map.odm>\n"
+    std::cerr << "Usage: " << argv0 << " <map.odm> [--facets|--index|--tail [FILE]]\n"
               << "\n"
               << "Decompresses one .odm outdoor map from your own legal game\n"
               << "install (Games.lod) and prints its header metadata. The tile\n"

@@ -17,7 +17,8 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <map.blv> [--extras|--faces|--uv|--tail]\n"
+    std::cerr << "Usage: " << argv0
+              << " <map.blv> [--extras|--faces|--uv|--tail|--sectors|--region [FILE]]\n"
               << "\n"
               << "Decompresses one .blv indoor map from your own legal game\n"
               << "install's Games.lod and prints non-expressive statistics.\n"

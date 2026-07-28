@@ -319,6 +319,8 @@ interoperability and compatibility with a legally purchased copy.
   and can dump a video's audio track to a WAV.
 - `blv_info`, a CLI that decompresses one `.blv` indoor map and prints its
   geometry statistics.
+- `evt_info`, a CLI that prints one map's event script and the strings it
+  refers to, resolving the opcodes that name a string.
 - `data_info`, a CLI that lists the design tables, dumps any of them, and
   cross-checks `MONSTERS.TXT` against `DMONLIST.BIN`.
 - `sft_info`, a CLI that lists the sprite animations, dumps one, and verifies
