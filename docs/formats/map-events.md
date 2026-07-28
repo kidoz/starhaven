@@ -112,6 +112,28 @@ were tested and fail:
 So whatever performs an entry is still unnamed, and the shops on an outdoor map
 still cannot be walked into. `unknown`
 
+### What the shape of an event does say
+
+Grouping the 1,758 outdoor event facets by the model they sit on, and counting
+the opcodes each group's events use, separates them cleanly. `observed`
+
+| Model kind | Events | Opcodes, most used first |
+| --- | ---: | --- |
+| house (`Hse*`) | 96 | **2** (119), 4 (116), 1 (39) |
+| sign | 48 | 4 (102), 29 (52), 1 (50), **2** (46) |
+| fountain | 10 | 18 (171), 29 (78), 1 (61), 4 (55) |
+| chest | 36 | 7 (429), 4 (352), 14 (66) |
+| creature | 27 | 4 (135), 7 (135) |
+
+**Opcode 2 appears on houses and signs and on no fountain, chest or creature.**
+That is a real association and the best lead to the entry, but it is not a
+decode: opcode 2's argument matches neither a `2DEvents.txt` building id on
+that map (4 of 35 on house facets) nor an index into the map's own
+establishment list. What it means is `unknown`.
+
+Chests are equally distinctive — opcode 7 is theirs, 429 uses against a handful
+elsewhere — which is the same kind of lead for opening one.
+
 The other **86 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
