@@ -183,6 +183,62 @@ chest_contents(std::size_t treasure_level, const data::RandomItemTable& random_i
     return out;
 }
 
+// The video family a shop's trade uses, from the names in `Anims1.vid` and
+// `Anims2.vid`: thirteen trades each have a poor, middling and rich backdrop.
+// See docs/formats/vid.md. The pairing is read off the names — "Blcks" for a
+// weapon shop's blacksmith, "Arm" for an armourer — so it is `inferred`.
+[[nodiscard]] inline std::string_view video_family(std::string_view type) noexcept {
+    if (type == "Weapon Shop") {
+        return "Blcks";
+    }
+    if (type == "Armor Shop") {
+        return "Arm";
+    }
+    if (type == "Magic Shop") {
+        return "Mag";
+    }
+    if (type == "General Store") {
+        return "Genst";
+    }
+    if (type == "Tavern") {
+        return "Tav";
+    }
+    if (type == "Temple") {
+        return "Temp";
+    }
+    if (type == "Town Hall" || type == "City Council") {
+        return "City";
+    }
+    if (type == "Thieves Guild") {
+        return "Thf";
+    }
+    if (type == "Merc Guild") {
+        return "Merc";
+    }
+    if (type == "The Oracle" || type == "The Seer") {
+        return "Orac";
+    }
+    return {};
+}
+
+// And the whole name, at the quality the row's Picture column gives: 1, 2 and
+// 3 are the tiers. The suffixes are not spelled consistently across families —
+// "BlcksPor" against "ArmPoor", "Tavmid" against "TempMid" — so a caller has
+// to try what the archive actually holds.
+[[nodiscard]] inline std::vector<std::string> video_names(std::string_view type, int picture) {
+    const std::string_view family = video_family(type);
+    if (family.empty() || picture < 1 || picture > 3) {
+        return {};
+    }
+    static constexpr std::array<std::array<const char*, 3>, 3> kSuffixes{
+        {{"Por", "Poor", "poor"}, {"Mid", "mid", "MID"}, {"Rch", "Rich", "rich"}}};
+    std::vector<std::string> out;
+    for (const char* suffix : kSuffixes[static_cast<std::size_t>(picture - 1)]) {
+        out.push_back(std::string(family) + suffix);
+    }
+    return out;
+}
+
 // Which line the shopkeeper says. The table has one for a merchant of the
 // wrong type and one for an empty purse; the rest turn on a haggling skill
 // nothing has yet, so the party is treated as unskilled. `inferred`

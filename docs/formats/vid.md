@@ -79,3 +79,21 @@ and a house's is a specific picture. The mapping from a `Type` string to a
 video family is `unknown` and has not been measured.
 
 The rest of the names are dungeons (`D01`, `D02`, ...) and set pieces.
+
+### The trade-to-family pairing, and what it does not cover
+
+Reading the names against `2DEvents.txt`'s `Type` column pairs ten trades with
+a family: weapon shop to `Blcks`, armour shop to `Arm`, magic shop to `Mag`,
+general store to `Genst`, tavern to `Tav`, temple to `Temp`, town hall and city
+council to `City`, thieves' guild to `Thf`, mercenary guild to `Merc`, oracle
+and seer to `Orac`. `inferred`
+
+Of the 97 shipped establishments of those trades, **82 resolve to a video the
+archives actually hold**. The 15 that do not are families missing a tier or
+spelling their stem differently: there is no `TavPoor`, no `OracMid`, no
+`ThfMid`, and the magic shop's poor tier is `MagicPor` where its other two are
+`MagMid` and `MagRch`. `observed`
+
+That measurement used a stand-in for the quality tier, because the building
+parser does not yet read `2DEvents.txt`'s `Picture` column. Reading it is the
+next step, and the figure above should be taken again afterwards. `unknown`
