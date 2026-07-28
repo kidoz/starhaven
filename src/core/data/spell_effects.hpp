@@ -225,10 +225,17 @@ struct SpellDuration {
             (rest.size() > 1 && rest.substr(0, 3) == " hr")) {
             minutes *= 60;
         }
+        // The scaling phrase must belong to this number: look only up to
+        // the next number in the cell.
+        std::size_t next_digit = 0;
+        while (next_digit < rest.size() &&
+               std::isdigit(static_cast<unsigned char>(rest[next_digit])) == 0) {
+            ++next_digit;
+        }
+        const std::string_view own = rest.substr(0, next_digit);
         const bool scales =
-            find_ignoring_case(rest.substr(0, 40), "per point of skill") !=
-                std::string_view::npos ||
-            find_ignoring_case(rest.substr(0, 40), "per skill point") != std::string_view::npos;
+            find_ignoring_case(own, "per point of skill") != std::string_view::npos ||
+            find_ignoring_case(own, "per skill point") != std::string_view::npos;
         if (scales) {
             out.per_skill_minutes += minutes;
         } else {
