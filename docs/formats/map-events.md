@@ -106,6 +106,25 @@ whatever it declares applies to the event as a whole.
 What it declares is `unknown`. Four readings have been tested and fail, and are
 recorded so they are not tried again:
 
+### Events without a header are a different kind
+
+Of the 3,332 events, 2,182 open with opcode 4 and **1,150 do not**, and the two
+groups do not use the same opcodes. `observed`
+
+| Group | Events | Opcodes, most used first |
+| --- | ---: | --- |
+| headed | 2,182 | 4, 14, 15, 1, 2, 18, 29 |
+| unheaded | 1,150 | 1, 14, **30**, **16**, 18, **32**, **36** |
+
+An unheaded event opens with 30, 14, 15 or 6 rather than 4, and its id sits far
+higher: median 45 against 27, and up to **808** where a headed event never
+passes 262. `observed`
+
+So the header is not merely optional decoration — it marks a class. What the
+unheaded class is remains `unknown`; their id range overlaps the event columns
+of `NPCdata.txt`, which reach 400, but those ids are global rather than per map
+and the join has not been made.
+
 ### What was ruled out looking for the opcode that enters a building
 
 Opcode 4 is the commonest at 2,192 uses and remains `unknown`. Three readings
