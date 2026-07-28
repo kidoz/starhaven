@@ -64,3 +64,18 @@ entry on demand rather than holding the archive in memory: `Anims2.vid` is
 
 - Whether any MM6 build ships a `.vid` containing Bink rather than Smacker
   payloads. None of the 127 entries here does. `unknown`
+
+## The shop videos are keyed by trade and by quality
+
+Of the 127 videos in the two archives, **31 fall into families with a quality
+suffix** — `Por`/`Poor`, `Mid`, `Rch`/`Rich`, `Wch` — across thirteen trades:
+`Apthc`, `Arm`, `Blcks`, `City`, `Genst`, `Mag`, `Magic`, `Merc`, `Orac`,
+`Pyra`, `Tav`, `Temp`, `Thf`. `observed`
+
+`2DEvents.txt` gives every establishment a `Picture` column, and for shops its
+values are 1, 2 and 3 while houses carry 66 to 71 instead. `observed` So a
+shop's backdrop is presumably its trade's video at the tier that column names,
+and a house's is a specific picture. The mapping from a `Type` string to a
+video family is `unknown` and has not been measured.
+
+The rest of the names are dungeons (`D01`, `D02`, ...) and set pieces.
