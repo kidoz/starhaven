@@ -280,6 +280,12 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Training halls that teach**: the ten `Training` rows carry their own
+  numbers — `Val` scales the fee, and the first stock cell writes each
+  hall's ceiling, `"Max level = 15"` up to `"No Max"` — so the counter
+  offers what the sheet says it should: train a character who has earned it,
+  for that hall's price, up to that hall's limit. The experience curve and
+  what a level grants are this engine's own and say so.
 - **Saving**: **F5** writes the game, **F9** brings it back — quest bits and
   event variables, the purse, all four packs cell by cell, worn equipment,
   the party's numbers, the clock, the map and where the party stands on it,

@@ -46,6 +46,7 @@
 #include "game/shop.hpp"
 #include "game/sprites.hpp"
 #include "game/text.hpp"
+#include "game/training.hpp"
 #include "game/travel.hpp"
 
 namespace {
@@ -549,6 +550,69 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
                     "1-4 choose a character, E wear something, I closes", dim, shadow);
+}
+
+// A training hall's counter: who can train, to what, and for how much.
+void draw_training(render::SceneRenderer& scene, const image::Font& font,
+                   const data::BuildingStatsEntry& shop,
+                   const std::array<game::Character, 4>& party, int gold,
+                   const std::string& said) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{165, 165, 165, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 24;
+
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
+                        data::cp1252_to_utf8(shop.proprietor),
+                    white, shadow);
+    y += line;
+    std::string ceiling = "you have " + std::to_string(gold) + " gold";
+    if (const int top = game::max_level_of(shop); top > 0) {
+        ceiling += "; this hall trains to level " + std::to_string(top);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, y, ceiling, dim, shadow);
+    y += line * 2;
+
+    for (std::size_t i = 0; i < party.size(); ++i) {
+        const auto& who = party[i];
+        const game::TrainingOffer offer = game::training_offer(shop, who);
+        std::string text = std::to_string(i + 1) + "  " + who.name + " \x97 level " +
+                           std::to_string(who.level);
+        bool ready = false;
+        if (offer.to_level == 0) {
+            text += ", beyond this hall";
+        } else if (offer.experience_needed > 0) {
+            text += ", needs " + std::to_string(offer.experience_needed) +
+                    " more experience for level " + std::to_string(offer.to_level);
+        } else {
+            text += ", ready for level " + std::to_string(offer.to_level) + " \x97 " +
+                    std::to_string(offer.cost) + " gold";
+            ready = offer.cost <= gold;
+        }
+        game::draw_text(scene.framebuffer(), font, 24, y, text, ready ? white : dim, shadow);
+        y += line;
+    }
+    if (!said.empty()) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+                        shadow);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "1-4 train a character, T talk to whoever is here, B closes", dim, shadow);
 }
 
 // A travel counter: where the rides go, when they leave, and the fare.
@@ -1631,6 +1695,25 @@ int main(int argc, char** argv) {
                         }
                     }
                 } else if (open_shop >= 0 &&
+                           game::is_training(*shops_here[static_cast<std::size_t>(open_shop)]) &&
+                           chosen < 4) {
+                    // Train, if the hall teaches that high, the experience is
+                    // earned, and the fee fits.
+                    const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+                    auto& who = party[static_cast<std::size_t>(chosen)];
+                    const game::TrainingOffer offer = game::training_offer(shop, who);
+                    if (offer.to_level == 0) {
+                        shop_said = who.name + " is beyond this hall's teaching.";
+                    } else if (offer.experience_needed > 0) {
+                        shop_said = who.name + " has not earned it yet.";
+                    } else if (offer.cost > gold) {
+                        shop_said = "You cannot afford the training.";
+                    } else {
+                        gold -= offer.cost;
+                        game::train(who);
+                        shop_said = who.name + " reaches level " + std::to_string(who.level) + ".";
+                    }
+                } else if (open_shop >= 0 &&
                            game::is_travel(*shops_here[static_cast<std::size_t>(open_shop)])) {
                     // Ride, if today is a departure day and the fare fits.
                     const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
@@ -2075,7 +2158,9 @@ int main(int argc, char** argv) {
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
-            if (game::is_travel(shop)) {
+            if (game::is_training(shop)) {
+                draw_training(scene, font, shop, party, gold, shop_said);
+            } else if (game::is_travel(shop)) {
                 draw_travel(scene, font, shop, game::routes_of(shop, map_stats),
                             game::fare_of(shop), clock, gold, shop_said);
             } else {
