@@ -244,6 +244,11 @@ std::string_view NpcPersonalityTable::note(int number) const noexcept {
 }
 
 const NpcPersonality* NpcPersonalityTable::find(std::string_view name) const noexcept {
+    // An empty name is not a personality. Without this the suffix match below
+    // answers with the first entry, since "" ends every string.
+    if (name.empty()) {
+        return nullptr;
+    }
     for (const auto& e : entries_) {
         if (iequals(e.name, name)) {
             return &e;

@@ -553,6 +553,18 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
                     }
                     entry.occupants.push_back(std::move(who));
                     entry.occupant_professions.push_back(n->profession_id);
+
+                    SessionNpc person;
+                    person.name = data::cp1252_to_utf8(n->name);
+                    person.profession_id = n->profession_id;
+                    if (const auto* p = professions.at(n->profession_id); p != nullptr) {
+                        person.profession = p->name;
+                        person.personality = p->personality;
+                    }
+                    for (std::size_t k = 0; k < person.topics.size() && k < n->events.size(); ++k) {
+                        person.topics[k] = n->events[k];
+                    }
+                    entry.people.push_back(std::move(person));
                 }
                 out.buildings.push_back(std::move(entry));
             }

@@ -227,6 +227,14 @@ interoperability and compatibility with a legally purchased copy.
   rows give. The damage notation parses everywhere it appears: 212 of 212
   monster attacks and 78 of 78 weapons. What a *character* hits for is not in
   any table, and is marked as this engine's where it is defined.
+- **People you can talk to**: **T** at a counter talks to whoever the NPC
+  table places there. Five decoded tables meet and none of it is invented — the
+  greeting is their personality's own line from `npcbtb.txt`, what their trade
+  is talking about comes from `PROFTEXT.txt`'s column for today's weekday, the
+  topics are theirs from `npctopic.txt` with the answers from `npctext.txt`,
+  and whether begging, bribing or threatening would work is the matrix. Across
+  eight towns, 239 people: all 239 greet, 218 have something for today, 111 can
+  be asked about something.
 - **Shops you can trade with**: **Tab** then a number opens an establishment's
   counter. Its shelves are *generated*, not invented — the row's own
   `"L1 Weap"`-style stock line feeds the random-item generator that reproduces

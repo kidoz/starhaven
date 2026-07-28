@@ -1,6 +1,7 @@
 #ifndef STARHAVEN_CORE_WORLD_MAP_SESSION_HPP
 #define STARHAVEN_CORE_WORLD_MAP_SESSION_HPP
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -50,6 +51,16 @@ struct SessionActor {
 // One establishment the design table places on this map: a shop, temple,
 // tavern or guild. They have no position in the world — the table says which
 // map they belong to and nothing more.
+// One person the NPC table places in an establishment, with the pieces a
+// conversation needs rather than a line of display text.
+struct SessionNpc {
+    std::string name;
+    int profession_id = 0;        // indexes npcprof.txt, and PROFTEXT.txt
+    std::string profession;       // its name, for showing
+    std::string personality;      // the profession's, which npcbtb describes
+    std::array<int, 3> topics{};  // npctopic/npctext ids from the event columns
+};
+
 struct SessionBuilding {
     std::string name;
     std::string type;
@@ -62,6 +73,9 @@ struct SessionBuilding {
     // an occupant can be asked what their trade says today.
     std::vector<std::string> occupants;
     std::vector<int> occupant_professions;
+
+    // And the same people with their parts kept apart, for talking to.
+    std::vector<SessionNpc> people;
 };
 
 // One loot object or projectile lying on the map.

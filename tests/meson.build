@@ -224,6 +224,12 @@ test('map_script',
   workdir : meson.current_build_dir(),
 )
 
+test('conversation',
+  executable('test_conversation', 'test_conversation.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('shop',
   executable('test_shop', 'test_shop.cpp',
     dependencies : [starhaven_dep, catch2_main]),

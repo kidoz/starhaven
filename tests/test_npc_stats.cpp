@@ -281,3 +281,11 @@ TEST_CASE("a table without the Msg# header is refused", "[npc]") {
     NpcPersonalityTable matrix;
     REQUIRE(NpcPersonalityTable::parse(table, matrix) == NpcStatsError::NoHeader);
 }
+
+TEST_CASE("no name is not a personality", "[npc]") {
+    // The suffix match that lets "Fanatic" find "Evil Fanatic" would otherwise
+    // let an empty name find the first entry, and give a person with no
+    // profession somebody else's greeting.
+    const auto matrix = personalities();
+    REQUIRE(matrix.find("") == nullptr);
+}

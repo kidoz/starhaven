@@ -31,6 +31,7 @@
 #include "game/ambient_mixer.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
+#include "game/conversation.hpp"
 #include "game/daylight.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
@@ -519,7 +520,81 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
                         shadow);
     }
     game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
-                    "1-9 buy, S sell the first thing you carry, B closes", dim, shadow);
+                    "1-9 buy, S sell, T talk to whoever is here, B closes", dim, shadow);
+}
+
+// Somebody in an establishment, and what they have to say.
+void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
+                       const game::Conversation& talk, const std::string& answer) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{170, 170, 170, 255};
+    const render::Color said{235, 225, 170, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 28;
+
+    game::draw_text(scene.framebuffer(), font, 24, y, talk.who, white, shadow);
+    y += line * 2;
+    if (!talk.greeting.empty()) {
+        game::draw_text(scene.framebuffer(), font, 24, y, talk.greeting, said, shadow);
+        y += line * 2;
+    }
+    if (!talk.today.empty()) {
+        game::draw_text(scene.framebuffer(), font, 24, y, "today: " + talk.today, dim, shadow);
+        y += line * 2;
+    }
+    for (std::size_t i = 0; i < talk.topics.size(); ++i) {
+        game::draw_text(scene.framebuffer(), font, 24, y,
+                        std::to_string(i + 1) + "  " + talk.topics[i], white, shadow);
+        y += line;
+    }
+    if (!answer.empty()) {
+        y += line;
+        // The answers run long, so they wrap.
+        std::string word;
+        int x = 24;
+        for (std::size_t i = 0; i <= answer.size(); ++i) {
+            const char ch = i < answer.size() ? answer[i] : ' ';
+            if (ch != ' ') {
+                word += ch;
+                continue;
+            }
+            const int width = font.text_width(word + " ");
+            if (x + width > kWidth - 24) {
+                x = 24;
+                y += line;
+            }
+            if (y < kHeight - line * 3) {
+                game::draw_text(scene.framebuffer(), font, x, y, word, said, shadow);
+            }
+            x += width;
+            word.clear();
+        }
+        y += line;
+    }
+    if (!talk.approaches.empty()) {
+        std::string how = "you could ";
+        for (std::size_t i = 0; i < talk.approaches.size(); ++i) {
+            how += (i == 0 ? "" : i + 1 == talk.approaches.size() ? " or " : ", ");
+            how += talk.approaches[i];
+        }
+        game::draw_text(scene.framebuffer(), font, 24, kHeight - line * 2 - 8, how + " them", dim,
+                        shadow);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "1-3 ask about something, T closes", dim, shadow);
 }
 
 // The game's own interface font. A missing font is not fatal: the world still
@@ -1006,6 +1081,27 @@ int main(int argc, char** argv) {
     std::vector<game::StockItem> shop_stock;
     std::string shop_said;
     std::set<int> opened_chests;  // a chest gives up its contents once
+
+    // Talking. The tables are all decoded; this is the first thing that uses
+    // them together. See src/game/conversation.hpp.
+    data::NpcDialogueTable dialogue;
+    data::NpcPersonalityTable personalities;
+    (void)data::load_npc_dialogue(data_dir, dialogue);
+    (void)data::load_npc_personalities(data_dir, personalities);
+    int talking_to = -1;  // an index into the open shop's people, or none
+    std::string talk_answer;
+
+    // The design table's row and the session's building are two views of one
+    // establishment: the row carries the stock, the session the people.
+    const auto people_of =
+        [&session](const data::BuildingStatsEntry& shop) -> const std::vector<world::SessionNpc>* {
+        for (const auto& b : session.buildings) {
+            if (b.name == data::cp1252_to_utf8(shop.name)) {
+                return &b.people;
+            }
+        }
+        return nullptr;
+    };
     if (start_shop >= 1 && start_shop <= static_cast<int>(shops_here.size())) {
         open_shop = start_shop - 1;
         const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
@@ -1065,6 +1161,11 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
                 shown_member = -1;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T &&
+                       open_shop >= 0) {
+                // Talk to whoever the NPC table puts in this establishment.
+                talking_to = talking_to >= 0 ? -1 : 0;
+                talk_answer.clear();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
                        open_shop >= 0) {
                 open_shop = -1;
@@ -1090,7 +1191,15 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                        event.key.key <= SDLK_9) {
                 const int chosen = static_cast<int>(event.key.key - SDLK_1);
-                if (open_shop >= 0) {
+                if (talking_to >= 0) {
+                    // Ask about one of the three things this person knows.
+                    const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                    if (here != nullptr && talking_to < static_cast<int>(here->size())) {
+                        talk_answer =
+                            game::topic_answer((*here)[static_cast<std::size_t>(talking_to)],
+                                               dialogue, static_cast<std::size_t>(chosen));
+                    }
+                } else if (open_shop >= 0) {
                     // Buy, if the purse and somebody's pack allow it.
                     if (static_cast<std::size_t>(chosen) < shop_stock.size()) {
                         const auto& offered = shop_stock[static_cast<std::size_t>(chosen)];
@@ -1334,7 +1443,15 @@ int main(int argc, char** argv) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
                        stat_descriptions, class_descriptions);
         }
-        if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
+        if (talking_to >= 0 && open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
+            const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+            if (here != nullptr && talking_to < static_cast<int>(here->size())) {
+                draw_conversation(scene, font,
+                                  game::talk_to((*here)[static_cast<std::size_t>(talking_to)],
+                                                dialogue, personalities, trade_talk, clock),
+                                  talk_answer);
+            }
+        } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             draw_shop(scene, font, *shops_here[static_cast<std::size_t>(open_shop)], shop_stock,
                       item_stats, merchant_words, gold, shop_said);
         }
