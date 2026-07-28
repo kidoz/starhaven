@@ -415,7 +415,7 @@ names; recorded so the next pass starts from here. Reproduce with
 
 | Opcode | Uses | Shape | What shows |
 | ---: | ---: | --- | --- |
-| 21 | 140 | `[u16][u8][point][point]` | two world-range points and a small pair — trap- or beam-shaped |
+| 21 | 154 | `[u16][u8][point][point]` | the second point is **optional** — all zeros on 83 of 154 — and shares two axes with the first on 37 of the rest: an axis-aligned segment, or a point alone. Trap- or beam-shaped. One reading tested and failed: the u16 as a `DOBJLIST.BIN` object id resolves on 110 of 154 but to inventory nouns — *long dagger*, *bell*, *war hammer* — a coincidence of dense small ids, and the frequent large values (527, 518) resolve to nothing |
 | 25 | 100 | six small u8s | one constant tuple repeated across a map's events |
 | 26 | 39 | `[u32 a][u32 b][u32 c][u8]` | three **consecutive** ids — (14,15,16), (21,22,23) — and a byte |
 | 32 | 312 | `[u32 id][u8 0/1]` | overwhelmingly the Oracle's: its events switch local ids on and off in matched sets of four |

@@ -19,6 +19,7 @@
 #include "core/image/zlib_util.hpp"
 #include "core/lod/game_lod_archive.hpp"
 #include "core/world/blv_map.hpp"
+#include "core/world/object_table.hpp"
 #include "core/world/sound_table.hpp"
 
 namespace {
@@ -874,6 +875,63 @@ int do_catalog(const starhaven::lod::LodArchive& icons, int wanted) {
     return 0;
 }
 
+// Research mode: opcode 21's u16 against the object table's own ids — a
+// projectile has to be some object.
+int do_projectiles(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    world::ObjectTable objects;
+    std::span<const std::byte> raw;
+    if (icons.payload("DOBJLIST.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::ObjectTable::parse(raw, objects) != world::ObjectTableError::None) {
+        std::cerr << "error: could not read DOBJLIST.BIN\n";
+        return 1;
+    }
+    std::set<std::uint16_t> ids;
+    for (std::size_t i = 0; i < objects.size(); ++i) {
+        if (const auto* d = objects.at(i); d != nullptr) {
+            ids.insert(d->object_id);
+        }
+    }
+
+    std::size_t uses = 0, resolve = 0;
+    std::map<std::string, std::size_t> names;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if (step.opcode != 21 || step.arguments.size() < 27) {
+                continue;
+            }
+            ++uses;
+            const auto id = static_cast<std::uint16_t>(step.arguments[0] |
+                                                       (step.arguments[1] << 8));
+            if (!ids.contains(id)) {
+                continue;
+            }
+            ++resolve;
+            for (std::size_t i = 0; i < objects.size(); ++i) {
+                if (const auto* d = objects.at(i); d != nullptr && d->object_id == id) {
+                    ++names[d->name + " (" + std::to_string(id) + ")"];
+                    break;
+                }
+            }
+        }
+    }
+    std::cout << uses << " uses of opcode 21; the u16 is an object id on " << resolve << "\n";
+    for (const auto& [name, count] : names) {
+        std::cout << "  " << name << " x" << count << "\n";
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -901,6 +959,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--projectiles") {
+        return do_projectiles(icons);
     }
     if (stem == "--catalog" && argc == 3) {
         return do_catalog(icons, std::atoi(argv[2]));
