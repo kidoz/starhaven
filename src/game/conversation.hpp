@@ -166,6 +166,26 @@ talk_to(const world::SessionNpc& person, const data::NpcDialogueTable& dialogue,
     return out;
 }
 
+// Which dialogue id the chosen topic is. Topic id N, `npctext.txt` row N and
+// `GLOBAL.EVT` event N share one id space — the label, the prose and the
+// logic — so this is also the quest event a topic runs when the global
+// script defines it. Returns 0 when the choice names nothing.
+[[nodiscard]] inline int topic_id(const world::SessionNpc& person,
+                                  const data::NpcDialogueTable& dialogue, std::size_t which) {
+    std::size_t seen = 0;
+    for (const int id : person.topics) {
+        const auto* entry = dialogue.at(id);
+        if (entry == nullptr || entry->topic.empty()) {
+            continue;
+        }
+        if (seen == which) {
+            return id;
+        }
+        ++seen;
+    }
+    return 0;
+}
+
 // What a topic's answer is, for when one is chosen.
 [[nodiscard]] inline std::string topic_answer(const world::SessionNpc& person,
                                               const data::NpcDialogueTable& dialogue,

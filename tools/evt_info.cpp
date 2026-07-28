@@ -10,6 +10,7 @@
 
 #include "core/data/game_data.hpp"
 #include "core/data/map_stats.hpp"
+#include "core/data/npc_stats.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
@@ -583,6 +584,27 @@ int do_unheaded(const starhaven::lod::LodArchive& icons) {
     }
     std::cout << faces_unresolved << " face event ids resolve in no map script; " << in_global
               << " of those are GLOBAL.EVT events\n";
+
+    // And the join the letter quest exposed: an NPC row's event ids against
+    // the global script's own event ids.
+    starhaven::data::NpcTable npcs;
+    if (starhaven::data::load_npcs(*starhaven::platform::install_from_env() / "data", npcs) ==
+        starhaven::data::GameDataError::None) {
+        std::size_t npc_events = 0;
+        std::size_t npc_in_global = 0;
+        for (const auto& npc : npcs.entries()) {
+            for (const int id : npc.events) {
+                if (id <= 0) {
+                    continue;
+                }
+                ++npc_events;
+                npc_in_global +=
+                    global_ids.contains(static_cast<std::uint16_t>(id)) ? 1 : 0;
+            }
+        }
+        std::cout << npc_events << " NPC event ids; " << npc_in_global
+                  << " are GLOBAL.EVT events\n";
+    }
     return 0;
 }
 

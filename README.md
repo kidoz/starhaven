@@ -286,6 +286,14 @@ interoperability and compatibility with a legally purchased copy.
   walks the global event. The "unheaded events" mystery also came apart: part
   was another record framing misread (`OUT.EVT` and kin carry no sequence
   byte), and the rest are ordinary event bodies that begin with work.
+- **Quests that speak and pay**: `GLOBAL.EVT`'s voice was found by content —
+  its letter event's two branches say `npctext.txt` rows 1 and 3, word for
+  word the *"Oh!  The Seal"* payoff and the *"you get no money!"* refusal —
+  which pinned the larger fact that topic id, prose row and global event
+  share one id space, 170 of 298 topics carrying logic. Ask Andover Potbello
+  about The Letter with item 505 in a pack and his event pays 1,000 gold and
+  advances the journal from bit 81 to 82; ask empty-handed and he refuses,
+  in his own words.
 - **Doors that open**: the indoor event files' fixed 200-slot block turned
   out to be the door array — per door an id, a direction, a distance, two
   speeds, and id arrays whose total is byte-exact against the size the level

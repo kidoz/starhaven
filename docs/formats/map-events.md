@@ -133,10 +133,11 @@ rather than one thing:
   bodies that simply begin with work instead of a header. What, if anything,
   the missing header withholds from them is still `unknown`.
 
-The earlier lead stays closed: their id range overlaps the event columns of
-`NPCdata.txt`, but those columns are `npctopic.txt` and `npctext.txt` ids,
-which resolve 298 of 298 (see [`text-tables.md`](text-tables.md)); the
-overlap is a coincidence of range.
+The `NPCdata.txt` lead closed twice and reopened once: its event columns are
+`npctopic.txt`/`npctext.txt` ids resolving 298 of 298 — *and* those same ids
+are `GLOBAL.EVT` events on 170 of the 298, because topic, prose and logic
+share one id space. See "The quest bank speaks" below. What they are not is
+ids of the *map* scripts' events, which is all the original test tried.
 
 ### Faces fall back to the shared script
 
@@ -144,11 +145,32 @@ What did fall out of the reattack is a join: of the **88** face event ids
 that resolve in no map's own script, **66 are `GLOBAL.EVT` events** — the
 quest bank is reachable from doors and switches in the world, not only from
 dialogue. The engine walks it: a face whose event its map does not define
-runs the global script's event instead. `observed` for the join. What table
-`GLOBAL.EVT`'s message indices name is `unknown` — it has no `.STR`, and
-`GLOBAL.TXT` beside it is an alphabetized word list (indices 1..199 fit its
-598 rows but land on dictionary words, not prose) — so a global walk acts
-without speaking.
+runs the global script's event instead. `observed`
+
+### The quest bank speaks `npctext.txt`, and topics are its events
+
+`GLOBAL.EVT` has no `.STR`, and the table its message indices name was found
+by content, not by range. Its event 1 reads, decoded: check for item 505,
+and on the pass say index 1, give 1,000 gold, clear quest bit 81 and set
+bit 82; on the fail say index 3. Item 505 is **The Letter**; bits 81 and 82
+are the journal's *show Sulman's letter to Andover Potbello* and *bring it
+to Regent Humphrey*; and `npctext.txt` rows 1 and 3 are *"Oh!  The Seal.
+Here, I'm supposed to give you this money."* and *"Since you don't have a
+letter with a Seal, you get no money!"* — the two branches, word for word.
+`observed`
+
+So **topic id, `npctext.txt` row and `GLOBAL.EVT` event share one id
+space**: the label, the prose and the logic. 170 of the 298 topic ids the
+NPC table hands out are global events — the earlier conclusion that the
+overlap was a coincidence of range is withdrawn; the 128 without an event
+are plain conversation. `observed` The engine runs it both ways: a face that
+points into the bank speaks through `npctext.txt`, and asking a quest giver
+about such a topic walks its event — Andover Potbello takes the letter's
+seal, pays the thousand gold, and the journal moves on. An earlier note here
+said a global walk acts without speaking; it speaks now.
+
+`GLOBAL.TXT`, tested first, fit the range and failed on content: it is an
+alphabetized word list, not prose.
 
 ### What was ruled out looking for the opcode that enters a building
 
@@ -401,7 +423,8 @@ using one prints its message.
 - Which of the shared scripts beyond `OUT.EVT` use the headerless framing,
   and what the misframed remainder of the unheaded class parses to under it.
   `unknown`
-- The table `GLOBAL.EVT`'s message indices name. `unknown`
+- The 128 topic ids with no global event beyond being plain prose, and what
+  runs the global events no topic and no face points at. `unknown`
 - The 22 face event ids that resolve in neither their map's script nor
   `GLOBAL.EVT`. `unknown`
 - Opcode 15's door numbers are the ids of the indoor event files' own door

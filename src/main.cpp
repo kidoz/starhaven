@@ -1240,9 +1240,10 @@ int main(int argc, char** argv) {
     game::WalkState script_state;
 
     // The shared quest script: 66 of the 88 face event ids that no map's own
-    // script defines are GLOBAL.EVT events, so a face falls back to it. What
-    // table its message indices name is not yet established, so a global
-    // walk acts without speaking. See docs/formats/map-events.md.
+    // script defines are GLOBAL.EVT events, and 170 of the 298 NPC topic ids
+    // are too — topic id, `npctext.txt` row and global event share one id
+    // space. A face falls back to it, and asking a quest giver about a topic
+    // runs its event. See docs/formats/map-events.md.
     world::MapScript global_script;
     {
         lod::LodArchive icons_archive;
@@ -1312,6 +1313,35 @@ int main(int argc, char** argv) {
     float fall_speed = 0.0f;
     int frame = 0;
     bool running = true;
+
+    // A walked event's gives and takes, shared by using a face and talking
+    // to a quest giver. Giving returns the item's name for the message line,
+    // or nothing when no pack had room.
+    const auto give_item = [&](int id) -> std::string {
+        const auto* row = item_stats.at(static_cast<std::size_t>(id));
+        if (row == nullptr) {
+            return {};
+        }
+        const render::Texture& icon = cache.icon(row->picture);
+        const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
+        const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
+        for (auto& pack : packs) {
+            if (pack.add(id, w, h)) {
+                return data::cp1252_to_utf8(row->name);
+            }
+        }
+        return {};
+    };
+    const auto take_item = [&](int id) {
+        for (auto& pack : packs) {
+            for (const auto& carried : pack.items()) {
+                if (carried.item_id == id) {
+                    pack.remove(carried.x, carried.y);
+                    return;
+                }
+            }
+        }
+    };
 
     // Leave this map for another, through the same loader the command line
     // uses. What does not survive the trip is exactly what belongs to the old
@@ -1438,11 +1468,47 @@ int main(int argc, char** argv) {
                 const int chosen = static_cast<int>(event.key.key - SDLK_1);
                 if (talking_to >= 0) {
                     // Ask about one of the three things this person knows.
+                    // A topic the global script defines is a quest: walk it,
+                    // and the event itself decides what is said, paid and
+                    // taken — the letter is handed over and the purse fills.
                     const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
                     if (here != nullptr && talking_to < static_cast<int>(here->size())) {
-                        talk_answer =
-                            game::topic_answer((*here)[static_cast<std::size_t>(talking_to)],
-                                               dialogue, static_cast<std::size_t>(chosen));
+                        const auto& person = (*here)[static_cast<std::size_t>(talking_to)];
+                        const int id =
+                            game::topic_id(person, dialogue, static_cast<std::size_t>(chosen));
+                        talk_answer.clear();
+                        if (id > 0 && global_script.defines(static_cast<std::uint16_t>(id))) {
+                            script_state.gold = gold;
+                            script_state.items.clear();
+                            for (const auto& pack : packs) {
+                                for (const auto& carried : pack.items()) {
+                                    script_state.items.push_back(carried.item_id);
+                                }
+                            }
+                            const game::WalkOutcome outcome = game::walk_event(
+                                global_script, static_cast<std::uint16_t>(id), script_state);
+                            gold = script_state.gold;
+                            for (const int index : outcome.said) {
+                                if (const auto* entry = dialogue.at(index); entry != nullptr) {
+                                    talk_answer += (talk_answer.empty() ? "" : "  ") +
+                                                   data::cp1252_to_utf8(entry->text);
+                                }
+                            }
+                            for (const int given : outcome.given) {
+                                if (const std::string name = give_item(given); !name.empty()) {
+                                    talk_answer += (talk_answer.empty() ? "You receive "
+                                                                        : "  You receive ") +
+                                                   name;
+                                }
+                            }
+                            for (const int taken : outcome.taken) {
+                                take_item(taken);
+                            }
+                        }
+                        if (talk_answer.empty()) {
+                            talk_answer = game::topic_answer(person, dialogue,
+                                                             static_cast<std::size_t>(chosen));
+                        }
                     }
                 } else if (open_shop >= 0 &&
                            game::is_travel(*shops_here[static_cast<std::size_t>(open_shop)])) {
@@ -1686,16 +1752,21 @@ int main(int argc, char** argv) {
             gold = script_state.gold;
 
             // What it said, resolved before any travel drops these strings.
-            // A global event's indices name a table not yet decoded, so only
-            // the map's own events speak.
+            // The map's own events speak through its `.STR`; the global
+            // script's speak through `npctext.txt` — the letter quest's two
+            // branches say exactly rows 1 and 3 of it.
             std::string said_text;
-            for (const int index : local ? outcome.said : std::vector<int>{}) {
-                if (index < 0 ||
-                    static_cast<std::size_t>(index) >= session.script_strings.size()) {
-                    continue;
+            for (const int index : outcome.said) {
+                std::string text;
+                if (local) {
+                    if (index >= 0 &&
+                        static_cast<std::size_t>(index) < session.script_strings.size()) {
+                        text = data::cp1252_to_utf8(std::string(
+                            session.script_strings.at(static_cast<std::size_t>(index))));
+                    }
+                } else if (const auto* entry = dialogue.at(index); entry != nullptr) {
+                    text = data::cp1252_to_utf8(entry->text);
                 }
-                const std::string text = data::cp1252_to_utf8(
-                    std::string(session.script_strings.at(static_cast<std::size_t>(index))));
                 if (!text.empty()) {
                     said_text += (said_text.empty() ? "" : "  ") + text;
                 }
@@ -1703,35 +1774,12 @@ int main(int argc, char** argv) {
 
             // What it handed over, and what it asked for.
             for (const int id : outcome.given) {
-                const auto* row = item_stats.at(static_cast<std::size_t>(id));
-                if (row == nullptr) {
-                    continue;
-                }
-                const render::Texture& icon = cache.icon(row->picture);
-                const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
-                const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
-                for (auto& pack : packs) {
-                    if (pack.add(id, w, h)) {
-                        said_text += (said_text.empty() ? "You receive " : "  You receive ") +
-                                     data::cp1252_to_utf8(row->name);
-                        break;
-                    }
+                if (const std::string name = give_item(id); !name.empty()) {
+                    said_text += (said_text.empty() ? "You receive " : "  You receive ") + name;
                 }
             }
             for (const int id : outcome.taken) {
-                bool removed = false;
-                for (auto& pack : packs) {
-                    for (const auto& carried : pack.items()) {
-                        if (carried.item_id == id) {
-                            pack.remove(carried.x, carried.y);
-                            removed = true;
-                            break;
-                        }
-                    }
-                    if (removed) {
-                        break;
-                    }
-                }
+                take_item(id);
             }
 
             // A thrown switch is drawn thrown: the event names a face and
