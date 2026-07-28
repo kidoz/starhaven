@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <span>
@@ -40,6 +41,7 @@
 #include "game/party.hpp"
 #include "game/player.hpp"
 #include "game/rest.hpp"
+#include "game/save.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/sprites.hpp"
@@ -49,6 +51,10 @@
 namespace {
 
 using namespace starhaven;
+
+// Where a save lands: beside where the engine was run, in this
+// engine's own text format.
+constexpr const char* kSaveFile = "starhaven.save";
 
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
@@ -78,6 +84,7 @@ void print_usage(const char* argv0) {
               << "  I          the inventory; walk over a thing to pick it up\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
+              << "  F5/F9      save the game / load it back\n"
               << "  Tab then 1-9  trade with an establishment on this map\n"
               << "  ESC/close  quit\n"
               << "\n"
@@ -1316,6 +1323,23 @@ int main(int argc, char** argv) {
     int frame = 0;
     bool running = true;
 
+    // Stand a door's vertices where its open flag says, shared by throwing a
+    // lever and loading a save. The caller rebuilds collision after the last
+    // door it moves.
+    const auto move_door = [&](world::MapDoor& door) {
+        for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
+            const std::uint16_t vid = door.vertex_ids[i];
+            if (vid >= session.blv.vertices.size()) {
+                continue;
+            }
+            const float slide = door.open ? static_cast<float>(door.distance) : 0.0f;
+            auto& v = session.blv.vertices[vid];
+            v.x = static_cast<std::int16_t>(door.x_base[i] + static_cast<int>(door.dx * slide));
+            v.y = static_cast<std::int16_t>(door.y_base[i] + static_cast<int>(door.dy * slide));
+            v.z = static_cast<std::int16_t>(door.z_base[i] + static_cast<int>(door.dz * slide));
+        }
+    };
+
     // A walked event's gives and takes, shared by using a face and talking
     // to a quest giver. Giving returns the item's name for the message line,
     // or nothing when no pack had room.
@@ -1434,6 +1458,81 @@ int main(int argc, char** argv) {
                     pick_up_message = who.name + " wears the " + data::cp1252_to_utf8(row->name);
                     pick_up_shown = SDL_GetTicks();
                     break;
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F5) {
+                // Save: the engine's own format, next to where it was run.
+                game::SaveState state;
+                state.map_file = session.file_name;
+                state.x = camera.position.x;
+                state.y = camera.position.y;
+                state.z = camera.position.z;
+                state.yaw = camera.yaw;
+                state.pitch = camera.pitch;
+                state.minutes = clock.minutes();
+                state.gold = gold;
+                state.bits = script_state.bits;
+                state.variables = script_state.variables;
+                state.party = party;
+                for (std::size_t i = 0; i < packs.size(); ++i) {
+                    state.packs[i] = packs[i].items();
+                }
+                state.opened_chests.assign(opened_chests.begin(), opened_chests.end());
+                for (const auto& door : session.doors) {
+                    if (door.open) {
+                        state.open_doors.push_back(door.id);
+                    }
+                }
+                std::ofstream file(kSaveFile);
+                file << game::save_text(state);
+                pick_up_message = file.good() ? "Saved" : "Could not write the save";
+                pick_up_shown = SDL_GetTicks();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F9) {
+                // Load: back to the saved map, standing where the party stood.
+                game::SaveState state;
+                std::ifstream file(kSaveFile);
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                if (!file.good() || !game::parse_save(buffer.str(), state) ||
+                    !open_map(state.map_file)) {
+                    pick_up_message = "Nothing to load";
+                    pick_up_shown = SDL_GetTicks();
+                } else {
+                    camera.position = {state.x, state.y, state.z};
+                    camera.yaw = state.yaw;
+                    camera.pitch = state.pitch;
+                    clock = game::GameClock{state.minutes};
+                    next_refill = session.refill_days > 0
+                                      ? clock.day() + session.refill_days
+                                      : std::numeric_limits<std::int64_t>::max();
+                    gold = state.gold;
+                    script_state.bits = state.bits;
+                    script_state.variables = state.variables;
+                    party = state.party;
+                    for (std::size_t i = 0; i < packs.size(); ++i) {
+                        packs[i].clear();
+                        for (const auto& item : state.packs[i]) {
+                            (void)packs[i].place(item.item_id, item.x, item.y, item.width,
+                                                 item.height);
+                        }
+                    }
+                    opened_chests =
+                        std::set<int>(state.opened_chests.begin(), state.opened_chests.end());
+                    bool doors_moved = false;
+                    for (const std::uint32_t id : state.open_doors) {
+                        for (auto& door : session.doors) {
+                            if (door.id == id) {
+                                door.open = true;
+                                move_door(door);
+                                doors_moved = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (doors_moved) {
+                        world::rebuild_indoor_collision(session);
+                    }
+                    pick_up_message = "Loaded";
+                    pick_up_shown = SDL_GetTicks();
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
@@ -1805,20 +1904,7 @@ int main(int argc, char** argv) {
                         continue;
                     }
                     door.open = state == 2 ? !door.open : state != 0;
-                    for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
-                        const std::uint16_t vid = door.vertex_ids[i];
-                        if (vid >= session.blv.vertices.size()) {
-                            continue;
-                        }
-                        const float slide = door.open ? static_cast<float>(door.distance) : 0.0f;
-                        auto& v = session.blv.vertices[vid];
-                        v.x = static_cast<std::int16_t>(door.x_base[i] +
-                                                        static_cast<int>(door.dx * slide));
-                        v.y = static_cast<std::int16_t>(door.y_base[i] +
-                                                        static_cast<int>(door.dy * slide));
-                        v.z = static_cast<std::int16_t>(door.z_base[i] +
-                                                        static_cast<int>(door.dz * slide));
-                    }
+                    move_door(door);
                     doors_moved = true;
                     break;
                 }

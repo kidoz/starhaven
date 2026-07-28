@@ -1,0 +1,89 @@
+// Tests for saving the game and getting it back.
+//
+// Hermetic: the state is built by hand and round-tripped through the text.
+#include <catch2/catch_test_macros.hpp>
+
+#include "game/save.hpp"
+
+using namespace starhaven;
+using namespace starhaven::game;
+
+namespace {
+
+SaveState full_state() {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.x = 12.5f;
+    state.y = -3.0f;
+    state.z = 960.0f;
+    state.yaw = 0.6f;
+    state.pitch = -0.25f;
+    state.minutes = 123456789;
+    state.gold = 1200;
+    state.bits = {82, 300};
+    state.variables = {{25, 10}, {105, 1}};
+    state.opened_chests = {0, 3};
+    state.open_doors = {55, 57};
+    Character& who = state.party[0];
+    who.name = "Jym-Bob";
+    who.class_name = "Knight";
+    who.face = 3;
+    who.level = 2;
+    who.experience = 1500;
+    who.hit_points = 17;
+    who.max_hit_points = 30;
+    who.attributes = {15, 12, 11, 14, 13, 12, 9};
+    who.resistances = {0, 0, 5, 0, 0};
+    who.equipped[0] = 1;
+    state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
+    return state;
+}
+
+}  // namespace
+
+TEST_CASE("a save round-trips whole", "[save]") {
+    const SaveState before = full_state();
+    SaveState after;
+    REQUIRE(parse_save(save_text(before), after));
+
+    REQUIRE(after.map_file == before.map_file);
+    REQUIRE(after.x == before.x);
+    REQUIRE(after.pitch == before.pitch);
+    REQUIRE(after.minutes == before.minutes);
+    REQUIRE(after.gold == before.gold);
+    REQUIRE(after.bits == before.bits);
+    REQUIRE(after.variables == before.variables);
+    REQUIRE(after.opened_chests == before.opened_chests);
+    REQUIRE(after.open_doors == before.open_doors);
+
+    const Character& who = after.party[0];
+    // The name keeps its own hyphen and the class survives beside it.
+    REQUIRE(who.name == "Jym-Bob");
+    REQUIRE(who.class_name == "Knight");
+    REQUIRE(who.level == 2);
+    REQUIRE(who.experience == 1500);
+    REQUIRE(who.hit_points == 17);
+    REQUIRE(who.attributes == before.party[0].attributes);
+    REQUIRE(who.resistances == before.party[0].resistances);
+    REQUIRE(who.equipped == before.party[0].equipped);
+
+    REQUIRE(after.packs[0].size() == 2);
+    REQUIRE(after.packs[0][0].item_id == 505);
+    REQUIRE(after.packs[0][0].x == 2);
+    REQUIRE(after.packs[0][0].height == 2);
+}
+
+TEST_CASE("the wrong magic or version refuses", "[save]") {
+    SaveState state;
+    REQUIRE_FALSE(parse_save("", state));
+    REQUIRE_FALSE(parse_save("something-else\t1\nmap\tOutE3.Odm\n", state));
+    REQUIRE_FALSE(parse_save("starhaven-save\t99\nmap\tOutE3.Odm\n", state));
+    // A save without a map has nowhere to put the party.
+    REQUIRE_FALSE(parse_save("starhaven-save\t1\ngold\t5\n", state));
+}
+
+TEST_CASE("unknown record kinds are skipped, not fatal", "[save]") {
+    SaveState state;
+    REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\nfuture-thing\t7\t8\n", state));
+    REQUIRE(state.map_file == "D01.blv");
+}

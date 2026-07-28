@@ -236,6 +236,12 @@ test('travel',
   workdir : meson.current_build_dir(),
 )
 
+test('save',
+  executable('test_save', 'test_save.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('conversation',
   executable('test_conversation', 'test_conversation.cpp',
     dependencies : [starhaven_dep, catch2_main]),

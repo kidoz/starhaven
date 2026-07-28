@@ -280,6 +280,13 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Saving**: **F5** writes the game, **F9** brings it back — quest bits and
+  event variables, the purse, all four packs cell by cell, worn equipment,
+  the party's numbers, the clock, the map and where the party stands on it,
+  and the current map's opened chests and thrown doors, which are re-thrown
+  on load so the portcullis you raised is still up. The format is this
+  engine's own versioned text and says so; it neither reads nor writes the
+  original's save files.
 - **The quest bank, reachable from the world**: of the faces whose event id
   no map's own script defines, 66 of 88 name events of `GLOBAL.EVT`, the
   shared script dense with quest checks and rewards — and using such a face

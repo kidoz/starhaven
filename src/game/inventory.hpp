@@ -75,6 +75,18 @@ public:
         return false;
     }
 
+    // Put an item back exactly where it was, which is what a load does.
+    // Refuses what would overlap or overflow, like any other placement.
+    bool place(int item_id, int x, int y, int width, int height) {
+        if (item_id <= 0 || x < 0 || y < 0 || width <= 0 || height <= 0 ||
+            x + width > kPackWidth || y + height > kPackHeight ||
+            !free_at(x, y, width, height)) {
+            return false;
+        }
+        items_.push_back({item_id, x, y, width, height});
+        return true;
+    }
+
     [[nodiscard]] const std::vector<PackedItem>& items() const noexcept { return items_; }
     [[nodiscard]] std::size_t size() const noexcept { return items_.size(); }
     [[nodiscard]] bool empty() const noexcept { return items_.empty(); }
