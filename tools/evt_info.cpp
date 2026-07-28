@@ -1,10 +1,15 @@
 // Reads one map's event script and strings from your own legal install.
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <span>
 #include <string>
 
+#include "core/data/game_data.hpp"
+#include "core/data/map_stats.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
@@ -12,11 +17,211 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <map stem> [event]\n"
+    std::cerr << "Usage: " << argv0 << " <--scan | <map stem> [event]>\n"
               << "\n"
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "\n"
+              << "  --scan   research mode: every opcode across all scripts, its\n"
+              << "           argument sizes, and any map file name in its arguments\n"
+              << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
+}
+
+// Research mode: what does each opcode look like across every script, and do
+// any arguments carry a map file name? A transition has to name where it
+// goes, and the 67 maps are a closed set to test against.
+int do_scan(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    struct OpcodeShape {
+        std::size_t uses = 0;
+        std::size_t min_size = static_cast<std::size_t>(-1);
+        std::size_t max_size = 0;
+        std::size_t file_names = 0;         // arguments holding ".odm"/".blv"
+        std::string example;                // one such name, with its map
+    };
+    std::map<int, OpcodeShape> shapes;
+    std::size_t scripts = 0;
+
+    for (const auto& entry : icons.entries()) {
+        const std::string& name = entry.name;
+        if (name.size() < 4 || name.substr(name.size() - 4) != ".EVT") {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        ++scripts;
+        for (const auto& step : script.steps()) {
+            OpcodeShape& shape = shapes[step.opcode];
+            ++shape.uses;
+            shape.min_size = std::min(shape.min_size, step.arguments.size());
+            shape.max_size = std::max(shape.max_size, step.arguments.size());
+
+            // Case-insensitively look for ".odm" or ".blv" in the raw bytes.
+            std::string lowered;
+            lowered.reserve(step.arguments.size());
+            for (const std::uint8_t b : step.arguments) {
+                lowered += static_cast<char>(std::tolower(b));
+            }
+            const std::size_t at = std::min(lowered.find(".odm"), lowered.find(".blv"));
+            if (at != std::string::npos) {
+                ++shape.file_names;
+                if (shape.example.empty()) {
+                    // The name starts after the previous NUL, or at the front.
+                    const std::size_t start = lowered.rfind('\0', at) + 1;
+                    shape.example = name.substr(0, name.size() - 4) + " event " +
+                                    std::to_string(step.event_id) + ": \"" +
+                                    lowered.substr(start, at + 4 - start) + "\"";
+                }
+            }
+        }
+    }
+
+    std::cout << scripts << " scripts\n";
+    std::cout << "opcode\tuses\targ bytes\tfile names\n";
+    for (const auto& [opcode, shape] : shapes) {
+        std::cout << opcode << "\t" << shape.uses << "\t" << shape.min_size;
+        if (shape.max_size != shape.min_size) {
+            std::cout << ".." << shape.max_size;
+        }
+        std::cout << "\t" << shape.file_names;
+        if (!shape.example.empty()) {
+            std::cout << "\te.g. " << shape.example;
+        }
+        std::cout << "\n";
+    }
+    return 0;
+}
+
+// Research mode: every use of opcode 6 across every script, read as four
+// little-endian i32s and a NUL-terminated destination, tested against the
+// design table's own set of 67 map file names.
+int do_transitions(const starhaven::lod::LodArchive& icons,
+                   const std::filesystem::path& data_dir) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace data = starhaven::data;
+
+    data::MapStatsTable maps;
+    if (data::load_map_stats(data_dir, maps) != data::GameDataError::None) {
+        std::cerr << "error: could not read MapStats.txt\n";
+        return 1;
+    }
+    const auto lower = [](std::string_view text) {
+        std::string out;
+        for (const char c : text) {
+            out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        return out;
+    };
+    std::map<std::string, std::string> known;  // lowered file name -> display name
+    for (const auto& m : maps.entries()) {
+        known[lower(m.file_name)] = m.name;
+    }
+
+    std::map<std::size_t, std::size_t> sizes;
+    std::map<std::string, std::size_t> middle_patterns;  // bytes 16..25 as hex
+    std::size_t uses = 0;
+    std::size_t same_map = 0;
+    std::size_t named = 0;
+    std::size_t known_names = 0;
+    std::map<std::string, std::size_t> destinations;
+    std::map<std::string, std::size_t> unknown_names;
+    std::int32_t min_coord[3] = {0, 0, 0};
+    std::int32_t max_coord[3] = {0, 0, 0};
+    std::int32_t max_facing = 0;
+
+    for (const auto& entry : icons.entries()) {
+        const std::string& name = entry.name;
+        if (name.size() < 4 || name.substr(name.size() - 4) != ".EVT") {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if (step.opcode != 6) {
+                continue;
+            }
+            ++uses;
+            ++sizes[step.arguments.size()];
+            const auto& a = step.arguments;
+            if (a.size() >= 26) {
+                std::string middle;
+                for (std::size_t i = 16; i < 26; ++i) {
+                    char hex[4];
+                    std::snprintf(hex, sizeof hex, "%02x ", a[i]);
+                    middle += hex;
+                }
+                ++middle_patterns[middle];
+            }
+            if (a.size() >= 27 && a[26] == '0' && (a.size() == 28 ? a[27] == 0 : true)) {
+                ++same_map;
+            }
+            if (a.size() >= 16) {
+                for (int c = 0; c < 3; ++c) {
+                    std::int32_t v = 0;
+                    for (int i = 3; i >= 0; --i) {
+                        v = (v << 8) | a[static_cast<std::size_t>(c * 4 + i)];
+                    }
+                    min_coord[c] = std::min(min_coord[c], v);
+                    max_coord[c] = std::max(max_coord[c], v);
+                }
+                std::int32_t facing = 0;
+                for (int i = 15; i >= 12; --i) {
+                    facing = (facing << 8) | a[static_cast<std::size_t>(i)];
+                }
+                max_facing = std::max(max_facing, facing);
+            }
+            if (a.size() > 26) {
+                std::string text;
+                for (std::size_t i = 26; i < a.size() && a[i] != 0; ++i) {
+                    text += static_cast<char>(std::tolower(a[i]));
+                }
+                if (!text.empty() && text != "0") {
+                    ++named;
+                    if (known.contains(text)) {
+                        ++known_names;
+                        ++destinations[name.substr(0, name.size() - 4) + " -> " + text];
+                    } else {
+                        ++unknown_names[name.substr(0, name.size() - 4) + " -> " + text];
+                    }
+                }
+            }
+        }
+    }
+
+    std::cout << uses << " uses of opcode 6\n";
+    std::cout << "argument sizes:";
+    for (const auto& [size, count] : sizes) {
+        std::cout << "  " << size << "b x" << count;
+    }
+    std::cout << "\n";
+    std::cout << same_map << " say \"0\" instead of a destination\n";
+    std::cout << named << " name a destination; " << known_names
+              << " are maps the design table lists, " << destinations.size() << " distinct\n";
+    std::cout << "bytes 16..25 by pattern:\n";
+    for (const auto& [pattern, count] : middle_patterns) {
+        std::cout << "  " << pattern << " x" << count << "\n";
+    }
+    for (const auto& [pair, count] : destinations) {
+        std::cout << "  " << pair << " x" << count << "\n";
+    }
+    std::cout << "coordinates: x " << min_coord[0] << ".." << max_coord[0] << ", y " << min_coord[1]
+              << ".." << max_coord[1] << ", z " << min_coord[2] << ".." << max_coord[2]
+              << ", facing 0.." << max_facing << "\n";
+    for (const auto& [text, count] : unknown_names) {
+        std::cout << "  not in MapStats: " << text << " x" << count << "\n";
+    }
+    return 0;
 }
 
 }  // namespace
@@ -41,6 +246,12 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--scan") {
+        return do_scan(icons);
+    }
+    if (stem == "--transitions") {
+        return do_transitions(icons, *install / "data");
+    }
     std::span<const std::byte> raw;
     world::MapScript script;
     if (icons.payload(stem + ".EVT", raw) != lod::LodArchive::PayloadError::None ||

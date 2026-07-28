@@ -9,6 +9,7 @@
 // to. See docs/formats/map-events.md.
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -41,6 +42,21 @@ inline constexpr std::uint8_t kOpcodeEnter = 2;
 // Open a chest. The argument is an index into the event file's fixed 20-slot
 // chest array: the largest value across all 65 scripts is 19.
 inline constexpr std::uint8_t kOpcodeChest = 7;
+
+// Move the party. The argument is a spawn point — X, Y, Z and a facing in
+// MM6's own units — and a destination map file name, or `"0"` to stay on the
+// map it is on: a teleporter rather than a door out. Across all scripts, 91 of
+// the 93 named destinations are maps the design table lists, and the pairs are
+// symmetric — GoblinWatch's exit names New Sorpigal's map and New Sorpigal
+// names GoblinWatch's. Reproduce with `evt_info --transitions`.
+inline constexpr std::uint8_t kOpcodeTravel = 6;
+
+// Where an event sends the party.
+struct MapTravel {
+    int x = 0, y = 0, z = 0;
+    int facing = 0;           // 0..2047, the angle scale MM6 uses
+    std::string destination;  // a map file name; empty means this same map
+};
 
 // Whether this opcode's first argument is a string index.
 [[nodiscard]] inline bool names_a_string(std::uint8_t opcode) noexcept {
@@ -87,6 +103,38 @@ public:
             }
         }
         return 0;
+    }
+
+    // Where an event sends the party, if anywhere. The record is four
+    // little-endian i32s — X, Y, Z, facing — then ten bytes not yet decoded,
+    // then the NUL-terminated destination at byte 26.
+    [[nodiscard]] std::optional<MapTravel> travel_of(std::uint16_t id) const {
+        for (const auto& step : event(id)) {
+            if (step.opcode != kOpcodeTravel || step.arguments.size() < 27) {
+                continue;
+            }
+            const auto& a = step.arguments;
+            const auto read = [&a](std::size_t at) {
+                std::int32_t value = 0;
+                for (std::size_t i = 4; i > 0; --i) {
+                    value = (value << 8) | a[at + i - 1];
+                }
+                return value;
+            };
+            MapTravel out;
+            out.x = read(0);
+            out.y = read(4);
+            out.z = read(8);
+            out.facing = read(12);
+            for (std::size_t i = 26; i < a.size() && a[i] != 0; ++i) {
+                out.destination += static_cast<char>(a[i]);
+            }
+            if (out.destination == "0") {
+                out.destination.clear();
+            }
+            return out;
+        }
+        return std::nullopt;
     }
 
     // The chest an event opens, or -1. Zero is a chest, so the absence of one

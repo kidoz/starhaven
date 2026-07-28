@@ -177,3 +177,47 @@ TEST_CASE("a chest event names which chest", "[script]") {
     REQUIRE(script.chest_of(5) == -1);
     REQUIRE(script.chest_of(99) == -1);
 }
+
+TEST_CASE("a travel event says where the party goes", "[script]") {
+    // Four little-endian i32s — X, Y, Z, facing — ten bytes not yet decoded,
+    // then the NUL-terminated destination map at byte 26.
+    std::vector<std::uint8_t> args{
+        0x95, 0x1e, 0x00, 0x00,                      // x = 7829
+        0xfb, 0xe3, 0xff, 0xff,                      // y = -7173
+        0xe0, 0x00, 0x00, 0x00,                      // z = 224
+        0x38, 0x02, 0x00, 0x00,                      // facing = 568
+        0,    0,    0,    0,    0, 0, 0, 0, 0, 8,    // undecoded
+        'O',  'u',  't',  'D',  '1', '.', 'O', 'd', 'm', 0};
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 7, 0, kOpcodeTravel, args);
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+
+    const auto travel = script.travel_of(7);
+    REQUIRE(travel);
+    REQUIRE(travel->x == 7829);
+    REQUIRE(travel->y == -7173);
+    REQUIRE(travel->z == 224);
+    REQUIRE(travel->facing == 568);
+    REQUIRE(travel->destination == "OutD1.Odm");
+    REQUIRE_FALSE(script.travel_of(99));
+}
+
+TEST_CASE("a travel event that names no map stays on this one", "[script]") {
+    // A destination of "0" is a teleporter: 126 of the 232 shipped uses.
+    std::vector<std::uint8_t> args(26, 0);
+    args.push_back('0');
+    args.push_back(0);
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 3, 0, kOpcodeTravel, args);
+    // A degenerate use with no room for a destination is not a travel at all:
+    // 13 shipped uses carry zero or one byte.
+    push_step(payload, 4, 0, kOpcodeTravel, {1});
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+
+    const auto travel = script.travel_of(3);
+    REQUIRE(travel);
+    REQUIRE(travel->destination.empty());
+    REQUIRE_FALSE(script.travel_of(4));
+}

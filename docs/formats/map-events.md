@@ -1,13 +1,13 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; the opcodes
-themselves are undecoded. Each claim is tagged `observed`, `inferred`, or
-`unknown`.
+Status: **verified** for the container and the record structure; seven opcodes
+are named and the rest are undecoded. Each claim is tagged `observed`,
+`inferred`, or `unknown`.
 
 ## Scope
 
-Covers where a map's script lives, how its records are framed, and how a face
-names one. Does not cover what any opcode does.
+Covers where a map's script lives, how its records are framed, how a face
+names one, and the opcodes that have been pinned down.
 
 ## They are not in `Games.lod`
 
@@ -182,6 +182,37 @@ An earlier pass read this argument as a single byte and scored 4 of 35, which
 looked like a dead lead. The ids run past 255; the argument is four bytes
 wide.
 
+### Opcode 6 moves the party
+
+A transition has to name where it goes, and 93 of opcode 6's 232 uses carry an
+ASCII map file name in their arguments — no other opcode carries one anywhere
+in the 15,504 records, apart from two designer leftovers in scripts no shipped
+map uses. `observed` Reproduce with `evt_info --scan`.
+
+The argument's shape, from `evt_info --transitions`:
+
+| Offset | Size | Field | Evidence |
+| --- | --- | --- | --- |
+| +0 | 4×i32 | X, Y, Z, facing | coordinates within world range; facing ≤ 1920, under MM6's 0..2047 angle scale |
+| +16 | 10 | undecoded | bytes 16..23 zero on all but one use; 24..25 small values, 0 on 132 |
+| +26 | n | destination, NUL-terminated | `"0"` on 126 uses, a map file name on 93 |
+
+Of the 93 named destinations, **91 are maps the design table lists** (52
+distinct); the two others are `d8.blv`, twice, in `LWSPIRAL.EVT` — a script
+with no shipped map, naming a file that is not in `Games.lod`. Thirteen more
+uses carry zero or one argument byte and cannot travel. `observed`
+
+The pairs settle the reading independently: they are **symmetric**. Every
+dungeon's exit names its region's outdoor map and that outdoor map's entrance
+names the dungeon back — `D01 -> OutE3.Odm` and `OUTE3 -> D01.Blv`,
+GoblinWatch and New Sorpigal, and so on across the world. A destination of
+`"0"` with coordinates is a teleporter within the map. `observed`
+
+The engine walks them: using an exit door loads the named map through the same
+loader the command line uses and stands the party at the recorded X, Y, Z,
+facing where the record says. How the 0..2047 facing maps onto the renderer's
+yaw is `inferred`.
+
 ### Opcode 7 opens a chest
 
 Chests are equally distinctive — opcode 7 is theirs, 429 uses against a handful
@@ -195,7 +226,7 @@ The shipped chests are empty: every one of the twenty slots on every map reads
 StarHaven does through the same generator the rest of the game's loot uses.
 How many things a chest holds is `inferred`.
 
-The other **86 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+The other **85 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event
@@ -242,6 +273,7 @@ using one prints its message.
 
 ## Open questions
 
-- Every opcode. `unknown`
-- Which argument, if any, indexes the string table. `unknown`
+- Most opcodes. `unknown`
+- Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
+  on the rest, including consecutive runs within one script. `unknown`
 - The 33 face event ids with no matching event. `unknown`

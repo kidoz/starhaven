@@ -173,7 +173,7 @@ interoperability and compatibility with a legally purchased copy.
   are looking at (`"Door"`, `"Sign"`, `"Chest"`). Each was identified by its
   argument never leaving its map's own string count *and* using that range,
   then confirmed by what the strings say. Opcode 5 makes four: it points at the
-  map's own name on 53 of its 54 resolving uses. The other 86 are unknown, and
+  map's own name on 53 of its 54 resolving uses. The other 85 are unknown, and
   Opcode 2 is the one that enters a building: its argument is a `2DEvents.txt`
   row id, 474 of 504 resolving, and per map the count of distinct values tracks
   the count of establishments. So the party walks to a shop door, uses it, and
@@ -183,6 +183,15 @@ interoperability and compatibility with a legally purchased copy.
   commonest in the game, turns out to be an event's opening step — 2,182 of
   2,182 events that contain it begin with it — though what it declares is still
   unread after four rejected readings.
+- **Opcode 6 is the door out, and the world is connected**: its argument is a
+  spawn point — X, Y, Z and a facing — and a NUL-terminated destination, either
+  `"0"` for a teleport within the map or a map file name. Of the 93 named
+  destinations across all scripts, 91 are maps the design table lists, and the
+  pairs are symmetric: GoblinWatch's exit names New Sorpigal's map and New
+  Sorpigal's cellar door names GoblinWatch's. The engine walks them — using an
+  exit door loads the destination map through the same one-path loader and
+  stands the party at the recorded spot, so the 67 maps are now one world
+  rather than 67 command lines.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
   party uses them. Outdoors the same trigger sits at +0x124 of a model facet —

@@ -1093,7 +1093,7 @@ int main(int argc, char** argv) {
     (void)data::load_random_items(data_dir, random_items);
     (void)data::load_standard_bonuses(data_dir, standard_bonuses);
     (void)data::load_special_bonuses(data_dir, special_bonuses);
-    const auto shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
+    auto shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
 
     int gold = game::kStartingGold;
     int open_shop = -1;  // an index into shops_here, or none
@@ -1160,6 +1160,48 @@ int main(int argc, char** argv) {
     float fall_speed = 0.0f;
     int frame = 0;
     bool running = true;
+
+    // Leave this map for another, through the same loader the command line
+    // uses. What does not survive the trip is exactly what belongs to the old
+    // map: its sounds, its shops, its opened chests, its fight.
+    const auto open_map = [&](const std::string& name) -> bool {
+        world::MapSession next;
+        if (world::load_map_session(game::resolve_games_lod(), data_dir, name, cache, next) !=
+            world::MapSessionError::None) {
+            return false;
+        }
+        session = std::move(next);
+        ambient_sources.clear();
+        for (const auto& d : session.decorations) {
+            if (d.sound_id != 0) {
+                ambient_sources.push_back({d.position, d.sound_id});
+            }
+        }
+        music.stop();
+        if (screenshot.empty() && music_wanted && session.music_track > 0) {
+            if (const auto install = platform::install_from_env()) {
+                (void)music.start(*install, session.music_track);
+            }
+        }
+        shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
+        open_shop = -1;
+        talking_to = -1;
+        shop_stock.clear();
+        shop_said.clear();
+        opened_chests.clear();
+        mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
+        battle.reset(session, monster_stats,
+                     static_cast<std::uint32_t>(session.actors.size()) + 7u);
+        next_refill = session.refill_days > 0 ? clock.day() + session.refill_days
+                                              : std::numeric_limits<std::int64_t>::max();
+        shown_kind.assign(session.actors.size(), world::MonsterAnimation::Stand);
+        shown_animation.assign(session.actors.size(), {});
+        fall_speed = 0.0f;
+        SDL_SetWindowTitle(window,
+                           ("StarHaven - " + session.title() + " (" + session.file_name + ")")
+                               .c_str());
+        return true;
+    };
 
     while (running) {
         ++frame;
@@ -1476,6 +1518,27 @@ int main(int argc, char** argv) {
                 pick_up_message = took.empty() ? "The chest is empty" : "You find " + took;
                 pick_up_shown = SDL_GetTicks();
                 want_strike = false;
+            }
+
+            // A door that goes somewhere takes the party there: to a point on
+            // this map, or onto another of the 67 through the same loader.
+            if (const auto travel = session.script.travel_of(aimed.event_id);
+                want_strike && travel) {
+                const bool stays = travel->destination.empty();
+                if (stays || open_map(travel->destination)) {
+                    camera.position = world::to_render_space(travel->x, travel->y, travel->z);
+                    camera.position.y += game::kEyeHeight;
+                    // The facing counts 0..2047 anticlockwise from MM6's +X;
+                    // the camera's yaw looks down -Z at zero. `inferred`
+                    camera.yaw = (static_cast<float>(travel->facing) / 2048.0f) * 2.0f *
+                                     render::kPi +
+                                 render::kPi / 2.0f;
+                    camera.pitch = 0.0f;
+                    pick_up_message =
+                        stays ? "You step through" : "You travel to " + session.title();
+                    pick_up_shown = SDL_GetTicks();
+                    want_strike = false;
+                }
             }
 
             if (std::string said = game::face_message(session, aimed.event_id);
