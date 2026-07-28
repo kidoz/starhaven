@@ -112,23 +112,36 @@ struct Combatant {
     return through < 1 ? 1 : through;
 }
 
-// The dice a character swings for: the first weapon in their pack, or a fist.
-[[nodiscard]] inline data::Dice weapon_of(const Pack& pack, const data::ItemStatsTable& items) {
-    for (const auto& carried : pack.items()) {
-        const auto* row = items.at(static_cast<std::size_t>(carried.item_id));
-        if (row == nullptr) {
-            continue;
-        }
-        const bool hits = row->equip_type == data::ItemEquipType::Weapon ||
-                          row->equip_type == data::ItemEquipType::TwoHandedWeapon;
-        if (!hits) {
-            continue;
-        }
-        if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
-            return dice;
+// The dice a character swings for: whatever is in their weapon slot, or a
+// fist. Before there were slots this took the first weapon in the pack, which
+// meant picking something up could change what you were fighting with.
+[[nodiscard]] inline data::Dice weapon_of(const Character& who, const data::ItemStatsTable& items) {
+    const int held = who.equipped[static_cast<std::size_t>(Slot::Weapon)];
+    if (held > 0) {
+        if (const auto* row = items.at(static_cast<std::size_t>(held)); row != nullptr) {
+            if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
+                return dice;
+            }
         }
     }
     return {1, kBareHandSides, 0};
+}
+
+// And what armour takes off the chance of being hit: the flat modifier each
+// worn piece carries. `inferred`
+[[nodiscard]] inline int armour_of(const Character& who, const data::ItemStatsTable& items) {
+    int total = 0;
+    for (const int id : who.equipped) {
+        if (id <= 0) {
+            continue;
+        }
+        const auto* row = items.at(static_cast<std::size_t>(id));
+        if (row == nullptr || data::parse_dice(row->modifier_1).empty() == false) {
+            continue;  // a weapon's modifier is dice, not armour
+        }
+        total += data::parse_int(row->modifier_1, 0);
+    }
+    return total;
 }
 
 // "No actor", for a search that found nothing.
@@ -235,7 +248,7 @@ public:
 
     // The party strikes one monster. Returns what happened, for the message
     // line, or empty when the blow was not possible at all.
-    std::string strike(std::size_t actor, Character& who, const Pack& pack,
+    std::string strike(std::size_t actor, Character& who, const Pack& pack,  // NOLINT
                        const world::MapSession& session, const data::MonsterStatsTable& monsters,
                        const data::ItemStatsTable& items) {
         if (!alive(actor) || who.hit_points <= 0) {
@@ -257,7 +270,7 @@ public:
 
         // A weapon does physical damage, which no resistance column answers;
         // the call is here so an elemental one would be answered correctly.
-        int damage = data::roll(weapon_of(pack, items), random_) +
+        int damage = data::roll(weapon_of(who, items), random_) +
                      attribute_bonus(who.attribute(Attribute::Might));
         damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, "Phys"));
         damage = damage < 1 ? 1 : damage;

@@ -101,23 +101,36 @@ TEST_CASE("something already dead cannot be struck again", "[combat]") {
     REQUIRE(battle.strike(0, who, pack, session, table, items()).empty());
 }
 
-TEST_CASE("a character swings the weapon they carry", "[combat]") {
-    // A longsword is 3d3 and a fist is 1d3, so the sword cannot roll a 1 and
-    // the fist cannot roll a 9.
+TEST_CASE("a character swings what is in their weapon slot", "[combat]") {
+    // A longsword is 3d3 and a fist is 1d3. Before there were slots this took
+    // the first weapon in the pack, so picking something up changed what you
+    // were fighting with.
     const auto table = items();
-    Pack empty;
-    REQUIRE(weapon_of(empty, table).sides == kBareHandSides);
-    REQUIRE(weapon_of(empty, table).count == 1);
+    Character bare = fighter();
+    REQUIRE(weapon_of(bare, table).sides == kBareHandSides);
+    REQUIRE(weapon_of(bare, table).count == 1);
 
-    Pack armed;
-    REQUIRE(armed.add(1, 1, 1));
+    Character armed = fighter();
+    armed.equipped[static_cast<std::size_t>(Slot::Weapon)] = 1;
     REQUIRE(weapon_of(armed, table).count == 3);
     REQUIRE(weapon_of(armed, table).sides == 3);
 
-    // A ring is not a weapon, so it is not swung.
-    Pack jewellery;
-    REQUIRE(jewellery.add(2, 1, 1));
-    REQUIRE(weapon_of(jewellery, table).count == 1);
+    // A ring in the weapon slot is not a weapon, so a fist it is.
+    Character wrong = fighter();
+    wrong.equipped[static_cast<std::size_t>(Slot::Weapon)] = 2;
+    REQUIRE(weapon_of(wrong, table).count == 1);
+}
+
+TEST_CASE("an item goes in the slot its equip type names", "[combat]") {
+    REQUIRE(slot_for(data::ItemEquipType::Weapon) == Slot::Weapon);
+    REQUIRE(slot_for(data::ItemEquipType::TwoHandedWeapon) == Slot::Weapon);
+    REQUIRE(slot_for(data::ItemEquipType::Missile) == Slot::Weapon);
+    REQUIRE(slot_for(data::ItemEquipType::Ring) == Slot::Ring);
+    REQUIRE(slot_for(data::ItemEquipType::Armor) == Slot::Armor);
+    // A bottle is carried, not worn.
+    REQUIRE(slot_for(data::ItemEquipType::Bottle) == Slot::Count);
+    REQUIRE(slot_for(data::ItemEquipType::Gold) == Slot::Count);
+    REQUIRE_FALSE(slot_name(Slot::Weapon).empty());
 }
 
 TEST_CASE("a monster in reach hits somebody standing", "[combat]") {
@@ -346,4 +359,27 @@ TEST_CASE("what is near is what is alive and near", "[combat]") {
     }
     // A corpse is not company.
     REQUIRE_FALSE(battle.anything_near(session, {0, 0, 0}, 1000.0f));
+}
+
+TEST_CASE("armour is the flat modifier of what is worn", "[combat]") {
+    // A weapon's modifier is dice and must not be counted as armour; armour's
+    // is a plain number.
+    std::string body =
+        "\r\nItem #\tPic File\tName\tValue\tEquip Stat\tSkill Group\tMod1\tMod2\tmaterial"
+        "\tID/Rep/St\tNot identified name\tSprite Index\tShape\tEquip X\tEquip Y\tNotes\r\n";
+    body += "0\t\t\t0\t\t\t0\t0\t0\t0\t\t0\t0\t0\t0\t\r\n";
+    body += "1\tlsword1\tLongsword\t50\tWeapon\tSword\t3d3\t0\t8\t1\tLongsword\t1\t4\t0\t0\t\r\n";
+    body += "2\tleather\tLeather\t30\tArmor\tLeather\t4\t0\t8\t1\tLeather\t2\t4\t0\t0\t\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::ItemStatsTable armoury;
+    REQUIRE(data::ItemStatsTable::parse(table, armoury) == data::ItemStatsError::None);
+
+    Character who = fighter();
+    REQUIRE(armour_of(who, armoury) == 0);
+    who.equipped[static_cast<std::size_t>(Slot::Armor)] = 2;
+    REQUIRE(armour_of(who, armoury) == 4);
+    // The sword adds nothing: its modifier is 3d3, not a number.
+    who.equipped[static_cast<std::size_t>(Slot::Weapon)] = 1;
+    REQUIRE(armour_of(who, armoury) == 4);
 }

@@ -17,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+#include "core/data/item_stats.hpp"
 #include "core/data/monster_stats.hpp"
 #include "core/data/name_table.hpp"
 #include "core/data/spell_stats.hpp"
@@ -65,6 +66,63 @@ inline constexpr int kPortraitFrameCount = 53;
     return face >= kMaleFaceCount;
 }
 
+// The places a character can wear something. `ITEMS.TXT`'s equip type says
+// which slot an item belongs in, so the list is the table's, not this
+// engine's — the one judgement here is that a two-handed weapon occupies the
+// same hand a one-handed one does. `inferred`
+enum class Slot : std::uint8_t {
+    Weapon,
+    Shield,
+    Armor,
+    Helm,
+    Belt,
+    Cloak,
+    Gauntlets,
+    Boots,
+    Ring,
+    Amulet,
+    Count,
+};
+
+inline constexpr std::size_t kSlotCount = static_cast<std::size_t>(Slot::Count);
+
+// Which slot an item goes in, or Count when it is not worn at all.
+[[nodiscard]] inline Slot slot_for(data::ItemEquipType type) noexcept {
+    switch (type) {
+    case data::ItemEquipType::Weapon:
+    case data::ItemEquipType::TwoHandedWeapon:
+    case data::ItemEquipType::Missile:
+        return Slot::Weapon;
+    case data::ItemEquipType::Shield:
+        return Slot::Shield;
+    case data::ItemEquipType::Armor:
+        return Slot::Armor;
+    case data::ItemEquipType::Helm:
+        return Slot::Helm;
+    case data::ItemEquipType::Belt:
+        return Slot::Belt;
+    case data::ItemEquipType::Cloak:
+        return Slot::Cloak;
+    case data::ItemEquipType::Gauntlets:
+        return Slot::Gauntlets;
+    case data::ItemEquipType::Boots:
+        return Slot::Boots;
+    case data::ItemEquipType::Ring:
+        return Slot::Ring;
+    case data::ItemEquipType::Amulet:
+        return Slot::Amulet;
+    default:
+        return Slot::Count;
+    }
+}
+
+[[nodiscard]] inline std::string_view slot_name(Slot slot) noexcept {
+    static constexpr std::array<std::string_view, kSlotCount> kNames{
+        "weapon", "shield", "armour", "helm", "belt", "cloak", "gloves", "boots", "ring", "amulet"};
+    const auto i = static_cast<std::size_t>(slot);
+    return i < kNames.size() ? kNames[i] : std::string_view{};
+}
+
 // One character.
 struct Character {
     std::string name;
@@ -83,6 +141,9 @@ struct Character {
     int max_spell_points = 0;
     int armor_class = 0;
     int skill_points = 0;
+
+    // What is worn, as ITEMS.TXT ids; zero means the slot is empty.
+    std::array<int, kSlotCount> equipped{};
 
     // Fire, Electricity, Cold, Poison and Magic, in the order `stats.txt`
     // lists them and `MONSTERS.TXT` carries them. A starting character has

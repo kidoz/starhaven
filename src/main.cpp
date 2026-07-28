@@ -393,7 +393,7 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
 
 // One character's pack, on the grid, with the item art the game draws.
 void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
-               const game::Character& who, const game::Pack& pack,
+               const game::Character& who, const game::Pack& pack,  // NOLINT
                const data::ItemStatsTable& items) {
     if (font.glyph_count() == 0) {
         return;
@@ -458,8 +458,27 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         y += font.height() + 1;
     }
 
+    // What this character is wearing, beside the grid.
+    int worn_y = kTop;
+    for (std::size_t i = 0; i < game::kSlotCount; ++i) {
+        const int id = who.equipped[i];
+        if (id <= 0) {
+            continue;
+        }
+        const auto* row = items.at(static_cast<std::size_t>(id));
+        if (row == nullptr) {
+            continue;
+        }
+        game::draw_text(scene.framebuffer(), font, kLeft + game::kPackWidth * game::kCellSize + 12,
+                        worn_y,
+                        std::string(game::slot_name(static_cast<game::Slot>(i))) + ": " +
+                            data::cp1252_to_utf8(row->name),
+                        white, shadow);
+        worn_y += font.height() + 1;
+    }
+
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
-                    "1-4 choose a character, I closes", dim, shadow);
+                    "1-4 choose a character, E wear something, I closes", dim, shadow);
 }
 
 // A shop's counter: what it has, what it wants for it, and what the
@@ -1160,6 +1179,36 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C) {
                 shown_member = shown_member < 0 ? 0 : -1;
                 shown_pack = -1;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_E &&
+                       shown_pack >= 0) {
+                // Wear the first thing in this pack that can be worn.
+                auto& who = party[static_cast<std::size_t>(shown_pack)];
+                auto& pack = packs[static_cast<std::size_t>(shown_pack)];
+                for (const auto& carried : pack.items()) {
+                    const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
+                    if (row == nullptr) {
+                        continue;
+                    }
+                    const game::Slot slot = game::slot_for(row->equip_type);
+                    if (slot == game::Slot::Count) {
+                        continue;
+                    }
+                    // What was there comes off and goes back in the pack.
+                    const int worn = who.equipped[static_cast<std::size_t>(slot)];
+                    who.equipped[static_cast<std::size_t>(slot)] = carried.item_id;
+                    pack.remove(carried.x, carried.y);
+                    if (worn > 0) {
+                        const auto* old = item_stats.at(static_cast<std::size_t>(worn));
+                        const render::Texture& icon =
+                            old == nullptr ? cache.icon("") : cache.icon(old->picture);
+                        (void)pack.add(
+                            worn, std::max(1, game::cells_across(static_cast<int>(icon.width()))),
+                            std::max(1, game::cells_across(static_cast<int>(icon.height()))));
+                    }
+                    pick_up_message = who.name + " wears the " + data::cp1252_to_utf8(row->name);
+                    pick_up_shown = SDL_GetTicks();
+                    break;
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
                 shown_member = -1;
@@ -1337,6 +1386,13 @@ int main(int argc, char** argv) {
                     game::actor_animation(session.monsters, session.sprite_frames, cache,
                                           session.actors[i].monster_id, kind);
             }
+        }
+
+        // Armour class is what the party is wearing plus its own footwork.
+        for (std::size_t i = 0; i < party.size(); ++i) {
+            party[i].armor_class =
+                game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
+                game::armour_of(party[i], item_stats);
         }
 
         if (want_rest) {

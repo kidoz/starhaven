@@ -215,6 +215,13 @@ interoperability and compatibility with a legally purchased copy.
   enough to object. Each map refills with monsters on the interval its own
   `MapStats.txt` row gives — 168, 224 or 672 days — which is the first use of
   three columns that had been decoded and unread.
+- **Equipment slots**: ten of them, and which one an item goes in is its own
+  `ITEMS.TXT` equip type — weapons, missiles and two-handers to the hand, the
+  rest where the table says. **E** in a pack wears the first thing that can be
+  worn and puts back whatever it replaces. A character now swings what is in
+  their weapon slot rather than whatever happened to be first in the pack, and
+  armour's flat modifier counts toward armour class while a weapon's dice do
+  not.
 - **Fighting, with consequences**: a monster flinches into its Wince animation
   when hit and keeps its Death picture where it fell; the party splits the
   experience the monster's own row is worth; a character at zero hit points
