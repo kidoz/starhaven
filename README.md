@@ -234,7 +234,10 @@ interoperability and compatibility with a legally purchased copy.
   topics are theirs from `npctopic.txt` with the answers from `npctext.txt`,
   and whether begging, bribing or threatening would work is the matrix. Across
   eight towns, 239 people: all 239 greet, 218 have something for today, 111 can
-  be asked about something.
+  be asked about something. Four of the `%01`-style placeholders are decoded —
+  the speaker, the person addressed, the time of day and the honorific — so a
+  villager says "Good morning! I'm Dini Mahgreb." rather than "Good %05! I'm
+  %01."; the codes nobody has read yet stay visible instead of being blanked.
 - **Shops you can trade with**: **Tab** then a number opens an establishment's
   counter. Its shelves are *generated*, not invented — the row's own
   `"L1 Weap"`-style stock line feeds the random-item generator that reproduces

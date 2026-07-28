@@ -501,6 +501,32 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
+## The `%01` placeholders
+
+Every table of NPC prose carries them — `npcbtb.txt`, `npcprof.txt`,
+`PROFTEXT.txt`, `Merchant.txt`, `npctext.txt`. Counting across all five, the
+commonest are `%17` (100), `%02` (85), `%01` (63), `%06` (30), `%11` (28) and
+`%10` (23). `observed`
+
+Four are readable from the lines that use them, and two of those resolve into
+`GLOBAL.TXT`:
+
+| Code | Stands for | Evidence |
+| --- | --- | --- |
+| `%01` | the speaker's name | `"I'm %01."`, `"Name's %01."` |
+| `%02` | the person addressed | `"%06 %02."`, `"%02, eh?"` |
+| `%05` | the time of day | `"Good %05!"` with `GLOBAL.TXT` 395 `morning`, 396 `day`, 397 `evening` — **consecutive** |
+| `%06` | an honorific | `"I'm sorry, %06,"` with 385 `sir`, 387 `lady` |
+
+The consecutive run at 395–397 is what makes `%05` more than a guess: `"Good
+%05!"` can only be one of three words, and exactly three sit together in the
+string table. `inferred`
+
+The rest are `unknown`, though their context is suggestive: `%17` is a
+percentage a hireling takes, `%24` an item, `%25` a price asked and `%27` a
+price offered, `%14` a title. StarHaven leaves an unread code in the text
+rather than blanking it, so nothing is silently swallowed.
+
 ## `Merchant.txt`: what the shopkeeper says
 
 Six situations by four actions — buy, sell, repair, identify — and **21 of the
@@ -591,7 +617,7 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   `unknown`
 - The semantics of the monster columns tagged `inferred` above — `Pref`,
   `Bonus`, `Hst`, `Rec` — and of the `Misc Special` column. `unknown`
-- What the `%01`-style placeholders in the NPC prose stand for. `unknown`
+- The `%01` codes other than 1, 2, 5 and 6. `unknown`
 - What indexes `GLOBAL.TXT` by id. `unknown`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
   `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`

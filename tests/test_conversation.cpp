@@ -12,6 +12,25 @@ using namespace starhaven::game;
 
 namespace {
 
+data::InterfaceStrings words() {
+    // Only the ids the substitution needs, at their shipped positions.
+    std::string body;
+    for (int id = 0; id <= kStringEvening; ++id) {
+        const char* text = id == kStringMorning   ? "morning"
+                           : id == kStringDay     ? "day"
+                           : id == kStringEvening ? "evening"
+                           : id == kStringSir     ? "sir"
+                           : id == kStringLady    ? "lady"
+                                                  : "x";
+        body += std::to_string(id) + "\t" + text + "\r\n";
+    }
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::InterfaceStrings out;
+    REQUIRE(data::InterfaceStrings::parse(table, out) == data::InterfaceStringsError::None);
+    return out;
+}
+
 data::NpcPersonalityTable personalities() {
     std::string body = "Msg#\tNotes\tPeasant BTB\tThief BT\r\n";
     body += "Beg\t\t1\t0\r\n";
@@ -101,4 +120,30 @@ TEST_CASE("a person the tables know nothing about still has a name", "[talk]") {
     REQUIRE(talk.today.empty());
     REQUIRE(talk.topics.empty());
     REQUIRE(talk.approaches.empty());
+}
+
+TEST_CASE("the placeholders are filled from the interface strings", "[talk]") {
+    const auto w = words();
+    const Speech morning{"Wilma", "Aaron", false, 9};
+    REQUIRE(substitute("Good %05!  I'm %01.", morning, w) == "Good morning!  I'm Wilma.");
+
+    const Speech evening{"Wilma", "Aaron", false, 20};
+    REQUIRE(substitute("Good %05!", evening, w) == "Good evening!");
+    const Speech noon{"Wilma", "Aaron", false, 13};
+    REQUIRE(substitute("Good %05!", noon, w) == "Good day!");
+}
+
+TEST_CASE("the honorific follows who is being spoken to", "[talk]") {
+    const auto w = words();
+    REQUIRE(substitute("Peace, %06.", Speech{"W", "Aaron", false, 12}, w) == "Peace, sir.");
+    REQUIRE(substitute("Peace, %06.", Speech{"W", "Alice", true, 12}, w) == "Peace, lady.");
+    REQUIRE(substitute("%06 %02.", Speech{"W", "Aaron", false, 12}, w) == "sir Aaron.");
+}
+
+TEST_CASE("a code nobody has read stays visible", "[talk]") {
+    // Blanking it would silently eat text; 12 of the codes are still unread.
+    const auto w = words();
+    REQUIRE(substitute("takes %17 percent", Speech{}, w) == "takes %17 percent");
+    REQUIRE(substitute("100%", Speech{}, w) == "100%");
+    REQUIRE(substitute("%0", Speech{}, w) == "%0");
 }

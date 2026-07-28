@@ -1084,6 +1084,8 @@ int main(int argc, char** argv) {
 
     // Talking. The tables are all decoded; this is the first thing that uses
     // them together. See src/game/conversation.hpp.
+    data::InterfaceStrings interface_words;
+    (void)data::load_interface_strings(data_dir, interface_words);
     data::NpcDialogueTable dialogue;
     data::NpcPersonalityTable personalities;
     (void)data::load_npc_dialogue(data_dir, dialogue);
@@ -1448,7 +1450,9 @@ int main(int argc, char** argv) {
             if (here != nullptr && talking_to < static_cast<int>(here->size())) {
                 draw_conversation(scene, font,
                                   game::talk_to((*here)[static_cast<std::size_t>(talking_to)],
-                                                dialogue, personalities, trade_talk, clock),
+                                                dialogue, personalities, trade_talk, clock,
+                                                interface_words, party[0].name,
+                                                game::face_is_female(party[0].face)),
                                   talk_answer);
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
