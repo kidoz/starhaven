@@ -33,6 +33,11 @@ inline constexpr std::uint8_t kOpcodeLongMessage = 30;  // a sign's full text
 inline constexpr std::uint8_t kOpcodeName = 35;         // "Door", "Sign", "Chest"
 inline constexpr std::uint8_t kOpcodeTitle = 5;         // what this place is called
 
+// Enter an establishment. The argument is a `u32` `2DEvents.txt` row id: 474
+// of the 504 distinct values across the fifteen outdoor maps are ids of a
+// building on that very map.
+inline constexpr std::uint8_t kOpcodeEnter = 2;
+
 // Whether this opcode's first argument is a string index.
 [[nodiscard]] inline bool names_a_string(std::uint8_t opcode) noexcept {
     return opcode == kOpcodeMessage || opcode == kOpcodeLongMessage || opcode == kOpcodeName ||
@@ -65,6 +70,20 @@ public:
     // Whether this map defines an event at all — the question a face with an
     // event id asks.
     [[nodiscard]] bool defines(std::uint16_t id) const noexcept { return !event(id).empty(); }
+
+    // The establishment an event enters, as a `2DEvents.txt` row id, or 0.
+    [[nodiscard]] std::uint32_t building_of(std::uint16_t id) const noexcept {
+        for (const auto& step : event(id)) {
+            if (step.opcode == kOpcodeEnter && step.arguments.size() >= 4) {
+                std::uint32_t value = 0;
+                for (int i = 3; i >= 0; --i) {
+                    value = (value << 8) | step.arguments[static_cast<std::size_t>(i)];
+                }
+                return value;
+            }
+        }
+        return 0;
+    }
 
     // The string index an event's first step of this kind names, or -1. What
     // a door says when it is locked, or what a sign is called.

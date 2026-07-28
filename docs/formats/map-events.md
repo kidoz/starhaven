@@ -125,11 +125,25 @@ the opcodes each group's events use, separates them cleanly. `observed`
 | chest | 36 | 7 (429), 4 (352), 14 (66) |
 | creature | 27 | 4 (135), 7 (135) |
 
-**Opcode 2 appears on houses and signs and on no fountain, chest or creature.**
-That is a real association and the best lead to the entry, but it is not a
-decode: opcode 2's argument matches neither a `2DEvents.txt` building id on
-that map (4 of 35 on house facets) nor an index into the map's own
-establishment list. What it means is `unknown`.
+**Opcode 2 appears on houses and signs and on no fountain, chest or creature**,
+and it is the entry: its argument is a **`u32` `2DEvents.txt` row id**, and
+**474 of the 504** distinct values across the fifteen outdoor maps are ids of a
+building on that very map. `observed`
+
+The counts settle it independently. Per map, the number of distinct opcode-2
+arguments tracks the number of establishments the design table places there:
+
+| Map | Establishments | Distinct opcode-2 arguments |
+| --- | ---: | ---: |
+| Frozen Highlands | 52 | 53 |
+| Free Haven | 95 | 93 |
+| Mire of the Damned | 40 | 42 |
+| Dragonsand | 12 | 12 |
+| Misty Islands | 30 | 29 |
+
+An earlier pass read this argument as a single byte and scored 4 of 35, which
+looked like a dead lead. The ids run past 255; the argument is four bytes
+wide.
 
 Chests are equally distinctive — opcode 7 is theirs, 429 uses against a handful
 elsewhere — which is the same kind of lead for opening one.

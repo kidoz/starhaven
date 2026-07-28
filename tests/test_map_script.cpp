@@ -148,3 +148,16 @@ TEST_CASE("the title opcode names a string too", "[script]") {
     REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
     REQUIRE(script.string_of(1, kOpcodeTitle) == 4);
 }
+
+TEST_CASE("an entry event names the establishment it opens", "[script]") {
+    // Opcode 2's argument is a 2DEvents row id, four bytes wide: the ids run
+    // past 255, which is why reading only the first byte finds nothing.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 12, 0, kOpcodeEnter, {0x89, 0x00, 0x00, 0x00});
+    push_step(payload, 13, 0, kOpcodeMessage, {1, 0, 0, 0});
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+    REQUIRE(script.building_of(12) == 137);
+    REQUIRE(script.building_of(13) == 0);
+    REQUIRE(script.building_of(99) == 0);
+}

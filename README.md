@@ -174,8 +174,10 @@ interoperability and compatibility with a legally purchased copy.
   argument never leaving its map's own string count *and* using that range,
   then confirmed by what the strings say. Opcode 5 makes four: it points at the
   map's own name on 53 of its 54 resolving uses. The other 86 are unknown, and
-  the one that enters a building is not among the named — three readings of
-  opcode 4, the commonest, were tested and ruled out.
+  Opcode 2 is the one that enters a building: its argument is a `2DEvents.txt`
+  row id, 474 of 504 resolving, and per map the count of distinct values tracks
+  the count of establishments. So the party walks to a shop door, uses it, and
+  the counter opens.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
   party uses them. Outdoors the same trigger sits at +0x124 of a model facet —

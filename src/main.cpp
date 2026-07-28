@@ -1225,7 +1225,24 @@ int main(int argc, char** argv) {
         // says when used. See docs/formats/map-events.md.
         const game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
         if (want_strike && aimed.found()) {
-            if (std::string said = game::face_message(session, aimed.event_id); !said.empty()) {
+            // A door into an establishment opens its counter.
+            if (const std::uint32_t building = session.script.building_of(aimed.event_id);
+                building != 0) {
+                for (std::size_t i = 0; i < shops_here.size(); ++i) {
+                    if (static_cast<std::uint32_t>(shops_here[i]->id) != building) {
+                        continue;
+                    }
+                    open_shop = static_cast<int>(i);
+                    shop_stock = game::stock_of(*shops_here[i], random_items, item_stats,
+                                                standard_bonuses, special_bonuses,
+                                                static_cast<std::uint32_t>(building) * 2654435761U);
+                    shop_said.clear();
+                    want_strike = false;
+                    break;
+                }
+            }
+            if (std::string said = game::face_message(session, aimed.event_id);
+                want_strike && !said.empty()) {
                 pick_up_message = std::move(said);
                 pick_up_shown = SDL_GetTicks();
                 want_strike = false;  // using a door is not swinging at it
