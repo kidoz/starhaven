@@ -16,6 +16,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "core/world/map_script.hpp"
@@ -45,11 +46,14 @@ struct WalkOutcome {
     int chest = -1;               // a chest to open, or -1
     std::optional<world::MapTravel> travel;
 
+    // Faces to re-texture: a thrown switch is drawn thrown.
+    std::vector<std::pair<std::uint32_t, std::string>> retextures;
+
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
-               chest >= 0 || travel.has_value();
+               chest >= 0 || travel.has_value() || !retextures.empty();
     }
 };
 
@@ -186,6 +190,23 @@ struct WalkOutcome {
                 return out;
             }
             break;
+        case world::kOpcodeRetexture: {
+            if (a.size() < 5) {
+                break;
+            }
+            std::uint32_t face = 0;
+            for (int i = 3; i >= 0; --i) {
+                face = (face << 8) | a[static_cast<std::size_t>(i)];
+            }
+            std::string texture;
+            for (std::size_t i = 4; i < a.size() && a[i] != 0; ++i) {
+                texture += static_cast<char>(a[i]);
+            }
+            if (!texture.empty()) {
+                out.retextures.emplace_back(face, std::move(texture));
+            }
+            break;
+        }
         case world::kOpcodeGoto:
             if (!a.empty()) {
                 at = step_at(a.front());

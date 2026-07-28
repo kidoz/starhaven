@@ -62,6 +62,12 @@ inline constexpr std::uint8_t kOpcodeTravel = 6;
 // What it declares is still unread.
 inline constexpr std::uint8_t kOpcodeHeader = 4;
 
+// Re-texture a face: `[face u32][texture name, NUL-terminated]`. All 215
+// named uses point at `BITMAPS.LOD` entries, and the vocabulary is state —
+// switches down (`t1swdu`), things on (`T3S1ON`), lava, night skies — so a
+// thrown lever is drawn thrown. Reproduce with `evt_info --textures`.
+inline constexpr std::uint8_t kOpcodeRetexture = 11;
+
 inline constexpr std::uint8_t kOpcodeEnd = 1;
 inline constexpr std::uint8_t kOpcodeCheck = 14;
 inline constexpr std::uint8_t kOpcodeDoor = 15;  // `[door u8][open/shut u8]`

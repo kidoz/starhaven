@@ -170,3 +170,19 @@ TEST_CASE("an event the map does not define does not run", "[walk]") {
     REQUIRE_FALSE(walk_event(script, 99, state).ran);
     REQUIRE(walk_event(script, 1, state).ran);
 }
+
+TEST_CASE("a switch's event names the face it repaints", "[walk]") {
+    // Opcode 11: a u32 face and a NUL-terminated texture name. All 215 named
+    // shipped uses are BITMAPS.LOD entries — the lever drawn thrown.
+    std::vector<std::uint8_t> args{0xdb, 0x07, 0x00, 0x00, 't', '1', 's', 'w', 'd', 'u', 0};
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 20, 0, kOpcodeRetexture, args);
+    const MapScript script = parse(payload);
+
+    WalkState state;
+    const WalkOutcome outcome = walk_event(script, 20, state);
+    REQUIRE(outcome.retextures.size() == 1);
+    REQUIRE(outcome.retextures[0].first == 2011);
+    REQUIRE(outcome.retextures[0].second == "t1swdu");
+    REQUIRE(outcome.acted());
+}

@@ -1717,6 +1717,16 @@ int main(int argc, char** argv) {
                 }
             }
 
+            // A thrown switch is drawn thrown: the event names a face and
+            // the texture it now wears. Indoors the id reads as an index
+            // into the map's own faces; the few outdoor uses are not
+            // applied yet. `inferred`
+            for (const auto& [face, texture] : outcome.retextures) {
+                if (session.indoor() && face < session.blv.faces.size()) {
+                    session.blv.faces[face].texture_name = texture;
+                }
+            }
+
             // A door into an establishment opens its counter.
             if (outcome.building != 0) {
                 for (std::size_t i = 0; i < shops_here.size(); ++i) {

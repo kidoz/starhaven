@@ -1,6 +1,6 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; fourteen
+Status: **verified** for the container and the record structure; fifteen
 opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
@@ -310,11 +310,23 @@ The engine walks all of it — src/game/script_walk.hpp — so a gated exit
 stays shut until its bit is set, a switch throws once, and a turn-in takes
 the quest item and pays.
 
-One more lead fell out: opcode 11's arguments end in a NUL-terminated ASCII
-name — `"t1swdu"` on every D01 switch — which reads like a sound effect.
-`unknown`
+### Opcode 11 repaints a face
 
-The other **76 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+Its arguments are a u32 and a NUL-terminated name, and the names decide it:
+across all 83 scripts, **215 of the 215 named uses are `BITMAPS.LOD`
+entries**, and the vocabulary is state — `t1swdu` and `T1swDd` are the
+T-set's switch drawn down, `T3S1ON`/`T3S1OFF` a thing on and off, `lavatyl`
+and `orwtrtyl` lava and water tiles, `SKY_NIT1` a night sky. So a thrown
+lever is drawn thrown: the u32 names the face and the name its new texture.
+`observed` for the names; the u32 as a face index is `inferred` from its
+range (to 5,290, within the indoor maps' face counts). A first reading of
+the name as a sound effect was tested against `DSOUNDS.BIN` and failed —
+0 of 215 names are sound names. Reproduce with `evt_info --textures`.
+
+The engine applies it indoors: the walker collects the repaints and the face
+wears its new texture. The few outdoor uses are not applied yet.
+
+The other **75 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event
@@ -371,7 +383,8 @@ using one prints its message.
 - Which events point into `GLOBAL.EVT`'s quest bank. `unknown`
 - Opcode 15's door numbers against the indoor maps' own door records, and
   what state 2 is where 0 and 1 read as shut and open. `unknown`
-- Opcode 11's embedded ASCII name, which reads like a sound effect. `unknown`
+- Opcode 11's outdoor uses: whether the u32 indexes model facets or terrain
+  tiles there. `unknown`
 - Opcode 1's byte, always 0..2. `unknown`
 - The variable types beyond the named ones — 12, 13, 22, 205 and the rest of
   the vocabulary. `unknown`

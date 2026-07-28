@@ -428,6 +428,72 @@ int do_out(const starhaven::lod::LodArchive& icons, const std::string& entry_nam
     return 0;
 }
 
+// Research mode: opcode 11, whose arguments read as a u32 and a
+// NUL-terminated name. The names are texture names, testable against
+// BITMAPS.LOD; the u32 reads as the face to re-texture.
+int do_sounds(const starhaven::lod::LodArchive& icons,
+              const starhaven::lod::LodArchive& bitmaps) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    std::span<const std::byte> raw;
+    std::size_t uses = 0;
+    std::size_t named = 0;
+    std::size_t name_is_bitmap = 0;
+    std::uint32_t max_id = 0;
+    std::map<std::string, std::size_t> unresolved;
+    std::map<std::string, std::size_t> resolved;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if (step.opcode != 11) {
+                continue;
+            }
+            ++uses;
+            const auto& a = step.arguments;
+            if (a.size() < 5) {
+                continue;
+            }
+            std::uint32_t id = 0;
+            for (int i = 3; i >= 0; --i) {
+                id = (id << 8) | a[static_cast<std::size_t>(i)];
+            }
+            max_id = std::max(max_id, id);
+            std::string name;
+            for (std::size_t i = 4; i < a.size() && a[i] != 0; ++i) {
+                name += static_cast<char>(a[i]);
+            }
+            if (name.empty()) {
+                continue;
+            }
+            ++named;
+            if (bitmaps.find(name).has_value()) {
+                ++name_is_bitmap;
+                ++resolved[name];
+            } else {
+                ++unresolved[entry.name + " face " + std::to_string(id) + " \"" + name + "\""];
+            }
+        }
+    }
+    std::cout << uses << " uses of opcode 11; " << named << " carry a name, " << name_is_bitmap
+              << " of those are BITMAPS.LOD entries; face ids run to " << max_id << "\n";
+    std::cout << resolved.size() << " distinct textures:\n";
+    for (const auto& [name, count] : resolved) {
+        std::cout << "  " << name << " x" << count << "\n";
+    }
+    for (const auto& [example, count] : unresolved) {
+        std::cout << "  not a bitmap: " << example << " x" << count << "\n";
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -455,6 +521,15 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--textures") {
+        lod::LodArchive bitmaps;
+        if (lod::LodArchive::open(*install / "data" / "BITMAPS.LOD", bitmaps) !=
+            lod::LodError::None) {
+            std::cerr << "error: could not open BITMAPS.LOD\n";
+            return 1;
+        }
+        return do_sounds(icons, bitmaps);
     }
     if (stem == "--out") {
         return do_out(icons, argc == 3 ? std::string(argv[2]) + ".EVT" : "OUT.EVT");

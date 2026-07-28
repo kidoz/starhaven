@@ -173,7 +173,7 @@ interoperability and compatibility with a legally purchased copy.
   are looking at (`"Door"`, `"Sign"`, `"Chest"`). Each was identified by its
   argument never leaving its map's own string count *and* using that range,
   then confirmed by what the strings say. Opcode 5 makes four: it points at the
-  map's own name on 53 of its 54 resolving uses. The other 76 are unknown, and
+  map's own name on 53 of its 54 resolving uses. The other 75 are unknown, and
   Opcode 2 is the one that enters a building: its argument is a `2DEvents.txt`
   row id, 474 of 504 resolving, and per map the count of distinct values tracks
   the count of establishments. So the party walks to a shop door, uses it, and
@@ -195,7 +195,7 @@ interoperability and compatibility with a legally purchased copy.
 - **The conditional machinery, decoded and running**: seven more opcodes fall
   together as one machine — check-and-jump (its jump target is a step of its
   own event on 1,951 of 1,951 uses), give, take, set, goto, end, and a door
-  toggle. Three variable types are pinned by their closed sets: item ids that
+  toggle — and an eighth, 11, repaints a face: all 215 of its named uses are BITMAPS.LOD textures, so a thrown lever is drawn thrown. Three variable types are pinned by their closed sets: item ids that
   never leave 1..578, quest bits at 1..376 of `Quests.txt`'s 512, and round
   gold amounts. Whole shipped events confirm the flow: New Sorpigal's fountain
   is a complete if-else around `"+10 Might temporary."`, and Castle Alamos's
