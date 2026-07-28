@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "core/assets/asset_cache.hpp"
+#include "core/data/map_stats.hpp"
+#include "core/data/monster_stats.hpp"
 #include "core/lod/game_lod_archive.hpp"
 #include "core/render/math3d.hpp"
 #include "core/render/terrain_mesh.hpp"
@@ -120,6 +122,13 @@ struct MapSession {
     OdmTileIndex tile_index;                    // what stands near each terrain tile
     std::vector<OdmSpawnPoint> monster_spawns;  // where the map puts monsters
 
+    // What a refill needs to roll the spawn points again: the map's design
+    // row id, its three encounter slots, and how many of the actors were
+    // placed by the event file rather than rolled — those stay.
+    int map_id = 0;
+    std::array<data::MapEncounter, 3> encounters;
+    std::size_t placed_actor_count = 0;
+
     // Indoor geometry.
     BlvMap blv;
 
@@ -175,6 +184,13 @@ struct MapSession {
                                                const std::filesystem::path& data_dir,
                                                std::string_view map_name, assets::AssetCache& cache,
                                                MapSession& out);
+
+// Roll the spawn points' monsters again, leaving the placed actors alone.
+// This is what a refill means on a map that ships spawn points: new groups at
+// the same points, sized by the same encounter slots. A different seed gives
+// a different population.
+void respawn_monsters(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
+                      std::uint32_t seed, MapSession& out);
 
 // MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up.
 [[nodiscard]] inline render::Vec3 to_render_space(int x, int y, int z) {

@@ -192,17 +192,31 @@ void spawn_from_points(const std::filesystem::path& data_dir, const data::MapSta
         data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
         return;
     }
+    out.map_id = stats.id;
+    out.encounters = stats.monsters;
+    out.placed_actor_count = out.actors.size();
 
     // Seeded from the map's own row so a map always populates the same way:
     // screenshots, benchmarks and bug reports all depend on it.
-    Mm6Random random{static_cast<std::uint32_t>(stats.id) * 2654435761U};
+    respawn_monsters(monsters, cache, static_cast<std::uint32_t>(stats.id) * 2654435761U, out);
+}
+
+}  // namespace
+
+void respawn_monsters(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
+                      std::uint32_t seed, MapSession& out) {
+    if (out.monster_spawns.empty() || out.placed_actor_count > out.actors.size()) {
+        return;
+    }
+    out.actors.resize(out.placed_actor_count);
+    Mm6Random random{seed};
 
     for (const auto& point : out.monster_spawns) {
         const int slot = encounter_slot_of(point.index);
-        if (slot < 0 || static_cast<std::size_t>(slot) >= stats.monsters.size()) {
+        if (slot < 0 || static_cast<std::size_t>(slot) >= out.encounters.size()) {
             continue;
         }
-        const auto& encounter = stats.monsters[static_cast<std::size_t>(slot)];
+        const auto& encounter = out.encounters[static_cast<std::size_t>(slot)];
         const int monster_id = encounter_monster_id(monsters, encounter);
         const SpawnCount count = parse_spawn_count(encounter.count);
         if (monster_id <= 0 || count.empty()) {
@@ -235,6 +249,8 @@ void spawn_from_points(const std::filesystem::path& data_dir, const data::MapSta
         }
     }
 }
+
+namespace {
 
 // Actors and loot come from the map's event file, whichever kind it is. Their
 // names come from the design tables: a monster id is a 1-based MONSTERS.TXT

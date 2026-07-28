@@ -232,8 +232,10 @@ interoperability and compatibility with a legally purchased copy.
   the days and the seven weekdays `PROFTEXT.txt` names; **R** rests eight hours
   and everyone still standing wakes up whole, unless something alive is close
   enough to object. Each map refills with monsters on the interval its own
-  `MapStats.txt` row gives — 168, 224 or 672 days — which is the first use of
-  three columns that had been decoded and unread.
+  `MapStats.txt` row gives — 168, 224 or 672 days — and a map that ships
+  spawn points refills the way it filled: new groups rolled at its own
+  points from its own encounter slots, with the placed townspeople left
+  standing. A map of placed monsters stands its fallen back up instead.
 - **Equipment slots**: ten of them, and which one an item goes in is its own
   `ITEMS.TXT` equip type — weapons, missiles and two-handers to the hand, the
   rest where the table says. **E** in a pack wears the first thing that can be

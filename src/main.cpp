@@ -1506,9 +1506,25 @@ int main(int argc, char** argv) {
         }
 
         // The map refills on its own interval, whether the party slept
-        // through it or walked through it.
+        // through it or walked through it. A map that ships spawn points
+        // rolls new groups at them — the day salts the seed, so each refill
+        // is its own — and one that ships placed monsters stands them back
+        // up.
         if (clock.day() >= next_refill) {
-            battle.refill();
+            if (!session.monster_spawns.empty()) {
+                world::respawn_monsters(monster_stats, cache,
+                                        static_cast<std::uint32_t>(session.map_id) * 2654435761U +
+                                            static_cast<std::uint32_t>(clock.day()),
+                                        session);
+                mob.reset(session, monster_stats,
+                          static_cast<std::uint32_t>(session.actors.size()) + 1u);
+                battle.reset(session, monster_stats,
+                             static_cast<std::uint32_t>(session.actors.size()) + 7u);
+                shown_kind.assign(session.actors.size(), world::MonsterAnimation::Stand);
+                shown_animation.assign(session.actors.size(), {});
+            } else {
+                battle.refill();
+            }
             next_refill = clock.day() + session.refill_days;
             pick_up_message = session.title() + " has filled with monsters again";
             pick_up_shown = SDL_GetTicks();

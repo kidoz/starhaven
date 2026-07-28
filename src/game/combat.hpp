@@ -194,9 +194,9 @@ public:
     }
 
     // Put every fallen monster back on its feet at full health, which is what
-    // a map refilling comes to here. `MapStats.txt` says how many days that
-    // takes for each map; this engine's approximation is that the ones that
-    // died come back rather than new ones being rolled. `inferred`
+    // a refill means on a map whose monsters are placed rather than spawned.
+    // Maps with spawn points roll new groups instead — see
+    // world::respawn_monsters — and reset this battle whole. `inferred`
     void refill() {
         for (auto& c : combatants_) {
             c.hit_points = c.max_hit_points;
