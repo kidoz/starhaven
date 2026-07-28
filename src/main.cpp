@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <span>
 #include <string>
 #include <vector>
@@ -1004,6 +1005,7 @@ int main(int argc, char** argv) {
     int open_shop = -1;  // an index into shops_here, or none
     std::vector<game::StockItem> shop_stock;
     std::string shop_said;
+    std::set<int> opened_chests;  // a chest gives up its contents once
     if (start_shop >= 1 && start_shop <= static_cast<int>(shops_here.size())) {
         open_shop = start_shop - 1;
         const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
@@ -1241,6 +1243,34 @@ int main(int argc, char** argv) {
                     break;
                 }
             }
+            // A chest gives up what the map's treasure level rolls.
+            if (const int chest = session.script.chest_of(aimed.event_id);
+                want_strike && chest >= 0 && !opened_chests.contains(chest)) {
+                opened_chests.insert(chest);
+                std::string took;
+                for (const int id : game::chest_contents(
+                         static_cast<std::size_t>(session.treasure_level), random_items, item_stats,
+                         standard_bonuses, special_bonuses,
+                         static_cast<std::uint32_t>(chest + 1) * 40503U, game::kChestItems)) {
+                    const auto* row = item_stats.at(static_cast<std::size_t>(id));
+                    if (row == nullptr) {
+                        continue;
+                    }
+                    const render::Texture& icon = cache.icon(row->picture);
+                    const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
+                    const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
+                    for (auto& pack : packs) {
+                        if (pack.add(id, w, h)) {
+                            took = data::cp1252_to_utf8(row->name);
+                            break;
+                        }
+                    }
+                }
+                pick_up_message = took.empty() ? "The chest is empty" : "You find " + took;
+                pick_up_shown = SDL_GetTicks();
+                want_strike = false;
+            }
+
             if (std::string said = game::face_message(session, aimed.event_id);
                 want_strike && !said.empty()) {
                 pick_up_message = std::move(said);

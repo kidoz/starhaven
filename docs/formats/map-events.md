@@ -145,8 +145,18 @@ An earlier pass read this argument as a single byte and scored 4 of 35, which
 looked like a dead lead. The ids run past 255; the argument is four bytes
 wide.
 
+### Opcode 7 opens a chest
+
 Chests are equally distinctive — opcode 7 is theirs, 429 uses against a handful
-elsewhere — which is the same kind of lead for opening one.
+elsewhere — and its argument is an index into the event file's fixed **20-slot**
+chest array. The largest value across all 65 scripts is **19**, and on 37 of
+them the values used are exactly `1..N` with no gaps. `observed`
+
+The shipped chests are empty: every one of the twenty slots on every map reads
+`-1`, because the original fills them on first visit from the map's own
+`Tres 0-6` treasure level. So an engine has to roll the contents, which
+StarHaven does through the same generator the rest of the game's loot uses.
+How many things a chest holds is `inferred`.
 
 The other **86 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.

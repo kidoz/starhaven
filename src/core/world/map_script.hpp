@@ -38,6 +38,10 @@ inline constexpr std::uint8_t kOpcodeTitle = 5;         // what this place is ca
 // building on that very map.
 inline constexpr std::uint8_t kOpcodeEnter = 2;
 
+// Open a chest. The argument is an index into the event file's fixed 20-slot
+// chest array: the largest value across all 65 scripts is 19.
+inline constexpr std::uint8_t kOpcodeChest = 7;
+
 // Whether this opcode's first argument is a string index.
 [[nodiscard]] inline bool names_a_string(std::uint8_t opcode) noexcept {
     return opcode == kOpcodeMessage || opcode == kOpcodeLongMessage || opcode == kOpcodeName ||
@@ -83,6 +87,17 @@ public:
             }
         }
         return 0;
+    }
+
+    // The chest an event opens, or -1. Zero is a chest, so the absence of one
+    // cannot be reported as zero.
+    [[nodiscard]] int chest_of(std::uint16_t id) const noexcept {
+        for (const auto& step : event(id)) {
+            if (step.opcode == kOpcodeChest && !step.arguments.empty()) {
+                return step.arguments.front();
+            }
+        }
+        return -1;
     }
 
     // The string index an event's first step of this kind names, or -1. What

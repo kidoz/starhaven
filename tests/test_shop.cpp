@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "game/inventory.hpp"
 #include "game/shop.hpp"
 
 using namespace starhaven;
@@ -99,4 +100,10 @@ TEST_CASE("a shop with no tables behind it has bare shelves", "[shop]") {
     shop.id = 1;
     shop.stock_a = "L1 Weap";
     REQUIRE(stock_of(shop, {}, {}, {}, {}, 1).empty());
+}
+
+TEST_CASE("a chest with no tables behind it holds nothing", "[shop]") {
+    // The generator needs four tables; a missing install must empty a chest,
+    // not crash opening it.
+    REQUIRE(chest_contents(2, {}, {}, {}, {}, 7, kChestItems).empty());
 }

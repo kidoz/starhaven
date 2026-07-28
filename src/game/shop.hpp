@@ -158,6 +158,31 @@ stock_of(const data::BuildingStatsEntry& shop, const data::RandomItemTable& rand
     return out;
 }
 
+// Roll what a chest holds, from the map's own treasure level. The seed is the
+// chest's own index, so a chest holds the same things however often it is
+// looked at, and a different set from the chest beside it.
+[[nodiscard]] inline std::vector<int>
+chest_contents(std::size_t treasure_level, const data::RandomItemTable& random_items,
+               const data::ItemStatsTable& items, const data::StandardBonusTable& standard,
+               const data::SpecialBonusTable& special, std::uint32_t seed, int count) {
+    std::vector<int> out;
+    Mm6Random random{seed};
+    data::ArtifactGenerationState artifacts;
+    for (int i = 0; i < count; ++i) {
+        data::GeneratedItem rolled;
+        if (data::generate_random_item(random_items, items, standard, special, treasure_level,
+                                       random, artifacts,
+                                       rolled) != data::ItemGenerationError::None) {
+            continue;
+        }
+        const auto* row = items.at(static_cast<std::size_t>(rolled.item_id));
+        if (row != nullptr && !row->name.empty()) {
+            out.push_back(rolled.item_id);
+        }
+    }
+    return out;
+}
+
 // Which line the shopkeeper says. The table has one for a merchant of the
 // wrong type and one for an empty purse; the rest turn on a haggling skill
 // nothing has yet, so the party is treated as unskilled. `inferred`

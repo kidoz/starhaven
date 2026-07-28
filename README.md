@@ -177,7 +177,9 @@ interoperability and compatibility with a legally purchased copy.
   Opcode 2 is the one that enters a building: its argument is a `2DEvents.txt`
   row id, 474 of 504 resolving, and per map the count of distinct values tracks
   the count of establishments. So the party walks to a shop door, uses it, and
-  the counter opens.
+  the counter opens. Opcode 7 is the chests': its argument indexes the event
+  file's twenty-slot array, and since the shipped chests are all empty, opening
+  one rolls its contents from the map's own treasure level.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
   party uses them. Outdoors the same trigger sits at +0x124 of a model facet —

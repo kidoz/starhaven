@@ -161,3 +161,19 @@ TEST_CASE("an entry event names the establishment it opens", "[script]") {
     REQUIRE(script.building_of(13) == 0);
     REQUIRE(script.building_of(99) == 0);
 }
+
+TEST_CASE("a chest event names which chest", "[script]") {
+    // The argument indexes the event file's fixed 20-slot array; the largest
+    // value across all 65 shipped scripts is 19.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 3, 0, kOpcodeChest, {0});
+    push_step(payload, 4, 0, kOpcodeChest, {19});
+    push_step(payload, 5, 0, kOpcodeMessage, {1, 0, 0, 0});
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+    // Chest zero is a chest: the absence of one cannot be reported as zero.
+    REQUIRE(script.chest_of(3) == 0);
+    REQUIRE(script.chest_of(4) == 19);
+    REQUIRE(script.chest_of(5) == -1);
+    REQUIRE(script.chest_of(99) == -1);
+}

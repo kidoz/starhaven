@@ -94,6 +94,7 @@ struct MapSession {
     std::string display_name;  // from MapStats.txt; empty when unlisted
     int music_track = 0;       // the N in Sounds/N.mp3; 0 when unlisted
     int refill_days = 0;       // how long this map takes to refill with monsters
+    int treasure_level = 0;    // MapStats' "Tres 0-6"; what its chests hold
 
     // Outdoor geometry.
     OdmMap odm;
