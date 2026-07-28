@@ -479,7 +479,7 @@ TEST_CASE("face extras are decoded after the texture names", "[blv]") {
     REQUIRE(map.face_extras[0].face_index == 1);
     REQUIRE(map.face_extras[0].texture_origin_u == 10);
     REQUIRE(map.face_extras[0].texture_origin_v == 11);
-    REQUIRE(map.face_extras[0].unknown_1a == 12);
+    REQUIRE(map.face_extras[0].event_id == 12);
     REQUIRE(map.face_extras[1].face_index == 0);
     REQUIRE(map.decoded_bytes == map.payload.size());
 }

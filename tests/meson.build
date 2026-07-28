@@ -218,6 +218,12 @@ test('daylight',
   workdir : meson.current_build_dir(),
 )
 
+test('map_script',
+  executable('test_map_script', 'test_map_script.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('shop',
   executable('test_shop', 'test_shop.cpp',
     dependencies : [starhaven_dep, catch2_main]),

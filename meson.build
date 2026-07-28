@@ -61,6 +61,7 @@ starhaven_core_sources = files(
   'src/core/world/sound_table.cpp',
   'src/core/world/decoration_table.cpp',
   'src/core/world/blv_map.cpp',
+  'src/core/world/map_script.cpp',
   'src/core/world/map_session.cpp',
   'src/core/world/collision.cpp',
   'src/core/render/rasterizer.cpp',
@@ -149,6 +150,11 @@ executable('play_smk', 'tools/play_smk.cpp',
 )
 
 # Indoor-map inspector: decompresses one .blv and prints geometry stats.
+executable('evt_info', 'tools/evt_info.cpp',
+  dependencies : starhaven_dep,
+  install : true,
+)
+
 executable('blv_info', 'tools/blv_info.cpp',
   dependencies : starhaven_dep,
   install : true,

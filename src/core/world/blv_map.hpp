@@ -112,8 +112,11 @@ struct BlvFaceExtra {
     std::int16_t texture_origin_u = 0;
     std::int16_t texture_origin_v = 0;
 
-    // Sparse; non-zero on about one record in six. Meaning unknown.
-    std::uint16_t unknown_1a = 0;
+    // The event this face runs when the party uses it: a door, a switch, a
+    // lever, a sign. 1,408 of the 1,441 non-zero values across the 52 maps
+    // name an event the map's own `.EVT` script defines. See
+    // docs/formats/map-events.md.
+    std::uint16_t event_id = 0;
 
     // A 10-byte name, parallel to the extras exactly as face texture names are
     // parallel to faces. Almost always empty: 12,184 of the 12,198 slots across

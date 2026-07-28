@@ -1,0 +1,78 @@
+#ifndef STARHAVEN_CORE_WORLD_MAP_SCRIPT_HPP
+#define STARHAVEN_CORE_WORLD_MAP_SCRIPT_HPP
+
+// A map's event script and its strings.
+//
+// Every map has a `.EVT` and a `.STR` entry in `icons.lod` — not in
+// `Games.lod` with the geometry. The `.EVT` is a flat run of size-prefixed
+// records grouped by event id; the `.STR` is the strings those records refer
+// to. See docs/formats/map-events.md.
+
+#include <cstdint>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace starhaven::world {
+
+// One step of one event.
+struct ScriptStep {
+    std::uint16_t event_id = 0;
+    std::uint8_t sequence = 0;  // counts from zero within the event
+    std::uint8_t opcode = 0;
+    std::vector<std::uint8_t> arguments;
+};
+
+enum class MapScriptError : std::uint8_t {
+    None,
+    // The container is too short, or its zlib stream will not inflate.
+    BadContainer,
+    // A record's declared size runs past the end of the payload, or is zero.
+    BadRecord,
+};
+
+// A map's events, in file order.
+class MapScript {
+public:
+    MapScript() = default;
+
+    // `entry` is the raw stored bytes of the archive's `.EVT` entry.
+    [[nodiscard]] static MapScriptError parse(std::span<const std::byte> entry, MapScript& out);
+
+    [[nodiscard]] const std::vector<ScriptStep>& steps() const noexcept { return steps_; }
+    [[nodiscard]] std::size_t size() const noexcept { return steps_.size(); }
+
+    // The steps of one event, which are contiguous. Returns an empty span when
+    // the map has no such event.
+    [[nodiscard]] std::span<const ScriptStep> event(std::uint16_t id) const noexcept;
+
+    // Whether this map defines an event at all — the question a face with an
+    // event id asks.
+    [[nodiscard]] bool defines(std::uint16_t id) const noexcept { return !event(id).empty(); }
+
+private:
+    std::vector<ScriptStep> steps_;
+};
+
+// A map's `.STR`: NUL-terminated strings, which the script's records index.
+class MapStrings {
+public:
+    MapStrings() = default;
+
+    [[nodiscard]] static MapScriptError parse(std::span<const std::byte> entry, MapStrings& out);
+
+    [[nodiscard]] const std::vector<std::string>& entries() const noexcept { return strings_; }
+    [[nodiscard]] std::size_t size() const noexcept { return strings_.size(); }
+
+    // Index into the table. Out of range answers with nothing rather than
+    // failing: a script may name a string this install does not have.
+    [[nodiscard]] std::string_view at(std::size_t index) const noexcept;
+
+private:
+    std::vector<std::string> strings_;
+};
+
+}  // namespace starhaven::world
+
+#endif  // STARHAVEN_CORE_WORLD_MAP_SCRIPT_HPP

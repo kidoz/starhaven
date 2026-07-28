@@ -32,6 +32,7 @@ nav:
       - Outdoor decorations: formats/odm-decorations.md
       - Outdoor tile index: formats/odm-tile-index.md
       - Portraits and paperdolls: formats/portraits.md
+      - Map event scripts: formats/map-events.md
       - Ground tiles: formats/dtile.md
       - Monster table: formats/dmonlist.md
       - Design data tables: formats/text-tables.md

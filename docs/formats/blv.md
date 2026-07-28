@@ -489,6 +489,9 @@ which room. Reproduce the measurements with `blv_info <map> --sectors`.
 - Whatever follows the decoration block — 32,456 bytes on `D01.blv`, 70,020 on
   `CD1.blv`. `unknown`
 - The header fields at 0x00, 0x6C and 0x70. `unknown`
+- The face-extra field at +0x1A is the **event id**: see
+  [`map-events.md`](map-events.md). It was carried as unknown here until the
+  scripts were found.
 - The region after the face extras — rooms, BSP, lights and doors — remains
   undecoded. Reading its stale pointers through the recovered load address does
   **not** open it: only 4% of the region's words map inside the payload at all,

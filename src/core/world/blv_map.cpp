@@ -291,7 +291,7 @@ BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out) {
         if (!r.seek(static_cast<std::size_t>(base + 0x1A))) {
             return BlvError::Truncated;
         }
-        e.unknown_1a = r.read_u16_le();
+        e.event_id = r.read_u16_le();
 
         if (!r.seek(static_cast<std::size_t>(extras_end + static_cast<std::uint64_t>(i) *
                                                               kBlvFaceExtraNameSize))) {

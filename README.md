@@ -161,6 +161,14 @@ interoperability and compatibility with a legally purchased copy.
   engine uses it rather than searching: looking at a tree names it. Its rule
   reproduces exactly — a decoration is listed against the tiles whose centre is
   within 1024 units, on 6,210 of 6,210 decorations.
+- The **map event scripts** decoded, structurally: they are not in `Games.lod`
+  at all but in `icons.lod` beside the design tables — 83 `.EVT` scripts and 76
+  `.STR` string tables, one pair per map. A script is a run of size-prefixed
+  records carrying an event id, a sequence number, an opcode and arguments, and
+  **all 83 are consumed exactly**, 15,504 records with nothing left over. The
+  field this project had carried as unknown at +0x1A of an indoor face extra is
+  the event id: **1,408 of 1,441** name an event that map's own script defines.
+  What the 90 opcodes do is still unknown.
 - The indoor **sector table** identified: the region in front of the
   decorations opens with a room count and continues as count-and-pointer pairs
   over arrays of face indices. The pointers are stale and cannot be followed,
@@ -290,6 +298,7 @@ The format specs are documented from observed behavior in
 [`docs/formats/odm-decorations.md`](docs/formats/odm-decorations.md),
 [`docs/formats/odm-tile-index.md`](docs/formats/odm-tile-index.md),
 [`docs/formats/portraits.md`](docs/formats/portraits.md),
+[`docs/formats/map-events.md`](docs/formats/map-events.md),
 [`docs/formats/dtile.md`](docs/formats/dtile.md),
 [`docs/formats/event-data.md`](docs/formats/event-data.md),
 [`docs/formats/bitmap.md`](docs/formats/bitmap.md),
