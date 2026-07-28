@@ -38,6 +38,9 @@ SaveState full_state() {
     who.attributes = {15, 12, 11, 14, 13, 12, 9};
     who.resistances = {0, 0, 5, 0, 0};
     who.equipped[0] = 1;
+    who.temp_attributes[0] = 10;
+    who.temp_armor = 20;
+    who.haste_until = 360;
     state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
     return state;
 }
@@ -72,6 +75,9 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(who.attributes == before.party[0].attributes);
     REQUIRE(who.resistances == before.party[0].resistances);
     REQUIRE(who.equipped == before.party[0].equipped);
+    REQUIRE(who.temp_attributes[0] == 10);
+    REQUIRE(who.temp_armor == 20);
+    REQUIRE(who.haste_until == 360);
 
     REQUIRE(after.packs[0].size() == 2);
     REQUIRE(after.packs[0][0].item_id == 505);

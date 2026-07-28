@@ -41,10 +41,17 @@ struct UseItemEntry {
     std::string kind;    // "Herb", "Red Potion", ...
     std::string effect;  // the designers' own words
 
-    // The two effects this engine applies directly, parsed from the prose;
+    // The effects this engine applies directly, parsed from the prose;
     // zero when the effect is something else.
     int cure_hit_points = 0;
     int cure_spell_points = 0;
+    int temp_stats = 0;        // "Set Temp 7 Stats to 10"
+    int temp_armor = 0;        // "Set Temp AC to 10"
+    int temp_resistances = 0;  // "Set Temp [4] Resistances to 10"
+
+    // "Set Haste to 6 Hrs": a named condition with the sheet's own hours.
+    std::string buff;
+    int buff_hours = 0;
 
     bool removed_when_used = false;  // "remove Item"
     int becomes_item = 0;            // "Change Item to N", or 0

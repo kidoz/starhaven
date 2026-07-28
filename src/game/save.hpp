@@ -96,6 +96,15 @@ struct SaveState {
             out << "\t" << id;
         }
         out << "\n";
+        out << "temps\t" << i << "\t" << who.temp_armor << "\t" << who.haste_until << "\t"
+            << who.bless_until << "\t" << who.heroism_until << "\t" << who.stone_skin_until;
+        for (const int bonus : who.temp_attributes) {
+            out << "\t" << bonus;
+        }
+        for (const int bonus : who.temp_resistances) {
+            out << "\t" << bonus;
+        }
+        out << "\n";
         for (const auto& item : state.packs[i]) {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
                 << "\t" << item.width << "\t" << item.height << "\n";
@@ -186,6 +195,23 @@ struct SaveState {
             who.skill_points = next_int();
             std::getline(fields, who.name, '\t');
             std::getline(fields, who.class_name, '\t');
+        } else if (kind == "temps") {
+            const auto i = static_cast<std::size_t>(next_int());
+            if (i >= out.party.size()) {
+                continue;
+            }
+            Character& who = out.party[i];
+            who.temp_armor = next_int();
+            who.haste_until = next_int();
+            who.bless_until = next_int();
+            who.heroism_until = next_int();
+            who.stone_skin_until = next_int();
+            for (auto& bonus : who.temp_attributes) {
+                bonus = next_int();
+            }
+            for (auto& bonus : who.temp_resistances) {
+                bonus = next_int();
+            }
         } else if (kind == "attributes" || kind == "resistances" || kind == "equipped") {
             const auto i = static_cast<std::size_t>(next_int());
             if (i >= out.party.size()) {

@@ -280,6 +280,14 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Fountains and potions that really work**: the temporary bonuses land
+  now — a fountain's "+10 Might temporary" lies on the party, an Energy
+  potion's "Set Temp 7 Stats to 10" on its drinker, Protection's AC and
+  Resistance's elements in the sheet's own amounts, and the timed conditions
+  ("Set Haste to 6 Hrs") run on the clock for exactly their written hours.
+  The sheet shows all of it, a rest ends what lasts until rest, and it all
+  rides in the save. The amounts and hours are the tables'; the until-rest
+  convention and the party-wide reach of a fountain are this engine's.
 - **Spells with the table's own numbers**: the damage and healing in
   `Spells.txt`'s prose follow few enough phrasings to parse exactly — 25 of
   99 spells yield their dice, every direct-damage spell and both heals.

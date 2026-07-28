@@ -6,27 +6,47 @@ namespace starhaven::data {
 
 namespace {
 
-// "Cure 10 Hit points" / "Cure 2 Spell points": the one effect family this
-// engine applies directly. Everything else stays in the prose.
-void parse_cures(UseItemEntry& entry) {
-    const std::string_view text = entry.effect;
-    if (text.substr(0, 5) != "Cure ") {
-        return;
+// The number after a phrase, or zero.
+int number_after(std::string_view text, std::string_view phrase) {
+    const std::size_t at = text.find(phrase);
+    if (at == std::string_view::npos) {
+        return 0;
     }
-    std::size_t at = 5;
     int amount = 0;
-    while (at < text.size() && std::isdigit(static_cast<unsigned char>(text[at])) != 0) {
-        amount = amount * 10 + (text[at] - '0');
-        ++at;
+    for (std::size_t p = at + phrase.size();
+         p < text.size() && std::isdigit(static_cast<unsigned char>(text[p])) != 0; ++p) {
+        amount = amount * 10 + (text[p] - '0');
     }
-    if (amount == 0) {
+    return amount;
+}
+
+// The effect families this engine applies directly, in the sheet's own
+// phrasings. Everything else stays in the prose.
+void parse_effects(UseItemEntry& entry) {
+    const std::string_view text = entry.effect;
+    if (text.substr(0, 5) == "Cure ") {
+        const int amount = number_after(text, "Cure ");
+        if (amount > 0 && text.find("Hit point") != std::string_view::npos) {
+            entry.cure_hit_points = amount;
+        } else if (amount > 0 && text.find("Spell point") != std::string_view::npos) {
+            entry.cure_spell_points = amount;
+        }
         return;
     }
-    const std::string_view rest = text.substr(at);
-    if (rest.find("Hit point") != std::string_view::npos) {
-        entry.cure_hit_points = amount;
-    } else if (rest.find("Spell point") != std::string_view::npos) {
-        entry.cure_spell_points = amount;
+    if (text.find("Stats to ") != std::string_view::npos) {
+        entry.temp_stats = number_after(text, "Stats to ");
+    } else if (text.find("AC to ") != std::string_view::npos) {
+        entry.temp_armor = number_after(text, "AC to ");
+    } else if (text.find("Resistances to ") != std::string_view::npos) {
+        entry.temp_resistances = number_after(text, "Resistances to ");
+    } else if (const std::size_t set = text.find("Set ");
+               set == 0 && text.find(" Hrs") != std::string_view::npos) {
+        // "Set Haste to 6 Hrs": the name between Set and to, the hours after.
+        const std::size_t to = text.find(" to ");
+        if (to != std::string_view::npos && to > 4) {
+            entry.buff = std::string(text.substr(4, to - 4));
+            entry.buff_hours = number_after(text, " to ");
+        }
     }
 }
 
@@ -91,7 +111,7 @@ UseItemError UseItemTable::parse(const TextTable& table, UseItemTable& out) {
         entry.name = std::string(trim(table.cell(row, 2)));
         entry.kind = std::string(trim(table.cell(row, 3)));
         entry.effect = std::string(trim(table.cell(row, 4)));
-        parse_cures(entry);
+        parse_effects(entry);
 
         const std::string_view after = trim(table.cell(row, 5));
         entry.removed_when_used = after == "remove Item";

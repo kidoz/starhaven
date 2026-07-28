@@ -150,8 +150,29 @@ struct Character {
     // none of any. `inferred`
     std::array<int, data::kResistanceCount> resistances{};
 
+    // What fountains and potions lay on top, in the tables' own amounts:
+    // temporary attribute points, armour and resistances that last until the
+    // party rests (the "until" is this engine's, the amounts the tables'),
+    // and named conditions with the sheet's own hours, kept as the minute
+    // they wear off.
+    std::array<int, kAttributeCount> temp_attributes{};
+    std::array<int, data::kResistanceCount> temp_resistances{};
+    int temp_armor = 0;
+    std::int64_t haste_until = 0;
+    std::int64_t bless_until = 0;
+    std::int64_t heroism_until = 0;
+    std::int64_t stone_skin_until = 0;
+
     [[nodiscard]] int attribute(Attribute a) const noexcept {
-        return attributes[static_cast<std::size_t>(a)];
+        return attributes[static_cast<std::size_t>(a)] +
+               temp_attributes[static_cast<std::size_t>(a)];
+    }
+
+    // Drop everything that lasts only until a rest.
+    void rest_expires() noexcept {
+        temp_attributes.fill(0);
+        temp_resistances.fill(0);
+        temp_armor = 0;
     }
 };
 

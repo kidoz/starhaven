@@ -295,7 +295,7 @@ void blit(render::Framebuffer& fb, const render::Texture& texture, int left, int
 // design tables name them.
 void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                 const game::Character& who, const data::DescriptionTable& stats,
-                const data::DescriptionTable& classes) {
+                const data::DescriptionTable& classes, std::int64_t minute) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -323,14 +323,40 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
     int y = 120;
     for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
         const std::string_view label = game::stat_label(stats, a);
-        const int value = who.attributes[a];
+        const int value = who.attribute(static_cast<game::Attribute>(a));
         const int bonus = game::attribute_bonus(value);
         std::string text = std::string(label) + "  " + std::to_string(value);
+        if (who.temp_attributes[a] > 0) {
+            text += " (of it +" + std::to_string(who.temp_attributes[a]) + " temporary)";
+        }
         text += bonus == 0
                     ? ""
                     : (bonus > 0 ? "  +" + std::to_string(bonus) : "  " + std::to_string(bonus));
         game::draw_text(scene.framebuffer(), font, 24, y, text, white, shadow);
         y += line;
+    }
+
+    // The named conditions the potions set, with the sheet's own hours.
+    {
+        std::string active;
+        const auto note = [&](const char* name, std::int64_t until) {
+            if (until > minute) {
+                active += (active.empty() ? "" : ", ");
+                active += name;
+            }
+        };
+        note("hasted", who.haste_until);
+        note("blessed", who.bless_until);
+        note("heroic", who.heroism_until);
+        note("stone skin", who.stone_skin_until);
+        if (who.temp_armor > 0) {
+            active += (active.empty() ? "" : ", ");
+            active += "+" + std::to_string(who.temp_armor) + " AC until rest";
+        }
+        if (!active.empty()) {
+            game::draw_text(scene.framebuffer(), font, 24, y + line, active,
+                            render::Color{170, 215, 170, 255}, shadow);
+        }
     }
 
     // And the derived numbers, in the same order the table lists them.
@@ -1705,6 +1731,34 @@ int main(int argc, char** argv) {
                         who.spell_points = std::min(who.max_spell_points,
                                                     who.spell_points + use->cure_spell_points);
                     }
+                    // The tables' own temporary amounts and hours; that the
+                    // untimed ones last until a rest is this engine's.
+                    if (use->temp_stats > 0) {
+                        for (auto& bonus : who.temp_attributes) {
+                            bonus = std::max(bonus, use->temp_stats);
+                        }
+                    }
+                    if (use->temp_armor > 0) {
+                        who.temp_armor = std::max(who.temp_armor, use->temp_armor);
+                    }
+                    if (use->temp_resistances > 0) {
+                        for (auto& bonus : who.temp_resistances) {
+                            bonus = std::max(bonus, use->temp_resistances);
+                        }
+                    }
+                    if (use->buff_hours > 0) {
+                        const std::int64_t until =
+                            clock.minutes() + static_cast<std::int64_t>(use->buff_hours) * 60;
+                        if (use->buff == "Haste") {
+                            who.haste_until = until;
+                        } else if (use->buff == "Bless") {
+                            who.bless_until = until;
+                        } else if (use->buff == "Heroism") {
+                            who.heroism_until = until;
+                        } else if (use->buff == "Stone Skin") {
+                            who.stone_skin_until = until;
+                        }
+                    }
                     pick_up_message = who.name + " \x97 " + data::cp1252_to_utf8(use->name) +
                                       ": " + data::cp1252_to_utf8(use->effect);
                     pick_up_shown = SDL_GetTicks();
@@ -2153,13 +2207,22 @@ int main(int argc, char** argv) {
         for (std::size_t i = 0; i < party.size(); ++i) {
             party[i].armor_class =
                 game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
-                game::armour_of(party[i], item_stats);
+                game::armour_of(party[i], item_stats) + party[i].temp_armor;
         }
 
         if (want_rest) {
             const bool disturbed =
                 battle.anything_near(session, camera.position, game::kRestDisturbance);
             const game::RestResult result = game::rest(party, clock, disturbed);
+            if (result == game::RestResult::Rested) {
+                // What lasts until a rest ends with one, fountains included.
+                for (auto& member : party) {
+                    member.rest_expires();
+                }
+                for (int a = 25; a <= 31; ++a) {
+                    script_state.variables[a] = 0;
+                }
+            }
             pick_up_message = game::rest_message(result, clock);
             pick_up_shown = SDL_GetTicks();
         }
@@ -2323,6 +2386,21 @@ int main(int argc, char** argv) {
                 said_text = took.empty() ? "The chest is empty" : "You find " + took;
             }
 
+            // A fountain's blessing: the walker keeps the seven attributes'
+            // temporary bonuses in variables 25..31 — Might named by the
+            // fountain's own words, the rest by position — and they lie on
+            // the whole party until a rest. `inferred` for the party-wide
+            // reach and the until.
+            for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+                const int bonus = script_state.variables[25 + static_cast<int>(a)];
+                if (bonus <= 0) {
+                    continue;
+                }
+                for (auto& member : party) {
+                    member.temp_attributes[a] = std::max(member.temp_attributes[a], bonus);
+                }
+            }
+
             if (!said_text.empty()) {
                 pick_up_message = said_text;
                 pick_up_shown = SDL_GetTicks();
@@ -2404,7 +2482,7 @@ int main(int argc, char** argv) {
         }
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
-                       stat_descriptions, class_descriptions);
+                       stat_descriptions, class_descriptions, clock.minutes());
         }
         if (talking_to >= 0 && open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);

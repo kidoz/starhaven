@@ -96,10 +96,12 @@ struct Combatant {
     return which < 0 ? 0 : monster.resistances[static_cast<std::size_t>(which)];
 }
 
-// And the same question of a character.
+// And the same question of a character, with whatever a potion laid on top.
 [[nodiscard]] inline int resistance_to(const Character& who, std::string_view type) noexcept {
     const int which = resistance_index(type);
-    return which < 0 ? 0 : who.resistances[static_cast<std::size_t>(which)];
+    return which < 0 ? 0
+                     : who.resistances[static_cast<std::size_t>(which)] +
+                           who.temp_resistances[static_cast<std::size_t>(which)];
 }
 
 // What a resistance does to a blow: none of it gets through if the target is

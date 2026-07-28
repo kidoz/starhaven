@@ -78,3 +78,28 @@ TEST_CASE("a scroll's first modifier names the spell it casts", "[use_items]") {
     REQUIRE(scroll_spell_of("S") == 0);
     REQUIRE(scroll_spell_of("Sword") == 0);
 }
+
+TEST_CASE("the temporary families parse in the sheet's own phrasings", "[use_items]") {
+    std::string body =
+        "USE ITEM\tnotes\r\n"
+        "\t\t\t\t\tRight Click\t160\t161\t162\t163\r\n"
+        "160\tb\tEnergy\tYellow Potion\tSet Temp 7 Stats to 10\tChange Item to 163"
+        "\tno\tno\tno\tno\r\n"
+        "161\tb\tProtection\tOrange Potion\tSet Temp AC to 20\tChange Item to 163"
+        "\tno\tno\tno\tno\r\n"
+        "162\tb\tResistance\tGreen Potion\tSet Temp Resistances to 10\tChange Item to 163"
+        "\tno\tno\tno\tno\r\n"
+        "163\tb\tHaste\tWhite Potion\tSet Haste to 6 Hrs\tChange Item to 163"
+        "\tno\tno\tno\tno\r\n";
+    TextTable text;
+    REQUIRE(TextTable::parse_body(body, text) == TextTableError::None);
+    UseItemTable use;
+    REQUIRE(UseItemTable::parse(text, use) == UseItemError::None);
+
+    REQUIRE(use.find(160)->temp_stats == 10);
+    REQUIRE(use.find(161)->temp_armor == 20);
+    REQUIRE(use.find(162)->temp_resistances == 10);
+    REQUIRE(use.find(163)->buff == "Haste");
+    REQUIRE(use.find(163)->buff_hours == 6);
+    REQUIRE(use.find(163)->cure_hit_points == 0);
+}
