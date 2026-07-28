@@ -248,6 +248,12 @@ test('training',
   workdir : meson.current_build_dir(),
 )
 
+test('use_items',
+  executable('test_use_items', 'test_use_items.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('conversation',
   executable('test_conversation', 'test_conversation.cpp',
     dependencies : [starhaven_dep, catch2_main]),

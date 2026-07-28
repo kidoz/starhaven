@@ -15,6 +15,7 @@
 #include "core/data/npc_stats.hpp"
 #include "core/data/profession_text.hpp"
 #include "core/data/spell_stats.hpp"
+#include "core/data/use_items.hpp"
 #include "core/data/text_table.hpp"
 
 namespace starhaven::data {
@@ -50,6 +51,8 @@ enum class GameDataError {
                                               RandomItemTable& out);
 [[nodiscard]] GameDataError load_standard_bonuses(const std::filesystem::path& data_dir,
                                                   StandardBonusTable& out);
+[[nodiscard]] GameDataError load_use_items(const std::filesystem::path& data_dir,
+                                           UseItemTable& out);
 [[nodiscard]] GameDataError load_special_bonuses(const std::filesystem::path& data_dir,
                                                  SpecialBonusTable& out);
 

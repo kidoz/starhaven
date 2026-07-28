@@ -1143,6 +1143,36 @@ int main(int argc, char** argv) {
         }
         return do_journal(command.substr(2), table, argument);
     }
+    if (command == "--use-items") {
+        data::UseItemTable use_items;
+        if (data::load_use_items(data_dir, use_items) != data::GameDataError::None) {
+            std::cerr << "error: could not read USEITEMS.TXT\n";
+            return 1;
+        }
+        std::size_t cures = 0;
+        std::size_t transforms = 0;
+        std::size_t mixes = 0;
+        std::size_t explosions = 0;
+        for (const auto& entry : use_items.entries()) {
+            cures += entry.cure_hit_points > 0 || entry.cure_spell_points > 0 ? 1 : 0;
+            transforms += entry.becomes_item > 0 ? 1 : 0;
+            for (const auto& mix : entry.mixes) {
+                mixes += mix.kind == data::MixKind::Item ? 1 : 0;
+                explosions += mix.kind == data::MixKind::Explosion ? 1 : 0;
+            }
+            std::cout << "  " << entry.id << "\t" << data::cp1252_to_utf8(entry.name) << "\t"
+                      << data::cp1252_to_utf8(entry.effect);
+            if (entry.cure_hit_points > 0)
+                std::cout << "\t[+" << entry.cure_hit_points << " hp]";
+            if (entry.cure_spell_points > 0)
+                std::cout << "\t[+" << entry.cure_spell_points << " sp]";
+            std::cout << "\n";
+        }
+        std::cout << use_items.size() << " usable items; " << cures << " cure, " << transforms
+                  << " become another item; " << mixes << " mixes yield a potion and "
+                  << explosions << " blow up\n";
+        return 0;
+    }
     if (command == "--treasure")
         return do_treasure(data_dir);
     if (command == "--dice")

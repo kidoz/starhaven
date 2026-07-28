@@ -38,6 +38,7 @@ starhaven_core_sources = files(
   'src/core/image/zlib_util.cpp',
   'src/core/data/text_table.cpp',
   'src/core/data/item_generation.cpp',
+  'src/core/data/use_items.cpp',
   'src/core/data/item_stats.cpp',
   'src/core/data/map_stats.cpp',
   'src/core/data/monster_stats.cpp',

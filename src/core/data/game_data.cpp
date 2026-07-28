@@ -83,6 +83,18 @@ GameDataError load_standard_bonuses(const std::filesystem::path& data_dir,
     return GameDataError::None;
 }
 
+GameDataError load_use_items(const std::filesystem::path& data_dir, UseItemTable& out) {
+    TextTable table;
+    if (const GameDataError e = load_text_table(data_dir, "USEITEMS.TXT", table);
+        e != GameDataError::None) {
+        return e;
+    }
+    if (UseItemTable::parse(table, out) != UseItemError::None) {
+        return GameDataError::BadTable;
+    }
+    return GameDataError::None;
+}
+
 GameDataError load_special_bonuses(const std::filesystem::path& data_dir, SpecialBonusTable& out) {
     TextTable table;
     if (const GameDataError e = load_text_table(data_dir, kSpecialBonusesEntry, table);

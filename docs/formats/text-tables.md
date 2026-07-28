@@ -533,6 +533,28 @@ Two things the sheet does not say, which the engine supplies and marks as its
 own: where you stand on arrival, and what a point of the `Val` column costs
 in gold.
 
+## `USEITEMS.TXT` is the alchemy
+
+The last of the item-machinery family holds the herbs and potions, items
+160..188. Each row carries its effect in the designers' prose — `"Cure 10
+Hit points"`, `"Set Haste to 6 Hrs"`, `"Might +15 Perm, Int -5 perm 1 time
+only"` — what becomes of the item (`"remove Item"`, or `"Change Item to
+163"`, the empty bottle), and a full **mixing matrix** against every other
+potion: 50 pairs yield a new potion and 390 blow up, graded `E1`..`E4`, whose
+meanings the sheet's own header writes out — from 10-20 fire damage up to
+Eradicated with everything broken. All 29 rows parse. `observed` Reproduce
+with `data_info --use-items`.
+
+Spell scrolls join elsewhere: their `ITEMS.TXT` first modifier is an
+S-number — `Healing Touch`'s scroll writes `S47`, and `Spells.txt` id 47 is
+Healing Touch. `observed` And `Scroll.txt` is the **message scrolls'** prose,
+86 rows keyed by item id — row 505 is Sulman's letter itself, the full text
+of the thing Andover pays for. `observed`
+
+The engine drinks: `U` in a pack applies the cures, says the effect in the
+table's words, and the bottle empties into item 163 exactly as written.
+Mixing and the scroll spells wait on systems not yet built.
+
 ## The entrances' trailing columns
 
 `2DEvents.txt`'s last columns — group-headed `Schedules`, `Other Exits`,

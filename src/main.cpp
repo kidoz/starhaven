@@ -83,6 +83,7 @@ void print_usage(const char* argv0) {
               << "  Tab        list the establishments on this map\n"
               << "  C          the character sheet; 1-4 choose a character\n"
               << "  I          the inventory; walk over a thing to pick it up\n"
+              << "  U          in a pack: drink the first potion or herb\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
               << "  F5/F9      save the game / load it back\n"
@@ -549,7 +550,7 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
     }
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
-                    "1-4 choose a character, E wear something, I closes", dim, shadow);
+                    "1-4 choose a character, E wear something, U drink, I closes", dim, shadow);
 }
 
 // A training hall's counter: who can train, to what, and for how much.
@@ -1264,6 +1265,9 @@ int main(int argc, char** argv) {
 
     data::ItemStatsTable item_stats;
     (void)data::load_item_stats(data_dir, item_stats);
+    // What using a thing does: the herbs' and potions' own table.
+    data::UseItemTable use_items;
+    (void)data::load_use_items(data_dir, use_items);
     data::SpellStatsTable spell_stats;
     (void)data::load_spell_stats(data_dir, spell_stats);
 
@@ -1615,6 +1619,40 @@ int main(int argc, char** argv) {
                     }
                     pick_up_message = "Loaded";
                     pick_up_shown = SDL_GetTicks();
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_U &&
+                       shown_pack >= 0) {
+                // Drink or eat the first thing the use table knows. The
+                // effect is the table's own; what this engine applies of it
+                // is the hit- and spell-point cures, and the item is removed
+                // or becomes what the table says — an emptied bottle.
+                auto& who = party[static_cast<std::size_t>(shown_pack)];
+                auto& pack = packs[static_cast<std::size_t>(shown_pack)];
+                for (const auto& carried : pack.items()) {
+                    const auto* use = use_items.find(carried.item_id);
+                    if (use == nullptr) {
+                        continue;
+                    }
+                    if (use->cure_hit_points > 0) {
+                        who.hit_points =
+                            std::min(who.max_hit_points, who.hit_points + use->cure_hit_points);
+                    }
+                    if (use->cure_spell_points > 0) {
+                        who.spell_points = std::min(who.max_spell_points,
+                                                    who.spell_points + use->cure_spell_points);
+                    }
+                    pick_up_message = who.name + " \x97 " + data::cp1252_to_utf8(use->name) +
+                                      ": " + data::cp1252_to_utf8(use->effect);
+                    pick_up_shown = SDL_GetTicks();
+                    const auto used = carried;  // remove() invalidates the ref
+                    if (use->removed_when_used || use->becomes_item > 0) {
+                        pack.remove(used.x, used.y);
+                        if (use->becomes_item > 0) {
+                            (void)pack.place(use->becomes_item, used.x, used.y, used.width,
+                                             used.height);
+                        }
+                    }
+                    break;
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
