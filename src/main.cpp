@@ -554,6 +554,54 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
                     "1-4 choose a character, E wear something, U drink, I closes", dim, shadow);
 }
 
+// A bank's counter: the balance, and the sheet's own two verbs.
+void draw_bank(render::SceneRenderer& scene, const image::Font& font,
+               const data::BuildingStatsEntry& shop, int gold, int balance,
+               const std::string& said) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{165, 165, 165, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 24;
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
+                        data::cp1252_to_utf8(shop.proprietor),
+                    white, shadow);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    "you carry " + std::to_string(gold) + " gold; the vault holds " +
+                        std::to_string(balance),
+                    dim, shadow);
+    y += line * 2;
+    game::draw_text(scene.framebuffer(), font, 24, y, "1  deposit 100", white, shadow);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y, "2  deposit all", white, shadow);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y, "3  withdraw 100", white, shadow);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y, "4  withdraw all", white, shadow);
+    y += line;
+    if (!said.empty()) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+                        shadow);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "T talk to whoever is here, B closes", dim, shadow);
+}
+
 // A training hall's counter: who can train, to what, and for how much.
 void draw_training(render::SceneRenderer& scene, const image::Font& font,
                    const data::BuildingStatsEntry& shop,
@@ -1308,6 +1356,7 @@ int main(int argc, char** argv) {
     auto shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
 
     int gold = game::kStartingGold;
+    int bank_gold = 0;  // what the vault keeps; no table pays interest
     int open_shop = -1;  // an index into shops_here, or none
     std::vector<game::StockItem> shop_stock;
     std::string shop_said;
@@ -1563,6 +1612,7 @@ int main(int argc, char** argv) {
                 state.pitch = camera.pitch;
                 state.minutes = clock.minutes();
                 state.gold = gold;
+                state.bank_gold = bank_gold;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -1600,6 +1650,7 @@ int main(int argc, char** argv) {
                                       ? clock.day() + session.refill_days
                                       : std::numeric_limits<std::int64_t>::max();
                     gold = state.gold;
+                    bank_gold = state.bank_gold;
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
@@ -1742,6 +1793,24 @@ int main(int argc, char** argv) {
                             talk_answer = game::topic_answer(person, dialogue,
                                                              static_cast<std::size_t>(chosen));
                         }
+                    }
+                } else if (open_shop >= 0 &&
+                           game::is_bank(*shops_here[static_cast<std::size_t>(open_shop)]) &&
+                           chosen < 4) {
+                    // The sheet's own two verbs, in two sizes each.
+                    const int amounts[4] = {std::min(100, gold), gold, std::min(100, bank_gold),
+                                            bank_gold};
+                    const int moved = amounts[chosen];
+                    if (chosen < 2) {
+                        gold -= moved;
+                        bank_gold += moved;
+                        shop_said = moved > 0 ? "Deposited " + std::to_string(moved) + " gold."
+                                              : "You have nothing to deposit.";
+                    } else {
+                        bank_gold -= moved;
+                        gold += moved;
+                        shop_said = moved > 0 ? "Withdrew " + std::to_string(moved) + " gold."
+                                              : "The vault holds nothing of yours.";
                     }
                 } else if (open_shop >= 0 &&
                            game::is_training(*shops_here[static_cast<std::size_t>(open_shop)]) &&
@@ -2239,7 +2308,9 @@ int main(int argc, char** argv) {
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
-            if (game::is_training(shop)) {
+            if (game::is_bank(shop)) {
+                draw_bank(scene, font, shop, gold, bank_gold, shop_said);
+            } else if (game::is_training(shop)) {
                 draw_training(scene, font, shop, party, gold, shop_said);
             } else if (game::is_travel(shop)) {
                 draw_travel(scene, font, shop, game::routes_of(shop, map_stats),

@@ -575,6 +575,16 @@ system from two sides. `observed`
 The remaining numeric cells on entrance rows — 16..37 running with the row
 order, 50 and 169 on the Oracle — join to nothing tested yet. `unknown`
 
+## The banks' two verbs, and the town halls' silence
+
+The six `Bank` rows carry margin notes naming the counter's actions —
+`"Deposit"` and `"Withdraw"` — and no column anywhere carries an interest
+rate, so the vault only keeps what it is given; the engine's counter does
+exactly that. `observed` The three `Town Hall` and `City Council` rows carry
+nothing behind them at all: no bounty table ships in the thirty, so the
+original's monthly bounty hunts must be generated in the executable, and an
+engine that wants them must invent them. Scouted and left alone. `observed`
+
 ## `Trans.txt` is the transitions' prose
 
 Not routes: 234 rows keyed by a `2D#` column, each an atmospheric

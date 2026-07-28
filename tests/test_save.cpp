@@ -20,6 +20,7 @@ SaveState full_state() {
     state.pitch = -0.25f;
     state.minutes = 123456789;
     state.gold = 1200;
+    state.bank_gold = 5000;
     state.bits = {82, 300};
     state.variables = {{25, 10}, {105, 1}};
     state.npc_topics = {{{1, 0}, 2}};
@@ -53,6 +54,7 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(after.pitch == before.pitch);
     REQUIRE(after.minutes == before.minutes);
     REQUIRE(after.gold == before.gold);
+    REQUIRE(after.bank_gold == 5000);
     REQUIRE(after.bits == before.bits);
     REQUIRE(after.variables == before.variables);
     REQUIRE(after.npc_topics == before.npc_topics);

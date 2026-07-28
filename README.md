@@ -280,6 +280,11 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **A bank that keeps your gold**: the six `Bank` rows' margin notes name
+  the counter's two verbs — Deposit and Withdraw — and no column pays
+  interest, so neither does the vault. The balance rides in the save. The
+  town halls were scouted and left alone: no bounty table ships, so bounty
+  hunts would be invention.
 - **Ambushes that spring**: opcode 19 named itself against the encounter
   table — its slot stays within the map's own filled encounter slots on 272
   of 272 resolvable uses, its variant is the monster triple's own A/B/C, and

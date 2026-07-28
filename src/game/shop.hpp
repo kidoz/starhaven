@@ -100,6 +100,13 @@ struct StockSpec {
     return out;
 }
 
+// A bank rather than a shop: the sheet's own margin notes name its two
+// actions, "Deposit" and "Withdraw", and no column carries an interest
+// rate — so the vault only keeps what it is given.
+[[nodiscard]] inline bool is_bank(const data::BuildingStatsEntry& shop) noexcept {
+    return shop.type == "Bank";
+}
+
 // What a shop asks for an item: its value times the shop's own multiplier,
 // never less than one gold.
 [[nodiscard]] inline int asking_price(const data::ItemStatsEntry& item, float factor) noexcept {
