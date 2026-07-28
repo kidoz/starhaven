@@ -44,6 +44,7 @@
 #include "game/shop.hpp"
 #include "game/sprites.hpp"
 #include "game/text.hpp"
+#include "game/travel.hpp"
 
 namespace {
 
@@ -541,6 +542,73 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
                     "1-4 choose a character, E wear something, I closes", dim, shadow);
+}
+
+// A travel counter: where the rides go, when they leave, and the fare.
+void draw_travel(render::SceneRenderer& scene, const image::Font& font,
+                 const data::BuildingStatsEntry& shop,
+                 const std::vector<game::TravelRoute>& routes, int fare,
+                 const game::GameClock& clock, int gold, const std::string& said) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{165, 165, 165, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 24;
+
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
+                        data::cp1252_to_utf8(shop.proprietor),
+                    white, shadow);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    "you have " + std::to_string(gold) + " gold; today is " +
+                        std::string(clock.weekday()),
+                    dim, shadow);
+    y += line * 2;
+
+    static constexpr std::array<std::string_view, 7> kShortDays{"Su", "M", "Tu", "W",
+                                                                "Th", "F", "Sa"};
+    for (std::size_t i = 0; i < routes.size(); ++i) {
+        const auto& route = routes[i];
+        std::string text = std::to_string(i + 1) + "  " + route.destination + "  \x97 leaves";
+        for (std::size_t d = 0; d < kShortDays.size(); ++d) {
+            if (route.leaves[d]) {
+                text += " " + std::string(kShortDays[d]);
+            }
+        }
+        text += ", " + std::to_string(route.days) +
+                (route.days == 1 ? " day, " : " days, ") + std::to_string(fare) + " gold";
+        if (route.leaves_on(clock.day())) {
+            text += "  (leaves today)";
+        }
+        game::draw_text(scene.framebuffer(), font, 24, y, text,
+                        route.leaves_on(clock.day()) && fare <= gold ? white : dim, shadow);
+        y += line;
+    }
+    if (routes.empty()) {
+        game::draw_text(scene.framebuffer(), font, 24, y, "No rides leave from here.", dim,
+                        shadow);
+        y += line;
+    }
+    if (!said.empty()) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+                        shadow);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "1-3 ride, T talk to whoever is here, B closes", dim, shadow);
 }
 
 // A shop's counter: what it has, what it wants for it, and what the
@@ -1149,6 +1217,10 @@ int main(int argc, char** argv) {
     (void)data::load_merchant_text(data_dir, merchant_words);
     data::BuildingStatsTable all_buildings;
     (void)data::load_building_stats(data_dir, all_buildings);
+    // The stables and docks name their destinations by area code and display
+    // name, so the routes resolve through the map table.
+    data::MapStatsTable map_stats;
+    (void)data::load_map_stats(data_dir, map_stats);
     data::RandomItemTable random_items;
     data::StandardBonusTable standard_bonuses;
     data::SpecialBonusTable special_bonuses;
@@ -1357,6 +1429,32 @@ int main(int argc, char** argv) {
                         talk_answer =
                             game::topic_answer((*here)[static_cast<std::size_t>(talking_to)],
                                                dialogue, static_cast<std::size_t>(chosen));
+                    }
+                } else if (open_shop >= 0 &&
+                           game::is_travel(*shops_here[static_cast<std::size_t>(open_shop)])) {
+                    // Ride, if today is a departure day and the fare fits.
+                    const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+                    const auto routes = game::routes_of(shop, map_stats);
+                    if (static_cast<std::size_t>(chosen) < routes.size()) {
+                        const auto route = routes[static_cast<std::size_t>(chosen)];
+                        const int fare = game::fare_of(shop);
+                        if (!route.leaves_on(clock.day())) {
+                            shop_said = "Nothing leaves for " + route.destination + " today.";
+                        } else if (fare > gold) {
+                            shop_said = "You cannot afford the fare.";
+                        } else {
+                            gold -= fare;
+                            clock.advance_hours(route.days * game::kHoursPerDay);
+                            if (open_map(route.map_file)) {
+                                camera.position = {0, 32.0f * 30.0f, 0};
+                                camera.yaw = 0.6f;
+                                camera.pitch = -0.3f;
+                                pick_up_message = "After " + std::to_string(route.days) +
+                                                  (route.days == 1 ? " day" : " days") +
+                                                  " you arrive in " + session.title();
+                                pick_up_shown = SDL_GetTicks();
+                            }
+                        }
                     }
                 } else if (open_shop >= 0) {
                     // Buy, if the purse and somebody's pack allow it.
@@ -1753,8 +1851,14 @@ int main(int argc, char** argv) {
                                   talk_answer);
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
-            draw_shop(scene, font, *shops_here[static_cast<std::size_t>(open_shop)], shop_stock,
-                      item_stats, merchant_words, gold, shop_said);
+            const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+            if (game::is_travel(shop)) {
+                draw_travel(scene, font, shop, game::routes_of(shop, map_stats),
+                            game::fare_of(shop), clock, gold, shop_said);
+            } else {
+                draw_shop(scene, font, shop, shop_stock, item_stats, merchant_words, gold,
+                          shop_said);
+            }
         }
         if (shown_pack >= 0) {
             const auto who = static_cast<std::size_t>(shown_pack);

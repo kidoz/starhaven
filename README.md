@@ -280,6 +280,13 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Coaches and boats you can ride**: the stables' and docks' rows write
+  their routes in the stock columns, the designers' way — destination and
+  area code, departure weekdays, days of travel — and the counter reads them
+  back as a timetable. Ride on a departure day and the fare is paid, the
+  clock advances the route's own days, and the party stands on the
+  destination map. The fare scale and the arrival point are this engine's
+  and say so.
 - **Loot you can pick up, and somewhere to put it**: walk over a thing lying
   on a map and the first character with room takes it. **I** opens a pack,
   drawn with the game's own item icons — all 229 of them resolve out of

@@ -516,6 +516,31 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
+## The stables' and docks' timetables
+
+The nine `Stables` and twelve `Boats` rows of `2DEvents.txt` use the three
+stock columns for **routes**, up to three each, written the designers' way:
+`"Castle Ironfist D3,M,W,F,2"` is the destination with its area code, the
+weekdays a ride leaves, and the days the ride takes. The sheet's own margin
+notes name the parts — `"Destination,Area"`, `"Days leaving,"`,
+`"Days Travel Time"`, `"Upto 3 Destinations"`, `"Teleport to Other Stable"`.
+Tuesday is written both `T` and `Tu`, Sunday both `Su` and `Sun`, and a
+destination may drop its area code — `"Bootleg Bay East"` — and resolve only
+through `MapStats.txt`'s display names. One cell is a designer note rather
+than a route (`"Any outdoor area..."`, on the Enterprise). `observed`
+
+Two things the sheet does not say, which the engine supplies and marks as its
+own: where you stand on arrival, and what a point of the `Val` column costs
+in gold.
+
+## `Trans.txt` is the transitions' prose
+
+Not routes: 234 rows keyed by a `2D#` column, each an atmospheric
+description — `"A large dragon obviously makes his residence in these
+caves..."` — and most of them blank. What the key indexes is `unknown`;
+the obvious candidate, `2DEvents.txt` rows, is untested. `observed` for the
+shape.
+
 ## The `%01` placeholders
 
 Every table of NPC prose carries them — `npcbtb.txt`, `npcprof.txt`,

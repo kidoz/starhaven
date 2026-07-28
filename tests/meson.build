@@ -230,6 +230,12 @@ test('script_walk',
   workdir : meson.current_build_dir(),
 )
 
+test('travel',
+  executable('test_travel', 'test_travel.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('conversation',
   executable('test_conversation', 'test_conversation.cpp',
     dependencies : [starhaven_dep, catch2_main]),

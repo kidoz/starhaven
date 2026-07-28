@@ -13,6 +13,7 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
+#include "core/image/zlib_util.hpp"
 #include "core/world/sound_table.hpp"
 
 namespace {
@@ -367,6 +368,66 @@ int do_variables(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: OUT.EVT, whose records carry no sequence byte — [size]
+// [id u16][opcode][args] — unlike every map script's. Print each record, and
+// decode the travel steps as spawn points.
+int do_out(const starhaven::lod::LodArchive& icons, const std::string& entry_name) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    std::span<const std::byte> raw;
+    if (icons.payload(entry_name, raw) != lod::LodArchive::PayloadError::None ||
+        raw.size() < 48) {
+        std::cerr << "error: no OUT.EVT\n";
+        return 1;
+    }
+    std::uint32_t unpacked = 0;
+    std::memcpy(&unpacked, raw.data() + 0x28, sizeof(unpacked));
+    std::vector<std::uint8_t> payload;
+    const auto body = raw.subspan(48);
+    if (unpacked == 0) {
+        payload.assign(reinterpret_cast<const std::uint8_t*>(body.data()),
+                       reinterpret_cast<const std::uint8_t*>(body.data()) + body.size());
+    } else if (!starhaven::image::detail::inflate_all(body, payload) ||
+               payload.size() != unpacked) {
+        std::cerr << "error: OUT.EVT container did not inflate\n";
+        return 1;
+    }
+
+    std::size_t at = 0;
+    while (at < payload.size()) {
+        const std::size_t size = payload[at];
+        if (size < 3 || at + 1 + size > payload.size()) {
+            std::cout << "  misframed at byte " << at << "\n";
+            break;
+        }
+        const std::uint16_t id =
+            static_cast<std::uint16_t>(payload[at + 1] | (payload[at + 2] << 8));
+        const std::uint8_t opcode = payload[at + 3];
+        const std::size_t arg_count = size - 3;
+        std::cout << "event " << id << "\topcode " << static_cast<int>(opcode) << " ("
+                  << arg_count << " bytes)";
+        if (opcode == world::kOpcodeTravel && arg_count >= 27) {
+            world::ScriptStep step;
+            step.opcode = world::kOpcodeTravel;
+            step.arguments.assign(payload.begin() + static_cast<std::ptrdiff_t>(at + 4),
+                                  payload.begin() + static_cast<std::ptrdiff_t>(at + 1 + size));
+            if (const auto travel = world::parse_travel(step)) {
+                std::cout << "\t-> " << (travel->destination.empty() ? "0" : travel->destination)
+                          << " at " << travel->x << "," << travel->y << "," << travel->z
+                          << " facing " << travel->facing;
+            }
+        } else {
+            for (std::size_t i = 0; i < arg_count && i < 6; ++i) {
+                std::cout << " " << static_cast<int>(payload[at + 4 + i]);
+            }
+        }
+        std::cout << "\n";
+        at += 1 + size;
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -394,6 +455,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--out") {
+        return do_out(icons, argc == 3 ? std::string(argv[2]) + ".EVT" : "OUT.EVT");
     }
     if (stem == "--variables") {
         return do_variables(icons);

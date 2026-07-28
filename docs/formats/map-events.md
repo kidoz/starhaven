@@ -225,14 +225,22 @@ Sixteen of the 83 scripts name no map: `GLOBAL`, `OUT`, `LWSPIRAL`, `SCI-FI`,
 `D4BM`, `DBM1`..`DBM5`, `DDB1`, `DWJ1`, and `ZDTL01`/`ZDTL02`/`ZDTL1`/`ZDTL2`.
 `observed`
 
-`OUT.EVT` stands apart: 89 events, **no strings**, and its records do not
-frame the way every map script's do — the walk misreads them, yet the
-arguments carry the same spawn-point payload. Read at a three-byte shift, its
-`Sewer.blv` record holds coordinates (-1786, 945, 500) in world range and a
-NUL-terminated map name, exactly a travel destination. A table of places the
-party can be sent — which is what the coach and boat routes `Trans.txt`
-prices would need — is the natural reading; the join to `Trans.txt` is
-untested. `inferred`
+`OUT.EVT` stands apart in format: its records carry **no sequence byte** —
+`[size][id u16][opcode][args]` where every map script writes a sequence
+before the opcode. Read that way it is 89 events, no strings, and almost all
+of them are two-step stubs: a header carrying its own event id, then an
+enter with a one-byte argument of zero. Three records do more: event 1 also
+names a title, and events 89 and 266 are travels — `Sewer.blv` at
+(1086, -1786, 945), which is Free Haven Sewer, and `sub03bz.blv`, a file no
+archive ships. An earlier reading here — that the 89 events were a table of
+travel destinations — was wrong: two are. What the stubs are for is
+`unknown`. `observed` for the framing and contents; reproduce with
+`evt_info --out [stem]`.
+
+`GLOBAL.EVT`, by contrast, frames exactly like a map script and is dense
+with the conditional machinery — checks of quest items, gives of experience
+and gold, long messages. It reads as the shared quest-event bank; which
+events point into it is `unknown`.
 
 ### Opcode 7 opens a chest
 
@@ -359,8 +367,8 @@ using one prints its message.
   tested and fail: `2DEvents.txt` row ids (the values run past the table's
   557), and sound ids (19 of 89 nonzero values resolve, to monster attack
   noises — the dense id region, not a meaning). `unknown`
-- `OUT.EVT`'s own record framing, and whether its 89 destinations are what
-  `Trans.txt`'s routes point at. `unknown`
+- What `OUT.EVT`'s 87 stub events are for, and what points at them. `unknown`
+- Which events point into `GLOBAL.EVT`'s quest bank. `unknown`
 - Opcode 15's door numbers against the indoor maps' own door records, and
   what state 2 is where 0 and 1 read as shut and open. `unknown`
 - Opcode 11's embedded ASCII name, which reads like a sound effect. `unknown`
