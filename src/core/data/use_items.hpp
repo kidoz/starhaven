@@ -13,6 +13,7 @@
 // first modifier is `S47`-style, the spell it casts. See
 // docs/formats/text-tables.md.
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -33,6 +34,16 @@ struct MixResult {
     int item_id = 0;         // when a new potion
     int explosion_grade = 0;  // 1..4 when it blows up
 };
+
+// The explosions, as the sheet's own header writes them: `E1` is 10-20
+// fire damage; `E2` 30-100 and breaks the item; `E3` 50-250 and breaks
+// five; `E4` sets Eradicated and breaks everything. `observed`
+struct ExplosionGrade {
+    int low = 0;
+    int high = 0;  // zero on E4: it does not roll, it ends
+};
+inline constexpr std::array<ExplosionGrade, 4> kExplosionGrades{
+    {{10, 20}, {30, 100}, {50, 250}, {0, 0}}};
 
 // One usable item's row.
 struct UseItemEntry {

@@ -314,7 +314,9 @@ interoperability and compatibility with a legally purchased copy.
   item 163, exactly as written — and a full mixing matrix where 50 pairs
   combine and 390 explode in four written-out grades. **U** in a pack drinks
   the first thing the table knows, applies its cures and says its effect in
-  the table's words. Spell scrolls carry their spell as an S-number in
+  the table's words; **M** pours the first potion into the second, yielding
+  the matrix's own answer — a new potion, or the graded explosion's fire
+  damage on the mixer. Spell scrolls carry their spell as an S-number in
   `ITEMS.TXT`, and `Scroll.txt` is the message scrolls' full prose — the
   Sulman letter is readable data.
 - **Training halls that teach**: the ten `Training` rows carry their own

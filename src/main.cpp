@@ -85,6 +85,7 @@ void print_usage(const char* argv0) {
               << "  C          the character sheet; 1-4 choose a character\n"
               << "  I          the inventory; walk over a thing to pick it up\n"
               << "  U          in a pack: drink the first potion or herb\n"
+              << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
               << "  H          the first caster with the points casts First Aid\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
@@ -579,7 +580,7 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
     }
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
-                    "1-4 choose a character, E wear something, U drink, I closes", dim, shadow);
+                    "1-4 choose a character, E wear, U drink, M mix, I closes", dim, shadow);
 }
 
 // A bank's counter: the balance, and the sheet's own two verbs.
@@ -1390,6 +1391,9 @@ int main(int argc, char** argv) {
     std::string shop_said;
     std::set<int> opened_chests;  // a chest gives up its contents once
 
+    // A die for what is neither combat's nor a map's: potion explosions.
+    Mm6Random misc_random{0xA1C4E317u};
+
     // The event walker's memory: quest bits and event variables, which are
     // the party's rather than any map's, so they survive travelling.
     game::WalkState script_state;
@@ -1771,6 +1775,65 @@ int main(int argc, char** argv) {
                         }
                     }
                     break;
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M &&
+                       shown_pack >= 0) {
+                // Pour the first potion into the second, the way the mixing
+                // matrix answers: a new potion in the second's cell and an
+                // emptied bottle where the first stood, or the explosion the
+                // sheet grades — its own fire damage on the mixer, both
+                // bottles gone.
+                auto& who = party[static_cast<std::size_t>(shown_pack)];
+                auto& pack = packs[static_cast<std::size_t>(shown_pack)];
+                std::vector<game::PackedItem> known;
+                for (const auto& carried : pack.items()) {
+                    if (use_items.find(carried.item_id) != nullptr && known.size() < 2) {
+                        known.push_back(carried);
+                    }
+                }
+                if (known.size() < 2) {
+                    pick_up_message = "Mixing takes two things the alchemy knows";
+                    pick_up_shown = SDL_GetTicks();
+                } else {
+                    const data::MixResult mixed =
+                        use_items.mix(known[0].item_id, known[1].item_id);
+                    if (mixed.kind == data::MixKind::None) {
+                        pick_up_message = "They do not combine";
+                    } else if (mixed.kind == data::MixKind::Item) {
+                        const auto* source = use_items.find(known[0].item_id);
+                        pack.remove(known[0].x, known[0].y);
+                        if (source != nullptr && source->becomes_item > 0) {
+                            (void)pack.place(source->becomes_item, known[0].x, known[0].y,
+                                             known[0].width, known[0].height);
+                        }
+                        pack.remove(known[1].x, known[1].y);
+                        (void)pack.place(mixed.item_id, known[1].x, known[1].y, known[1].width,
+                                         known[1].height);
+                        const auto* result = use_items.find(mixed.item_id);
+                        pick_up_message =
+                            "You mix " +
+                            (result != nullptr ? data::cp1252_to_utf8(result->name)
+                                               : std::to_string(mixed.item_id));
+                    } else {
+                        pack.remove(known[0].x, known[0].y);
+                        pack.remove(known[1].x, known[1].y);
+                        const auto& grade = data::kExplosionGrades[static_cast<std::size_t>(
+                            std::clamp(mixed.explosion_grade, 1, 4) - 1)];
+                        if (grade.high > 0) {
+                            const int damage =
+                                grade.low +
+                                static_cast<int>(misc_random.next() %
+                                                 static_cast<unsigned>(grade.high - grade.low +
+                                                                       1));
+                            who.hit_points = std::max(0, who.hit_points - damage);
+                            pick_up_message = "The mixture explodes for " +
+                                              std::to_string(damage) + " fire damage";
+                        } else {
+                            who.hit_points = 0;
+                            pick_up_message = "The mixture eradicates " + who.name;
+                        }
+                    }
+                    pick_up_shown = SDL_GetTicks();
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_I) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
