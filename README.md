@@ -282,14 +282,16 @@ interoperability and compatibility with a legally purchased copy.
   on a map and the first character with room takes it. **I** opens a pack,
   drawn with the game's own item icons — all 229 of them resolve out of
   `icons.lod` — on a grid, with what each thing is and what it is worth.
-- **A paperdoll**: the pack screen stands the character's own doll beside the
-  grid — twelve uniform 112x298 bodies in `icons.lod`, lettered the way the
-  twelve portraits are — and draws what is worn at the `Equip X`/`Equip Y`
-  point `ITEMS.TXT` gives each item. The coordinates are screen positions,
-  and they are calibrated: a longsword lands grip-first in the doll's fist.
-  Body armor swaps the torso for a per-armor overlay set whose anchor is not
-  yet measured, so it waits. See `docs/formats/paperdoll.md`, and reproduce
-  the measurements with `doll_info`.
+- **A paperdoll, dressed**: the pack screen stands the character's own doll
+  beside the grid — twelve uniform 112x298 bodies in `icons.lod`, lettered
+  the way the twelve portraits are — and draws what is worn at the
+  `Equip X`/`Equip Y` point `ITEMS.TXT` gives each item. The items place the
+  body itself: every boot's art bottoms out at row 350 and the helms centre
+  on one column, which pins the doll at (504, 52) with the panel flush in
+  the corner. Body armor swaps the torso for its own overlay — chain drapes
+  the shoulders, plate reaches the boots — and a cloak's larger half hangs
+  behind the body. See `docs/formats/paperdoll.md`, and reproduce the
+  measurements with `doll_info`.
 - **A party, and the character sheet**: four characters with the game's own
   portraits — twelve faces of 53 frames each, found in `icons.lod` — named from
   `npcnames.txt`, classed from `Class.txt`, and laid out with the field names

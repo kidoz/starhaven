@@ -50,7 +50,8 @@ The join is the `ITEMS.TXT` picture column: `Chain Mail`'s picture is
 `chn1icon` and the overlays are `chn1bod`, `chn1arm1`, `chn1arm2`. Body
 armor's equip type is also the only doll-worn type whose `Equip X`/`Equip Y`
 are zero on every row — it does not need a position because it replaces the
-torso. `observed` for the names and sizes, `inferred` for the swap.
+torso. `observed` for the names and sizes, `inferred` for the swap. The
+engine draws the swap; where the overlay sits is measured below.
 
 ## Everything else is the item's own art at a recorded point
 
@@ -68,10 +69,47 @@ appears on the doll has them, and no item of any other type does: `observed`
 
 X runs 0..578 and Y 0..289 — wider than the 173-pixel `BACKDOLL`, so the
 coordinates are points on the 640x480 screen, not offsets within the panel.
-Confirmed by drawing: with the panel at (451, 60) and the body 30x28 inside
-it, a longsword drawn at its own coordinates lands grip-first in the doll's
-raised fist, and a boot on its leg. `observed` A helm drawn the same way sits
-about a panel-offset above the head, so helms anchor differently. `unknown`
+
+## The items place the body
+
+The coordinates pin the doll itself. All seven boots' art bottoms out at
+screen row **350**; the body is 298 tall, so its top is row 52. The thirteen
+helms centre on column **561**, so the body's left edge is column 504. And
+640 minus the panel's 173 is 467: with `BACKDOLL` flush in the top-right
+corner, the body at (504, 52) stands with its feet three pixels above the
+panel's bottom edge. `observed`
+
+Drawn there, everything lands: a longsword's grip in the raised fist, a helm
+on the head, a boot on the leg. An earlier calibration that put the panel at
+(451, 60) had the helm floating a panel-offset high; that was this project's
+error, not a second anchor scheme.
+
+## Where the arms sit
+
+The bare arm sprites are pixel-copies of body regions, so their anchors are
+measurable exactly — the offset with the least colour difference:
+
+| Arm | On | Offset |
+| --- | --- | --- |
+| `mlaarm1` | `mlabod` | +61, +85 |
+| `mlaarm2` | `mlabod` | +19, +121 |
+| `grlaarm1` | `grlabod` | +55, +71 |
+| `grlaarm2` | `grlabod` | +14, +120 |
+
+`observed` for the offsets. `arm2`'s region overlaps where a held weapon's
+grip lands, so it is the arm redrawn over the weapon; `arm1` covers the other
+side, where shields sit. `inferred` Plate's arm sprites share the body arms'
+canvas sizes, so they take the same anchors; chain's and leather's are
+cropped smaller and remain unmeasured.
+
+## Where the armor sits
+
+The torso overlays carry no coordinates anywhere, and their art is cropped
+to the pixel. Centred on the body with the top at the shoulder line —
+`kBodyTop + 60`, x centred against the body's 114 — fits both chain (89
+wide) and plate (120, wider than the body: its pauldrons hang over both
+shoulders and its greaves reach the boots). Calibrated by eye against the
+drawn doll. `inferred` The cloak's back layer at body −15, +60 the same way.
 
 ## A garment is one or two layers
 
@@ -84,14 +122,10 @@ for front/behind.
 
 ## Open questions
 
-- The drawing order of body, armor, arms, and each item type. `unknown`
-- Helms: their coordinates put them above the head where a weapon's put it in
-  the hand. A head-relative anchor, or another origin. `unknown`
+- The full drawing order; the engine's — cloak back, body, armor, items in
+  slot order — reads right but is its own. `unknown`
+- The arm sprites are not drawn yet: chain's and leather's anchors are
+  unmeasured, and drawing only the bare or plate arms would mix layers.
 - `BODY000`..`BODY011`: twelve more entries, 68x51 up to 126x82 — body-count
   many, but head-sized. `unknown`
-- Where the doll and its body sit on the 640x480 screen. `unknown`
-- What `arm1` against `arm2` is — two poses, or two arms. `unknown`
 - `LEFTHAND`, `backhand`, `FACEMASK`. `unknown`
-- Where the `b` twin of an `a` garment is anchored: the pair shares one
-  `Equip X`/`Equip Y`, and the cloak's back layer is far larger than the
-  front. `unknown`

@@ -462,16 +462,54 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
     // The paperdoll: the panel, then the body whose letter is the face's —
     // the twelve dolls and the twelve portraits share their eight-male,
     // four-female lettering. An item's Equip X/Y is a point on the 640x480
-    // screen; the panel's own place and the body's on it are this engine's
-    // calibration. Body armor swaps the torso for an overlay set whose anchor
-    // is not yet measured, so it is not drawn. See docs/formats/paperdoll.md.
-    constexpr int kDollLeft = kWidth - 173 - 16;
-    constexpr int kDollTop = 60;
+    // screen, and the items themselves place the body: all seven boots'
+    // art bottoms out at screen row 350, the body is 298 tall, and the helms
+    // centre on column 561 — so the body stands at (504, 52), its feet on
+    // the panel's bottom edge with the panel flush in the corner. `observed`
+    // — see docs/formats/paperdoll.md.
+    constexpr int kDollLeft = kWidth - 173;
+    constexpr int kDollTop = 0;
+    constexpr int kBodyLeft = 504;
+    constexpr int kBodyTop = 52;
     blit(scene.framebuffer(), cache.icon("BACKDOLL"), kDollLeft, kDollTop);
+
+    // What is worn, by its equip type: a cloak's larger half hangs behind
+    // the body, body armor swaps the torso for its own overlay, and
+    // everything else is the item's art at its recorded point.
+    const auto worn = [&](data::ItemEquipType type) -> const data::ItemStatsEntry* {
+        for (const int id : who.equipped) {
+            if (id <= 0) {
+                continue;
+            }
+            const auto* row = items.at(static_cast<std::size_t>(id));
+            if (row != nullptr && row->equip_type == type) {
+                return row;
+            }
+        }
+        return nullptr;
+    };
+    if (const auto* cloak = worn(data::ItemEquipType::Cloak);
+        cloak != nullptr && !cloak->picture.empty() && cloak->picture.back() == 'a') {
+        std::string back = cloak->picture;
+        back.back() = 'b';
+        blit(scene.framebuffer(), cache.icon(back), kBodyLeft - 15, kBodyTop + 60);
+    }
+
     const bool female = game::face_is_female(who.face);
     std::string body = female ? "grl" : "ml";
     body += static_cast<char>('a' + who.face - (female ? game::kMaleFaceCount : 0));
-    blit(scene.framebuffer(), cache.icon(body + "bod"), kDollLeft + 30, kDollTop + 28);
+    blit(scene.framebuffer(), cache.icon(body + "bod"), kBodyLeft, kBodyTop);
+
+    if (const auto* armor = worn(data::ItemEquipType::Armor);
+        armor != nullptr && armor->picture.size() > 4) {
+        // "chn1icon" wears as "chn1bod", centred on the body with its top at
+        // the shoulder line. The rule is calibrated by eye. `inferred`
+        const std::string stem = armor->picture.substr(0, armor->picture.size() - 4);
+        const render::Texture& torso = cache.icon(stem + "bod");
+        blit(scene.framebuffer(), torso,
+             kBodyLeft + (114 - static_cast<int>(torso.width())) / 2, kBodyTop + 60);
+    }
+
     for (const int id : who.equipped) {
         if (id <= 0) {
             continue;

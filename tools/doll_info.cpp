@@ -132,6 +132,114 @@ int main(int argc, char** argv) {
                   << p.max_x << "\t" << p.min_y << ".." << p.max_y << "\n";
     }
 
+    // The opaque-pixel boxes: where the art actually is inside its canvas.
+    // The doll bodies share one canvas, so an overlay's anchor is the offset
+    // that puts its shoulders on the body's.
+    const auto opaque_box = [&icons](const std::string& name) -> std::string {
+        std::span<const std::byte> raw;
+        image::Bitmap bitmap;
+        if (icons.payload(name, raw) != lod::LodArchive::PayloadError::None ||
+            image::decode_bitmap(raw, bitmap) != image::BitmapError::None) {
+            return "?";
+        }
+        int min_x = bitmap.width, max_x = -1, min_y = bitmap.height, max_y = -1;
+        for (int y = 0; y < bitmap.height; ++y) {
+            for (int x = 0; x < bitmap.width; ++x) {
+                const std::size_t i =
+                    (static_cast<std::size_t>(y) * bitmap.width + static_cast<std::size_t>(x)) * 4;
+                if (bitmap.rgba[i + 3] == 0) {
+                    continue;
+                }
+                min_x = std::min(min_x, x);
+                max_x = std::max(max_x, x);
+                min_y = std::min(min_y, y);
+                max_y = std::max(max_y, y);
+            }
+        }
+        if (max_x < 0) {
+            return "empty";
+        }
+        return std::to_string(min_x) + "," + std::to_string(min_y) + ".." + std::to_string(max_x) +
+               "," + std::to_string(max_y);
+    };
+    std::cout << "opaque boxes:\n";
+    for (const char* name : {"mlabod", "grlabod", "lr1bod", "chn1bod", "pl1bod", "mlaarm1",
+                             "mlaarm2", "lr1arm1", "helm1", "lsword1", "boots1"}) {
+        std::cout << "  " << name << "\t" << size_of(name) << "\topaque " << opaque_box(name)
+                  << "\n";
+    }
+    // Every doll-drawn item: its point, its art size, and where the art's
+    // bottom lands — the boots' bottoms all pin the body's feet.
+    std::cout << "equip points (type, picture, x,y, art, bottom):\n";
+    for (const auto& item : items.entries()) {
+        if (item.name.empty() || (item.equip_x == 0 && item.equip_y == 0)) {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        image::Bitmap bitmap;
+        if (icons.payload(item.picture, raw) != lod::LodArchive::PayloadError::None ||
+            image::decode_bitmap(raw, bitmap) != image::BitmapError::None) {
+            continue;
+        }
+        std::cout << "  " << static_cast<int>(item.equip_type) << "\t" << item.picture << "\t"
+                  << item.equip_x << "," << item.equip_y << "\t" << bitmap.width << "x"
+                  << bitmap.height << "\t" << item.equip_y + bitmap.height << "\n";
+    }
+
+    // Where an arm sprite sits on its body: the bare arm is a pixel-copy of
+    // a body region, so the offset with the least colour difference over the
+    // overlap is its anchor.
+    const auto decode = [&icons](const std::string& name, image::Bitmap& bitmap) {
+        std::span<const std::byte> raw;
+        return icons.payload(name, raw) == lod::LodArchive::PayloadError::None &&
+               image::decode_bitmap(raw, bitmap) == image::BitmapError::None;
+    };
+    const auto pixel = [](const image::Bitmap& b, int x, int y) {
+        return &b.rgba[(static_cast<std::size_t>(y) * b.width + static_cast<std::size_t>(x)) * 4];
+    };
+    std::cout << "arm anchors on their own body (best pixel match):\n";
+    for (const auto& [body, arm] : std::vector<std::pair<std::string, std::string>>{
+             {"mlabod", "mlaarm1"},
+             {"mlabod", "mlaarm2"},
+             {"grlabod", "grlaarm1"},
+             {"grlabod", "grlaarm2"}}) {
+        image::Bitmap whole;
+        image::Bitmap part;
+        if (!decode(body, whole) || !decode(arm, part)) {
+            continue;
+        }
+        long best = -1;
+        int best_x = 0, best_y = 0;
+        for (int dy = 0; dy + part.height <= whole.height; ++dy) {
+            for (int dx = 0; dx + part.width <= whole.width; ++dx) {
+                long total = 0;
+                long overlap = 0;
+                for (int y = 0; y < part.height; ++y) {
+                    for (int x = 0; x < part.width; ++x) {
+                        const auto* p = pixel(part, x, y);
+                        if (p[3] == 0) {
+                            continue;
+                        }
+                        const auto* w = pixel(whole, dx + x, dy + y);
+                        if (w[3] == 0) {
+                            total += 3 * 255;  // opaque arm over bare backdrop
+                            continue;
+                        }
+                        ++overlap;
+                        total += std::abs(int(p[0]) - int(w[0])) + std::abs(int(p[1]) - int(w[1])) +
+                                 std::abs(int(p[2]) - int(w[2]));
+                    }
+                }
+                if (overlap > 0 && (best < 0 || total < best)) {
+                    best = total;
+                    best_x = dx;
+                    best_y = dy;
+                }
+            }
+        }
+        std::cout << "  " << arm << " on " << body << " at +" << best_x << ",+" << best_y << "\n";
+    }
+
     // Worn art that ships as an a/b pair: the item's own picture ends in `a`
     // and the archive holds a `b` twin — one garment, two doll layers.
     std::size_t pairs = 0;
