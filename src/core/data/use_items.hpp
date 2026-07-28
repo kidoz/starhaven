@@ -64,6 +64,10 @@ struct UseItemEntry {
     std::string buff;
     int buff_hours = 0;
 
+    // "Set Poison1 condition" and "Cure poison1,2,3" / "Cure all Conditions".
+    int sets_poison = 0;
+    bool cures_poison = false;
+
     bool removed_when_used = false;  // "remove Item"
     int becomes_item = 0;            // "Change Item to N", or 0
 

@@ -501,6 +501,28 @@ private:
             target.hit_points -= damage;
             std::string what =
                 monster.name + " hits " + target.name + " for " + std::to_string(damage);
+            // The row's own on-hit word: a poison at its written level, or a
+            // knockout. That it lands one time in five is this engine's.
+            // `inferred`
+            if (damage > 0 && !monster.bonus.empty() && random_.next() % 5 == 0) {
+                const std::string_view bonus = monster.bonus;
+                if (bonus.substr(0, 6) == "Poison" || bonus.substr(0, 4) == "Pois") {
+                    int level = 1;
+                    for (const char c : bonus) {
+                        if (c >= '1' && c <= '3') {
+                            level = c - '0';
+                            break;
+                        }
+                    }
+                    if (level > target.poisoned) {
+                        target.poisoned = level;
+                        what += ", poisoning them";
+                    }
+                } else if (bonus == "Uncon") {
+                    target.hit_points = 0;
+                    what += ", knocking them out";
+                }
+            }
             if (target.hit_points <= 0) {
                 target.hit_points = 0;
                 what += " and drops them";

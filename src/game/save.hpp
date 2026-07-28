@@ -111,6 +111,7 @@ struct SaveState {
         for (const int bonus : who.temp_resistances) {
             out << "\t" << bonus;
         }
+        out << "\t" << who.poisoned;  // appended last so older saves still read
         out << "\n";
         for (const auto& item : state.packs[i]) {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
@@ -230,6 +231,7 @@ struct SaveState {
             for (auto& bonus : who.temp_resistances) {
                 bonus = next_int();
             }
+            who.poisoned = next_int();
         } else if (kind == "attributes" || kind == "resistances" || kind == "equipped") {
             const auto i = static_cast<std::size_t>(next_int());
             if (i >= out.party.size()) {

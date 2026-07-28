@@ -159,6 +159,10 @@ struct Character {
     // The spells this character has learned from books, as Spells.txt ids.
     std::set<int> known_spells;
 
+    // Poisoned, at the level the tables name (Poison1..3); zero is well.
+    // What poison does over time is this engine's and marked where it ticks.
+    int poisoned = 0;
+
     std::array<int, kAttributeCount> temp_attributes{};
     std::array<int, data::kResistanceCount> temp_resistances{};
     int temp_armor = 0;

@@ -280,6 +280,13 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Poison, and being knocked out**: the first conditions. The monster
+  table's on-hit column names them — `Poison1x5`, `Uncon` — and the herbs
+  and potions write both ends: Poppysnaps "Set Poison1 condition", Cure
+  Poison and Restoration cure it. A poisoned character loses their poison's
+  level in hit points each game hour, down to the last point but not through
+  it, and the party strip says so. The levels and cures are the tables'; the
+  hourly rate and the one-in-five on-hit chance are this engine's.
 - **Buff scrolls with the sheet's own hours**: the four conditions the
   potions set exist as spells too, and their rank cells write the duration —
   "Duration 1 hour + 5 minutes per point of skill" — in phrasing the parser

@@ -42,6 +42,7 @@ SaveState full_state() {
     who.temp_armor = 20;
     who.haste_until = 360;
     who.known_spells = {4, 68};
+    who.poisoned = 2;
     state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
     return state;
 }
@@ -80,6 +81,7 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(who.temp_armor == 20);
     REQUIRE(who.haste_until == 360);
     REQUIRE(who.known_spells == std::set<int>{4, 68});
+    REQUIRE(who.poisoned == 2);
 
     REQUIRE(after.packs[0].size() == 2);
     REQUIRE(after.packs[0][0].item_id == 505);

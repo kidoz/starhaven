@@ -30,7 +30,15 @@ void parse_effects(UseItemEntry& entry) {
             entry.cure_hit_points = amount;
         } else if (amount > 0 && text.find("Spell point") != std::string_view::npos) {
             entry.cure_spell_points = amount;
+        } else if (text.find("poison") != std::string_view::npos ||
+                   text.find("all Conditions") != std::string_view::npos) {
+            entry.cures_poison = true;
         }
+        return;
+    }
+    if (text.find("Poison") != std::string_view::npos &&
+        text.find("condition") != std::string_view::npos) {
+        entry.sets_poison = number_after(text, "Poison");
         return;
     }
     if (text.find("Stats to ") != std::string_view::npos) {

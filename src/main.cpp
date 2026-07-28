@@ -421,6 +421,8 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
                            std::to_string(who.max_hit_points);
         if (who.hit_points <= 0) {
             text += "  down";
+        } else if (who.poisoned > 0) {
+            text += "  poisoned";
         } else if (who.max_spell_points > 0) {
             text += "  sp " + std::to_string(who.spell_points) + "/" +
                     std::to_string(who.max_spell_points);
@@ -1391,6 +1393,8 @@ int main(int argc, char** argv) {
     std::string shop_said;
     std::set<int> opened_chests;  // a chest gives up its contents once
 
+    std::int64_t last_poison_hour = 0;  // when poison last gnawed
+
     // A die for what is neither combat's nor a map's: potion explosions.
     Mm6Random misc_random{0xA1C4E317u};
 
@@ -1801,6 +1805,12 @@ int main(int argc, char** argv) {
                         for (auto& bonus : who.temp_resistances) {
                             bonus = std::max(bonus, use->temp_resistances);
                         }
+                    }
+                    if (use->sets_poison > 0) {
+                        who.poisoned = std::max(who.poisoned, use->sets_poison);
+                    }
+                    if (use->cures_poison) {
+                        who.poisoned = 0;
                     }
                     if (use->buff_hours > 0) {
                         const std::int64_t until =
@@ -2324,6 +2334,19 @@ int main(int argc, char** argv) {
         if (!found_text.empty()) {
             pick_up_message = "You find " + found_text;
             pick_up_shown = SDL_GetTicks();
+        }
+
+        // Poison gnaws by the hour: its level in hit points, down to the
+        // floor but not through it — the last point stands until a cure or
+        // the wound that finishes it. The rate is this engine's; the levels
+        // are the tables'. `inferred`
+        if (clock.minutes() / 60 > last_poison_hour) {
+            last_poison_hour = clock.minutes() / 60;
+            for (auto& member : party) {
+                if (member.poisoned > 0 && member.hit_points > 1) {
+                    member.hit_points = std::max(1, member.hit_points - member.poisoned);
+                }
+            }
         }
 
         // The map refills on its own interval, whether the party slept
