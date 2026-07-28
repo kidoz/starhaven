@@ -15,6 +15,7 @@
 #include "core/world/blv_map.hpp"
 #include "core/world/collision.hpp"
 #include "core/world/decoration_table.hpp"
+#include "core/world/map_script.hpp"
 #include "core/world/monster_list.hpp"
 #include "core/world/object_table.hpp"
 #include "core/world/odm_map.hpp"
@@ -117,6 +118,11 @@ struct MapSession {
 
     // The global tables the placed things resolve through.
     SpriteFrameTable sprite_frames;
+
+    // The map's own event script and the strings it prints. Both live in
+    // icons.lod beside the design tables; see docs/formats/map-events.md.
+    MapScript script;
+    MapStrings script_strings;
     SoundTable sounds;
     ObjectTable object_descriptors;
     DecorationTable decoration_types;

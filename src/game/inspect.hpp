@@ -146,6 +146,87 @@ inline Inspected describe(const world::SessionDecoration& d, const world::Decora
     return out;
 }
 
+// Which face with an event on it the party is looking at, and how far away it
+// is. Only faces carrying an event id are considered — a few dozen per map —
+// so this walks them rather than the level's thousands.
+struct AimedFace {
+    std::size_t index = 0;
+    std::uint16_t event_id = 0;
+    float distance = 0.0f;
+
+    [[nodiscard]] bool found() const noexcept { return event_id != 0; }
+};
+
+// How far the party can read a sign or reach a door. `inferred`
+inline constexpr float kUseRange = 512.0f;
+
+[[nodiscard]] inline AimedFace aimed_face(const world::MapSession& session, const render::Vec3& eye,
+                                          const render::Vec3& forward, float range = kUseRange) {
+    AimedFace out;
+    if (!session.indoor()) {
+        return out;  // the outdoor equivalent is not located yet
+    }
+    float nearest = range;
+    for (const auto& extra : session.blv.face_extras) {
+        if (extra.event_id == 0 || extra.face_index >= session.blv.faces.size()) {
+            continue;
+        }
+        const auto& face = session.blv.faces[extra.face_index];
+        if (face.vertex_ids.empty()) {
+            continue;
+        }
+        // The face's own centre is enough: a door is small and the party has
+        // to be within arm's reach of it anyway.
+        render::Vec3 centre{0, 0, 0};
+        for (const std::uint16_t v : face.vertex_ids) {
+            if (v >= session.blv.vertices.size()) {
+                centre = {0, 0, 0};
+                break;
+            }
+            const auto& p = session.blv.vertices[v];
+            const render::Vec3 at = world::to_render_space(p.x, p.y, p.z);
+            centre.x += at.x;
+            centre.y += at.y;
+            centre.z += at.z;
+        }
+        const auto count = static_cast<float>(face.vertex_ids.size());
+        centre = {centre.x / count, centre.y / count, centre.z / count};
+
+        float distance = 0.0f;
+        const float aim = detail::aim_score(eye, forward, centre, distance);
+        if (aim < kInspectAim || distance > nearest) {
+            continue;
+        }
+        nearest = distance;
+        out.index = extra.face_index;
+        out.event_id = extra.event_id;
+        out.distance = distance;
+    }
+    return out;
+}
+
+// What a face with an event on it calls itself, from its script.
+[[nodiscard]] inline std::string face_name(const world::MapSession& session,
+                                           std::uint16_t event_id) {
+    const int index = session.script.string_of(event_id, world::kOpcodeName);
+    return index < 0 ? std::string{}
+                     : data::cp1252_to_utf8(
+                           std::string(session.script_strings.at(static_cast<std::size_t>(index))));
+}
+
+// And what it says when the party uses it.
+[[nodiscard]] inline std::string face_message(const world::MapSession& session,
+                                              std::uint16_t event_id) {
+    for (const std::uint8_t opcode : {world::kOpcodeMessage, world::kOpcodeLongMessage}) {
+        const int index = session.script.string_of(event_id, opcode);
+        if (index >= 0) {
+            return data::cp1252_to_utf8(
+                std::string(session.script_strings.at(static_cast<std::size_t>(index))));
+        }
+    }
+    return {};
+}
+
 // What the player is looking at on this map, or nothing. Ties are broken by
 // how directly the thing is being looked at, not by distance, so a monster
 // behind a nearer one can still be picked by aiming past it.

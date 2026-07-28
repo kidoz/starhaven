@@ -173,6 +173,9 @@ interoperability and compatibility with a legally purchased copy.
   are looking at (`"Door"`, `"Sign"`, `"Chest"`). Each was identified by its
   argument never leaving its map's own string count *and* using that range,
   then confirmed by what the strings say. The other 87 are still unknown.
+  The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
+  206 name themselves under the crosshair and 1,567 say something when the
+  party uses them.
 - The indoor **sector table** identified: the region in front of the
   decorations opens with a room count and continues as count-and-pointer pairs
   over arrays of face indices. The pointers are stale and cannot be followed,

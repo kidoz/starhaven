@@ -280,3 +280,95 @@ TEST_CASE("an indoor map has no tile index and keeps its decorations to itself",
     session.kind = world::MapKind::Indoor;
     REQUIRE(session.decorations_near(0.0f, -1000.0f).empty());
 }
+
+namespace {
+
+// A session with one face carrying an event, and a script that names it and
+// gives it something to say.
+world::MapSession spoken_door() {
+    world::MapSession s;
+    s.kind = world::MapKind::Indoor;
+    s.blv.vertices = {{-100, 0, 0}, {100, 0, 0}, {100, 200, 0}, {-100, 200, 0}};
+    world::BlvFace face;
+    face.vertex_ids = {0, 1, 2, 3};
+    s.blv.faces.push_back(face);
+    world::BlvFaceExtra extra;
+    extra.face_index = 0;
+    extra.event_id = 7;
+    s.blv.face_extras.push_back(extra);
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("the party can aim at a face that carries an event", "[inspect]") {
+    const auto session = spoken_door();
+    // The face's centre is at render (0, 0, 100): the vertices' y is the
+    // renderer's z.
+    const auto aimed = game::aimed_face(session, {0, 0, 400}, {0, 0, -1});
+    REQUIRE(aimed.found());
+    REQUIRE(aimed.event_id == 7);
+    REQUIRE(aimed.index == 0);
+}
+
+TEST_CASE("a face out of reach or behind you is not aimed at", "[inspect]") {
+    const auto session = spoken_door();
+    REQUIRE_FALSE(game::aimed_face(session, {0, 0, 400}, {0, 0, 1}).found());
+    REQUIRE_FALSE(game::aimed_face(session, {0, 0, 4000}, {0, 0, -1}).found());
+    REQUIRE_FALSE(game::aimed_face(session, {0, 0, 400}, {1, 0, 0}).found());
+}
+
+TEST_CASE("an outdoor map has no face events to aim at", "[inspect]") {
+    // Only the indoor face carries an event id; the outdoor equivalent is not
+    // located. See docs/formats/map-events.md.
+    auto session = spoken_door();
+    session.kind = world::MapKind::Outdoor;
+    REQUIRE_FALSE(game::aimed_face(session, {0, 0, 400}, {0, 0, -1}).found());
+}
+
+namespace {
+
+// The 48-byte container the archive wraps a script in, with a zero unpacked
+// size so the bytes are read as they are.
+std::vector<std::byte> wrap_script(const std::vector<std::uint8_t>& payload) {
+    std::vector<std::byte> out(48, std::byte{0});
+    for (const std::uint8_t b : payload) {
+        out.push_back(static_cast<std::byte>(b));
+    }
+    return out;
+}
+
+void push_step(std::vector<std::uint8_t>& p, std::uint16_t id, std::uint8_t sequence,
+               std::uint8_t opcode, const std::vector<std::uint8_t>& args) {
+    p.push_back(static_cast<std::uint8_t>(4 + args.size()));
+    p.push_back(static_cast<std::uint8_t>(id & 0xFF));
+    p.push_back(static_cast<std::uint8_t>(id >> 8));
+    p.push_back(sequence);
+    p.push_back(opcode);
+    for (const std::uint8_t a : args) {
+        p.push_back(a);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("a face says what its script says", "[inspect]") {
+    auto session = spoken_door();
+
+    std::vector<std::uint8_t> code;
+    push_step(code, 7, 0, world::kOpcodeName, {1});
+    push_step(code, 7, 1, world::kOpcodeMessage, {2, 0, 0, 0});
+    REQUIRE(world::MapScript::parse(wrap_script(code), session.script) ==
+            world::MapScriptError::None);
+
+    const std::vector<std::uint8_t> text{' ', 0,   'D', 'o', 'o', 'r', 0,   'I', 't', ' ', 'i',
+                                         's', ' ', 'l', 'o', 'c', 'k', 'e', 'd', '.', 0};
+    REQUIRE(world::MapStrings::parse(wrap_script(text), session.script_strings) ==
+            world::MapScriptError::None);
+
+    REQUIRE(game::face_name(session, 7) == "Door");
+    REQUIRE(game::face_message(session, 7) == "It is locked.");
+    // An event the script does not define says nothing rather than crashing.
+    REQUIRE(game::face_name(session, 99).empty());
+    REQUIRE(game::face_message(session, 99).empty());
+}

@@ -1221,6 +1221,17 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
 
+        // Doors, signs and switches: what the party is looking at, and what it
+        // says when used. See docs/formats/map-events.md.
+        const game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
+        if (want_strike && aimed.found()) {
+            if (std::string said = game::face_message(session, aimed.event_id); !said.empty()) {
+                pick_up_message = std::move(said);
+                pick_up_shown = SDL_GetTicks();
+                want_strike = false;  // using a door is not swinging at it
+            }
+        }
+
         // A blow lands on whatever the party is aiming at, in reach, alive.
         if (want_strike && party_recovery <= 0.0f) {
             const render::Vec3 forward = camera.forward();
@@ -1293,6 +1304,16 @@ int main(int argc, char** argv) {
             return scene.framebuffer().depth_at(static_cast<int>(p.x), static_cast<int>(p.y)) >=
                    p.z - 0.0005f;
         };
+        // A face with a script on it names itself, which the inspect panel
+        // shows the same way it names a monster.
+        if (aimed.found() && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+            if (const std::string named = game::face_name(session, aimed.event_id);
+                !named.empty()) {
+                game::draw_text(scene.framebuffer(), font, kWidth / 2 - font.text_width(named) / 2,
+                                kHeight / 2 + 16, named, render::Color{225, 220, 190, 255},
+                                render::Color{0, 0, 0, 255});
+            }
+        }
         draw_panel(scene, font,
                    game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,
                                  camera.forward(), visible));

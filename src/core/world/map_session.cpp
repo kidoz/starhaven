@@ -64,6 +64,25 @@ void load_tables(const std::filesystem::path& data_dir, MapSession& out) {
     load("DMONLIST.BIN", out.monsters, MonsterList::parse);
 }
 
+// A map's script and strings, which are named after the map rather than fixed.
+void load_script(const std::filesystem::path& data_dir, const std::string& stem, MapSession& out) {
+    lod::LodArchive icons;
+    if (lod::LodArchive::open(data_dir / "icons.lod", icons) != lod::LodError::None) {
+        return;
+    }
+    std::span<const std::byte> raw;
+    if (icons.payload(stem + ".EVT", raw) == lod::LodArchive::PayloadError::None) {
+        if (MapScript::parse(raw, out.script) != MapScriptError::None) {
+            out.script = MapScript{};
+        }
+    }
+    if (icons.payload(stem + ".STR", raw) == lod::LodArchive::PayloadError::None) {
+        if (MapStrings::parse(raw, out.script_strings) != MapScriptError::None) {
+            out.script_strings = MapStrings{};
+        }
+    }
+}
+
 // Ground textures for the tile indices this map actually uses, resolved
 // through DTILE.BIN (see docs/formats/dtile.md).
 int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& terrain,
@@ -545,6 +564,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
         return e;
     }
 
+    load_script(data_dir, stem_of(out.file_name), out);
     load_placed_things(archive, data_dir, out.file_name, cache, out);
 
     // An outdoor map's event file holds the actors the designers placed —

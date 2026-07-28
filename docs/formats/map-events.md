@@ -108,6 +108,17 @@ every map examined. `observed` `D01.STR` reads: `"Exit Door"`, `"Chest"`,
 `"Switch"`, `"Empty"`, `"Door"`, then single letters; `OutE3.STR` names
 buildings and speaks: `"Welcome to New Sorpigal"`, `"Refreshing!"`.
 
+## What that buys, measured
+
+Across the 52 indoor maps, **5,560 faces carry an event id**. Of those, 206
+name themselves through opcode 35 and **1,567 say something** through opcode 29
+or 30 when used. `observed` So the name is the rare case and the message the
+common one: a door mostly has nothing to call itself and plenty to say when you
+try it.
+
+The engine reads both. A face with a name shows it under the crosshair, and
+using one prints its message.
+
 ## Open questions
 
 - Every opcode. `unknown`
