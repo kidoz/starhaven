@@ -264,6 +264,7 @@ namespace {
 // Field offsets within a 308-byte facet record (docs/formats/odm-model-facets.md).
 constexpr std::uint32_t kFacetPlaneOff = 0x00;         // 4 x i32, 16.16 fixed point
 constexpr std::uint32_t kFacetAttributesOff = 0x1C;    // u32 bit flags
+constexpr std::uint32_t kFacetEventOff = 0x124;        // u16 event id
 constexpr std::uint32_t kFacetVertexIdsOff = 0x20;     // u16[20]
 constexpr std::uint32_t kFacetUOff = 0x48;             // i16[20]
 constexpr std::uint32_t kFacetVOff = 0x70;             // i16[20]
@@ -379,6 +380,11 @@ OdmError extract_model_meshes(const OdmMap& map, std::vector<OdmModelMesh>& out)
                 return OdmError::HeaderTooSmall;
             }
             f.attributes = r.read_u32_le();
+
+            if (!r.seek(static_cast<std::size_t>(base + kFacetEventOff))) {
+                return OdmError::HeaderTooSmall;
+            }
+            f.event_id = r.read_u16_le();
 
             if (!r.seek(static_cast<std::size_t>(base + kFacetVertexCountOff))) {
                 return OdmError::HeaderTooSmall;

@@ -163,10 +163,43 @@ inline constexpr float kUseRange = 512.0f;
 [[nodiscard]] inline AimedFace aimed_face(const world::MapSession& session, const render::Vec3& eye,
                                           const render::Vec3& forward, float range = kUseRange) {
     AimedFace out;
-    if (!session.indoor()) {
-        return out;  // the outdoor equivalent is not located yet
-    }
     float nearest = range;
+
+    // Outdoors the event sits on a model's facet rather than a level face.
+    if (session.outdoor()) {
+        for (const auto& mesh : session.meshes) {
+            for (const auto& facet : mesh.facets) {
+                if (facet.event_id == 0 || facet.vertex_count < 3) {
+                    continue;
+                }
+                render::Vec3 centre{0, 0, 0};
+                for (std::size_t k = 0; k < facet.vertex_count; ++k) {
+                    const auto id = facet.vertex_ids[k];
+                    if (id >= mesh.vertices.size()) {
+                        centre = {0, 0, 0};
+                        break;
+                    }
+                    const auto& p = mesh.vertices[id];
+                    const render::Vec3 at = world::to_render_space(p.x, p.y, p.z);
+                    centre.x += at.x;
+                    centre.y += at.y;
+                    centre.z += at.z;
+                }
+                const auto count = static_cast<float>(facet.vertex_count);
+                centre = {centre.x / count, centre.y / count, centre.z / count};
+
+                float distance = 0.0f;
+                const float aim = detail::aim_score(eye, forward, centre, distance);
+                if (aim < kInspectAim || distance > nearest) {
+                    continue;
+                }
+                nearest = distance;
+                out.event_id = facet.event_id;
+                out.distance = distance;
+            }
+        }
+        return out;
+    }
     for (const auto& extra : session.blv.face_extras) {
         if (extra.event_id == 0 || extra.face_index >= session.blv.faces.size()) {
             continue;

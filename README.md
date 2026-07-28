@@ -175,7 +175,8 @@ interoperability and compatibility with a legally purchased copy.
   then confirmed by what the strings say. The other 87 are still unknown.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
-  party uses them.
+  party uses them. Outdoors the same trigger sits at +0x124 of a model facet —
+  1,718 of 1,719 resolve — so New Sorpigal's fountains and doors answer too.
 - The indoor **sector table** identified: the region in front of the
   decorations opens with a room count and continues as count-and-pointer pairs
   over arrays of face indices. The pointers are stale and cannot be followed,

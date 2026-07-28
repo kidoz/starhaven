@@ -108,11 +108,24 @@ every map examined. `observed` `D01.STR` reads: `"Exit Door"`, `"Chest"`,
 `"Switch"`, `"Empty"`, `"Door"`, then single letters; `OutE3.STR` names
 buildings and speaks: `"Welcome to New Sorpigal"`, `"Refreshing!"`.
 
+## Outdoors, a model facet names one
+
+The `.odm` payload is accounted for byte for byte, so the outdoor trigger had
+to be inside a record already decoded but not fully read. It is: **+0x124** of
+the 308-byte model facet, as a `u16`. **1,718 of the 1,719** non-zero values
+across the fifteen outdoor maps name an event that map's own script defines.
+`observed`
+
+New Sorpigal's `FountainW` model carries event 150, whose message is
+`"+10 Might temporary."` — a fountain you drink from, which is what the model
+is called.
+
 ## What that buys, measured
 
 Across the 52 indoor maps, **5,560 faces carry an event id**. Of those, 206
 name themselves through opcode 35 and **1,567 say something** through opcode 29
-or 30 when used. `observed` So the name is the rare case and the message the
+or 30 when used. Outdoors, **1,758 facets** carry one across the fifteen maps,
+73 naming themselves and 415 speaking. `observed` So the name is the rare case and the message the
 common one: a door mostly has nothing to call itself and plenty to say when you
 try it.
 
@@ -123,6 +136,4 @@ using one prints its message.
 
 - Every opcode. `unknown`
 - Which argument, if any, indexes the string table. `unknown`
-- How an outdoor map's buildings name their events — the indoor case is the
-  face field above, and the outdoor equivalent is not yet located. `unknown`
 - The 33 face event ids with no matching event. `unknown`

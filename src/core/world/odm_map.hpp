@@ -149,7 +149,14 @@ struct OdmModelFacet {
     std::int32_t normal_x = 0, normal_y = 0, normal_z = 0;
     std::int32_t plane_distance = 0;
 
-    std::uint32_t attributes = 0;   // bit flags; see the spec (partly unknown)
+    std::uint32_t attributes = 0;  // bit flags; see the spec (partly unknown)
+
+    // The event this facet runs when the party walks into it: a door, a
+    // fountain, a sign. 1,718 of the 1,719 non-zero values across the fifteen
+    // outdoor maps name an event that map's own `.EVT` script defines — the
+    // outdoor counterpart of the indoor face's event id. See
+    // docs/formats/map-events.md.
+    std::uint16_t event_id = 0;
     std::uint8_t vertex_count = 0;  // the polygon's size; indexes the arrays below
 
     // The plane this facet is projected onto for two-dimensional work. Indoor

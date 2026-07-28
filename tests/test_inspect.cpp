@@ -372,3 +372,25 @@ TEST_CASE("a face says what its script says", "[inspect]") {
     REQUIRE(game::face_name(session, 99).empty());
     REQUIRE(game::face_message(session, 99).empty());
 }
+
+TEST_CASE("outdoors the event sits on a model facet", "[inspect]") {
+    // The outdoor counterpart of the indoor face's event id, at +0x124 of the
+    // 308-byte facet record. See docs/formats/map-events.md.
+    world::MapSession session;
+    session.kind = world::MapKind::Outdoor;
+    world::OdmModelMesh mesh;
+    mesh.vertices = {{-100, 0, 0}, {100, 0, 0}, {100, 0, 200}, {-100, 0, 200}};
+    world::OdmModelFacet facet;
+    facet.vertex_count = 4;
+    facet.vertex_ids = {0, 1, 2, 3};
+    facet.event_id = 150;
+    mesh.facets.push_back(facet);
+    session.meshes.push_back(mesh);
+
+    // The vertices' y is the renderer's z, so the facet's centre is at
+    // render (0, 100, 0).
+    const auto aimed = game::aimed_face(session, {0, 100, 400}, {0, 0, -1});
+    REQUIRE(aimed.found());
+    REQUIRE(aimed.event_id == 150);
+    REQUIRE_FALSE(game::aimed_face(session, {0, 100, 400}, {0, 0, 1}).found());
+}
