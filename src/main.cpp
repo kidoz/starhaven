@@ -84,10 +84,10 @@ void print_usage(const char* argv0) {
               << "  Tab        list the establishments on this map\n"
               << "  C          the character sheet; 1-4 choose a character\n"
               << "  I          the inventory; walk over a thing to pick it up\n"
-              << "  U          in a pack: drink the first potion or herb\n"
+              << "  U          in a pack: drink a potion, or learn from a book\n"
               << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
-              << "  H          the first caster with the points casts First Aid\n"
+              << "  H          cast a known spell: heal the wounded, or smite the aimed\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
               << "  F5/F9      save the game / load it back\n"
@@ -1723,6 +1723,33 @@ int main(int argc, char** argv) {
                 auto& who = party[static_cast<std::size_t>(shown_pack)];
                 auto& pack = packs[static_cast<std::size_t>(shown_pack)];
                 for (const auto& carried : pack.items()) {
+                    // A spell book first: the USEITEMS header's own rule —
+                    // the character learns the spell and the book is spent,
+                    // or nothing happens if it is already known. That only
+                    // casters read is this engine's stand-in for the magic
+                    // skill group it asks for. `inferred`
+                    if (const auto* row =
+                            item_stats.at(static_cast<std::size_t>(carried.item_id));
+                        row != nullptr && row->equip_type == data::ItemEquipType::Book) {
+                        const int spell_id = data::scroll_spell_of(row->modifier_1);
+                        const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id));
+                        if (spell == nullptr) {
+                            continue;
+                        }
+                        if (who.max_spell_points <= 0) {
+                            pick_up_message = who.name + " cannot learn spells";
+                        } else if (!who.known_spells.insert(spell_id).second) {
+                            pick_up_message =
+                                who.name + " already knows " + data::cp1252_to_utf8(spell->name);
+                        } else {
+                            const auto used = carried;
+                            pack.remove(used.x, used.y);
+                            pick_up_message =
+                                who.name + " learns " + data::cp1252_to_utf8(spell->name);
+                        }
+                        pick_up_shown = SDL_GetTicks();
+                        break;
+                    }
                     const auto* use = use_items.find(carried.item_id);
                     if (use == nullptr) {
                         continue;
@@ -2102,41 +2129,77 @@ int main(int argc, char** argv) {
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H &&
                        shown_member < 0 && shown_pack < 0 && open_shop < 0) {
-                // First Aid, the one spell this engine lets casters cast from
-                // their own points: cost and amount are the table's row 68;
-                // that it is every caster's spell is this engine's. `inferred`
-                const auto* spell = spell_stats.at(68);
-                if (spell != nullptr) {
-                    const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
-                    bool cast = false;
-                    for (auto& caster : party) {
-                        if (caster.hit_points <= 0 || caster.spell_points < spell->cost_normal) {
+                // Cast what somebody knows, at the table's cost and the
+                // prose's numbers: the best heal they can afford when anyone
+                // is wounded, else the best damage at what the party aims
+                // at. Books taught the knowledge; which spell "best" means —
+                // the largest parsed amount — is this engine's. `inferred`
+                bool cast = false;
+                bool wounded = false;
+                std::size_t worst = 0;
+                int missing = 0;
+                for (std::size_t i = 0; i < party.size(); ++i) {
+                    const int gap = party[i].max_hit_points - party[i].hit_points;
+                    if (party[i].hit_points > 0 && gap > missing) {
+                        missing = gap;
+                        worst = i;
+                        wounded = true;
+                    }
+                }
+                const std::size_t target = game::aimed_actor(
+                    session, battle, camera.position, camera.forward(), game::kPartyReach);
+                for (auto& caster : party) {
+                    if (caster.hit_points <= 0 || cast) {
+                        continue;
+                    }
+                    const data::SpellStatsEntry* best = nullptr;
+                    data::SpellEffect best_effect;
+                    int best_amount = 0;
+                    for (const int id : caster.known_spells) {
+                        const auto* spell = spell_stats.at(static_cast<std::size_t>(id));
+                        if (spell == nullptr || caster.spell_points < spell->cost_normal) {
                             continue;
                         }
-                        std::size_t worst = 0;
-                        int missing = -1;
-                        for (std::size_t i = 0; i < party.size(); ++i) {
-                            const int gap = party[i].max_hit_points - party[i].hit_points;
-                            if (party[i].hit_points > 0 && gap > missing) {
-                                missing = gap;
-                                worst = i;
-                            }
+                        const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
+                        const int amount = wounded ? effect.heal.high
+                                                   : effect.damage.high +
+                                                         effect.damage_per_skill.high *
+                                                             caster.level;
+                        if (amount > best_amount &&
+                            (wounded ? !effect.heal.empty()
+                                     : !effect.damage.empty() ||
+                                           !effect.damage_per_skill.empty())) {
+                            best = spell;
+                            best_effect = effect;
+                            best_amount = amount;
                         }
-                        caster.spell_points -= spell->cost_normal;
-                        party[worst].hit_points = std::min(
-                            party[worst].max_hit_points,
-                            party[worst].hit_points + std::max(1, effect.heal.low));
+                    }
+                    if (best == nullptr) {
+                        continue;
+                    }
+                    if (wounded) {
+                        caster.spell_points -= best->cost_normal;
+                        party[worst].hit_points =
+                            std::min(party[worst].max_hit_points,
+                                     party[worst].hit_points + std::max(1, best_effect.heal.low));
                         pick_up_message = caster.name + " casts " +
-                                          data::cp1252_to_utf8(spell->name) + " on " +
+                                          data::cp1252_to_utf8(best->name) + " on " +
                                           party[worst].name;
-                        pick_up_shown = SDL_GetTicks();
-                        cast = true;
-                        break;
+                    } else if (target != game::kNoActor) {
+                        caster.spell_points -= best->cost_normal;
+                        pick_up_message = battle.smite(
+                            target, best_effect.damage, best_effect.damage_per_skill,
+                            caster.level, best->element, caster.name, session, monster_stats,
+                            item_stats, random_items, standard_bonuses, special_bonuses);
+                    } else {
+                        pick_up_message = "Nothing in reach to cast at";
                     }
-                    if (!cast) {
-                        pick_up_message = "Nobody has the spell points";
-                        pick_up_shown = SDL_GetTicks();
-                    }
+                    pick_up_shown = SDL_GetTicks();
+                    cast = true;
+                }
+                if (!cast) {
+                    pick_up_message = "Nobody can cast what the moment needs";
+                    pick_up_shown = SDL_GetTicks();
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE &&
                        shown_member < 0 && shown_pack < 0) {

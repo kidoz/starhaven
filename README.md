@@ -280,6 +280,15 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Books that teach, casters that know**: all 99 spell books carry their
+  spell as the same S-number the scrolls use — one book per spell, 99 of 99
+  — and **U** on one follows the USEITEMS header's own rule: the character
+  learns it and the book is spent, or nothing happens if it is known.
+  **H** now casts from what a character actually knows, at the table's cost
+  and the prose's numbers: the best heal they can afford when someone is
+  wounded, else the best damage at what the party aims at. Knowledge rides
+  in the save; that only casters read, and what "best" means, are this
+  engine's.
 - **Monsters that cast**: `MONSTERS.TXT`'s spell column carries everything —
   `"Fireball,N,5"` is the spell's name, its mastery, and a real skill value,
   cast as often as the row's own percent says. The name resolves in

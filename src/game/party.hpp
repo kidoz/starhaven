@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cstdint>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -155,6 +156,9 @@ struct Character {
     // party rests (the "until" is this engine's, the amounts the tables'),
     // and named conditions with the sheet's own hours, kept as the minute
     // they wear off.
+    // The spells this character has learned from books, as Spells.txt ids.
+    std::set<int> known_spells;
+
     std::array<int, kAttributeCount> temp_attributes{};
     std::array<int, data::kResistanceCount> temp_resistances{};
     int temp_armor = 0;
@@ -231,6 +235,9 @@ inline constexpr std::array<std::string_view, 4> kStartingClasses{"Knight", "Pal
         c.hit_points = c.max_hit_points;
         if (casts_spells(c.class_name)) {
             c.max_spell_points = 10 + attribute_bonus(c.attribute(Attribute::Intellect)) * 2;
+            // Every caster starts knowing First Aid; the choice of that one
+            // spell is this engine's. `inferred`
+            c.known_spells.insert(68);
         }
         c.spell_points = c.max_spell_points;
         c.armor_class = attribute_bonus(c.attribute(Attribute::Speed));

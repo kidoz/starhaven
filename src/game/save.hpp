@@ -96,6 +96,13 @@ struct SaveState {
             out << "\t" << id;
         }
         out << "\n";
+        if (!who.known_spells.empty()) {
+            out << "spells\t" << i;
+            for (const int id : who.known_spells) {
+                out << "\t" << id;
+            }
+            out << "\n";
+        }
         out << "temps\t" << i << "\t" << who.temp_armor << "\t" << who.haste_until << "\t"
             << who.bless_until << "\t" << who.heroism_until << "\t" << who.stone_skin_until;
         for (const int bonus : who.temp_attributes) {
@@ -195,6 +202,17 @@ struct SaveState {
             who.skill_points = next_int();
             std::getline(fields, who.name, '\t');
             std::getline(fields, who.class_name, '\t');
+        } else if (kind == "spells") {
+            const auto i = static_cast<std::size_t>(next_int());
+            if (i >= out.party.size()) {
+                continue;
+            }
+            std::string cell;
+            while (std::getline(fields, cell, '\t')) {
+                if (!cell.empty()) {
+                    out.party[i].known_spells.insert(std::stoi(cell));
+                }
+            }
         } else if (kind == "temps") {
             const auto i = static_cast<std::size_t>(next_int());
             if (i >= out.party.size()) {
