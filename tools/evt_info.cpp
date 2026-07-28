@@ -682,6 +682,75 @@ int do_soundsweep(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: opcode 4, correlated against what its event's body does.
+// For every headed event, compare the header's argument with the argument of
+// each kind of working step the body contains.
+int do_headers(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    std::span<const std::byte> raw;
+    struct Match {
+        std::size_t events = 0;
+        std::size_t agree = 0;
+    };
+    std::map<int, Match> by_body;   // body opcode -> header arg equality
+    std::map<int, std::size_t> header_values;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        std::uint16_t last = 0xFFFF;
+        for (std::size_t i = 0; i < script.steps().size(); ++i) {
+            const auto& head = script.steps()[i];
+            if (head.event_id == last) {
+                continue;
+            }
+            last = head.event_id;
+            if (head.opcode != world::kOpcodeHeader || head.arguments.empty()) {
+                continue;
+            }
+            const int header = head.arguments.front();
+            ++header_values[header];
+            // The body's working steps, each kind counted once per event.
+            std::set<int> seen;
+            for (std::size_t k = i + 1;
+                 k < script.steps().size() && script.steps()[k].event_id == head.event_id; ++k) {
+                const auto& step = script.steps()[k];
+                if (step.arguments.empty() || !seen.insert(step.opcode).second) {
+                    continue;
+                }
+                Match& match = by_body[step.opcode];
+                ++match.events;
+                match.agree += step.arguments.front() == header ? 1 : 0;
+            }
+        }
+    }
+    std::cout << "header arg vs first arg of each body opcode:\n";
+    for (const auto& [opcode, match] : by_body) {
+        if (match.events < 20) {
+            continue;
+        }
+        std::cout << "  op" << opcode << ": " << match.agree << "/" << match.events << "\n";
+    }
+    std::cout << "header values:";
+    std::size_t shown = 0;
+    for (const auto& [value, count] : header_values) {
+        if (++shown > 24) {
+            std::cout << " ...";
+            break;
+        }
+        std::cout << " " << value << " x" << count;
+    }
+    std::cout << "\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -709,6 +778,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--headers") {
+        return do_headers(icons);
     }
     if (stem == "--soundsweep") {
         return do_soundsweep(icons);

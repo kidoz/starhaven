@@ -104,8 +104,17 @@ one of those begins with it** — 2,182 of 2,182. It appears anywhere else only
 ten times. `observed` So it is the event's opening step rather than an action:
 whatever it declares applies to the event as a whole.
 
-What it declares is `unknown`. Four readings have been tested and fail, and are
-recorded so they are not tried again:
+Correlating its byte against what each event's body does splits it partway
+open: on events whose body enters an establishment, the header equals the
+enter step's `2DEvents.txt` row id on **620 of 633** — and both are compared
+by low byte, which is what the 13 misses look like, ids past 255 truncated.
+On chest, door, fountain and message events the header equals nothing tested
+(39 of 346 against the chest id, 38 of 645 against the door, chance level).
+`observed` Reproduce with `evt_info --headers`. So a third of its uses carry
+the establishment id; what it declares on the rest is still `unknown`.
+
+Four readings were tested earlier and fail, and are recorded so they are not
+tried again:
 
 ### Events without a header are a different kind
 
