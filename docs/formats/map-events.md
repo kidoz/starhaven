@@ -121,9 +121,15 @@ higher: median 45 against 27, and up to **808** where a headed event never
 passes 262. `observed`
 
 So the header is not merely optional decoration — it marks a class. What the
-unheaded class is remains `unknown`; their id range overlaps the event columns
-of `NPCdata.txt`, which reach 400, but those ids are global rather than per map
-and the join has not been made.
+unheaded class is remains `unknown`.
+
+The one lead has been tested and closed: their id range overlaps the event
+columns of `NPCdata.txt`, but taking every NPC an establishment holds and
+checking their event ids against that map's own script gives **15 of 129** —
+5 of 44 on New Sorpigal, 0 of 22 on Silver Cove. `observed` Those columns are
+`npctopic.txt` and `npctext.txt` ids, which resolve 298 of 298 (see
+[`text-tables.md`](text-tables.md)); the overlap with script event ids is a
+coincidence of range. The unheaded events are not NPC dialogue.
 
 ### What was ruled out looking for the opcode that enters a building
 
