@@ -1369,6 +1369,11 @@ int main(int argc, char** argv) {
         party_recovery = std::max(0.0f, party_recovery - in.dt);
         clock.advance_seconds(in.dt);
         battle.award(party);
+        if (const int found = battle.take_gold(); found > 0) {
+            gold += found;
+            pick_up_message = "You find " + std::to_string(found) + " gold";
+            pick_up_shown = SDL_GetTicks();
+        }
 
         // The map refills on its own interval, whether the party slept
         // through it or walked through it.

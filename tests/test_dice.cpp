@@ -68,3 +68,38 @@ TEST_CASE("an empty roll is worth nothing", "[dice]") {
     REQUIRE(roll(Dice{}, random) == 0);
     REQUIRE(roll(parse_dice("0"), random) == 0);
 }
+
+#include "core/data/treasure.hpp"
+
+TEST_CASE("a treasure code is a chance, a roll of gold and an item", "[dice]") {
+    // "5%6D20+L2Bow": all 145 shipped codes parse into these parts.
+    const Treasure full = parse_treasure("5%6D20+L2Bow");
+    REQUIRE(full.chance == 5);
+    REQUIRE(full.gold.count == 6);
+    REQUIRE(full.gold.sides == 20);
+    REQUIRE(full.item_level == 2);
+    REQUIRE(full.item_kind == "Bow");
+
+    // Gold alone, and with no chance prefix it always drops.
+    const Treasure gold = parse_treasure("4D6");
+    REQUIRE(gold.chance == 100);
+    REQUIRE(gold.gold.count == 4);
+    REQUIRE(gold.item_level == 0);
+
+    // An item alone.
+    const Treasure ring = parse_treasure("5%L2Ring");
+    REQUIRE(ring.chance == 5);
+    REQUIRE(ring.gold.empty());
+    REQUIRE(ring.item_level == 2);
+    REQUIRE(ring.item_kind == "Ring");
+
+    // And an unnamed kind is any kind.
+    REQUIRE(parse_treasure("400D10+L6").item_kind.empty());
+    REQUIRE(parse_treasure("400D10+L6").item_level == 6);
+}
+
+TEST_CASE("a monster with nothing to leave leaves nothing", "[dice]") {
+    REQUIRE(parse_treasure("0").empty());
+    REQUIRE(parse_treasure("").empty());
+    REQUIRE(parse_treasure("nonsense").empty());
+}

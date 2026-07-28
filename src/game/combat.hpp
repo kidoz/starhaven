@@ -22,6 +22,7 @@
 #include "core/data/dice.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/treasure.hpp"
 #include "core/random.hpp"
 #include "core/world/map_session.hpp"
 #include "game/inventory.hpp"
@@ -156,6 +157,7 @@ public:
                std::uint32_t seed) {
         random_ = Mm6Random{seed};
         experience_ = 0;
+        gold_ = 0;
         combatants_.clear();
         combatants_.reserve(session.actors.size());
         for (const auto& actor : session.actors) {
@@ -224,6 +226,14 @@ public:
     // Experience earned and not yet handed out.
     [[nodiscard]] int unclaimed_experience() const noexcept { return experience_; }
 
+    // And the gold, which is the party's rather than any one character's.
+    [[nodiscard]] int unclaimed_gold() const noexcept { return gold_; }
+    int take_gold() noexcept {
+        const int taken = gold_;
+        gold_ = 0;
+        return taken;
+    }
+
     // Share it among whoever is still standing, the way a party splits a kill.
     // Nobody standing means nobody collects, and it waits. `inferred`
     void award(std::array<Character, 4>& party) {
@@ -244,6 +254,7 @@ public:
             }
         }
         experience_ = 0;
+        gold_ = 0;
     }
 
     // The party strikes one monster. Returns what happened, for the message
@@ -284,6 +295,13 @@ public:
             target.hit_points = 0;
             target.wince = 0.0f;
             experience_ += monster.experience;
+            // And whatever its treasure code leaves behind. The item half of
+            // a code needs a generator this class does not have, so only the
+            // gold is taken here.
+            if (const data::Treasure drop = data::parse_treasure(monster.treasure);
+                !drop.gold.empty() && static_cast<int>(random_.next() % 100) < drop.chance) {
+                gold_ += data::roll(drop.gold, random_);
+            }
             what += " and kills it";
         }
         return what;
@@ -370,6 +388,7 @@ private:
 
     std::vector<Combatant> combatants_;
     int experience_ = 0;
+    int gold_ = 0;
     Mm6Random random_{1};
 };
 

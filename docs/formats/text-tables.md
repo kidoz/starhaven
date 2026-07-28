@@ -473,6 +473,16 @@ hostile register (`"%02, eh?  I'll remember that."`). `observed`
 
 The prose carries the same `%01`-style placeholders as `npcprof.txt`.
 
+## `MONSTERS.TXT`'s treasure codes
+
+A kill's leavings are written as one cell: `"5%6D20+L2Bow"` is a five percent
+chance of six twenty-sided dice of gold and an item of treasure level two that
+is a bow. Any part may be absent — `"4D6"` is gold that always drops, `"5%L2Ring"`
+a chance at a ring and no gold. **145 of the 145** coded rows parse. `observed`
+
+The kinds named are `Misc`, `Ring`, `Amulet`, `Bow`, `Staff`, `Axe` and others;
+an unnamed kind is any kind. Reproduce with `data_info --treasure`.
+
 ## The damage notation
 
 `MONSTERS.TXT`'s two attack columns and `ITEMS.TXT`'s weapon modifier write

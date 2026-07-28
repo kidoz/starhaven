@@ -20,6 +20,7 @@
 #include "core/data/npc_stats.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
+#include "core/data/treasure.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/monster_list.hpp"
@@ -708,6 +709,31 @@ int do_journal(const std::string& label, const data::JournalTable& table, const 
 }
 
 // Research mode: does every damage cell in either table parse?
+int do_treasure(const std::filesystem::path& data_dir) {
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    if (data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: could not load MONSTERS.TXT\n";
+        return 1;
+    }
+    std::size_t coded = 0;
+    std::size_t parsed = 0;
+    for (const auto& m : monsters.entries()) {
+        if (m.treasure.empty() || m.treasure == "0") {
+            continue;
+        }
+        ++coded;
+        const data::Treasure drop = data::parse_treasure(m.treasure);
+        parsed += drop.empty() ? 0 : 1;
+        if (drop.empty()) {
+            std::cout << "  unparsed: " << m.name << " \"" << m.treasure << "\"\n";
+        }
+    }
+    std::cout << parsed << "/" << coded << " treasure codes parse\n";
+    return 0;
+}
+
 int do_dice(const std::filesystem::path& data_dir) {
     data::TextTable text;
     data::MonsterStatsTable monsters;
@@ -1108,6 +1134,8 @@ int main(int argc, char** argv) {
         }
         return do_journal(command.substr(2), table, argument);
     }
+    if (command == "--treasure")
+        return do_treasure(data_dir);
     if (command == "--dice")
         return do_dice(data_dir);
     if (command == "--encounters")
