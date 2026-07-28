@@ -96,6 +96,16 @@ Opcode 5 appears 57 times and its argument is a string on all of them. Of the
 and one points at another map's. `observed` So it announces the place rather
 than travelling to it.
 
+### Opcode 4 opens an event
+
+Of the 3,332 events across the 83 scripts, **2,182 contain opcode 4, and every
+one of those begins with it** — 2,182 of 2,182. It appears anywhere else only
+ten times. `observed` So it is the event's opening step rather than an action:
+whatever it declares applies to the event as a whole.
+
+What it declares is `unknown`. Four readings have been tested and fail, and are
+recorded so they are not tried again:
+
 ### What was ruled out looking for the opcode that enters a building
 
 Opcode 4 is the commonest at 2,192 uses and remains `unknown`. Three readings
@@ -107,10 +117,12 @@ were tested and fail:
   (1% to 13% of the range) that the bound is not evidence;
 - **a `2DEvents.txt` building id on that map**: 352 of 846, 42%. Opcodes 2, 7
   and 19 score 55%, 9% and 21% on the same test, which is what chance looks
-  like against a set that large.
-
-So whatever performs an entry is still unnamed, and the shops on an outdoor map
-still cannot be walked into. `unknown`
+  like against a set that large;
+- **the subject the next step acts on**: on a house the pair reads
+  `op4(39) | op2(39,1,0,0)` and on a creature `op4(1) | op7(1)`, which looks
+  like the argument being repeated — but across all scripts it matches the next
+  step's first byte only 542 times against 1,636, 25%. The sampled cases had
+  small ids and agreed by arithmetic accident.
 
 ### What the shape of an event does say
 

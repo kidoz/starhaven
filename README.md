@@ -179,7 +179,10 @@ interoperability and compatibility with a legally purchased copy.
   the count of establishments. So the party walks to a shop door, uses it, and
   the counter opens. Opcode 7 is the chests': its argument indexes the event
   file's twenty-slot array, and since the shipped chests are all empty, opening
-  one rolls its contents from the map's own treasure level.
+  one rolls its contents from the map's own treasure level. Opcode 4, the
+  commonest in the game, turns out to be an event's opening step — 2,182 of
+  2,182 events that contain it begin with it — though what it declares is still
+  unread after four rejected readings.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
   party uses them. Outdoors the same trigger sits at +0x124 of a model facet —
