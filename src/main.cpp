@@ -1343,15 +1343,25 @@ int main(int argc, char** argv) {
     std::string talk_answer;
 
     // The design table's row and the session's building are two views of one
-    // establishment: the row carries the stock, the session the people.
-    const auto people_of =
-        [&session](const data::BuildingStatsEntry& shop) -> const std::vector<world::SessionNpc>* {
+    // establishment, joined by the row id. The people answered are as the
+    // quest chain has them: whoever an event moved away is gone, and whoever
+    // it moved here from elsewhere on this map stands at this counter. A
+    // person moved in from another map cannot be seated — their record is
+    // not in this session.
+    const auto people_of = [&](const data::BuildingStatsEntry& shop) {
+        std::vector<world::SessionNpc> out;
         for (const auto& b : session.buildings) {
-            if (b.name == data::cp1252_to_utf8(shop.name)) {
-                return &b.people;
+            for (const auto& person : b.people) {
+                const auto moved = script_state.npc_places.find(person.npc_id);
+                const bool placed_here = moved != script_state.npc_places.end()
+                                             ? moved->second == shop.id
+                                             : b.building_id == shop.id;
+                if (placed_here) {
+                    out.push_back(person);
+                }
             }
         }
-        return nullptr;
+        return out;
     };
     if (start_shop >= 1 && start_shop <= static_cast<int>(shops_here.size())) {
         open_shop = start_shop - 1;
@@ -1692,10 +1702,10 @@ int main(int argc, char** argv) {
                     // A topic the global script defines is a quest: walk it,
                     // and the event itself decides what is said, paid and
                     // taken — the letter is handed over and the purse fills.
-                    const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
-                    if (here != nullptr && talking_to < static_cast<int>(here->size())) {
+                    const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                    if (talking_to < static_cast<int>(here.size())) {
                         const auto person =
-                            patched((*here)[static_cast<std::size_t>(talking_to)]);
+                            patched(here[static_cast<std::size_t>(talking_to)]);
                         const int id =
                             game::topic_id(person, dialogue, static_cast<std::size_t>(chosen));
                         talk_answer.clear();
@@ -2184,10 +2194,10 @@ int main(int argc, char** argv) {
                        stat_descriptions, class_descriptions);
         }
         if (talking_to >= 0 && open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
-            const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
-            if (here != nullptr && talking_to < static_cast<int>(here->size())) {
+            const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+            if (talking_to < static_cast<int>(here.size())) {
                 draw_conversation(scene, font,
-                                  game::talk_to(patched((*here)[static_cast<std::size_t>(
+                                  game::talk_to(patched(here[static_cast<std::size_t>(
                                                     talking_to)]),
                                                 dialogue, personalities, trade_talk, clock,
                                                 interface_words, party[0].name,

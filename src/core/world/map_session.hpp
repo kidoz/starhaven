@@ -69,6 +69,7 @@ struct SessionBuilding {
     std::string name;
     std::string type;
     std::string proprietor;
+    int building_id = 0;  // the 1-based 2DEvents.txt row
     int opens = 0;
     int closes = 0;
 

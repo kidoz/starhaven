@@ -387,9 +387,10 @@ with `evt_info --npc-mutations`.
 
 Andover Potbello's letter event ends with opcode 39 setting his first topic
 slot to topic 2 — pay him, and what he offers moves on. The engine applies
-the topic rewrites when the party talks, keeps them with the quest bits, and
-saves them; where a moved NPC stands is recorded and saved but not yet
-drawn.
+the topic rewrites when the party talks and keeps them with the quest bits;
+the moves are applied too — a person moved away is gone from their counter,
+and one moved within the same map stands at the new one. A move across maps
+waits: the mover's record lives in the other map's session.
 
 ### Shapes on the shelf
 

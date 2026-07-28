@@ -321,7 +321,8 @@ interoperability and compatibility with a legally purchased copy.
   range) and move an NPC to an establishment or away (29 of 29). The engine
   applies the rewrites when the party talks and keeps them in the save, so
   after the letter is paid for, Andover offers his next topic, not the same
-  letter forever.
+  letter forever — and a person an event moves is really moved: gone from
+  their counter, standing at the new one when it is on the same map.
 - **Doors that open**: the indoor event files' fixed 200-slot block turned
   out to be the door array — per door an id, a direction, a distance, two
   speeds, and id arrays whose total is byte-exact against the size the level

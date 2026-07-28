@@ -552,6 +552,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
                 SessionBuilding entry{data::cp1252_to_utf8(b->name),
                                       b->type,
                                       data::cp1252_to_utf8(b->proprietor),
+                                      b->id,
                                       b->opens,
                                       b->closes,
                                       {}};
