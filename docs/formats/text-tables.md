@@ -533,6 +533,26 @@ Two things the sheet does not say, which the engine supplies and marks as its
 own: where you stand on arrival, and what a point of the `Val` column costs
 in gold.
 
+## The entrances' trailing columns
+
+`2DEvents.txt`'s last columns — group-headed `Schedules`, `Other Exits`,
+`Questbit`, `Enter` — are typed by the kind of row. Shops keep opening hours
+there, already read. Castle entrances chain to a second screen: row 153's
+exit cell reads `"2D 154"`, and row 154 is the Throne Room, whose own map
+cell answers `"From 153 (D3)"`. Dungeon and temple entrances carry a
+restriction word and a refusal — GoblinWatch's row says `"Need Key"` and
+*"The doors to this keep are locked."* `observed`
+
+The restriction is documentation of a gate the scripts enforce themselves:
+OutE3's GoblinWatch event checks quest bit 300, else checks for item 489 and
+refuses with that same locked-door line; with the key it **takes it**, sets
+the bit, and travels into `D01.blv` — and its opcode-2 argument is **171**,
+the entrance's own `2DEvents.txt` row. The sheet and the script describe one
+system from two sides. `observed`
+
+The remaining numeric cells on entrance rows — 16..37 running with the row
+order, 50 and 169 on the Oracle — join to nothing tested yet. `unknown`
+
 ## `Trans.txt` is the transitions' prose
 
 Not routes: 234 rows keyed by a `2D#` column, each an atmospheric
