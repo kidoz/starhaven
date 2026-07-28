@@ -180,6 +180,58 @@ namespace detail {
     return out;
 }
 
+// One monster's spell, as `MONSTERS.TXT`'s own column writes it:
+// `"Fireball,N,5"` — the spell's name, the mastery letter, and a real skill
+// value, which is exactly what the per-skill dice scale by.
+struct MonsterSpell {
+    std::string name;
+    int mastery = 0;  // N=0, E=1, M=2
+    int skill = 0;
+
+    [[nodiscard]] bool empty() const noexcept { return name.empty(); }
+};
+
+[[nodiscard]] inline MonsterSpell parse_monster_spell(std::string_view text) {
+    MonsterSpell out;
+    const std::size_t first = text.find(',');
+    if (first == std::string_view::npos) {
+        return out;
+    }
+    out.name = std::string(trim(text.substr(0, first)));
+    const std::string_view rest = text.substr(first + 1);
+    const std::size_t second = rest.find(',');
+    const std::string_view mastery = trim(rest.substr(0, second));
+    if (!mastery.empty()) {
+        out.mastery = mastery[0] == 'M' || mastery[0] == 'm'   ? 2
+                      : mastery[0] == 'E' || mastery[0] == 'e' ? 1
+                                                               : 0;
+    }
+    if (second != std::string_view::npos) {
+        out.skill = parse_int(rest.substr(second + 1), 0);
+    }
+    return out;
+}
+
+// Find a spell by the monster column's spelling of its name. The shipped
+// column carries two typos — `"Dispell Magic"`, `"Psychic Shockt"` — so a
+// name that is the other's prefix within two characters still finds it.
+[[nodiscard]] inline const SpellStatsEntry* find_spell_tolerant(const SpellStatsTable& spells,
+                                                                std::string_view name) {
+    if (const auto* exact = spells.find(name); exact != nullptr) {
+        return exact;
+    }
+    for (const auto& spell : spells.entries()) {
+        const std::string_view have = spell.name;
+        const std::string_view shorter = have.size() < name.size() ? have : name;
+        const std::string_view longer = have.size() < name.size() ? name : have;
+        if (longer.size() - shorter.size() <= 2 &&
+            detail::same_ignoring_case(longer.substr(0, shorter.size()), shorter)) {
+            return &spell;
+        }
+    }
+    return nullptr;
+}
+
 }  // namespace starhaven::data
 
 #endif  // STARHAVEN_CORE_DATA_SPELL_EFFECTS_HPP

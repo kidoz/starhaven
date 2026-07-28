@@ -2196,7 +2196,8 @@ int main(int argc, char** argv) {
         }
         mob.update(in.dt, session, camera.position,
                    [&](std::size_t actor) { return battle.alive(actor); });
-        if (std::string blow = battle.update(in.dt, session, monster_stats, party, camera.position);
+        if (std::string blow = battle.update(in.dt, session, monster_stats, spell_stats, party,
+                                             camera.position);
             !blow.empty()) {
             pick_up_message = std::move(blow);
             pick_up_shown = SDL_GetTicks();

@@ -280,6 +280,13 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Monsters that cast**: `MONSTERS.TXT`'s spell column carries everything —
+  `"Fireball,N,5"` is the spell's name, its mastery, and a real skill value,
+  cast as often as the row's own percent says. The name resolves in
+  `Spells.txt` (tolerating the sheet's two typos), the prose's per-skill
+  dice roll at the written skill, and the character's own elemental
+  resistance answers. Fire Archers finally throw Fireballs, with no invented
+  numbers anywhere in the chain.
 - **Fountains and potions that really work**: the temporary bonuses land
   now — a fountain's "+10 Might temporary" lies on the party, an Energy
   potion's "Set Temp 7 Stats to 10" on its drinker, Protection's AC and

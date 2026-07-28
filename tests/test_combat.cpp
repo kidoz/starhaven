@@ -14,14 +14,16 @@ namespace {
 
 // One MONSTERS.TXT row, with the combat columns under test.
 data::MonsterStatsTable monsters(const char* hp, const char* ac, const char* damage,
-                                 const char* cold = "0", const char* treasure = "0") {
+                                 const char* cold = "0", const char* treasure = "0",
+                                 const char* use_percent = "0", const char* spells = "0") {
     std::string body =
         "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
         "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
         "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
     body += std::string("1\tRatA\tCommon Rat\t2\t") + hp + "\t" + ac + "\t24\t" + treasure +
             "\t0\tN\tMed\tAggress\t4\t200\t100\t0\t0\tCold\t" + damage +
-            "\t0\t100\t0\t0\t0\t0\t0\t0\t0\t" + cold + "\t0\t0\t0\t0\r\n";
+            "\t0\t100\t0\t0\t0\t" + use_percent + "\t" + spells + "\t0\t0\t" + cold +
+            "\t0\t0\t0\t0\r\n";
     data::TextTable table;
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
     data::MonsterStatsTable out;
@@ -147,7 +149,7 @@ TEST_CASE("a monster in reach hits somebody standing", "[combat]") {
     for (int i = 0; i < 200 && hurt == 0; ++i) {
         // Not `swung = swung || update(...)`: that stops swinging as soon as
         // the first blow is thrown, and the first one is usually a miss.
-        const std::string blow = battle.update(0.5f, session, table, party, {0, 0, 0});
+        const std::string blow = battle.update(0.5f, session, table, {}, party, {0, 0, 0});
         swung = swung || !blow.empty();
         hurt = 0;
         for (const auto& who : party) {
@@ -166,7 +168,7 @@ TEST_CASE("a monster out of reach hits nobody", "[combat]") {
 
     std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
     for (int i = 0; i < 100; ++i) {
-        REQUIRE(battle.update(0.5f, session, table, party, {0, 0, 0}).empty());
+        REQUIRE(battle.update(0.5f, session, table, {}, party, {0, 0, 0}).empty());
     }
     REQUIRE(party[0].hit_points == party[0].max_hit_points);
 }
@@ -229,7 +231,7 @@ TEST_CASE("a monster flinches when hit and lies there when killed", "[combat]") 
     // A corpse stays a corpse: no amount of time stands it back up.
     std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
     for (int i = 0; i < 20; ++i) {
-        (void)battle.update(1.0f, session, table, party, {0, 0, 0});
+        (void)battle.update(1.0f, session, table, {}, party, {0, 0, 0});
     }
     REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
 }
@@ -246,7 +248,7 @@ TEST_CASE("a flinch passes", "[combat]") {
         (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
-    (void)battle.update(kWinceSeconds * 2.0f, session, table, party, {0, 0, 0});
+    (void)battle.update(kWinceSeconds * 2.0f, session, table, {}, party, {0, 0, 0});
     REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
 }
 
@@ -472,4 +474,59 @@ TEST_CASE("armour is the flat modifier of what is worn", "[combat]") {
     // The sword adds nothing: its modifier is 3d3, not a number.
     who.equipped[static_cast<std::size_t>(Slot::Weapon)] = 1;
     REQUIRE(armour_of(who, armoury) == 4);
+}
+
+TEST_CASE("a caster monster throws its table's own spell", "[combat]") {
+    // "Fireball,N,5" at 100%: the name resolves in the spell table, the
+    // prose's per-skill dice roll five times, and the target's own fire
+    // resistance answers.
+    std::string spells_text;
+    spells_text += "\t\t\t\r\n";
+    spells_text += "#\tFire Spells\t\tRes\tShort Name\tA\tX\tM\tSpell Description\tNormal"
+                   "\tExpert\tMaster\r\n";
+    spells_text += "6\t6\tFireball\tFire\tFireball\t8\t8\t8"
+                   "\tDamage is 1-6 points of damage per point of skill.\tslow\tfast\tfastest"
+                   "\r\n";
+    data::TextTable text;
+    REQUIRE(data::TextTable::parse_body(spells_text, text) == data::TextTableError::None);
+    data::SpellStatsTable spells;
+    REQUIRE(data::SpellStatsTable::parse(text, spells) == data::SpellStatsError::None);
+
+    auto session = with_monster({0, 0, 100});
+    const auto table = monsters("20", "0", "2d6", "0", "0", "100", "Fireball,N,5");
+    REQUIRE(table.entries()[0].spell_percent == 100);
+    Battle battle;
+    battle.reset(session, table, 9);
+
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    std::string cast;
+    for (int i = 0; i < 50 && cast.empty(); ++i) {
+        const std::string blow = battle.update(0.5f, session, table, spells, party, {0, 0, 0});
+        if (blow.find("casts Fireball") != std::string::npos) {
+            cast = blow;
+        }
+    }
+    REQUIRE_FALSE(cast.empty());
+
+    // Five rolls of 1-6: the wound is at least 5 on somebody.
+    int worst = 0;
+    for (const auto& who : party) {
+        worst = std::max(worst, who.max_hit_points - who.hit_points);
+    }
+    REQUIRE(worst >= 5);
+
+    // An immune party takes nothing from the same fire.
+    std::array<Character, 4> immune{fighter(), fighter(), fighter(), fighter()};
+    for (auto& who : immune) {
+        who.resistances[static_cast<std::size_t>(data::Resistance::Fire)] =
+            data::kResistanceImmune;
+    }
+    Battle again;
+    again.reset(session, table, 9);
+    for (int i = 0; i < 50; ++i) {
+        (void)again.update(0.5f, session, table, spells, immune, {0, 0, 0});
+    }
+    for (const auto& who : immune) {
+        REQUIRE(who.hit_points == who.max_hit_points);
+    }
 }

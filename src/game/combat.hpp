@@ -352,7 +352,8 @@ public:
     // The monsters take their turn. Anything alive and in reach swings at a
     // character who is still standing.
     std::string update(float dt, const world::MapSession& session,
-                       const data::MonsterStatsTable& monsters, std::array<Character, 4>& party,
+                       const data::MonsterStatsTable& monsters,
+                       const data::SpellStatsTable& spells, std::array<Character, 4>& party,
                        const render::Vec3& eye) {
         std::string last;
         if (combatants_.size() != session.actors.size()) {
@@ -381,7 +382,7 @@ public:
             const auto& monster = monsters.entries()[id - 1];
             c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale;
 
-            if (std::string what = swing(monster, party); !what.empty()) {
+            if (std::string what = swing(monster, spells, party); !what.empty()) {
                 last = std::move(what);
             }
         }
@@ -440,7 +441,8 @@ private:
     }
 
     // One monster's blow at whoever in the party is still standing.
-    std::string swing(const data::MonsterStatsEntry& monster, std::array<Character, 4>& party) {
+    std::string swing(const data::MonsterStatsEntry& monster, const data::SpellStatsTable& spells,
+                      std::array<Character, 4>& party) {
         std::vector<std::size_t> standing;
         for (std::size_t i = 0; i < party.size(); ++i) {
             if (party[i].hit_points > 0) {
@@ -451,6 +453,36 @@ private:
             return {};
         }
         Character& target = party[standing[random_.next() % standing.size()]];
+
+        // The table's own spell first: cast as often as the row's percent
+        // says, at its written mastery and skill — the number the prose's
+        // per-skill dice scale by — and answered by the target's resistance
+        // to the spell's own element. A spell whose prose carries no number
+        // is not cast; the monster falls back to its blows.
+        if (monster.spell_percent > 0 &&
+            static_cast<int>(random_.next() % 100) < monster.spell_percent) {
+            const data::MonsterSpell chosen = data::parse_monster_spell(monster.spells);
+            if (const auto* spell = data::find_spell_tolerant(spells, chosen.name);
+                spell != nullptr && !chosen.empty()) {
+                const data::SpellEffect effect = data::parse_spell_effect(*spell, chosen.mastery);
+                if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
+                    int damage = roll_range(effect.damage);
+                    for (int i = 0; i < chosen.skill; ++i) {
+                        damage += roll_range(effect.damage_per_skill);
+                    }
+                    damage = after_resistance(damage < 1 ? 1 : damage,
+                                              resistance_to(target, spell->element));
+                    target.hit_points -= damage;
+                    std::string what = monster.name + " casts " + spell->name + " at " +
+                                       target.name + " for " + std::to_string(damage);
+                    if (target.hit_points <= 0) {
+                        target.hit_points = 0;
+                        what += " and drops them";
+                    }
+                    return what;
+                }
+            }
+        }
 
         // The first attack it has dice for; the second is a spell or a missile
         // more often than not.

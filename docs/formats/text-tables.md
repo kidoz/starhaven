@@ -536,6 +536,17 @@ own element. What the prose does not state is the engine's and says so: the
 reader is the first character standing, their level stands in for the skill,
 and First Aid is the one spell casters cast from their own points.
 
+## The monsters' spell column, cast
+
+`MONSTERS.TXT` column 25 writes `"Fireball,N,5"` — the spell's display name,
+a mastery letter `N`/`M` (no shipped row says `E`), and a skill value — with
+column 24's percent saying how often. All 55 coded cells parse; the names
+resolve in `Spells.txt` except two shipped typos, `"Dispell Magic"` and
+`"Psychic Shockt"`, which a two-character prefix tolerance absorbs.
+`observed` The skill value is exactly the number the spell prose's per-skill
+dice scale by, so a Fire Archer's Fireball rolls its written 1-6 five times
+— every number in the chain is the tables' own.
+
 ## The stables' and docks' timetables
 
 The nine `Stables` and twelve `Boats` rows of `2DEvents.txt` use the three
