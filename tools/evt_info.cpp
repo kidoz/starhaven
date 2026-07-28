@@ -13,7 +13,11 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
+#include <set>
+
 #include "core/image/zlib_util.hpp"
+#include "core/lod/game_lod_archive.hpp"
+#include "core/world/blv_map.hpp"
 #include "core/world/sound_table.hpp"
 
 namespace {
@@ -494,6 +498,94 @@ int do_sounds(const starhaven::lod::LodArchive& icons,
     return 0;
 }
 
+// Research mode: the events with no opcode-4 header. Where do they live,
+// what do they open with, and do the face event ids that resolve nowhere
+// point at the shared scripts?
+int do_unheaded(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    std::span<const std::byte> raw;
+    std::map<std::string, std::pair<std::size_t, std::size_t>> per_script;  // headed, unheaded
+    std::map<int, std::size_t> unheaded_opens;
+    std::set<std::uint16_t> global_ids;
+    std::map<std::string, world::MapScript> scripts;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        const std::string stem = entry.name.substr(0, entry.name.size() - 4);
+        std::uint16_t last = 0xFFFF;
+        for (const auto& step : script.steps()) {
+            if (step.event_id == last) {
+                continue;
+            }
+            last = step.event_id;
+            const bool headed = step.opcode == world::kOpcodeHeader;
+            auto& [h, u] = per_script[stem];
+            (headed ? h : u) += 1;
+            if (!headed) {
+                ++unheaded_opens[step.opcode];
+            }
+            if (stem == "GLOBAL") {
+                global_ids.insert(step.event_id);
+            }
+        }
+        scripts.emplace(stem, std::move(script));
+    }
+
+    std::size_t headed_total = 0;
+    std::size_t unheaded_total = 0;
+    std::cout << "unheaded events by script (only scripts that have them):\n";
+    for (const auto& [stem, counts] : per_script) {
+        headed_total += counts.first;
+        unheaded_total += counts.second;
+        if (counts.second > 0) {
+            std::cout << "  " << stem << ": " << counts.second << " unheaded, " << counts.first
+                      << " headed\n";
+        }
+    }
+    std::cout << headed_total << " headed, " << unheaded_total << " unheaded\n";
+    std::cout << "unheaded events open with:";
+    for (const auto& [opcode, count] : unheaded_opens) {
+        std::cout << "  op" << opcode << " x" << count;
+    }
+    std::cout << "\n";
+
+    // The 33 face event ids that resolve in no map script: are they GLOBAL's?
+    lod::GameLodArchive games;
+    if (lod::GameLodArchive::open(
+            *starhaven::platform::install_from_env() / "data" / "Games.lod", games) !=
+        lod::GameLodError::None) {
+        return 0;
+    }
+    std::size_t faces_unresolved = 0;
+    std::size_t in_global = 0;
+    for (const auto& [stem, script] : scripts) {
+        std::span<const std::byte> level;
+        world::BlvMap blv;
+        if (games.payload(stem + ".blv", level) != lod::GameLodArchive::PayloadError::None ||
+            world::parse_blv(level, blv) != world::BlvError::None) {
+            continue;
+        }
+        for (const auto& extra : blv.face_extras) {
+            if (extra.event_id == 0 || script.defines(extra.event_id)) {
+                continue;
+            }
+            ++faces_unresolved;
+            in_global += global_ids.contains(extra.event_id) ? 1 : 0;
+        }
+    }
+    std::cout << faces_unresolved << " face event ids resolve in no map script; " << in_global
+              << " of those are GLOBAL.EVT events\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -521,6 +613,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--unheaded") {
+        return do_unheaded(icons);
     }
     if (stem == "--textures") {
         lod::LodArchive bitmaps;

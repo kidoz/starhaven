@@ -1239,6 +1239,20 @@ int main(int argc, char** argv) {
     // the party's rather than any map's, so they survive travelling.
     game::WalkState script_state;
 
+    // The shared quest script: 66 of the 88 face event ids that no map's own
+    // script defines are GLOBAL.EVT events, so a face falls back to it. What
+    // table its message indices name is not yet established, so a global
+    // walk acts without speaking. See docs/formats/map-events.md.
+    world::MapScript global_script;
+    {
+        lod::LodArchive icons_archive;
+        std::span<const std::byte> raw;
+        if (lod::LodArchive::open(data_dir / "icons.lod", icons_archive) == lod::LodError::None &&
+            icons_archive.payload("GLOBAL.EVT", raw) == lod::LodArchive::PayloadError::None) {
+            (void)world::MapScript::parse(raw, global_script);
+        }
+    }
+
     // Talking. The tables are all decoded; this is the first thing that uses
     // them together. See src/game/conversation.hpp.
     data::InterfaceStrings interface_words;
@@ -1666,13 +1680,16 @@ int main(int argc, char** argv) {
                     script_state.items.push_back(carried.item_id);
                 }
             }
-            const game::WalkOutcome outcome =
-                game::walk_event(session.script, aimed.event_id, script_state);
+            const bool local = session.script.defines(aimed.event_id);
+            const game::WalkOutcome outcome = game::walk_event(
+                local ? session.script : global_script, aimed.event_id, script_state);
             gold = script_state.gold;
 
             // What it said, resolved before any travel drops these strings.
+            // A global event's indices name a table not yet decoded, so only
+            // the map's own events speak.
             std::string said_text;
-            for (const int index : outcome.said) {
+            for (const int index : local ? outcome.said : std::vector<int>{}) {
                 if (index < 0 ||
                     static_cast<std::size_t>(index) >= session.script_strings.size()) {
                     continue;

@@ -280,6 +280,12 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **The quest bank, reachable from the world**: of the faces whose event id
+  no map's own script defines, 66 of 88 name events of `GLOBAL.EVT`, the
+  shared script dense with quest checks and rewards — and using such a face
+  walks the global event. The "unheaded events" mystery also came apart: part
+  was another record framing misread (`OUT.EVT` and kin carry no sequence
+  byte), and the rest are ordinary event bodies that begin with work.
 - **Doors that open**: the indoor event files' fixed 200-slot block turned
   out to be the door array — per door an id, a direction, a distance, two
   speeds, and id arrays whose total is byte-exact against the size the level

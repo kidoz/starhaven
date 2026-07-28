@@ -119,18 +119,36 @@ groups do not use the same opcodes. `observed`
 
 An unheaded event opens with 30, 14, 15 or 6 rather than 4, and its id sits far
 higher: median 45 against 27, and up to **808** where a headed event never
-passes 262. `observed`
+passes 262. `observed` Reproduce with `evt_info --unheaded`.
 
-So the header is not merely optional decoration — it marks a class. What the
-unheaded class is remains `unknown`.
+With the conditional machinery decoded, the class comes apart into pieces
+rather than one thing:
 
-The one lead has been tested and closed: their id range overlaps the event
-columns of `NPCdata.txt`, but taking every NPC an establishment holds and
-checking their event ids against that map's own script gives **15 of 129** —
-5 of 44 on New Sorpigal, 0 of 22 on Silver Cove. `observed` Those columns are
-`npctopic.txt` and `npctext.txt` ids, which resolve 298 of 298 (see
-[`text-tables.md`](text-tables.md)); the overlap with script event ids is a
-coincidence of range. The unheaded events are not NPC dialogue.
+- Part is a **framing artifact**: `OUT.EVT` and its kin carry no sequence
+  byte (see "The scripts without maps"), so the map-script walk misreads
+  their records into one-use opcodes 54..90 and inflated ids. Those are not
+  events of a second class; they are another format.
+- The rest, spread across every map's script, open with the ordinary working
+  opcodes — a check, a long message, a door, a travel — and read as event
+  bodies that simply begin with work instead of a header. What, if anything,
+  the missing header withholds from them is still `unknown`.
+
+The earlier lead stays closed: their id range overlaps the event columns of
+`NPCdata.txt`, but those columns are `npctopic.txt` and `npctext.txt` ids,
+which resolve 298 of 298 (see [`text-tables.md`](text-tables.md)); the
+overlap is a coincidence of range.
+
+### Faces fall back to the shared script
+
+What did fall out of the reattack is a join: of the **88** face event ids
+that resolve in no map's own script, **66 are `GLOBAL.EVT` events** — the
+quest bank is reachable from doors and switches in the world, not only from
+dialogue. The engine walks it: a face whose event its map does not define
+runs the global script's event instead. `observed` for the join. What table
+`GLOBAL.EVT`'s message indices name is `unknown` — it has no `.STR`, and
+`GLOBAL.TXT` beside it is an alphabetized word list (indices 1..199 fit its
+598 rows but land on dictionary words, not prose) — so a global walk acts
+without speaking.
 
 ### What was ruled out looking for the opcode that enters a building
 
@@ -336,9 +354,9 @@ event id: **1,408 of the 1,441** non-zero values across the 52 indoor maps name
 an event that map's own script defines. `observed` So a door, a switch or a
 sign is a face that points at a script.
 
-The 33 that do not resolve are `unknown`; they may name events in another map's
-script, or the field may carry something else where the referenced event is
-absent.
+The ones that do not resolve are mostly not dangling: counted per face, 66 of
+the 88 unresolved name events of `GLOBAL.EVT`, the shared quest script — see
+"Faces fall back to the shared script" below. The remainder is `unknown`.
 
 ## The strings
 
@@ -380,7 +398,12 @@ using one prints its message.
   557), and sound ids (19 of 89 nonzero values resolve, to monster attack
   noises — the dense id region, not a meaning). `unknown`
 - What `OUT.EVT`'s 87 stub events are for, and what points at them. `unknown`
-- Which events point into `GLOBAL.EVT`'s quest bank. `unknown`
+- Which of the shared scripts beyond `OUT.EVT` use the headerless framing,
+  and what the misframed remainder of the unheaded class parses to under it.
+  `unknown`
+- The table `GLOBAL.EVT`'s message indices name. `unknown`
+- The 22 face event ids that resolve in neither their map's script nor
+  `GLOBAL.EVT`. `unknown`
 - Opcode 15's door numbers are the ids of the indoor event files' own door
   records — see [`event-tables.md`](event-tables.md) — and the engine moves
   them. What state 2 is, where 0 and 1 read as shut and open, is still
@@ -390,4 +413,3 @@ using one prints its message.
 - Opcode 1's byte, always 0..2. `unknown`
 - The variable types beyond the named ones — 12, 13, 22, 205 and the rest of
   the vocabulary. `unknown`
-- The 33 face event ids with no matching event. `unknown`
