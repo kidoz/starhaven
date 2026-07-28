@@ -168,7 +168,11 @@ interoperability and compatibility with a legally purchased copy.
   **all 83 are consumed exactly**, 15,504 records with nothing left over. The
   field this project had carried as unknown at +0x1A of an indoor face extra is
   the event id: **1,408 of 1,441** name an event that map's own script defines.
-  What the 90 opcodes do is still unknown.
+  Three of the 90 opcodes are named: 29 shows a message (`"The door is
+  locked."`, `"You pick an apple."`), 30 a longer one, and 35 names what you
+  are looking at (`"Door"`, `"Sign"`, `"Chest"`). Each was identified by its
+  argument never leaving its map's own string count *and* using that range,
+  then confirmed by what the strings say. The other 87 are still unknown.
 - The indoor **sector table** identified: the region in front of the
   decorations opens with a room count and continues as count-and-pointer pairs
   over arrays of face indices. The pointers are stale and cannot be followed,

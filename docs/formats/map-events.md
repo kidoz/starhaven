@@ -63,9 +63,32 @@ Sequence numbers count from zero within an event: 5,176 records are step 0,
 1,407 are step 1, 1,115 step 2, and so on down. `observed`
 
 **90 distinct opcodes** appear. The most common are 4 (2,192 uses), 14, 1, 15,
-16, 18, 29 and 30. What any of them does is `unknown`: argument lengths are
-fixed per opcode, but testing whether an argument indexes the string table is
-not decisive, since most small numbers are valid indices either way.
+16, 18, 29 and 30. Argument lengths are fixed per opcode.
+
+### Three of them are named
+
+Testing whether an argument indexes the string table is not decisive on its
+own — most small numbers are valid indices either way. Two things together are:
+the argument must **never** leave its map's own string count, which varies from
+about 10 to 100 across maps, and it must **use** that range rather than staying
+small.
+
+| Opcode | Uses | Out of range | Median of max ÷ strings | Reading |
+| ---: | ---: | ---: | ---: | --- |
+| 29 | 650 | 0 | 0.78 | show a message |
+| 30 | 132 | 0 | 0.76 | show a longer message |
+| 35 | 142 | 0 | 0.23 | name what is being looked at |
+| 4 | 2,061 | **522** | — | not a string index |
+
+What the strings say confirms it. Opcode 29 points at `"The door is locked."`,
+`"Refreshing!"`, `"You pick an apple."`, `"Poison!"`, `"+2 Luck permanent"`.
+Opcode 30 points at `"Etched into the tree a message reads: ..."`. Opcode 35
+points at `"Door"`, `"Sign"`, `"Chest"` — the noun for a thing you are looking
+at, which is exactly what `D01.STR`'s list of `"Exit Door"`, `"Chest"`,
+`"Switch"`, `"Door"` is for. `observed`
+
+The other **87 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+string index: its argument leaves the range 522 times.
 
 ## A face names an event
 

@@ -24,6 +24,19 @@ struct ScriptStep {
     std::vector<std::uint8_t> arguments;
 };
 
+// The three opcodes whose argument is known to index the string table. Each
+// was identified by its arguments never leaving the map's own string count
+// across all 83 scripts, and confirmed by what the strings say. See
+// docs/formats/map-events.md.
+inline constexpr std::uint8_t kOpcodeMessage = 29;      // "The door is locked."
+inline constexpr std::uint8_t kOpcodeLongMessage = 30;  // a sign's full text
+inline constexpr std::uint8_t kOpcodeName = 35;         // "Door", "Sign", "Chest"
+
+// Whether this opcode's first argument is a string index.
+[[nodiscard]] inline bool names_a_string(std::uint8_t opcode) noexcept {
+    return opcode == kOpcodeMessage || opcode == kOpcodeLongMessage || opcode == kOpcodeName;
+}
+
 enum class MapScriptError : std::uint8_t {
     None,
     // The container is too short, or its zlib stream will not inflate.
@@ -50,6 +63,17 @@ public:
     // Whether this map defines an event at all — the question a face with an
     // event id asks.
     [[nodiscard]] bool defines(std::uint16_t id) const noexcept { return !event(id).empty(); }
+
+    // The string index an event's first step of this kind names, or -1. What
+    // a door says when it is locked, or what a sign is called.
+    [[nodiscard]] int string_of(std::uint16_t id, std::uint8_t opcode) const noexcept {
+        for (const auto& step : event(id)) {
+            if (step.opcode == opcode && !step.arguments.empty()) {
+                return step.arguments.front();
+            }
+        }
+        return -1;
+    }
 
 private:
     std::vector<ScriptStep> steps_;

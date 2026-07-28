@@ -68,6 +68,10 @@ int main(int argc, char** argv) {
             for (const std::uint8_t b : step.arguments) {
                 std::cout << " " << std::hex << static_cast<int>(b) << std::dec;
             }
+            // The three opcodes whose first argument is a string.
+            if (world::names_a_string(step.opcode) && !step.arguments.empty()) {
+                std::cout << "  \x22" << strings.at(step.arguments.front()) << "\x22";
+            }
             std::cout << "\n";
         }
         return 0;

@@ -109,3 +109,30 @@ TEST_CASE("a string left unterminated is still a string", "[script]") {
     REQUIRE(strings.size() == 1);
     REQUIRE(strings.at(0) == "Door");
 }
+
+TEST_CASE("an event's message and name are asked for by opcode", "[script]") {
+    // Opcodes 29, 30 and 35 carry a string index in their first argument;
+    // see docs/formats/map-events.md.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 7, 0, 4, {1});
+    push_step(payload, 7, 1, kOpcodeName, {3});
+    push_step(payload, 7, 2, kOpcodeMessage, {5, 0, 0, 0});
+    const auto entry = wrap(payload);
+
+    MapScript script;
+    REQUIRE(MapScript::parse(entry, script) == MapScriptError::None);
+    REQUIRE(script.string_of(7, kOpcodeName) == 3);
+    REQUIRE(script.string_of(7, kOpcodeMessage) == 5);
+    REQUIRE(script.string_of(7, kOpcodeLongMessage) == -1);
+    REQUIRE(script.string_of(99, kOpcodeName) == -1);
+}
+
+TEST_CASE("only the three known opcodes name a string", "[script]") {
+    REQUIRE(names_a_string(kOpcodeMessage));
+    REQUIRE(names_a_string(kOpcodeLongMessage));
+    REQUIRE(names_a_string(kOpcodeName));
+    // Opcode 4 is the commonest of the 90 and is not one: its argument leaves
+    // the string range 522 times.
+    REQUIRE_FALSE(names_a_string(4));
+    REQUIRE_FALSE(names_a_string(1));
+}
