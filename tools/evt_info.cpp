@@ -825,6 +825,55 @@ int do_npc_mutations(const starhaven::lod::LodArchive& icons,
     return 0;
 }
 
+// Research mode: the remaining common opcodes, each use printed compactly
+// with its script and event, decoded by its candidate shape.
+int do_catalog(const starhaven::lod::LodArchive& icons, int wanted) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    std::span<const std::byte> raw;
+    std::size_t shown = 0;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if (static_cast<int>(step.opcode) != wanted || shown >= 80) {
+                continue;
+            }
+            ++shown;
+            std::cout << entry.name.substr(0, entry.name.size() - 4) << " " << step.event_id
+                      << ":";
+            const auto& a = step.arguments;
+            if (wanted == 19 && a.size() >= 15) {
+                // Candidate shape: a kind, then three i32 coordinates.
+                const auto i32_at = [&a](std::size_t at) {
+                    std::uint32_t v = 0;
+                    for (int i = 3; i >= 0; --i) {
+                        v = (v << 8) | a[at + static_cast<std::size_t>(i)];
+                    }
+                    return static_cast<std::int32_t>(v);
+                };
+                std::cout << " (" << static_cast<int>(a[0]) << "," << static_cast<int>(a[1])
+                          << "," << static_cast<int>(a[2]) << ") at " << i32_at(3) << ","
+                          << i32_at(7) << "," << i32_at(11);
+            } else {
+                for (const std::uint8_t b : a) {
+                    std::cout << " " << static_cast<int>(b);
+                }
+            }
+            std::cout << "\n";
+        }
+    }
+    std::cout << shown << " shown\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -852,6 +901,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--catalog" && argc == 3) {
+        return do_catalog(icons, std::atoi(argv[2]));
     }
     if (stem == "--npc-mutations") {
         return do_npc_mutations(icons, *install / "data");

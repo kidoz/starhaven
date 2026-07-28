@@ -391,7 +391,26 @@ the topic rewrites when the party talks, keeps them with the quest bits, and
 saves them; where a moved NPC stands is recorded and saved but not yet
 drawn.
 
-The other **73 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+### Shapes on the shelf
+
+Five more opcodes gave up their argument shapes without giving up their
+names; recorded so the next pass starts from here. Reproduce with
+`evt_info --catalog <opcode>`.
+
+| Opcode | Uses | Shape | What shows |
+| ---: | ---: | --- | --- |
+| 19 | 284 | `[u8 a][u8 b][u8 c][i32 x][i32 y][i32 z]` | small triples like (1,2,3) at world-range points — summon-shaped; Castle Darkmoor rings a room with (1,1,1) points |
+| 21 | 140 | `[u16][u8][point][point]` | two world-range points and a small pair — trap- or beam-shaped |
+| 25 | 100 | six small u8s | one constant tuple repeated across a map's events |
+| 26 | 39 | `[u32 a][u32 b][u32 c][u8]` | three **consecutive** ids — (14,15,16), (21,22,23) — and a byte |
+| 32 | 312 | `[u32 id][u8 0/1]` | overwhelmingly the Oracle's: its events switch local ids on and off in matched sets of four |
+
+Opcode 32's Autonote and Award readings are out: the ids run past both
+tables' ends, and the uses concentrate in `ORACLE.EVT` rather than where
+notes are earned. `observed` for the shapes; every reading above is at most
+a lean.
+
+The other **68 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event
