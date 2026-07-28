@@ -51,12 +51,67 @@ inline constexpr std::uint8_t kOpcodeChest = 7;
 // names GoblinWatch's. Reproduce with `evt_info --transitions`.
 inline constexpr std::uint8_t kOpcodeTravel = 6;
 
+// The conditional machinery, named by shape and confirmed by whole events —
+// see docs/formats/map-events.md, and reproduce with `evt_info --variables`.
+//
+// A check is `[type u8][value u32][step u8]` and jumps to the step when it
+// passes: its trailing byte is a step of its own event on 1,852 of 1,852
+// uses. Give, take and set are `[type u8][value u32]`. The end opcode closes
+// every event; the goto's byte is a step on 345 of 345 uses.
+// An event's opening step, present on 2,182 of 3,332 events, always first.
+// What it declares is still unread.
+inline constexpr std::uint8_t kOpcodeHeader = 4;
+
+inline constexpr std::uint8_t kOpcodeEnd = 1;
+inline constexpr std::uint8_t kOpcodeCheck = 14;
+inline constexpr std::uint8_t kOpcodeDoor = 15;  // `[door u8][open/shut u8]`
+inline constexpr std::uint8_t kOpcodeGive = 16;
+inline constexpr std::uint8_t kOpcodeTake = 17;
+inline constexpr std::uint8_t kOpcodeSet = 18;
+inline constexpr std::uint8_t kOpcodeGoto = 36;
+
+// The variable types whose meaning is established. A quest bit's value is
+// the bit's number in `Quests.txt` (1..376 of 512 used); an item's is an
+// `ITEMS.TXT` id (never past 578 across 704 uses); gold's is an amount.
+// Everything else is treated as a numbered variable.
+inline constexpr std::uint8_t kVarQuestBit = 16;
+inline constexpr std::uint8_t kVarItem = 17;
+inline constexpr std::uint8_t kVarGold = 21;
+
 // Where an event sends the party.
 struct MapTravel {
     int x = 0, y = 0, z = 0;
     int facing = 0;           // 0..2047, the angle scale MM6 uses
     std::string destination;  // a map file name; empty means this same map
 };
+
+// Read one travel step: four little-endian i32s — X, Y, Z, facing — then ten
+// bytes not yet decoded, then the NUL-terminated destination at byte 26.
+[[nodiscard]] inline std::optional<MapTravel> parse_travel(const ScriptStep& step) {
+    if (step.opcode != kOpcodeTravel || step.arguments.size() < 27) {
+        return std::nullopt;
+    }
+    const auto& a = step.arguments;
+    const auto read = [&a](std::size_t at) {
+        std::int32_t value = 0;
+        for (std::size_t i = 4; i > 0; --i) {
+            value = (value << 8) | a[at + i - 1];
+        }
+        return value;
+    };
+    MapTravel out;
+    out.x = read(0);
+    out.y = read(4);
+    out.z = read(8);
+    out.facing = read(12);
+    for (std::size_t i = 26; i < a.size() && a[i] != 0; ++i) {
+        out.destination += static_cast<char>(a[i]);
+    }
+    if (out.destination == "0") {
+        out.destination.clear();
+    }
+    return out;
+}
 
 // Whether this opcode's first argument is a string index.
 [[nodiscard]] inline bool names_a_string(std::uint8_t opcode) noexcept {
@@ -105,34 +160,14 @@ public:
         return 0;
     }
 
-    // Where an event sends the party, if anywhere. The record is four
-    // little-endian i32s — X, Y, Z, facing — then ten bytes not yet decoded,
-    // then the NUL-terminated destination at byte 26.
+    // Where an event sends the party, if anywhere. Note this reads the first
+    // travel step unconditionally; the walker in game/script_walk.hpp is what
+    // respects the checks in front of it.
     [[nodiscard]] std::optional<MapTravel> travel_of(std::uint16_t id) const {
         for (const auto& step : event(id)) {
-            if (step.opcode != kOpcodeTravel || step.arguments.size() < 27) {
-                continue;
+            if (auto travel = parse_travel(step)) {
+                return travel;
             }
-            const auto& a = step.arguments;
-            const auto read = [&a](std::size_t at) {
-                std::int32_t value = 0;
-                for (std::size_t i = 4; i > 0; --i) {
-                    value = (value << 8) | a[at + i - 1];
-                }
-                return value;
-            };
-            MapTravel out;
-            out.x = read(0);
-            out.y = read(4);
-            out.z = read(8);
-            out.facing = read(12);
-            for (std::size_t i = 26; i < a.size() && a[i] != 0; ++i) {
-                out.destination += static_cast<char>(a[i]);
-            }
-            if (out.destination == "0") {
-                out.destination.clear();
-            }
-            return out;
         }
         return std::nullopt;
     }

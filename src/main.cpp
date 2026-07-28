@@ -40,6 +40,7 @@
 #include "game/party.hpp"
 #include "game/player.hpp"
 #include "game/rest.hpp"
+#include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/sprites.hpp"
 #include "game/text.hpp"
@@ -1124,6 +1125,10 @@ int main(int argc, char** argv) {
     std::string shop_said;
     std::set<int> opened_chests;  // a chest gives up its contents once
 
+    // The event walker's memory: quest bits and event variables, which are
+    // the party's rather than any map's, so they survive travelling.
+    game::WalkState script_state;
+
     // Talking. The tables are all decoded; this is the first thing that uses
     // them together. See src/game/conversation.hpp.
     data::InterfaceStrings interface_words;
@@ -1495,35 +1500,94 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
 
-        // Doors, signs and switches: what the party is looking at, and what it
-        // says when used. See docs/formats/map-events.md.
+        // Doors, signs and switches: using one walks its event, and the
+        // event's own checks decide what happens — a gated exit stays shut
+        // until the quest bit it asks for is set. See
+        // docs/formats/map-events.md.
         const game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
         if (want_strike && aimed.found()) {
+            // The walker's view of the purse and the packs.
+            script_state.gold = gold;
+            script_state.items.clear();
+            for (const auto& pack : packs) {
+                for (const auto& carried : pack.items()) {
+                    script_state.items.push_back(carried.item_id);
+                }
+            }
+            const game::WalkOutcome outcome =
+                game::walk_event(session.script, aimed.event_id, script_state);
+            gold = script_state.gold;
+
+            // What it said, resolved before any travel drops these strings.
+            std::string said_text;
+            for (const int index : outcome.said) {
+                if (index < 0 ||
+                    static_cast<std::size_t>(index) >= session.script_strings.size()) {
+                    continue;
+                }
+                const std::string text = data::cp1252_to_utf8(
+                    std::string(session.script_strings.at(static_cast<std::size_t>(index))));
+                if (!text.empty()) {
+                    said_text += (said_text.empty() ? "" : "  ") + text;
+                }
+            }
+
+            // What it handed over, and what it asked for.
+            for (const int id : outcome.given) {
+                const auto* row = item_stats.at(static_cast<std::size_t>(id));
+                if (row == nullptr) {
+                    continue;
+                }
+                const render::Texture& icon = cache.icon(row->picture);
+                const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
+                const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
+                for (auto& pack : packs) {
+                    if (pack.add(id, w, h)) {
+                        said_text += (said_text.empty() ? "You receive " : "  You receive ") +
+                                     data::cp1252_to_utf8(row->name);
+                        break;
+                    }
+                }
+            }
+            for (const int id : outcome.taken) {
+                bool removed = false;
+                for (auto& pack : packs) {
+                    for (const auto& carried : pack.items()) {
+                        if (carried.item_id == id) {
+                            pack.remove(carried.x, carried.y);
+                            removed = true;
+                            break;
+                        }
+                    }
+                    if (removed) {
+                        break;
+                    }
+                }
+            }
+
             // A door into an establishment opens its counter.
-            if (const std::uint32_t building = session.script.building_of(aimed.event_id);
-                building != 0) {
+            if (outcome.building != 0) {
                 for (std::size_t i = 0; i < shops_here.size(); ++i) {
-                    if (static_cast<std::uint32_t>(shops_here[i]->id) != building) {
+                    if (static_cast<std::uint32_t>(shops_here[i]->id) != outcome.building) {
                         continue;
                     }
                     open_shop = static_cast<int>(i);
-                    shop_stock = game::stock_of(*shops_here[i], random_items, item_stats,
-                                                standard_bonuses, special_bonuses,
-                                                static_cast<std::uint32_t>(building) * 2654435761U);
+                    shop_stock =
+                        game::stock_of(*shops_here[i], random_items, item_stats, standard_bonuses,
+                                       special_bonuses, outcome.building * 2654435761U);
                     shop_said.clear();
-                    want_strike = false;
                     break;
                 }
             }
             // A chest gives up what the map's treasure level rolls.
-            if (const int chest = session.script.chest_of(aimed.event_id);
-                want_strike && chest >= 0 && !opened_chests.contains(chest)) {
-                opened_chests.insert(chest);
+            if (outcome.chest >= 0 && !opened_chests.contains(outcome.chest)) {
+                opened_chests.insert(outcome.chest);
                 std::string took;
                 for (const int id : game::chest_contents(
                          static_cast<std::size_t>(session.treasure_level), random_items, item_stats,
                          standard_bonuses, special_bonuses,
-                         static_cast<std::uint32_t>(chest + 1) * 40503U, game::kChestItems)) {
+                         static_cast<std::uint32_t>(outcome.chest + 1) * 40503U,
+                         game::kChestItems)) {
                     const auto* row = item_stats.at(static_cast<std::size_t>(id));
                     if (row == nullptr) {
                         continue;
@@ -1538,36 +1602,32 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-                pick_up_message = took.empty() ? "The chest is empty" : "You find " + took;
-                pick_up_shown = SDL_GetTicks();
-                want_strike = false;
+                said_text = took.empty() ? "The chest is empty" : "You find " + took;
             }
 
-            // A door that goes somewhere takes the party there: to a point on
-            // this map, or onto another of the 67 through the same loader.
-            if (const auto travel = session.script.travel_of(aimed.event_id);
-                want_strike && travel) {
-                const bool stays = travel->destination.empty();
-                if (stays || open_map(travel->destination)) {
-                    camera.position = world::to_render_space(travel->x, travel->y, travel->z);
+            if (!said_text.empty()) {
+                pick_up_message = said_text;
+                pick_up_shown = SDL_GetTicks();
+            }
+
+            // Travel last: it replaces the session everything above read.
+            if (outcome.travel) {
+                const auto& travel = *outcome.travel;
+                const bool stays = travel.destination.empty();
+                if (stays || open_map(travel.destination)) {
+                    camera.position = world::to_render_space(travel.x, travel.y, travel.z);
                     camera.position.y += game::kEyeHeight;
                     // The facing counts 0..2047 anticlockwise from MM6's +X;
                     // the camera's yaw looks down -Z at zero. `inferred`
-                    camera.yaw = (static_cast<float>(travel->facing) / 2048.0f) * 2.0f *
-                                     render::kPi +
-                                 render::kPi / 2.0f;
+                    camera.yaw =
+                        (static_cast<float>(travel.facing) / 2048.0f) * 2.0f * render::kPi +
+                        render::kPi / 2.0f;
                     camera.pitch = 0.0f;
-                    pick_up_message =
-                        stays ? "You step through" : "You travel to " + session.title();
+                    pick_up_message = stays ? "You step through" : "You travel to " + session.title();
                     pick_up_shown = SDL_GetTicks();
-                    want_strike = false;
                 }
             }
-
-            if (std::string said = game::face_message(session, aimed.event_id);
-                want_strike && !said.empty()) {
-                pick_up_message = std::move(said);
-                pick_up_shown = SDL_GetTicks();
+            if (outcome.acted()) {
                 want_strike = false;  // using a door is not swinging at it
             }
         }

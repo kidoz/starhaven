@@ -173,7 +173,7 @@ interoperability and compatibility with a legally purchased copy.
   are looking at (`"Door"`, `"Sign"`, `"Chest"`). Each was identified by its
   argument never leaving its map's own string count *and* using that range,
   then confirmed by what the strings say. Opcode 5 makes four: it points at the
-  map's own name on 53 of its 54 resolving uses. The other 85 are unknown, and
+  map's own name on 53 of its 54 resolving uses. The other 76 are unknown, and
   Opcode 2 is the one that enters a building: its argument is a `2DEvents.txt`
   row id, 474 of 504 resolving, and per map the count of distinct values tracks
   the count of establishments. So the party walks to a shop door, uses it, and
@@ -192,6 +192,16 @@ interoperability and compatibility with a legally purchased copy.
   exit door loads the destination map through the same one-path loader and
   stands the party at the recorded spot, so the 67 maps are now one world
   rather than 67 command lines.
+- **The conditional machinery, decoded and running**: seven more opcodes fall
+  together as one machine — check-and-jump (its jump target is a step of its
+  own event on 1,852 of 1,852 uses), give, take, set, goto, end, and a door
+  toggle. Three variable types are pinned by their closed sets: item ids that
+  never leave 1..578, quest bits at 1..376 of `Quests.txt`'s 512, and round
+  gold amounts. Whole shipped events confirm the flow: New Sorpigal's fountain
+  is a complete if-else around `"+10 Might temporary."`, and Castle Alamos's
+  exit checks quest bit 54 before its travel step runs. The engine walks
+  events through this machine now, so gated doors gate, switches throw once,
+  and a quest turn-in takes the item and pays the reward.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
   party uses them. Outdoors the same trigger sits at +0x124 of a model facet —

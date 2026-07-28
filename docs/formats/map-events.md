@@ -1,7 +1,7 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; seven opcodes
-are named and the rest are undecoded. Each claim is tagged `observed`,
+Status: **verified** for the container and the record structure; fourteen
+opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
 ## Scope
@@ -226,7 +226,66 @@ The shipped chests are empty: every one of the twenty slots on every map reads
 StarHaven does through the same generator the rest of the game's loot uses.
 How many things a chest holds is `inferred`.
 
-The other **85 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+### The conditional machinery
+
+Seven more opcodes fall together as one machine. Reproduce with
+`evt_info --variables`.
+
+| Opcode | Uses | Shape | Reading |
+| ---: | ---: | --- | --- |
+| 14 | 1,852 | `[type u8][value u32][step u8]` | check, jump on pass |
+| 16 | 1,071 | `[type u8][value u32]` | give / add |
+| 17 | 303 | `[type u8][value u32]` | take / subtract |
+| 18 | 849 | `[type u8][value u32]` | set |
+| 36 | 345 | `[step u8]` | goto |
+| 1 | 1,562 | `[u8 0..2]` | end of event |
+| 15 | 1,083 | `[door u8][state u8]` | open or shut a door |
+
+The step bytes are what settles the control flow: opcode 14's trailing byte
+is a sequence number of **its own event on 1,852 of 1,852 uses**, and opcode
+36's byte on 345 of 345. Opcode 1 closes essentially every event and its byte
+never passes 2. Opcode 15's first byte is **not** a step (86 of 1,089) — it
+runs 1..60 with a second byte of 0..2, a door and a state. `observed`
+
+The four typed opcodes share one type vocabulary, and three types are
+established by their closed sets:
+
+- **type 17 is an item id**: across 704 uses it never leaves 1..578, and 578
+  is exactly the item table's last row. What opcode 16 gives spans the whole
+  table; what opcode 17 takes is 433..578 — the quest-item rows, which is
+  what a turn-in takes off you. `observed`
+- **type 16 is a quest bit**: checked at 1..376 of the 512 bits `Quests.txt`
+  holds, and the bits opcode 17 clears sit at 81..235, the same region whose
+  rows carry journal text. `observed`
+- **type 21 is gold**: round amounts, 5 to 250,000. `observed`
+- **types 105 and up are numbered variables**, not one global enum: D01's
+  five switches use five consecutive ids, one each. `observed`
+- **type 25 is the temporary Might bonus** — named by the event that sets it
+  (below); 26..31 as the remaining attributes in `stats.txt` order is
+  `inferred`.
+
+Whole events confirm the readings. D01's switches all read: check my
+variable, jump to the end if it is set, set it, throw four doors — two open,
+two shut, mirrored between paired levers. New Sorpigal's fountain, event 150,
+is a complete if-else: check the Might bonus at 10, jump past the work when
+it is already on; else set it to 10, say `"+10 Might temporary."`, and goto
+the end over the `"Refreshing!"` branch. And Castle Alamos's exit, event 47,
+is a **gated door**: check quest bit 54 and jump to the travel step, or fall
+into the end and go nowhere. `observed`
+
+Whether a passing check means *at least* or *exactly* the value cannot be
+told from flows that check against 1 and 10; the engine reads it as at least.
+`inferred`
+
+The engine walks all of it — src/game/script_walk.hpp — so a gated exit
+stays shut until its bit is set, a switch throws once, and a turn-in takes
+the quest item and pays.
+
+One more lead fell out: opcode 11's arguments end in a NUL-terminated ASCII
+name — `"t1swdu"` on every D01 switch — which reads like a sound effect.
+`unknown`
+
+The other **76 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event
@@ -276,4 +335,10 @@ using one prints its message.
 - Most opcodes. `unknown`
 - Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
   on the rest, including consecutive runs within one script. `unknown`
+- Opcode 15's door numbers against the indoor maps' own door records, and
+  what state 2 is where 0 and 1 read as shut and open. `unknown`
+- Opcode 11's embedded ASCII name, which reads like a sound effect. `unknown`
+- Opcode 1's byte, always 0..2. `unknown`
+- The variable types beyond the named ones — 12, 13, 22, 205 and the rest of
+  the vocabulary. `unknown`
 - The 33 face event ids with no matching event. `unknown`

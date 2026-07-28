@@ -224,6 +224,107 @@ int do_transitions(const starhaven::lod::LodArchive& icons,
     return 0;
 }
 
+// Research mode: the shape of the would-be variable opcodes. For each, the
+// argument sizes, the first byte's vocabulary (a candidate type selector),
+// the little-endian u32 after it (a candidate value), and — for opcode 14 —
+// whether the trailing byte stays inside its own event's sequence numbers,
+// which is what a jump target would do.
+int do_variables(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    struct TypeUse {
+        std::size_t uses = 0;
+        std::uint32_t min_value = 0xFFFFFFFF;
+        std::uint32_t max_value = 0;
+    };
+    struct OpcodeUse {
+        std::map<std::size_t, std::size_t> sizes;
+        std::map<int, TypeUse> by_type;      // first byte -> value stats
+        std::size_t jump_in_range = 0;       // trailing byte <= event's max sequence
+        std::size_t jump_total = 0;
+        std::size_t max_trailing = 0;
+    };
+    const std::vector<int> candidates{1, 14, 15, 16, 17, 18, 19, 32, 36, 37};
+    std::map<int, OpcodeUse> opcodes;
+
+    for (const auto& entry : icons.entries()) {
+        const std::string& name = entry.name;
+        if (name.size() < 4 || name.substr(name.size() - 4) != ".EVT") {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        // The largest sequence number of each event, for the jump test.
+        std::map<std::uint16_t, std::size_t> max_sequence;
+        for (const auto& step : script.steps()) {
+            auto& top = max_sequence[step.event_id];
+            top = std::max(top, static_cast<std::size_t>(step.sequence));
+        }
+        for (const auto& step : script.steps()) {
+            if (std::find(candidates.begin(), candidates.end(), static_cast<int>(step.opcode)) ==
+                candidates.end()) {
+                continue;
+            }
+            OpcodeUse& use = opcodes[step.opcode];
+            const auto& a = step.arguments;
+            ++use.sizes[a.size()];
+            if (a.size() >= 5) {
+                std::uint32_t value = 0;
+                for (int i = 4; i >= 1; --i) {
+                    value = (value << 8) | a[static_cast<std::size_t>(i)];
+                }
+                TypeUse& t = use.by_type[a[0]];
+                ++t.uses;
+                t.min_value = std::min(t.min_value, value);
+                t.max_value = std::max(t.max_value, value);
+            }
+            if (a.size() == 6) {
+                ++use.jump_total;
+                use.max_trailing = std::max(use.max_trailing, static_cast<std::size_t>(a[5]));
+                if (a[5] <= max_sequence[step.event_id]) {
+                    ++use.jump_in_range;
+                }
+            }
+            // The one- and two-byte opcodes: is their byte a step number too?
+            if (a.size() == 1 || a.size() == 2) {
+                ++use.jump_total;
+                use.max_trailing = std::max(use.max_trailing, static_cast<std::size_t>(a[0]));
+                if (a[0] <= max_sequence[step.event_id]) {
+                    ++use.jump_in_range;
+                }
+                if (a.size() == 2) {
+                    TypeUse& t = use.by_type[a[1]];
+                    ++t.uses;
+                    t.min_value = std::min(t.min_value, static_cast<std::uint32_t>(a[0]));
+                    t.max_value = std::max(t.max_value, static_cast<std::uint32_t>(a[0]));
+                }
+            }
+        }
+    }
+
+    for (const auto& [opcode, use] : opcodes) {
+        std::cout << "opcode " << opcode << "\n  sizes:";
+        for (const auto& [size, count] : use.sizes) {
+            std::cout << "  " << size << "b x" << count;
+        }
+        std::cout << "\n";
+        if (use.jump_total > 0) {
+            std::cout << "  trailing byte within its event's sequences: " << use.jump_in_range
+                      << "/" << use.jump_total << ", max " << use.max_trailing << "\n";
+        }
+        for (const auto& [type, t] : use.by_type) {
+            std::cout << "  type " << type << "\tx" << t.uses << "\tvalue " << t.min_value << ".."
+                      << t.max_value << "\n";
+        }
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -251,6 +352,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--variables") {
+        return do_variables(icons);
     }
     std::span<const std::byte> raw;
     world::MapScript script;
