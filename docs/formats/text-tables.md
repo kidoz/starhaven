@@ -516,6 +516,26 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
+## The spells' own numbers
+
+`Spells.txt` states what a spell does in prose, and the damage and healing
+among it follow few enough phrasings to read exactly: `"does 2-6 points of
+damage"` flat, `"Damage is 1-4 points of damage per point of skill"` pure
+scaling, `"does 9 points of damage plus 1-9 per point of skill"` both, and
+the heals as `"Cures 5 hit points"` per mastery cell or `"heals a single
+character of 3-7 hit points"` in the description. **25 of the 99** parse a
+number this way — every direct-damage spell in the game and both heals; the
+74 that state none are buffs, cures of conditions, and utility, honestly
+beyond a numbers parser. `observed` Reproduce with
+`data_info --spell-effects`.
+
+The engine casts from it: a spell scroll (its spell the S-number in its own
+`ITEMS.TXT` row) reads once at normal mastery — heals to the most wounded,
+damage at what the party aims at, answered by the resistance of the spell's
+own element. What the prose does not state is the engine's and says so: the
+reader is the first character standing, their level stands in for the skill,
+and First Aid is the one spell casters cast from their own points.
+
 ## The stables' and docks' timetables
 
 The nine `Stables` and twelve `Boats` rows of `2DEvents.txt` use the three

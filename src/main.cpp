@@ -85,6 +85,8 @@ void print_usage(const char* argv0) {
               << "  C          the character sheet; 1-4 choose a character\n"
               << "  I          the inventory; walk over a thing to pick it up\n"
               << "  U          in a pack: drink the first potion or herb\n"
+              << "  X          read the first spell scroll at what you aim at\n"
+              << "  H          the first caster with the points casts First Aid\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
               << "  F5/F9      save the game / load it back\n"
@@ -1909,6 +1911,115 @@ int main(int argc, char** argv) {
                     shown_member = chosen;
                 } else if (shown_pack >= 0 && chosen < 4) {
                     shown_pack = chosen;
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_X &&
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+                // Read the first spell scroll anyone carries: its own spell,
+                // cast once at normal mastery, then the paper is spent. Who
+                // reads it and at what skill the scaling part rolls — the
+                // first character standing, at their level — is this
+                // engine's. `inferred`
+                bool read = false;
+                for (std::size_t who = 0; who < packs.size() && !read; ++who) {
+                    if (party[who].hit_points <= 0) {
+                        continue;
+                    }
+                    for (const auto& carried : packs[who].items()) {
+                        const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
+                        if (row == nullptr || row->equip_type != data::ItemEquipType::SpellScroll) {
+                            continue;
+                        }
+                        const int spell_id = data::scroll_spell_of(row->modifier_1);
+                        const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id));
+                        if (spell == nullptr) {
+                            continue;
+                        }
+                        const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
+                        std::string what;
+                        if (!effect.heal.empty()) {
+                            // The most wounded standing character drinks it in.
+                            std::size_t worst = who;
+                            int missing = -1;
+                            for (std::size_t i = 0; i < party.size(); ++i) {
+                                const int gap = party[i].max_hit_points - party[i].hit_points;
+                                if (party[i].hit_points > 0 && gap > missing) {
+                                    missing = gap;
+                                    worst = i;
+                                }
+                            }
+                            const int amount = effect.heal.low;
+                            party[worst].hit_points =
+                                std::min(party[worst].max_hit_points,
+                                         party[worst].hit_points + amount);
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) + ": " + party[worst].name +
+                                   " is healed";
+                        } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
+                            const std::size_t target =
+                                game::aimed_actor(session, battle, camera.position,
+                                                  camera.forward(), game::kPartyReach);
+                            if (target == game::kNoActor) {
+                                pick_up_message = "Nothing in reach to cast at";
+                                pick_up_shown = SDL_GetTicks();
+                                read = true;  // keep the scroll: nothing was cast
+                                break;
+                            }
+                            what = battle.smite(target, effect.damage, effect.damage_per_skill,
+                                                party[who].level, spell->element,
+                                                party[who].name, session, monster_stats,
+                                                item_stats, random_items, standard_bonuses,
+                                                special_bonuses);
+                        } else {
+                            continue;  // a spell this slice cannot cast yet
+                        }
+                        packs[who].remove(carried.x, carried.y);
+                        pick_up_message = std::move(what);
+                        pick_up_shown = SDL_GetTicks();
+                        read = true;
+                        break;
+                    }
+                }
+                if (!read) {
+                    pick_up_message = "Nobody carries a castable scroll";
+                    pick_up_shown = SDL_GetTicks();
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H &&
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+                // First Aid, the one spell this engine lets casters cast from
+                // their own points: cost and amount are the table's row 68;
+                // that it is every caster's spell is this engine's. `inferred`
+                const auto* spell = spell_stats.at(68);
+                if (spell != nullptr) {
+                    const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
+                    bool cast = false;
+                    for (auto& caster : party) {
+                        if (caster.hit_points <= 0 || caster.spell_points < spell->cost_normal) {
+                            continue;
+                        }
+                        std::size_t worst = 0;
+                        int missing = -1;
+                        for (std::size_t i = 0; i < party.size(); ++i) {
+                            const int gap = party[i].max_hit_points - party[i].hit_points;
+                            if (party[i].hit_points > 0 && gap > missing) {
+                                missing = gap;
+                                worst = i;
+                            }
+                        }
+                        caster.spell_points -= spell->cost_normal;
+                        party[worst].hit_points = std::min(
+                            party[worst].max_hit_points,
+                            party[worst].hit_points + std::max(1, effect.heal.low));
+                        pick_up_message = caster.name + " casts " +
+                                          data::cp1252_to_utf8(spell->name) + " on " +
+                                          party[worst].name;
+                        pick_up_shown = SDL_GetTicks();
+                        cast = true;
+                        break;
+                    }
+                    if (!cast) {
+                        pick_up_message = "Nobody has the spell points";
+                        pick_up_shown = SDL_GetTicks();
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE &&
                        shown_member < 0 && shown_pack < 0) {

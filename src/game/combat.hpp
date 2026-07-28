@@ -23,6 +23,7 @@
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/spell_effects.hpp"
 #include "core/data/treasure.hpp"
 #include "core/random.hpp"
 #include "core/world/map_session.hpp"
@@ -315,37 +316,35 @@ public:
         damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, "Phys"));
         damage = damage < 1 ? 1 : damage;
 
-        Combatant& target = combatants_[actor];
-        target.hit_points -= damage;
-        target.wince = kWinceSeconds;
-        std::string what = who.name + " hits " + monster.name + " for " + std::to_string(damage);
-        if (target.hit_points <= 0) {
-            target.alive = false;
-            target.hit_points = 0;
-            target.wince = 0.0f;
-            experience_ += monster.experience;
-            // And whatever its treasure code leaves behind: one roll against
-            // the chance, then the gold and the item the code names.
-            if (const data::Treasure drop = data::parse_treasure(monster.treasure);
-                !drop.empty() && static_cast<int>(random_.next() % 100) < drop.chance) {
-                if (!drop.gold.empty()) {
-                    gold_ += data::roll(drop.gold, random_);
-                }
-                data::GeneratedItem rolled;
-                if (drop.item_level > 0 &&
-                    data::generate_random_item(random_items, items, standard_bonuses,
-                                               special_bonuses,
-                                               static_cast<std::size_t>(drop.item_level),
-                                               data::treasure_item_type(drop.item_kind), random_,
-                                               artifacts_,
-                                               rolled) == data::ItemGenerationError::None &&
-                    rolled.item_id > 0) {  // a kind nothing matches rolls the blank row
-                    loot_.push_back(rolled.item_id);
-                }
-            }
-            what += " and kills it";
+        return land(actor, damage, monster, who.name, items, random_items, standard_bonuses,
+                    special_bonuses);
+    }
+
+    // A spell's blow at one monster: the prose's flat part, plus one roll of
+    // the scaling part per point of skill, answered by the resistance of the
+    // spell's own element.
+    std::string smite(std::size_t actor, const data::SpellRange& flat,
+                      const data::SpellRange& per_skill, int skill, std::string_view element,
+                      const std::string& caster, const world::MapSession& session,
+                      const data::MonsterStatsTable& monsters, const data::ItemStatsTable& items,
+                      const data::RandomItemTable& random_items,
+                      const data::StandardBonusTable& standard_bonuses,
+                      const data::SpecialBonusTable& special_bonuses) {
+        if (!alive(actor)) {
+            return {};
         }
-        return what;
+        const auto id = static_cast<std::size_t>(session.actors[actor].monster_id);
+        if (id == 0 || id > monsters.entries().size()) {
+            return {};
+        }
+        const auto& monster = monsters.entries()[id - 1];
+        int damage = roll_range(flat);
+        for (int i = 0; i < skill; ++i) {
+            damage += roll_range(per_skill);
+        }
+        damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, element));
+        return land(actor, damage < 1 ? 1 : damage, monster, caster, items, random_items,
+                    standard_bonuses, special_bonuses);
     }
 
     // The monsters take their turn. Anything alive and in reach swings at a
@@ -388,6 +387,56 @@ public:
     }
 
 private:
+    // One amount from a prose range, inclusive.
+    int roll_range(const data::SpellRange& range) noexcept {
+        if (range.empty()) {
+            return 0;
+        }
+        return range.low +
+               static_cast<int>(random_.next() %
+                                static_cast<unsigned>(range.high - range.low + 1));
+    }
+
+    // A landed blow, whoever struck it: the wound, the flinch, and on a kill
+    // the experience and the treasure code's payout.
+    std::string land(std::size_t actor, int damage, const data::MonsterStatsEntry& monster,
+                     const std::string& attacker, const data::ItemStatsTable& items,
+                     const data::RandomItemTable& random_items,
+                     const data::StandardBonusTable& standard_bonuses,
+                     const data::SpecialBonusTable& special_bonuses) {
+        Combatant& target = combatants_[actor];
+        target.hit_points -= damage;
+        target.wince = kWinceSeconds;
+        std::string what = attacker + " hits " + monster.name + " for " + std::to_string(damage);
+        if (target.hit_points <= 0) {
+            target.alive = false;
+            target.hit_points = 0;
+            target.wince = 0.0f;
+            experience_ += monster.experience;
+            // And whatever its treasure code leaves behind: one roll against
+            // the chance, then the gold and the item the code names.
+            if (const data::Treasure drop = data::parse_treasure(monster.treasure);
+                !drop.empty() && static_cast<int>(random_.next() % 100) < drop.chance) {
+                if (!drop.gold.empty()) {
+                    gold_ += data::roll(drop.gold, random_);
+                }
+                data::GeneratedItem rolled;
+                if (drop.item_level > 0 &&
+                    data::generate_random_item(random_items, items, standard_bonuses,
+                                               special_bonuses,
+                                               static_cast<std::size_t>(drop.item_level),
+                                               data::treasure_item_type(drop.item_kind), random_,
+                                               artifacts_,
+                                               rolled) == data::ItemGenerationError::None &&
+                    rolled.item_id > 0) {  // a kind nothing matches rolls the blank row
+                    loot_.push_back(rolled.item_id);
+                }
+            }
+            what += " and kills it";
+        }
+        return what;
+    }
+
     // One monster's blow at whoever in the party is still standing.
     std::string swing(const data::MonsterStatsEntry& monster, std::array<Character, 4>& party) {
         std::vector<std::size_t> standing;

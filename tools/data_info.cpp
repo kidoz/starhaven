@@ -20,6 +20,7 @@
 #include "core/data/monster_stats.hpp"
 #include "core/data/npc_stats.hpp"
 #include "core/data/spell_stats.hpp"
+#include "core/data/spell_effects.hpp"
 #include "core/data/text_table.hpp"
 #include "core/data/treasure.hpp"
 #include "core/lod/lod_archive.hpp"
@@ -1142,6 +1143,40 @@ int main(int argc, char** argv) {
             return 1;
         }
         return do_journal(command.substr(2), table, argument);
+    }
+    if (command == "--spell-effects") {
+        data::SpellStatsTable spells;
+        if (data::load_spell_stats(data_dir, spells) != data::GameDataError::None) {
+            std::cerr << "error: could not read Spells.txt\n";
+            return 1;
+        }
+        std::size_t heals = 0, damages = 0, scaled = 0, silent = 0;
+        for (const auto& spell : spells.entries()) {
+            const data::SpellEffect effect = data::parse_spell_effect(spell, 0);
+            if (effect.empty()) {
+                ++silent;
+                continue;
+            }
+            std::cout << "  " << spell.id << "\t" << data::cp1252_to_utf8(spell.name);
+            if (!effect.heal.empty()) {
+                ++heals;
+                std::cout << "\theal " << effect.heal.low << "-" << effect.heal.high;
+            }
+            if (!effect.damage.empty()) {
+                ++damages;
+                std::cout << "\tdamage " << effect.damage.low << "-" << effect.damage.high;
+            }
+            if (!effect.damage_per_skill.empty()) {
+                ++scaled;
+                std::cout << "\tdamage/skill " << effect.damage_per_skill.low << "-"
+                          << effect.damage_per_skill.high;
+            }
+            std::cout << "\n";
+        }
+        std::cout << spells.size() << " spells; " << heals << " heal, " << damages
+                  << " state flat damage, " << scaled << " scale with skill, " << silent
+                  << " state no number this parser reads\n";
+        return 0;
     }
     if (command == "--use-items") {
         data::UseItemTable use_items;

@@ -280,6 +280,15 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Spells with the table's own numbers**: the damage and healing in
+  `Spells.txt`'s prose follow few enough phrasings to parse exactly — 25 of
+  99 spells yield their dice, every direct-damage spell and both heals.
+  **X** reads the first spell scroll anyone carries: Fire Bolt rolls its
+  written 1-4 per point of skill at what you aim at, answered by the
+  monster's own elemental resistance, and the paper is spent. **H** lets a
+  caster finally spend spell points — First Aid at the table's cost and
+  amount. Who reads, and level standing in for skill, are this engine's and
+  say so.
 - **A bank that keeps your gold**: the six `Bank` rows' margin notes name
   the counter's two verbs — Deposit and Withdraw — and no column pays
   interest, so neither does the vault. The balance rides in the save. The

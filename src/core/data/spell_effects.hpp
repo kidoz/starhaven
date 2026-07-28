@@ -1,0 +1,185 @@
+#ifndef STARHAVEN_CORE_DATA_SPELL_EFFECTS_HPP
+#define STARHAVEN_CORE_DATA_SPELL_EFFECTS_HPP
+
+// The numbers inside a spell's prose.
+//
+// `Spells.txt` states what a spell does in the designers' words, and the
+// damage and healing among them follow a few phrasings: `"does 2-6 points
+// of damage"`, `"does 8 points of damage plus 1-2 per point of skill"`,
+// `"Damage is 1-4 points of damage per point of skill"`, `"Cures 5 hit
+// points"`, `"heals a single character of 3-7 hit points"`. This reads
+// those numbers out without inventing any; a spell whose prose carries none
+// parses to an empty effect and stays beyond this slice.
+
+#include <cctype>
+#include <string_view>
+
+#include "core/data/spell_stats.hpp"
+
+namespace starhaven::data {
+
+// An amount written as `N` or `N-M`.
+struct SpellRange {
+    int low = 0;
+    int high = 0;
+
+    [[nodiscard]] bool empty() const noexcept { return low <= 0 || high < low; }
+};
+
+// What one spell does, as far as its prose states it: a flat part, a part
+// per point of skill, or a healing amount.
+struct SpellEffect {
+    SpellRange heal;
+    SpellRange damage;            // the flat part
+    SpellRange damage_per_skill;  // the part that scales
+
+    [[nodiscard]] bool empty() const noexcept {
+        return heal.empty() && damage.empty() && damage_per_skill.empty();
+    }
+};
+
+namespace detail {
+
+[[nodiscard]] inline bool same_ignoring_case(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] inline std::size_t find_ignoring_case(std::string_view text, std::string_view word,
+                                                    std::size_t from = 0) {
+    if (word.empty() || text.size() < word.size()) {
+        return std::string_view::npos;
+    }
+    for (std::size_t at = from; at + word.size() <= text.size(); ++at) {
+        if (same_ignoring_case(text.substr(at, word.size()), word)) {
+            return at;
+        }
+    }
+    return std::string_view::npos;
+}
+
+// Read `N` or `N-M` starting at `at`; `end` reports one past the last digit.
+[[nodiscard]] inline SpellRange range_at(std::string_view text, std::size_t at,
+                                         std::size_t* end = nullptr) {
+    SpellRange out;
+    std::size_t p = at;
+    while (p < text.size() && std::isdigit(static_cast<unsigned char>(text[p])) != 0) {
+        out.low = out.low * 10 + (text[p] - '0');
+        ++p;
+    }
+    if (out.low > 0) {
+        out.high = out.low;
+        if (p < text.size() && text[p] == '-') {
+            int high = 0;
+            std::size_t q = p + 1;
+            while (q < text.size() && std::isdigit(static_cast<unsigned char>(text[q])) != 0) {
+                high = high * 10 + (text[q] - '0');
+                ++q;
+            }
+            if (high >= out.low) {
+                out.high = high;
+                p = q;
+            }
+        }
+    }
+    if (end != nullptr) {
+        *end = p;
+    }
+    return out;
+}
+
+// The range right after a phrase, skipping spaces: `"does " -> 2-6`.
+[[nodiscard]] inline SpellRange range_after(std::string_view text, std::string_view phrase,
+                                            std::size_t* end = nullptr) {
+    std::size_t from = 0;
+    while (true) {
+        const std::size_t at = find_ignoring_case(text, phrase, from);
+        if (at == std::string_view::npos) {
+            return {};
+        }
+        std::size_t p = at + phrase.size();
+        while (p < text.size() && text[p] == ' ') {
+            ++p;
+        }
+        if (const SpellRange range = range_at(text, p, end); !range.empty()) {
+            return range;
+        }
+        from = at + 1;
+    }
+}
+
+}  // namespace detail
+
+// Read the numbers a spell's prose states at one mastery (0 normal,
+// 1 expert, 2 master). The mastery cells carry the cures that differ by
+// rank; the description carries the damage.
+[[nodiscard]] inline SpellEffect parse_spell_effect(const SpellStatsEntry& spell, int mastery) {
+    using detail::find_ignoring_case;
+    using detail::range_after;
+
+    SpellEffect out;
+    const std::string_view rank = mastery >= 2   ? spell.master
+                                  : mastery == 1 ? spell.expert
+                                                 : spell.normal;
+    // "Cures 7 hit points" in the rank cell wins; the description's amount
+    // is the normal rank's.
+    out.heal = range_after(rank, "cures ");
+    const std::string_view text = spell.description;
+    if (out.heal.empty()) {
+        for (const std::string_view phrase : {"cures ", "character of ", "heals "}) {
+            out.heal = range_after(text, phrase);
+            if (!out.heal.empty() && find_ignoring_case(text, "hit point") !=
+                                         std::string_view::npos) {
+                break;
+            }
+            out.heal = {};
+        }
+    }
+
+    // Damage: a flat part after "does"/"damage is", and a scaling part when
+    // "per point of skill" follows — either the same range (pure scaling) or
+    // a second one after "plus".
+    if (find_ignoring_case(text, "damage") == std::string_view::npos) {
+        return out;
+    }
+    const std::size_t per_skill =
+        std::min(find_ignoring_case(text, "per point of skill"),
+                 find_ignoring_case(text, "per skill point"));
+    for (const std::string_view phrase : {"does ", "damage is ", "damage is equal to "}) {
+        std::size_t end = 0;
+        const SpellRange flat = range_after(text, phrase, &end);
+        if (flat.empty()) {
+            continue;
+        }
+        if (per_skill == std::string_view::npos || per_skill < end) {
+            out.damage = flat;
+            break;
+        }
+        // Between the number and "per point of skill": a "plus" makes the
+        // first range flat and the second scaling; none makes it scaling.
+        const std::string_view between = text.substr(end, per_skill - end);
+        if (const std::size_t plus = find_ignoring_case(between, "plus ");
+            plus != std::string_view::npos) {
+            out.damage = flat;
+            out.damage_per_skill = range_after(between, "plus ");
+        } else if (between.size() < 40) {
+            out.damage_per_skill = flat;
+        } else {
+            out.damage = flat;  // the scaling phrase belongs to another sentence
+        }
+        break;
+    }
+    return out;
+}
+
+}  // namespace starhaven::data
+
+#endif  // STARHAVEN_CORE_DATA_SPELL_EFFECTS_HPP

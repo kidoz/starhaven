@@ -254,6 +254,12 @@ test('use_items',
   workdir : meson.current_build_dir(),
 )
 
+test('spell_effects',
+  executable('test_spell_effects', 'test_spell_effects.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('conversation',
   executable('test_conversation', 'test_conversation.cpp',
     dependencies : [starhaven_dep, catch2_main]),
