@@ -78,6 +78,7 @@ small.
 | 29 | 650 | 0 | 0.78 | show a message |
 | 30 | 132 | 0 | 0.76 | show a longer message |
 | 35 | 142 | 0 | 0.23 | name what is being looked at |
+| 5 | 57 | 0 | — | the map's own name |
 | 4 | 2,061 | **522** | — | not a string index |
 
 What the strings say confirms it. Opcode 29 points at `"The door is locked."`,
@@ -87,7 +88,31 @@ points at `"Door"`, `"Sign"`, `"Chest"` — the noun for a thing you are looking
 at, which is exactly what `D01.STR`'s list of `"Exit Door"`, `"Chest"`,
 `"Switch"`, `"Door"` is for. `observed`
 
-The other **87 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+### A fourth: opcode 5 says where you are
+
+Opcode 5 appears 57 times and its argument is a string on all of them. Of the
+54 that resolve, **53 point at the map's own display name** in `MapStats.txt` —
+`CD1` at "Castle Alamos", `CD2` at "Castle Darkmoor", `D01` at "GoblinWatch" —
+and one points at another map's. `observed` So it announces the place rather
+than travelling to it.
+
+### What was ruled out looking for the opcode that enters a building
+
+Opcode 4 is the commonest at 2,192 uses and remains `unknown`. Three readings
+were tested and fail:
+
+- **a string index**: its argument leaves the map's string range 522 times;
+- **an index into a per-map count** — decorations, actors, objects, chests,
+  facets, models: the values that never exceed a count use so little of it
+  (1% to 13% of the range) that the bound is not evidence;
+- **a `2DEvents.txt` building id on that map**: 352 of 846, 42%. Opcodes 2, 7
+  and 19 score 55%, 9% and 21% on the same test, which is what chance looks
+  like against a set that large.
+
+So whatever performs an entry is still unnamed, and the shops on an outdoor map
+still cannot be walked into. `unknown`
+
+The other **86 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event

@@ -31,10 +31,12 @@ struct ScriptStep {
 inline constexpr std::uint8_t kOpcodeMessage = 29;      // "The door is locked."
 inline constexpr std::uint8_t kOpcodeLongMessage = 30;  // a sign's full text
 inline constexpr std::uint8_t kOpcodeName = 35;         // "Door", "Sign", "Chest"
+inline constexpr std::uint8_t kOpcodeTitle = 5;         // what this place is called
 
 // Whether this opcode's first argument is a string index.
 [[nodiscard]] inline bool names_a_string(std::uint8_t opcode) noexcept {
-    return opcode == kOpcodeMessage || opcode == kOpcodeLongMessage || opcode == kOpcodeName;
+    return opcode == kOpcodeMessage || opcode == kOpcodeLongMessage || opcode == kOpcodeName ||
+           opcode == kOpcodeTitle;
 }
 
 enum class MapScriptError : std::uint8_t {

@@ -136,3 +136,15 @@ TEST_CASE("only the three known opcodes name a string", "[script]") {
     REQUIRE_FALSE(names_a_string(4));
     REQUIRE_FALSE(names_a_string(1));
 }
+
+TEST_CASE("the title opcode names a string too", "[script]") {
+    // Opcode 5 points at the map's own display name on 53 of the 54 shipped
+    // uses that resolve; see docs/formats/map-events.md.
+    REQUIRE(names_a_string(kOpcodeTitle));
+
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 1, 0, kOpcodeTitle, {4});
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+    REQUIRE(script.string_of(1, kOpcodeTitle) == 4);
+}
