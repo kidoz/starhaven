@@ -160,6 +160,11 @@ executable('blv_info', 'tools/blv_info.cpp',
   install : true,
 )
 
+executable('doll_info', 'tools/doll_info.cpp',
+  dependencies : starhaven_dep,
+  install : true,
+)
+
 # Event-data inspector: decompresses one .ddm/.dlv file and prints stats.
 executable('ddm_info', 'tools/ddm_info.cpp',
   dependencies : starhaven_dep,

@@ -458,6 +458,29 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         y += font.height() + 1;
     }
 
+    // The paperdoll: the panel, then the body whose letter is the face's —
+    // the twelve dolls and the twelve portraits share their eight-male,
+    // four-female lettering. An item's Equip X/Y is a point on the 640x480
+    // screen; the panel's own place and the body's on it are this engine's
+    // calibration. Body armor swaps the torso for an overlay set whose anchor
+    // is not yet measured, so it is not drawn. See docs/formats/paperdoll.md.
+    constexpr int kDollLeft = kWidth - 173 - 16;
+    constexpr int kDollTop = 60;
+    blit(scene.framebuffer(), cache.icon("BACKDOLL"), kDollLeft, kDollTop);
+    const bool female = game::face_is_female(who.face);
+    std::string body = female ? "grl" : "ml";
+    body += static_cast<char>('a' + who.face - (female ? game::kMaleFaceCount : 0));
+    blit(scene.framebuffer(), cache.icon(body + "bod"), kDollLeft + 30, kDollTop + 28);
+    for (const int id : who.equipped) {
+        if (id <= 0) {
+            continue;
+        }
+        const auto* row = items.at(static_cast<std::size_t>(id));
+        if (row != nullptr && (row->equip_x != 0 || row->equip_y != 0)) {
+            blit(scene.framebuffer(), cache.icon(row->picture), row->equip_x, row->equip_y);
+        }
+    }
+
     // What this character is wearing, beside the grid.
     int worn_y = kTop;
     for (std::size_t i = 0; i < game::kSlotCount; ++i) {
