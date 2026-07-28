@@ -1176,7 +1176,9 @@ int main(int argc, char** argv) {
                 music.start(*install, session.music_track)) {
                 std::cout << "playing track " << session.music_track << "\n";
             }
-            if (!ambient_sources.empty() && ambient.open(*install)) {
+            // Opened even with no ambient decorations: doors and switches
+            // play their one-shots through the same mixer.
+            if (ambient.open(*install) && !ambient_sources.empty()) {
                 std::cout << ambient_sources.size() << " decorations make a sound\n";
             }
         }
@@ -1823,6 +1825,13 @@ int main(int argc, char** argv) {
             }
             if (doors_moved) {
                 world::rebuild_indoor_collision(session);
+                // No script opcode names event sounds — a sweep of every
+                // unnamed opcode's arguments against the sound table found
+                // none — so the working of a door is this engine's choice
+                // from the archive's own names. `inferred`
+                ambient.play_once("stone door0101");
+            } else if (!outcome.retextures.empty()) {
+                ambient.play_once("WoodDRClose");
             }
 
             // A door into an establishment opens its counter.

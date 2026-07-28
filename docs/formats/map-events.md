@@ -411,6 +411,16 @@ try it.
 The engine reads both. A face with a name shows it under the crosshair, and
 using one prints its message.
 
+## What the scripts do not carry: sound
+
+No opcode names a sound. A sweep of every unnamed opcode, at every u32
+offset inside its arguments, against the sound table's 1,355 ids produced no
+candidate: nothing resolves near-totally, and the partial hits land on the
+dense id regions with names that read as noise — interface clicks, monster
+attack fragments. The working of a door or a lever must be sounded by the
+engine's own choice, which is what this engine does, from the archive's own
+names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
+
 ## Open questions
 
 - Most opcodes. `unknown`

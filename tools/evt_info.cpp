@@ -608,6 +608,80 @@ int do_unheaded(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: which unnamed opcode plays a sound? For every opcode and
+// every u32 offset inside its arguments, the resolve rate against the global
+// sound table — with the names, since a rate alone pattern-matches on the
+// dense id regions.
+int do_soundsweep(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    world::SoundTable sounds;
+    std::span<const std::byte> raw;
+    if (icons.payload("DSOUNDS.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::SoundTable::parse(raw, sounds) != world::SoundTableError::None) {
+        std::cerr << "error: could not read DSOUNDS.BIN\n";
+        return 1;
+    }
+
+    struct Candidate {
+        std::size_t uses = 0;
+        std::size_t resolves = 0;
+        std::set<std::uint32_t> values;
+        std::map<std::string, std::size_t> names;
+    };
+    const std::set<int> named{1, 2, 4, 5, 6, 7, 11, 14, 15, 16, 17, 18, 29, 30, 35, 36};
+    std::map<std::pair<int, int>, Candidate> candidates;  // (opcode, offset)
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if (named.contains(step.opcode) || step.arguments.size() < 4) {
+                continue;
+            }
+            for (std::size_t at = 0; at + 4 <= step.arguments.size(); ++at) {
+                std::uint32_t value = 0;
+                for (int i = 3; i >= 0; --i) {
+                    value = (value << 8) | step.arguments[at + static_cast<std::size_t>(i)];
+                }
+                if (value == 0) {
+                    continue;
+                }
+                Candidate& c = candidates[{step.opcode, static_cast<int>(at)}];
+                ++c.uses;
+                if (const auto* found = sounds.find(value); found != nullptr) {
+                    ++c.resolves;
+                    c.values.insert(value);
+                    ++c.names[found->name];
+                }
+            }
+        }
+    }
+
+    for (const auto& [key, c] : candidates) {
+        if (c.uses < 10 || c.resolves * 2 < c.uses || c.values.size() < 3) {
+            continue;  // report only near-total resolve rates with variety
+        }
+        std::cout << "opcode " << key.first << " +[" << key.second << "]: " << c.resolves << "/"
+                  << c.uses << " resolve, " << c.values.size() << " distinct;";
+        std::size_t shown = 0;
+        for (const auto& [name, count] : c.names) {
+            if (++shown > 6) {
+                break;
+            }
+            std::cout << " " << name << " x" << count;
+        }
+        std::cout << "\n";
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -635,6 +709,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--soundsweep") {
+        return do_soundsweep(icons);
     }
     if (stem == "--unheaded") {
         return do_unheaded(icons);

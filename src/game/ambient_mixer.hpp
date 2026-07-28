@@ -79,11 +79,45 @@ public:
         }
     }
 
+    // Play one effect once, by its archive name — a door's creak, a lever's
+    // clank. No script opcode names event sounds (a sweep of every unnamed
+    // opcode's arguments against the sound table found none), so which name
+    // plays when is the caller's own judgement. `inferred`
+    void play_once(const std::string& name) {
+        if (archive_.size() == 0) {
+            return;
+        }
+        if (effect_.stream != nullptr) {
+            SDL_DestroyAudioStream(effect_.stream);
+            effect_ = {};
+        }
+        std::vector<std::uint8_t> riff;
+        audio::WavAudio decoded;
+        const std::size_t index = archive_.find(name);
+        if (index < archive_.size() && archive_.read(index, riff) == audio::SndError::None &&
+            audio::decode_wav(riff, decoded) == audio::WavError::None &&
+            !decoded.samples.empty() && SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+            const SDL_AudioSpec spec{SDL_AUDIO_S16LE, decoded.channels,
+                                     static_cast<int>(decoded.sample_rate)};
+            effect_.stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
+                                                       nullptr, nullptr);
+            if (effect_.stream != nullptr) {
+                effect_.samples = std::move(decoded.samples);
+                queue(effect_);
+                SDL_ResumeAudioStreamDevice(effect_.stream);
+            }
+        }
+    }
+
     void stop() {
         for (auto& [id, voice] : voices_) {
             if (voice.stream != nullptr) {
                 SDL_DestroyAudioStream(voice.stream);
             }
+        }
+        if (effect_.stream != nullptr) {
+            SDL_DestroyAudioStream(effect_.stream);
+            effect_ = {};
         }
         if (!voices_.empty()) {
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
@@ -136,6 +170,7 @@ private:
 
     audio::SndArchive archive_;
     std::map<std::uint32_t, Voice> voices_;
+    Voice effect_;  // the current one-shot; a new one replaces it
 };
 
 }  // namespace starhaven::game
