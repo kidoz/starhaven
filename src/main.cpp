@@ -1225,8 +1225,21 @@ int main(int argc, char** argv) {
                             gold -= offered.price;
                             shop_stock.erase(shop_stock.begin() + chosen);
                         }
-                        shop_said = std::string(game::merchant_line(
-                            merchant_words, data::MerchantAction::Buy, affordable));
+                        game::Speech counter;
+                        counter.speaker = data::cp1252_to_utf8(
+                            shops_here[static_cast<std::size_t>(open_shop)]->proprietor);
+                        counter.listener = party[0].name;
+                        counter.listener_is_female = game::face_is_female(party[0].face);
+                        counter.hour = clock.hour();
+                        counter.title = shops_here[static_cast<std::size_t>(open_shop)]->title;
+                        counter.item =
+                            row == nullptr ? std::string{} : data::cp1252_to_utf8(row->name);
+                        counter.asking = row == nullptr ? 0 : row->value;
+                        counter.offered = offered.price;
+                        shop_said = game::substitute(game::merchant_line(merchant_words,
+                                                                         data::MerchantAction::Buy,
+                                                                         affordable),
+                                                     counter, interface_words);
                     }
                 } else if (show_directory && chosen < static_cast<int>(shops_here.size())) {
                     open_shop = chosen;

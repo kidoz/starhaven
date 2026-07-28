@@ -147,3 +147,30 @@ TEST_CASE("a code nobody has read stays visible", "[talk]") {
     REQUIRE(substitute("100%", Speech{}, w) == "100%");
     REQUIRE(substitute("%0", Speech{}, w) == "%0");
 }
+
+TEST_CASE("a counter's lines name the item and its price", "[talk]") {
+    const auto w = words();
+    Speech counter;
+    counter.speaker = "Caine";
+    counter.listener = "Aaron";
+    counter.title = "Blacksmith";
+    counter.item = "Longsword";
+    counter.asking = 50;
+    counter.offered = 75;
+
+    REQUIRE(substitute("This %24 is of the finest quality.", counter, w) ==
+            "This Longsword is of the finest quality.");
+    REQUIRE(
+        substitute("Ordinarily I sell things like this %24 for %25 gold.  I'll sell it for %27.",
+                   counter, w) ==
+        "Ordinarily I sell things like this Longsword for 50 gold.  I'll sell it for 75.");
+    REQUIRE(substitute("Sorry, I am a %28.", counter, w) == "Sorry, I am a Blacksmith.");
+}
+
+TEST_CASE("a price of nothing leaves its code alone", "[talk]") {
+    // Zero is not a price the tables ever mean; showing "0 gold" would be
+    // inventing a number nobody named.
+    const auto w = words();
+    REQUIRE(substitute("for %25 gold", Speech{}, w) == "for %25 gold");
+    REQUIRE(substitute("this %24", Speech{}, w) == "this %24");
+}

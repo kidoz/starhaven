@@ -237,7 +237,10 @@ interoperability and compatibility with a legally purchased copy.
   be asked about something. Four of the `%01`-style placeholders are decoded —
   the speaker, the person addressed, the time of day and the honorific — so a
   villager says "Good morning! I'm Dini Mahgreb." rather than "Good %05! I'm
-  %01."; the codes nobody has read yet stay visible instead of being blanked.
+  %01." A shopkeeper's lines fill in too — the item, the price asked and the
+  price named, and their own trade — so the counter reads "Ordinarily I sell
+  things like this Longsword for 50 gold." The codes nobody has read yet stay
+  visible instead of being blanked.
 - **Shops you can trade with**: **Tab** then a number opens an establishment's
   counter. Its shelves are *generated*, not invented — the row's own
   `"L1 Weap"`-style stock line feeds the random-item generator that reproduces

@@ -522,9 +522,16 @@ The consecutive run at 395–397 is what makes `%05` more than a guess: `"Good
 %05!"` can only be one of three words, and exactly three sit together in the
 string table. `inferred`
 
-The rest are `unknown`, though their context is suggestive: `%17` is a
-percentage a hireling takes, `%24` an item, `%25` a price asked and `%27` a
-price offered, `%14` a title. StarHaven leaves an unread code in the text
+Four more are readable from `Merchant.txt`'s own lines, which name what they
+stand for as they use them: `%24` the item (`"This %24 is of the finest
+quality"`), `%25` the ordinary price and `%27` the one actually named
+(`"Ordinarily I sell things like this %24 for %25 gold... I'll sell it to you
+for %27"`), and `%28` the shopkeeper's trade (`"Sorry, I am a %28"`).
+`inferred`
+
+The rest are `unknown`. `%17` is plainly a percentage a hireling takes —
+`"%01 takes %17 percent of all gold you find"` — but no column in `npcprof.txt`
+carries such a number, so where its value comes from is not established. StarHaven leaves an unread code in the text
 rather than blanking it, so nothing is silently swallowed.
 
 ## `Merchant.txt`: what the shopkeeper says

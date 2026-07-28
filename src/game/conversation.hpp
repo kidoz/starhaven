@@ -44,6 +44,14 @@ struct Speech {
     std::string listener;  // %02
     bool listener_is_female = false;
     int hour = 12;
+
+    // At a counter: what is being handled and for how much. `"This %24 is of
+    // the finest quality... for %27 gold"` and `"Ordinarily I sell things like
+    // this %24 for %25"` are what name them. `inferred`
+    std::string item;   // %24
+    std::string title;  // %28, the shopkeeper's own trade
+    int asking = 0;     // %25, the ordinary price
+    int offered = 0;    // %27, the one actually named
 };
 
 // Replace the placeholders a line carries. Anything not known is left as it
@@ -75,6 +83,18 @@ struct Speech {
             break;
         case 6:
             with = who.listener_is_female ? word(kStringLady) : word(kStringSir);
+            break;
+        case 24:
+            with = who.item;
+            break;
+        case 25:
+            with = who.asking > 0 ? std::to_string(who.asking) : std::string{};
+            break;
+        case 27:
+            with = who.offered > 0 ? std::to_string(who.offered) : std::string{};
+            break;
+        case 28:
+            with = who.title;
             break;
         default:
             break;
