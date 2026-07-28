@@ -280,6 +280,12 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Ambushes that spring**: opcode 19 named itself against the encounter
+  table — its slot stays within the map's own filled encounter slots on 272
+  of 272 resolvable uses, its variant is the monster triple's own A/B/C, and
+  its count runs to six. Step on the wrong plate and the engine fills the
+  room from the map's own table, the new arrivals joining the fight at full
+  health while everyone else keeps their wounds.
 - **Potions you can drink, from the alchemy's own table**: `USEITEMS.TXT`
   turned out to hold the herbs and potions with their effects in the
   designers' prose, their fates — a drunk potion becomes the empty bottle,

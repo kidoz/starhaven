@@ -200,6 +200,12 @@ struct MapSession {
 void respawn_monsters(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
                       std::uint32_t seed, MapSession& out);
 
+// Stand one more monster on the map, which is what the summon opcode does.
+// Outdoor positions settle onto the terrain. Returns false when the id is
+// out of the table or this install has no art for it.
+bool summon_actor(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
+                  int monster_id, render::Vec3 position, MapSession& out);
+
 // Rebuild the indoor collision world from the faces as they now stand.
 // Moving a door's vertices leaves the collision polygons where they were;
 // this is how the world pushes back at the new geometry.

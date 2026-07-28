@@ -82,6 +82,13 @@ inline constexpr std::uint8_t kOpcodeGoto = 36;
 // clears. Moving is `[npc u32][place u32]`, the place a `2DEvents.txt` row
 // or zero for away — 29 of 29 and 29 of 29. Reproduce with
 // `evt_info --npc-mutations`.
+// Summon monsters: `[slot u8][variant u8][count u8][x i32][y i32][z i32]`.
+// The slot is the map's own encounter slot — within its filled slots on 272
+// of 272 resolvable uses — the variant is 1..3 like the monster table's
+// A/B/C triples on 284 of 284, and the count runs 1..6. Reproduce with
+// `evt_info --catalog 19`.
+inline constexpr std::uint8_t kOpcodeSummon = 19;
+
 inline constexpr std::uint8_t kOpcodeSetTopic = 39;
 inline constexpr std::uint8_t kOpcodeMoveNpc = 40;
 

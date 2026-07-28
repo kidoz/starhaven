@@ -29,6 +29,7 @@
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
 #include "core/world/map_session.hpp"
+#include "core/world/monster_spawn.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
@@ -2059,6 +2060,38 @@ int main(int argc, char** argv) {
                     break;
                 }
             }
+            // A summon fills the room: the count it asks, from the map's
+            // own encounter slot, in the A/B/C variant it names, spread
+            // around the point the way spawn groups are.
+            bool summoned = false;
+            for (const auto& called : outcome.summons) {
+                if (called.slot < 1 || called.slot > 3) {
+                    continue;
+                }
+                const auto& slot_data =
+                    session.encounters[static_cast<std::size_t>(called.slot - 1)];
+                const int base = world::encounter_monster_id(monster_stats, slot_data);
+                if (base <= 0) {
+                    continue;
+                }
+                const int monster_id = base + std::clamp(called.variant, 1, 3) - 1;
+                for (int i = 0; i < std::max(1, called.count); ++i) {
+                    const auto [dx, dy] = world::spawn_offset(i, std::max(1, called.count));
+                    const render::Vec3 at = world::to_render_space(
+                        called.x + static_cast<int>(dx), called.y + static_cast<int>(dy),
+                        called.z);
+                    summoned = world::summon_actor(monster_stats, cache, monster_id, at,
+                                                   session) ||
+                               summoned;
+                }
+            }
+            if (summoned) {
+                battle.recruit(session, monster_stats);
+                mob.recruit(session, monster_stats);
+                shown_kind.resize(session.actors.size(), world::MonsterAnimation::Stand);
+                shown_animation.resize(session.actors.size());
+            }
+
             if (doors_moved) {
                 world::rebuild_indoor_collision(session);
                 // No script opcode names event sounds — a sweep of every

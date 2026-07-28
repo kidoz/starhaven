@@ -1,6 +1,6 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; seventeen
+Status: **verified** for the container and the record structure; eighteen
 opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
@@ -392,15 +392,29 @@ the moves are applied too — a person moved away is gone from their counter,
 and one moved within the same map stands at the new one. A move across maps
 waits: the mover's record lives in the other map's session.
 
+### Opcode 19 summons from the map's own encounter table
+
+Its shape resolved into a name: `[slot u8][variant u8][count u8][x i32]
+[y i32][z i32]`. The slot stays within its own map's **filled encounter
+slots on 272 of 272** resolvable uses (the remaining 12 sit in scripts with
+no `MapStats.txt` row), the variant is 1..3 on **284 of 284** — the monster
+table's own A/B/C triples — and the count runs 1..6. Castle Darkmoor rings
+a room with (1,1,1) points: one ghost each, on a circle. `observed`
+Reproduce with `evt_info --catalog 19`.
+
+The engine summons: the monster comes from the encounter slot the way spawn
+points draw on it, shifted to the named variant, and the group spreads
+around the point like any spawn group. The new arrivals join the fight at
+full health without resetting anyone's wounds.
+
 ### Shapes on the shelf
 
-Five more opcodes gave up their argument shapes without giving up their
+Four more opcodes gave up their argument shapes without giving up their
 names; recorded so the next pass starts from here. Reproduce with
 `evt_info --catalog <opcode>`.
 
 | Opcode | Uses | Shape | What shows |
 | ---: | ---: | --- | --- |
-| 19 | 284 | `[u8 a][u8 b][u8 c][i32 x][i32 y][i32 z]` | small triples like (1,2,3) at world-range points — summon-shaped; Castle Darkmoor rings a room with (1,1,1) points |
 | 21 | 140 | `[u16][u8][point][point]` | two world-range points and a small pair — trap- or beam-shaped |
 | 25 | 100 | six small u8s | one constant tuple repeated across a map's events |
 | 26 | 39 | `[u32 a][u32 b][u32 c][u8]` | three **consecutive** ids — (14,15,16), (21,22,23) — and a byte |
@@ -411,7 +425,7 @@ tables' ends, and the uses concentrate in `ORACLE.EVT` rather than where
 notes are earned. `observed` for the shapes; every reading above is at most
 a lean.
 
-The other **68 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+The other **67 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event

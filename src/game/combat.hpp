@@ -175,6 +175,22 @@ public:
         }
     }
 
+    // Take in whatever was summoned after the fight began: new actors join
+    // at their row's full health, and everyone already fighting keeps their
+    // wounds.
+    void recruit(const world::MapSession& session, const data::MonsterStatsTable& monsters) {
+        for (std::size_t i = combatants_.size(); i < session.actors.size(); ++i) {
+            Combatant c;
+            const auto id = static_cast<std::size_t>(session.actors[i].monster_id);
+            if (session.actors[i].monster_id > 0 && id <= monsters.entries().size()) {
+                c.max_hit_points = monsters.entries()[id - 1].hit_points;
+            }
+            c.hit_points = c.max_hit_points;
+            c.alive = c.hit_points > 0;
+            combatants_.push_back(c);
+        }
+    }
+
     [[nodiscard]] bool alive(std::size_t actor) const noexcept {
         return actor < combatants_.size() && combatants_[actor].alive;
     }

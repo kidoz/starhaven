@@ -164,7 +164,13 @@ public:
         states_.clear();
         random_ = Mm6Random{seed};
         states_.reserve(session.actors.size());
-        for (const auto& actor : session.actors) {
+        recruit(session, monsters);
+    }
+
+    // Take in actors appended after the reset — what a summon adds.
+    void recruit(const world::MapSession& session, const data::MonsterStatsTable& monsters) {
+        for (std::size_t i = states_.size(); i < session.actors.size(); ++i) {
+            const auto& actor = session.actors[i];
             State s;
             s.home = actor.position;
             s.facing = angle_of(random_.next());

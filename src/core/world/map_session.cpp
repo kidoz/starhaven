@@ -219,6 +219,23 @@ void rebuild_indoor_collision(MapSession& out) {
     }
 }
 
+bool summon_actor(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
+                  int monster_id, render::Vec3 position, MapSession& out) {
+    if (monster_id <= 0 || static_cast<std::size_t>(monster_id) > monsters.entries().size()) {
+        return false;
+    }
+    const std::string animation = actor_animation(out, cache, monster_id);
+    if (animation.empty()) {
+        return false;
+    }
+    if (out.outdoor()) {
+        position.y = out.terrain_height_at(position.x, position.z);
+    }
+    const auto& row = monsters.entries()[static_cast<std::size_t>(monster_id - 1)];
+    out.actors.push_back({animation, data::cp1252_to_utf8(row.name), monster_id, position});
+    return true;
+}
+
 void respawn_monsters(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
                       std::uint32_t seed, MapSession& out) {
     if (out.monster_spawns.empty() || out.placed_actor_count > out.actors.size()) {
@@ -533,6 +550,8 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
             out.music_track = stats->music_track;
             out.refill_days = stats->refill_days;
             out.treasure_level = stats->treasure_level;
+            out.map_id = stats->id;
+            out.encounters = stats->monsters;  // the summon opcode draws on these
         }
     }
 

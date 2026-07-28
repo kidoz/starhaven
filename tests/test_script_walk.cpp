@@ -217,3 +217,29 @@ TEST_CASE("a quest event rewrites what an NPC offers and where they stand", "[wa
     REQUIRE(state.npc_places.at(43) == 486);
     REQUIRE(state.npc_places.at(44) == 0);
 }
+
+TEST_CASE("a trap's event names what it summons and where", "[walk]") {
+    // Opcode 19: the map's encounter slot, the A/B/C variant, a count, and a
+    // point — slot within the map's own filled slots on 272 of 272 uses.
+    std::vector<std::uint8_t> args{1, 2, 3};
+    for (const std::int32_t v : {-7522, 14848, -240}) {
+        for (int i = 0; i < 4; ++i) {
+            args.push_back(static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) &
+                                                     0xFF));
+        }
+    }
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 26, 0, kOpcodeSummon, args);
+    const MapScript script = parse(payload);
+
+    WalkState state;
+    const WalkOutcome outcome = walk_event(script, 26, state);
+    REQUIRE(outcome.summons.size() == 1);
+    REQUIRE(outcome.summons[0].slot == 1);
+    REQUIRE(outcome.summons[0].variant == 2);
+    REQUIRE(outcome.summons[0].count == 3);
+    REQUIRE(outcome.summons[0].x == -7522);
+    REQUIRE(outcome.summons[0].y == 14848);
+    REQUIRE(outcome.summons[0].z == -240);
+    REQUIRE(outcome.acted());
+}

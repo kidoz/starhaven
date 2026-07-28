@@ -59,11 +59,20 @@ struct WalkOutcome {
     // 1 opens, and the rare 2 reads as a toggle. `inferred`
     std::vector<std::pair<int, int>> doors;
 
+    // Monsters to summon: the map's encounter slot, the A/B/C variant, how
+    // many, and where, in MM6's own coordinates.
+    struct Summon {
+        int slot = 0, variant = 0, count = 0;
+        int x = 0, y = 0, z = 0;
+    };
+    std::vector<Summon> summons;
+
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
-               chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty();
+               chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
+               !summons.empty();
     }
 };
 
@@ -222,6 +231,25 @@ struct WalkOutcome {
             }
             break;
         }
+        case world::kOpcodeSummon:
+            if (a.size() >= 15) {
+                WalkOutcome::Summon summon;
+                summon.slot = a[0];
+                summon.variant = a[1];
+                summon.count = a[2];
+                const auto i32_at = [&a](std::size_t at) {
+                    std::uint32_t v = 0;
+                    for (int i = 3; i >= 0; --i) {
+                        v = (v << 8) | a[at + static_cast<std::size_t>(i)];
+                    }
+                    return static_cast<std::int32_t>(v);
+                };
+                summon.x = i32_at(3);
+                summon.y = i32_at(7);
+                summon.z = i32_at(11);
+                out.summons.push_back(summon);
+            }
+            break;
         case world::kOpcodeSetTopic:
             if (a.size() >= 9 && a[4] < 3) {
                 std::uint32_t npc = 0, topic = 0;
