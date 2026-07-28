@@ -1369,9 +1369,31 @@ int main(int argc, char** argv) {
         party_recovery = std::max(0.0f, party_recovery - in.dt);
         clock.advance_seconds(in.dt);
         battle.award(party);
+        // What the kills left: the gold goes to the purse, the items to
+        // whichever pack has room, and one line names the lot.
+        std::string found_text;
         if (const int found = battle.take_gold(); found > 0) {
             gold += found;
-            pick_up_message = "You find " + std::to_string(found) + " gold";
+            found_text = std::to_string(found) + " gold";
+        }
+        for (const int id : battle.take_loot()) {
+            const auto* row = item_stats.at(static_cast<std::size_t>(id));
+            if (row == nullptr) {
+                continue;
+            }
+            const render::Texture& icon = cache.icon(row->picture);
+            const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
+            const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
+            for (auto& pack : packs) {
+                if (pack.add(id, w, h)) {
+                    found_text += (found_text.empty() ? "" : " and ") +
+                                  data::cp1252_to_utf8(row->name);
+                    break;
+                }
+            }
+        }
+        if (!found_text.empty()) {
+            pick_up_message = "You find " + found_text;
             pick_up_shown = SDL_GetTicks();
         }
 
@@ -1476,8 +1498,9 @@ int main(int argc, char** argv) {
                     if (party[who].hit_points <= 0) {
                         continue;
                     }
-                    std::string blow = battle.strike(target, party[who], packs[who], session,
-                                                     monster_stats, item_stats);
+                    std::string blow =
+                        battle.strike(target, party[who], packs[who], session, monster_stats,
+                                      item_stats, random_items, standard_bonuses, special_bonuses);
                     if (!blow.empty()) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();

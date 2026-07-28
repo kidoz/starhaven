@@ -480,8 +480,13 @@ chance of six twenty-sided dice of gold and an item of treasure level two that
 is a bow. Any part may be absent — `"4D6"` is gold that always drops, `"5%L2Ring"`
 a chance at a ring and no gold. **145 of the 145** coded rows parse. `observed`
 
-The kinds named are `Misc`, `Ring`, `Amulet`, `Bow`, `Staff`, `Axe` and others;
-an unnamed kind is any kind. Reproduce with `data_info --treasure`.
+The 117 coded items name 17 distinct kinds — `Misc`, `Ring`, `Amulet`, the
+weapon skills, the armour skills, `Shield`, `Cape`, and the broad `Weapon` and
+`Armor` — or none, and an unnamed kind is any kind. Every named kind is a
+selector the random-item generator already takes (see [`items.md`](items.md)),
+so a kill's item is generated the way a chest's is rather than invented; the
+word-to-selector map itself is `inferred`. Reproduce with
+`data_info --treasure`.
 
 ## The damage notation
 

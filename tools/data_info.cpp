@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <set>
 #include <span>
 #include <string>
@@ -719,6 +720,7 @@ int do_treasure(const std::filesystem::path& data_dir) {
     }
     std::size_t coded = 0;
     std::size_t parsed = 0;
+    std::map<std::string, std::size_t> kinds;
     for (const auto& m : monsters.entries()) {
         if (m.treasure.empty() || m.treasure == "0") {
             continue;
@@ -729,8 +731,15 @@ int do_treasure(const std::filesystem::path& data_dir) {
         if (drop.empty()) {
             std::cout << "  unparsed: " << m.name << " \"" << m.treasure << "\"\n";
         }
+        if (drop.item_level > 0) {
+            ++kinds[drop.item_kind.empty() ? "(any)" : drop.item_kind];
+        }
     }
     std::cout << parsed << "/" << coded << " treasure codes parse\n";
+    for (const auto& [kind, count] : kinds) {
+        std::cout << "  item kind " << kind << ": " << count << " (generator takes "
+                  << data::item_generation_type_name(data::treasure_item_type(kind)) << ")\n";
+    }
     return 0;
 }
 

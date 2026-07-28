@@ -14,13 +14,13 @@ namespace {
 
 // One MONSTERS.TXT row, with the combat columns under test.
 data::MonsterStatsTable monsters(const char* hp, const char* ac, const char* damage,
-                                 const char* cold = "0") {
+                                 const char* cold = "0", const char* treasure = "0") {
     std::string body =
         "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
         "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
         "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
-    body += std::string("1\tRatA\tCommon Rat\t2\t") + hp + "\t" + ac +
-            "\t24\t0\t0\tN\tMed\tAggress\t4\t200\t100\t0\t0\tCold\t" + damage +
+    body += std::string("1\tRatA\tCommon Rat\t2\t") + hp + "\t" + ac + "\t24\t" + treasure +
+            "\t0\tN\tMed\tAggress\t4\t200\t100\t0\t0\tCold\t" + damage +
             "\t0\t100\t0\t0\t0\t0\t0\t0\t0\t" + cold + "\t0\t0\t0\t0\r\n";
     data::TextTable table;
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
@@ -80,7 +80,7 @@ TEST_CASE("enough blows kill", "[combat]") {
     Pack pack;
     std::string last;
     for (int i = 0; i < 40 && battle.alive(0); ++i) {
-        last = battle.strike(0, who, pack, session, table, items());
+        last = battle.strike(0, who, pack, session, table, items(), {}, {}, {});
         REQUIRE_FALSE(last.empty());
     }
     REQUIRE_FALSE(battle.alive(0));
@@ -96,9 +96,9 @@ TEST_CASE("something already dead cannot be struck again", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
-    REQUIRE(battle.strike(0, who, pack, session, table, items()).empty());
+    REQUIRE(battle.strike(0, who, pack, session, table, items(), {}, {}, {}).empty());
 }
 
 TEST_CASE("a character swings what is in their weapon slot", "[combat]") {
@@ -216,13 +216,13 @@ TEST_CASE("a monster flinches when hit and lies there when killed", "[combat]") 
     Pack pack;
     // Land one blow, whatever it takes.
     while (battle.alive(0) && battle.animation_of(0) == world::MonsterAnimation::Stand) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     if (battle.alive(0)) {
         REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Wince);
     }
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
 
@@ -243,7 +243,7 @@ TEST_CASE("a flinch passes", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.animation_of(0) == world::MonsterAnimation::Stand) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
     (void)battle.update(kWinceSeconds * 2.0f, session, table, party, {0, 0, 0});
@@ -260,7 +260,7 @@ TEST_CASE("a kill is worth what the monster's row says", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     // The fixture's row gives 24.
     REQUIRE(battle.unclaimed_experience() == 24);
@@ -282,7 +282,7 @@ TEST_CASE("only the standing collect", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
     party[0].hit_points = 0;
@@ -302,7 +302,7 @@ TEST_CASE("a party with nobody standing keeps what it has earned", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
     for (auto& member : party) {
@@ -321,7 +321,7 @@ TEST_CASE("someone who is down cannot swing", "[combat]") {
     Character who = fighter();
     who.hit_points = 0;
     Pack pack;
-    REQUIRE(battle.strike(0, who, pack, session, table, items()).empty());
+    REQUIRE(battle.strike(0, who, pack, session, table, items(), {}, {}, {}).empty());
     REQUIRE(battle.alive(0));
 }
 
@@ -334,7 +334,7 @@ TEST_CASE("a refill puts the fallen back on their feet", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
 
@@ -355,10 +355,100 @@ TEST_CASE("what is near is what is alive and near", "[combat]") {
     Character who = fighter();
     Pack pack;
     while (battle.alive(0)) {
-        (void)battle.strike(0, who, pack, session, table, items());
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
     }
     // A corpse is not company.
     REQUIRE_FALSE(battle.anything_near(session, {0, 0, 0}, 1000.0f));
+}
+
+namespace {
+
+// The random-item weights, pointing at the two items above. Level 1 carries
+// no enchantment chances, so what a kill leaves is exact and the two bonus
+// tables can stay empty.
+data::RandomItemTable random_items() {
+    const std::string body =
+        "Item #\tPic File\t1\t2\t3\t4\t5\t6\r\n"
+        "0\tblank\t0\t0\t0\t0\t0\t0\r\n"
+        "1\tlsword1\t5\t0\t0\t0\t0\t0\r\n"
+        "2\tring1\t5\t0\t0\t0\t0\t0\r\n"
+        "\r\n"
+        "Bonus chance by level %\t\t1\t2\t3\t4\t5\t6\r\n"
+        "\tStandard\t0\t40\t40\t40\t40\t75\r\n"
+        "\tSpecial\t0\t0\t10\t15\t20\t25\r\n"
+        "Weapons\tSpecial %\t0\t0\t10\t20\t30\t50\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::RandomItemTable out;
+    REQUIRE(data::RandomItemTable::parse(table, out) == data::RandomItemError::None);
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("a treasure code's kind is a kind the generator takes", "[combat]") {
+    REQUIRE(data::treasure_item_type("Bow") == data::ItemGenerationType::Bow);
+    REQUIRE(data::treasure_item_type("ring") == data::ItemGenerationType::Ring);
+    REQUIRE(data::treasure_item_type("Misc") == data::ItemGenerationType::Misc);
+    // An unnamed kind is any kind, and so is one the generator has no word for.
+    REQUIRE(data::treasure_item_type("") == data::ItemGenerationType::Any);
+    REQUIRE(data::treasure_item_type("nonsense") == data::ItemGenerationType::Any);
+}
+
+TEST_CASE("a kill pays out its treasure code", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    // Ten one-sided dice of gold and a level-1 ring: exact, and no chance
+    // prefix means it always drops.
+    const auto table = monsters("6", "0", "1d4", "0", "10D1+L1Ring");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items(), random_items(), {}, {});
+    }
+    REQUIRE(battle.unclaimed_gold() == 10);
+    // The kind lets only the ring, id 2, through.
+    REQUIRE(battle.unclaimed_loot() == std::vector<int>{2});
+
+    REQUIRE(battle.take_gold() == 10);
+    REQUIRE(battle.take_gold() == 0);
+    REQUIRE(battle.take_loot() == std::vector<int>{2});
+    REQUIRE(battle.unclaimed_loot().empty());
+}
+
+TEST_CASE("a kind nothing matches drops nothing", "[combat]") {
+    auto session = with_monster({0, 0, 0});
+    // No item in the table is a bow, and the blank row must not stand in.
+    const auto table = monsters("6", "0", "1d4", "0", "L1Bow");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items(), random_items(), {}, {});
+    }
+    REQUIRE(battle.unclaimed_loot().empty());
+}
+
+TEST_CASE("claiming experience does not claim the gold", "[combat]") {
+    // award() used to zero the gold with the experience, and the shell takes
+    // the gold after awarding: the frame of the kill lost its payout.
+    auto session = with_monster({0, 0, 0});
+    const auto table = monsters("6", "0", "1d4", "0", "10D1");
+    Battle battle;
+    battle.reset(session, table, 3);
+
+    Character who = fighter();
+    Pack pack;
+    while (battle.alive(0)) {
+        (void)battle.strike(0, who, pack, session, table, items(), {}, {}, {});
+    }
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    battle.award(party);
+    REQUIRE(battle.take_gold() == 10);
 }
 
 TEST_CASE("armour is the flat modifier of what is worn", "[combat]") {

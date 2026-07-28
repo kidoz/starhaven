@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "core/data/dice.hpp"
+#include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/monster_stats.hpp"
 #include "core/data/treasure.hpp"
@@ -158,6 +159,8 @@ public:
         random_ = Mm6Random{seed};
         experience_ = 0;
         gold_ = 0;
+        loot_.clear();
+        artifacts_ = {};
         combatants_.clear();
         combatants_.reserve(session.actors.size());
         for (const auto& actor : session.actors) {
@@ -234,6 +237,14 @@ public:
         return taken;
     }
 
+    // The items kills have left and nobody has picked up yet.
+    [[nodiscard]] const std::vector<int>& unclaimed_loot() const noexcept { return loot_; }
+    std::vector<int> take_loot() {
+        std::vector<int> taken = std::move(loot_);
+        loot_.clear();
+        return taken;
+    }
+
     // Share it among whoever is still standing, the way a party splits a kill.
     // Nobody standing means nobody collects, and it waits. `inferred`
     void award(std::array<Character, 4>& party) {
@@ -254,14 +265,16 @@ public:
             }
         }
         experience_ = 0;
-        gold_ = 0;
     }
 
     // The party strikes one monster. Returns what happened, for the message
     // line, or empty when the blow was not possible at all.
     std::string strike(std::size_t actor, Character& who, const Pack& pack,  // NOLINT
                        const world::MapSession& session, const data::MonsterStatsTable& monsters,
-                       const data::ItemStatsTable& items) {
+                       const data::ItemStatsTable& items,
+                       const data::RandomItemTable& random_items,
+                       const data::StandardBonusTable& standard_bonuses,
+                       const data::SpecialBonusTable& special_bonuses) {
         if (!alive(actor) || who.hit_points <= 0) {
             return {};
         }
@@ -295,12 +308,24 @@ public:
             target.hit_points = 0;
             target.wince = 0.0f;
             experience_ += monster.experience;
-            // And whatever its treasure code leaves behind. The item half of
-            // a code needs a generator this class does not have, so only the
-            // gold is taken here.
+            // And whatever its treasure code leaves behind: one roll against
+            // the chance, then the gold and the item the code names.
             if (const data::Treasure drop = data::parse_treasure(monster.treasure);
-                !drop.gold.empty() && static_cast<int>(random_.next() % 100) < drop.chance) {
-                gold_ += data::roll(drop.gold, random_);
+                !drop.empty() && static_cast<int>(random_.next() % 100) < drop.chance) {
+                if (!drop.gold.empty()) {
+                    gold_ += data::roll(drop.gold, random_);
+                }
+                data::GeneratedItem rolled;
+                if (drop.item_level > 0 &&
+                    data::generate_random_item(random_items, items, standard_bonuses,
+                                               special_bonuses,
+                                               static_cast<std::size_t>(drop.item_level),
+                                               data::treasure_item_type(drop.item_kind), random_,
+                                               artifacts_,
+                                               rolled) == data::ItemGenerationError::None &&
+                    rolled.item_id > 0) {  // a kind nothing matches rolls the blank row
+                    loot_.push_back(rolled.item_id);
+                }
             }
             what += " and kills it";
         }
@@ -389,6 +414,8 @@ private:
     std::vector<Combatant> combatants_;
     int experience_ = 0;
     int gold_ = 0;
+    std::vector<int> loot_;
+    data::ArtifactGenerationState artifacts_;
     Mm6Random random_{1};
 };
 

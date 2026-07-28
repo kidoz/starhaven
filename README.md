@@ -222,10 +222,11 @@ interoperability and compatibility with a legally purchased copy.
   their weapon slot rather than whatever happened to be first in the pack, and
   armour's flat modifier counts toward armour class while a weapon's dice do
   not.
-- **Gold from kills**: `MONSTERS.TXT`'s treasure column is a format, not a
+- **Loot from kills**: `MONSTERS.TXT`'s treasure column is a format, not a
   note — a chance, a roll of gold and an item level with a kind — and all 145
-  coded rows parse. A kill now pays what its own row says, so the purse goes up
-  as well as down. The item half needs the generator and is not taken yet.
+  coded rows parse. A kill pays what its own row says: the gold goes to the
+  purse, and the item is rolled by the same generator that fills chests and
+  shelves, since every kind the codes name is a selector it already takes.
 - **Fighting, with consequences**: a monster flinches into its Wince animation
   when hit and keeps its Death picture where it fell; the party splits the
   experience the monster's own row is worth; a character at zero hit points

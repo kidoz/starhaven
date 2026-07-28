@@ -14,6 +14,7 @@
 #include <string_view>
 
 #include "core/data/dice.hpp"
+#include "core/data/item_generation.hpp"
 #include "core/data/text_table.hpp"
 
 namespace starhaven::data {
@@ -74,6 +75,81 @@ struct Treasure {
         }
     }
     return out;
+}
+
+// The kind a code names — `Bow`, `Ring`, `Misc` — is a kind the item
+// generator already takes as a selector, so the word maps straight onto it.
+// An empty or unrecognized kind is any kind. `inferred`
+[[nodiscard]] inline ItemGenerationType treasure_item_type(std::string_view kind) noexcept {
+    const auto is = [kind](std::string_view word) {
+        if (kind.size() != word.size()) {
+            return false;
+        }
+        for (std::size_t i = 0; i < word.size(); ++i) {
+            if (std::tolower(static_cast<unsigned char>(kind[i])) != word[i]) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (is("misc")) {
+        return ItemGenerationType::Misc;
+    }
+    if (is("sword")) {
+        return ItemGenerationType::Sword;
+    }
+    if (is("dagger")) {
+        return ItemGenerationType::Dagger;
+    }
+    if (is("axe")) {
+        return ItemGenerationType::Axe;
+    }
+    if (is("spear")) {
+        return ItemGenerationType::Spear;
+    }
+    if (is("bow")) {
+        return ItemGenerationType::Bow;
+    }
+    if (is("mace")) {
+        return ItemGenerationType::Mace;
+    }
+    if (is("club")) {
+        return ItemGenerationType::Club;
+    }
+    if (is("staff")) {
+        return ItemGenerationType::Staff;
+    }
+    if (is("weapon")) {
+        return ItemGenerationType::WeaponCategory;
+    }
+    if (is("armor")) {
+        return ItemGenerationType::ArmorCategory;
+    }
+    if (is("leather")) {
+        return ItemGenerationType::Leather;
+    }
+    if (is("chain")) {
+        return ItemGenerationType::Chain;
+    }
+    if (is("plate")) {
+        return ItemGenerationType::Plate;
+    }
+    if (is("shield")) {
+        return ItemGenerationType::ShieldCategory;
+    }
+    if (is("cape")) {  // the codes write a cloak the way STDITEMS heads it
+        return ItemGenerationType::CloakCategory;
+    }
+    if (is("ring")) {
+        return ItemGenerationType::Ring;
+    }
+    if (is("amulet")) {
+        return ItemGenerationType::Amulet;
+    }
+    if (is("wand")) {
+        return ItemGenerationType::Wand;
+    }
+    return ItemGenerationType::Any;
 }
 
 }  // namespace starhaven::data
