@@ -22,6 +22,8 @@ SaveState full_state() {
     state.gold = 1200;
     state.bits = {82, 300};
     state.variables = {{25, 10}, {105, 1}};
+    state.npc_topics = {{{1, 0}, 2}};
+    state.npc_places = {{43, 486}};
     state.opened_chests = {0, 3};
     state.open_doors = {55, 57};
     Character& who = state.party[0];
@@ -53,6 +55,8 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(after.gold == before.gold);
     REQUIRE(after.bits == before.bits);
     REQUIRE(after.variables == before.variables);
+    REQUIRE(after.npc_topics == before.npc_topics);
+    REQUIRE(after.npc_places == before.npc_places);
     REQUIRE(after.opened_chests == before.opened_chests);
     REQUIRE(after.open_doors == before.open_doors);
 

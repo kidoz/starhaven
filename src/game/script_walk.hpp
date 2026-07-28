@@ -34,6 +34,12 @@ struct WalkState {
     std::map<int, int> variables;
     std::vector<int> items;
     int gold = 0;
+
+    // The quest chain's NPC rewrites, persistent like the bits: topic slots
+    // overridden per (npc, slot) — zero clears — and where an NPC has been
+    // moved, zero meaning away.
+    std::map<std::pair<int, int>, int> npc_topics;
+    std::map<int, int> npc_places;
 };
 
 // What one use of one event did.
@@ -216,6 +222,26 @@ struct WalkOutcome {
             }
             break;
         }
+        case world::kOpcodeSetTopic:
+            if (a.size() >= 9 && a[4] < 3) {
+                std::uint32_t npc = 0, topic = 0;
+                for (int i = 3; i >= 0; --i) {
+                    npc = (npc << 8) | a[static_cast<std::size_t>(i)];
+                    topic = (topic << 8) | a[static_cast<std::size_t>(i + 5)];
+                }
+                state.npc_topics[{static_cast<int>(npc), a[4]}] = static_cast<int>(topic);
+            }
+            break;
+        case world::kOpcodeMoveNpc:
+            if (a.size() >= 8) {
+                std::uint32_t npc = 0, place = 0;
+                for (int i = 3; i >= 0; --i) {
+                    npc = (npc << 8) | a[static_cast<std::size_t>(i)];
+                    place = (place << 8) | a[static_cast<std::size_t>(i + 4)];
+                }
+                state.npc_places[static_cast<int>(npc)] = static_cast<int>(place);
+            }
+            break;
         case world::kOpcodeGoto:
             if (!a.empty()) {
                 at = step_at(a.front());

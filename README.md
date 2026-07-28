@@ -173,7 +173,7 @@ interoperability and compatibility with a legally purchased copy.
   are looking at (`"Door"`, `"Sign"`, `"Chest"`). Each was identified by its
   argument never leaving its map's own string count *and* using that range,
   then confirmed by what the strings say. Opcode 5 makes four: it points at the
-  map's own name on 53 of its 54 resolving uses. The other 75 are unknown, and
+  map's own name on 53 of its 54 resolving uses. The other 73 are unknown, and
   Opcode 2 is the one that enters a building: its argument is a `2DEvents.txt`
   row id, 474 of 504 resolving, and per map the count of distinct values tracks
   the count of establishments. So the party walks to a shop door, uses it, and
@@ -301,6 +301,12 @@ interoperability and compatibility with a legally purchased copy.
   about The Letter with item 505 in a pack and his event pays 1,000 gold and
   advances the journal from bit 81 to 82; ask empty-handed and he refuses,
   in his own words.
+- **Quest chains that move on**: opcodes 39 and 40 verify whole against the
+  NPC table — set one of an NPC's three topic slots (132 of 132 uses in
+  range) and move an NPC to an establishment or away (29 of 29). The engine
+  applies the rewrites when the party talks and keeps them in the save, so
+  after the letter is paid for, Andover offers his next topic, not the same
+  letter forever.
 - **Doors that open**: the indoor event files' fixed 200-slot block turned
   out to be the door array — per door an id, a direction, a distance, two
   speeds, and id arrays whose total is byte-exact against the size the level

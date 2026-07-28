@@ -751,6 +751,80 @@ int do_headers(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: opcodes 39 and 40, read as NPC mutations and tested against
+// the NPC table's own id and topic-slot spaces.
+int do_npc_mutations(const starhaven::lod::LodArchive& icons,
+                     const std::filesystem::path& data_dir) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace data = starhaven::data;
+
+    data::NpcTable npcs;
+    if (data::load_npcs(data_dir, npcs) != data::GameDataError::None) {
+        std::cerr << "error: could not read NPCdata.txt\n";
+        return 1;
+    }
+    data::NpcDialogueTable dialogue;
+    (void)data::load_npc_dialogue(data_dir, dialogue);
+    const std::size_t npc_count = npcs.entries().size();
+
+    std::span<const std::byte> raw;
+    const auto u32_at = [](const std::vector<std::uint8_t>& a, std::size_t at) {
+        std::uint32_t value = 0;
+        for (int i = 3; i >= 0; --i) {
+            value = (value << 8) | a[at + static_cast<std::size_t>(i)];
+        }
+        return value;
+    };
+
+    std::size_t op39_uses = 0, op39_npc_ok = 0, op39_topic_ok = 0;
+    std::map<int, std::size_t> op39_slots;
+    std::size_t op40_uses = 0, op40_npc_ok = 0, op40_place_ok = 0, op40_zero = 0;
+    std::uint32_t op40_max_place = 0;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if (step.opcode == 39 && step.arguments.size() >= 9) {
+                ++op39_uses;
+                const std::uint32_t npc = u32_at(step.arguments, 0);
+                const int slot = step.arguments[4];
+                const std::uint32_t topic = u32_at(step.arguments, 5);
+                op39_npc_ok += npc >= 1 && npc <= npc_count ? 1 : 0;
+                ++op39_slots[slot];
+                op39_topic_ok += dialogue.at(static_cast<int>(topic)) != nullptr || topic == 0 ? 1 : 0;
+                if (dialogue.at(static_cast<int>(topic)) == nullptr && topic != 0)
+                    std::cout << "  unresolved topic " << topic << "\n";
+            } else if (step.opcode == 40 && step.arguments.size() >= 8) {
+                ++op40_uses;
+                const std::uint32_t npc = u32_at(step.arguments, 0);
+                const std::uint32_t place = u32_at(step.arguments, 4);
+                op40_npc_ok += npc >= 1 && npc <= npc_count ? 1 : 0;
+                op40_zero += place == 0 ? 1 : 0;
+                op40_place_ok += place >= 1 && place <= 557 ? 1 : 0;
+                op40_max_place = std::max(op40_max_place, place);
+            }
+        }
+    }
+    std::cout << "op39 [npc u32][slot u8][topic u32]: " << op39_uses << " uses, npc in 1.."
+              << npc_count << " on " << op39_npc_ok << ", topic resolves on " << op39_topic_ok
+              << "; slots:";
+    for (const auto& [slot, count] : op39_slots) {
+        std::cout << " " << slot << " x" << count;
+    }
+    std::cout << "\n";
+    std::cout << "op40 [npc u32][place u32]: " << op40_uses << " uses, npc in range on "
+              << op40_npc_ok << ", place zero on " << op40_zero << ", place in 1..557 on "
+              << op40_place_ok << ", max place " << op40_max_place << "\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -778,6 +852,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--npc-mutations") {
+        return do_npc_mutations(icons, *install / "data");
     }
     if (stem == "--headers") {
         return do_headers(icons);

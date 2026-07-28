@@ -76,6 +76,15 @@ inline constexpr std::uint8_t kOpcodeTake = 17;
 inline constexpr std::uint8_t kOpcodeSet = 18;
 inline constexpr std::uint8_t kOpcodeGoto = 36;
 
+// The quest chain's NPC rewrites. Setting a topic is `[npc u32][slot u8]
+// [topic u32]` — 132 of 132 uses name an NPC row, the slot is 0..2 like the
+// NPC table's three topic columns, and the topic resolves or is zero, which
+// clears. Moving is `[npc u32][place u32]`, the place a `2DEvents.txt` row
+// or zero for away — 29 of 29 and 29 of 29. Reproduce with
+// `evt_info --npc-mutations`.
+inline constexpr std::uint8_t kOpcodeSetTopic = 39;
+inline constexpr std::uint8_t kOpcodeMoveNpc = 40;
+
 // The variable types whose meaning is established. A quest bit's value is
 // the bit's number in `Quests.txt` (1..376 of 512 used); an item's is an
 // `ITEMS.TXT` id (never past 578 across 641 uses); gold's is an amount.

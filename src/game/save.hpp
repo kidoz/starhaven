@@ -36,6 +36,8 @@ struct SaveState {
     int gold = 0;
     std::set<int> bits;
     std::map<int, int> variables;
+    std::map<std::pair<int, int>, int> npc_topics;
+    std::map<int, int> npc_places;
     std::array<Character, 4> party{};
     std::array<std::vector<PackedItem>, 4> packs{};
     std::vector<int> opened_chests;
@@ -57,6 +59,12 @@ struct SaveState {
     }
     for (const auto& [key, value] : state.variables) {
         out << "var\t" << key << "\t" << value << "\n";
+    }
+    for (const auto& [key, value] : state.npc_topics) {
+        out << "npctopic\t" << key.first << "\t" << key.second << "\t" << value << "\n";
+    }
+    for (const auto& [npc, place] : state.npc_places) {
+        out << "npcplace\t" << npc << "\t" << place << "\n";
     }
     for (const int chest : state.opened_chests) {
         out << "chest\t" << chest << "\n";
@@ -145,6 +153,13 @@ struct SaveState {
         } else if (kind == "var") {
             const int key = next_int();
             out.variables[key] = next_int();
+        } else if (kind == "npctopic") {
+            const int npc = next_int();
+            const int slot = next_int();
+            out.npc_topics[{npc, slot}] = next_int();
+        } else if (kind == "npcplace") {
+            const int npc = next_int();
+            out.npc_places[npc] = next_int();
         } else if (kind == "chest") {
             out.opened_chests.push_back(next_int());
         } else if (kind == "door") {

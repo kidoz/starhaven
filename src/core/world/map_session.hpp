@@ -58,6 +58,7 @@ struct SessionActor {
 // conversation needs rather than a line of display text.
 struct SessionNpc {
     std::string name;
+    int npc_id = 0;               // the 1-based NPCdata.txt row, for mutations
     int profession_id = 0;        // indexes npcprof.txt, and PROFTEXT.txt
     std::string profession;       // its name, for showing
     std::string personality;      // the profession's, which npcbtb describes

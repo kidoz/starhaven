@@ -580,6 +580,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
 
                     SessionNpc person;
                     person.name = data::cp1252_to_utf8(n->name);
+                    person.npc_id = n->id;
                     person.profession_id = n->profession_id;
                     if (const auto* p = professions.at(n->profession_id); p != nullptr) {
                         person.profession = p->name;

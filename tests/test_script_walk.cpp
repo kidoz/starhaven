@@ -200,3 +200,20 @@ TEST_CASE("a lever's event names the doors it throws", "[walk]") {
     REQUIRE(outcome.doors == std::vector<std::pair<int, int>>{{55, 1}, {57, 0}});
     REQUIRE(outcome.acted());
 }
+
+TEST_CASE("a quest event rewrites what an NPC offers and where they stand", "[walk]") {
+    // Opcode 39 sets one of the NPC's three topic slots — Andover's letter
+    // event moves his first topic to 2 — and opcode 40 moves the NPC, zero
+    // meaning away.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 1, 0, kOpcodeSetTopic, {1, 0, 0, 0, 0, 2, 0, 0, 0});
+    push_step(payload, 1, 1, kOpcodeMoveNpc, {43, 0, 0, 0, 230, 1, 0, 0});
+    push_step(payload, 1, 2, kOpcodeMoveNpc, {44, 0, 0, 0, 0, 0, 0, 0});
+    const MapScript script = parse(payload);
+
+    WalkState state;
+    (void)walk_event(script, 1, state);
+    REQUIRE(state.npc_topics.at({1, 0}) == 2);
+    REQUIRE(state.npc_places.at(43) == 486);
+    REQUIRE(state.npc_places.at(44) == 0);
+}

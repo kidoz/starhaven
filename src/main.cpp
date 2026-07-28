@@ -1340,6 +1340,20 @@ int main(int argc, char** argv) {
         }
     };
 
+    // A person as the quest chain has rewritten them: topic slots overridden
+    // by the walked events' own opcode-39 steps, so Andover offers the next
+    // thing once the letter is paid for. Where an NPC has been moved is
+    // recorded and saved but not yet drawn.
+    const auto patched = [&](world::SessionNpc person) {
+        for (int slot = 0; slot < 3; ++slot) {
+            if (const auto it = script_state.npc_topics.find({person.npc_id, slot});
+                it != script_state.npc_topics.end()) {
+                person.topics[static_cast<std::size_t>(slot)] = it->second;
+            }
+        }
+        return person;
+    };
+
     // A walked event's gives and takes, shared by using a face and talking
     // to a quest giver. Giving returns the item's name for the message line,
     // or nothing when no pack had room.
@@ -1472,6 +1486,8 @@ int main(int argc, char** argv) {
                 state.gold = gold;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
+                state.npc_topics = script_state.npc_topics;
+                state.npc_places = script_state.npc_places;
                 state.party = party;
                 for (std::size_t i = 0; i < packs.size(); ++i) {
                     state.packs[i] = packs[i].items();
@@ -1507,6 +1523,8 @@ int main(int argc, char** argv) {
                     gold = state.gold;
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
+                    script_state.npc_topics = state.npc_topics;
+                    script_state.npc_places = state.npc_places;
                     party = state.party;
                     for (std::size_t i = 0; i < packs.size(); ++i) {
                         packs[i].clear();
@@ -1574,7 +1592,8 @@ int main(int argc, char** argv) {
                     // taken — the letter is handed over and the purse fills.
                     const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
                     if (here != nullptr && talking_to < static_cast<int>(here->size())) {
-                        const auto& person = (*here)[static_cast<std::size_t>(talking_to)];
+                        const auto person =
+                            patched((*here)[static_cast<std::size_t>(talking_to)]);
                         const int id =
                             game::topic_id(person, dialogue, static_cast<std::size_t>(chosen));
                         talk_answer.clear();
@@ -2047,7 +2066,8 @@ int main(int argc, char** argv) {
             const auto* here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
             if (here != nullptr && talking_to < static_cast<int>(here->size())) {
                 draw_conversation(scene, font,
-                                  game::talk_to((*here)[static_cast<std::size_t>(talking_to)],
+                                  game::talk_to(patched((*here)[static_cast<std::size_t>(
+                                                    talking_to)]),
                                                 dialogue, personalities, trade_talk, clock,
                                                 interface_words, party[0].name,
                                                 game::face_is_female(party[0].face)),

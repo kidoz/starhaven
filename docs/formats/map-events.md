@@ -1,6 +1,6 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; fifteen
+Status: **verified** for the container and the record structure; seventeen
 opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
@@ -375,7 +375,23 @@ the name as a sound effect was tested against `DSOUNDS.BIN` and failed —
 The engine applies it indoors: the walker collects the repaints and the face
 wears its new texture. The few outdoor uses are not applied yet.
 
-The other **75 opcodes are `unknown`.** Opcode 4, the commonest, is not a
+### Opcodes 39 and 40 move the quest chain's people
+
+Both read as NPC mutations and both verify whole against the NPC table's own
+spaces. Opcode 39 is `[npc u32][slot u8][topic u32]`: on 132 of 132 uses the
+NPC is a 1-based `NPCdata.txt` row, the slot is 0..2 — the table's own three
+topic columns — and the topic resolves in `npctopic.txt` or is zero, which
+clears the slot. Opcode 40 is `[npc u32][place u32]`: 29 of 29 name an NPC,
+and the place is a `2DEvents.txt` row or zero for away. `observed` Reproduce
+with `evt_info --npc-mutations`.
+
+Andover Potbello's letter event ends with opcode 39 setting his first topic
+slot to topic 2 — pay him, and what he offers moves on. The engine applies
+the topic rewrites when the party talks, keeps them with the quest bits, and
+saves them; where a moved NPC stands is recorded and saved but not yet
+drawn.
+
+The other **73 opcodes are `unknown`.** Opcode 4, the commonest, is not a
 string index: its argument leaves the range 522 times.
 
 ## A face names an event
