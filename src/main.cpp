@@ -1514,6 +1514,31 @@ int main(int argc, char** argv) {
         return person;
     };
 
+    // The named conditions a spell can set, matched by the spell's own name
+    // to the same four the potions write, for the duration its rank cell
+    // states — with the reader's level standing in for the skill. `inferred`
+    const auto apply_buff = [&](const data::SpellStatsEntry& spell, game::Character& who,
+                                int skill) -> bool {
+        const data::SpellDuration duration = data::parse_spell_duration(spell, 0);
+        if (duration.empty()) {
+            return false;
+        }
+        const std::int64_t until = clock.minutes() + duration.minutes(skill);
+        const std::string name = data::cp1252_to_utf8(spell.name);
+        if (name == "Haste") {
+            who.haste_until = until;
+        } else if (name == "Bless") {
+            who.bless_until = until;
+        } else if (name == "Heroism") {
+            who.heroism_until = until;
+        } else if (name == "Stone Skin") {
+            who.stone_skin_until = until;
+        } else {
+            return false;
+        }
+        return true;
+    };
+
     // A walked event's gives and takes, shared by using a face and talking
     // to a quest giver. Giving returns the item's name for the message line,
     // or nothing when no pack had room.
@@ -2113,6 +2138,11 @@ int main(int argc, char** argv) {
                                                 party[who].name, session, monster_stats,
                                                 item_stats, random_items, standard_bonuses,
                                                 special_bonuses);
+                        } else if (apply_buff(*spell, party[who], party[who].level)) {
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) + ": " +
+                                   data::cp1252_to_utf8(spell->name) +
+                                   " for its written time";
                         } else {
                             continue;  // a spell this slice cannot cast yet
                         }

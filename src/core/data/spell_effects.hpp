@@ -180,6 +180,65 @@ namespace detail {
     return out;
 }
 
+// A duration written the rank cells' way: `"Duration 1 hour + 5 minutes
+// per point of skill"`, or minutes alone, or hours alone.
+struct SpellDuration {
+    int base_minutes = 0;
+    int per_skill_minutes = 0;
+
+    [[nodiscard]] bool empty() const noexcept {
+        return base_minutes <= 0 && per_skill_minutes <= 0;
+    }
+    [[nodiscard]] int minutes(int skill) const noexcept {
+        return base_minutes + per_skill_minutes * skill;
+    }
+};
+
+[[nodiscard]] inline SpellDuration parse_spell_duration(const SpellStatsEntry& spell,
+                                                        int mastery) {
+    using detail::find_ignoring_case;
+    using detail::range_at;
+
+    const std::string_view rank = mastery >= 2   ? spell.master
+                                  : mastery == 1 ? spell.expert
+                                                 : spell.normal;
+    SpellDuration out;
+    const std::size_t at = find_ignoring_case(rank, "duration ");
+    if (at == std::string_view::npos) {
+        return out;
+    }
+    // Each number is hours or minutes by the word after it; a number before
+    // "per point of skill"/"per skill point" scales, the rest is base.
+    std::size_t p = at;
+    while (p < rank.size()) {
+        while (p < rank.size() && std::isdigit(static_cast<unsigned char>(rank[p])) == 0) {
+            ++p;
+        }
+        if (p >= rank.size()) {
+            break;
+        }
+        std::size_t end = p;
+        const SpellRange value = range_at(rank, p, &end);
+        const std::string_view rest = rank.substr(end);
+        int minutes = value.low;
+        if (find_ignoring_case(rest.substr(0, 8), "hour") != std::string_view::npos ||
+            (rest.size() > 1 && rest.substr(0, 3) == " hr")) {
+            minutes *= 60;
+        }
+        const bool scales =
+            find_ignoring_case(rest.substr(0, 40), "per point of skill") !=
+                std::string_view::npos ||
+            find_ignoring_case(rest.substr(0, 40), "per skill point") != std::string_view::npos;
+        if (scales) {
+            out.per_skill_minutes += minutes;
+        } else {
+            out.base_minutes += minutes;
+        }
+        p = end;
+    }
+    return out;
+}
+
 // One monster's spell, as `MONSTERS.TXT`'s own column writes it:
 // `"Fireball,N,5"` — the spell's name, the mastery letter, and a real skill
 // value, which is exactly what the per-skill dice scale by.

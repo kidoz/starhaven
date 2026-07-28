@@ -69,3 +69,40 @@ TEST_CASE("prose without numbers casts nothing", "[spells]") {
                 spell("Duration 1 hour per point of skill.", "Moderate recovery rate"), 0)
                 .empty());
 }
+
+TEST_CASE("durations read hours and per-skill minutes apart", "[spells]") {
+    // The four buff spells all write it this way.
+    const auto bless = parse_spell_duration(
+        spell("", "Duration 1 hour + 5 minutes per point of skill"), 0);
+    REQUIRE(bless.base_minutes == 60);
+    REQUIRE(bless.per_skill_minutes == 5);
+    REQUIRE(bless.minutes(4) == 80);
+
+    const auto haste = parse_spell_duration(
+        spell("", "Duration 1 hour + 1 minute per skill point"), 0);
+    REQUIRE(haste.base_minutes == 60);
+    REQUIRE(haste.per_skill_minutes == 1);
+
+    // Minutes alone, scaling alone.
+    const auto scaling = parse_spell_duration(
+        spell("", "Duration 5 minutes per point of skill"), 0);
+    REQUIRE(scaling.base_minutes == 0);
+    REQUIRE(scaling.per_skill_minutes == 5);
+
+    REQUIRE(parse_spell_duration(spell("", "Moderate recovery rate"), 0).empty());
+}
+
+TEST_CASE("a monster's spell cell parses whole, typos included", "[spells]") {
+    const MonsterSpell cast = parse_monster_spell("Fireball,N,5");
+    REQUIRE(cast.name == "Fireball");
+    REQUIRE(cast.mastery == 0);
+    REQUIRE(cast.skill == 5);
+    REQUIRE(parse_monster_spell("Lightning Bolt,M,12").mastery == 2);
+    REQUIRE(parse_monster_spell("0").empty());
+
+    SpellStatsTable spells;
+    // find_spell_tolerant absorbs the sheet's own two misspellings.
+    // (Built through the table parser elsewhere; here the empty table just
+    // answers nothing.)
+    REQUIRE(find_spell_tolerant(spells, "Psychic Shockt") == nullptr);
+}

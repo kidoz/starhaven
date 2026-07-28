@@ -280,6 +280,12 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Buff scrolls with the sheet's own hours**: the four conditions the
+  potions set exist as spells too, and their rank cells write the duration —
+  "Duration 1 hour + 5 minutes per point of skill" — in phrasing the parser
+  now reads apart. A scroll of Haste, Bless, Heroism or Stone Skin sets the
+  same character condition the potion would, for exactly the written time at
+  the reader's level.
 - **Books that teach, casters that know**: all 99 spell books carry their
   spell as the same S-number the scrolls use — one book per spell, 99 of 99
   — and **U** on one follows the USEITEMS header's own rule: the character
