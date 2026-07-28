@@ -244,6 +244,75 @@ std::vector<MapSpriteObject> extract_sprite_objects(const MapEventFile& file,
     return out;
 }
 
+std::vector<MapDoor> extract_doors(const MapEventFile& file) {
+    EventLayout layout;
+    if (parse_event_layout(file, layout) != EventLayoutError::None ||
+        layout.kind != MapEventKind::Indoor) {
+        return {};
+    }
+
+    const auto u32_at = [&file](std::size_t at) {
+        std::uint32_t value = 0;
+        for (int i = 3; i >= 0; --i) {
+            value = (value << 8) | file.payload[at + static_cast<std::size_t>(i)];
+        }
+        return value;
+    };
+    const auto u16_at = [&file](std::size_t at) {
+        return static_cast<std::uint16_t>(file.payload[at] | (file.payload[at + 1] << 8));
+    };
+
+    // The id arrays follow the slot block, in slot order; the trailer closes
+    // the file. Every read is bounds-checked against that region.
+    std::size_t at = layout.state_offset + layout.state_size;
+    const std::size_t end = layout.tail_offset + layout.tail_size - kOutdoorEventTrailerSize;
+
+    std::vector<MapDoor> out;
+    for (std::size_t slot = 0; slot < kIndoorStateSlotCount; ++slot) {
+        const std::size_t record = layout.state_offset + slot * kIndoorStateSlotSize;
+        const std::size_t vertices = u32_at(record + 0x44) & 0xFFFF;
+        const std::size_t faces = u32_at(record + 0x44) >> 16;
+        const std::size_t sectors = u32_at(record + 0x48) & 0xFFFF;
+        if (vertices == 0 && faces == 0) {
+            continue;
+        }
+        const std::size_t u16s = 4 * vertices + 3 * faces + sectors;
+        if (at + u16s * 2 > end) {
+            break;  // a malformed file must not read into the trailer
+        }
+        MapDoor door;
+        door.attributes = u32_at(record + 0x00);
+        door.id = u32_at(record + 0x04);
+        door.dx = static_cast<float>(static_cast<std::int32_t>(u32_at(record + 0x0C))) / 65536.0f;
+        door.dy = static_cast<float>(static_cast<std::int32_t>(u32_at(record + 0x10))) / 65536.0f;
+        door.dz = static_cast<float>(static_cast<std::int32_t>(u32_at(record + 0x14))) / 65536.0f;
+        door.distance = static_cast<int>(u32_at(record + 0x18));
+        door.open_speed = static_cast<int>(u32_at(record + 0x1C));
+        door.close_speed = static_cast<int>(u32_at(record + 0x20));
+
+        const auto take_u16 = [&](std::vector<std::uint16_t>& into, std::size_t count) {
+            for (std::size_t i = 0; i < count; ++i, at += 2) {
+                into.push_back(u16_at(at));
+            }
+        };
+        const auto take_i16 = [&](std::vector<std::int16_t>& into, std::size_t count) {
+            for (std::size_t i = 0; i < count; ++i, at += 2) {
+                into.push_back(static_cast<std::int16_t>(u16_at(at)));
+            }
+        };
+        take_u16(door.vertex_ids, vertices);
+        take_u16(door.face_ids, faces);
+        take_u16(door.sector_ids, sectors);
+        take_i16(door.delta_us, faces);
+        take_i16(door.delta_vs, faces);
+        take_i16(door.x_base, vertices);
+        take_i16(door.y_base, vertices);
+        take_i16(door.z_base, vertices);
+        out.push_back(std::move(door));
+    }
+    return out;
+}
+
 std::vector<MapChestItem> extract_chest_items(const MapEventFile& file, std::size_t max_records) {
     EventLayout layout;
     if (parse_event_layout(file, layout) != EventLayoutError::None) {

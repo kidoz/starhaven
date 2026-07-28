@@ -186,3 +186,17 @@ TEST_CASE("a switch's event names the face it repaints", "[walk]") {
     REQUIRE(outcome.retextures[0].second == "t1swdu");
     REQUIRE(outcome.acted());
 }
+
+TEST_CASE("a lever's event names the doors it throws", "[walk]") {
+    // Opcode 15: a door id and a state — 0 shuts, 1 opens. D01's paired
+    // levers open two doors and shut the other two.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 20, 0, kOpcodeDoor, {55, 1});
+    push_step(payload, 20, 1, kOpcodeDoor, {57, 0});
+    const MapScript script = parse(payload);
+
+    WalkState state;
+    const WalkOutcome outcome = walk_event(script, 20, state);
+    REQUIRE(outcome.doors == std::vector<std::pair<int, int>>{{55, 1}, {57, 0}});
+    REQUIRE(outcome.acted());
+}

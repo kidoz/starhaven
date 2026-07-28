@@ -49,11 +49,15 @@ struct WalkOutcome {
     // Faces to re-texture: a thrown switch is drawn thrown.
     std::vector<std::pair<std::uint32_t, std::string>> retextures;
 
+    // Doors to move: the id opcode 15 throws, and its state byte — 0 shuts,
+    // 1 opens, and the rare 2 reads as a toggle. `inferred`
+    std::vector<std::pair<int, int>> doors;
+
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
-               chest >= 0 || travel.has_value() || !retextures.empty();
+               chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty();
     }
 };
 
@@ -188,6 +192,11 @@ struct WalkOutcome {
             if (auto travel = world::parse_travel(step)) {
                 out.travel = std::move(travel);
                 return out;
+            }
+            break;
+        case world::kOpcodeDoor:
+            if (a.size() >= 2) {
+                out.doors.emplace_back(a[0], a[1]);
             }
             break;
         case world::kOpcodeRetexture: {

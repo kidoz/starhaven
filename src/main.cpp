@@ -1727,6 +1727,39 @@ int main(int argc, char** argv) {
                 }
             }
 
+            // A thrown door moves: its own vertices slide along its own
+            // direction by its own distance, and the collision world is
+            // rebuilt so the doorway really opens. The move is a snap
+            // rather than the original's timed slide. `inferred`
+            bool doors_moved = false;
+            for (const auto& [id, state] : outcome.doors) {
+                for (auto& door : session.doors) {
+                    if (door.id != static_cast<std::uint32_t>(id)) {
+                        continue;
+                    }
+                    door.open = state == 2 ? !door.open : state != 0;
+                    for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
+                        const std::uint16_t vid = door.vertex_ids[i];
+                        if (vid >= session.blv.vertices.size()) {
+                            continue;
+                        }
+                        const float slide = door.open ? static_cast<float>(door.distance) : 0.0f;
+                        auto& v = session.blv.vertices[vid];
+                        v.x = static_cast<std::int16_t>(door.x_base[i] +
+                                                        static_cast<int>(door.dx * slide));
+                        v.y = static_cast<std::int16_t>(door.y_base[i] +
+                                                        static_cast<int>(door.dy * slide));
+                        v.z = static_cast<std::int16_t>(door.z_base[i] +
+                                                        static_cast<int>(door.dz * slide));
+                    }
+                    doors_moved = true;
+                    break;
+                }
+            }
+            if (doors_moved) {
+                world::rebuild_indoor_collision(session);
+            }
+
             // A door into an establishment opens its counter.
             if (outcome.building != 0) {
                 for (std::size_t i = 0; i < shops_here.size(); ++i) {

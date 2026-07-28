@@ -280,6 +280,13 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Doors that open**: the indoor event files' fixed 200-slot block turned
+  out to be the door array — per door an id, a direction, a distance, two
+  speeds, and id arrays whose total is byte-exact against the size the level
+  declares. The bases equal the shipped vertex on 4,067 of 4,067 across 795
+  doors on the 52 maps, so a door ships shut and opens by sliding its own
+  vertices its own distance. Throw a lever and the portcullis rises, the
+  wall texture flips, and the collision world lets you through.
 - **Coaches and boats you can ride**: the stables' and docks' rows write
   their routes in the stock columns, the designers' way — destination and
   area code, departure weekdays, days of travel — and the counter reads them

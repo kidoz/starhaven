@@ -18,6 +18,7 @@
 #include "core/world/blv_map.hpp"
 #include "core/world/collision.hpp"
 #include "core/world/decoration_table.hpp"
+#include "core/world/map_event.hpp"
 #include "core/world/map_script.hpp"
 #include "core/world/monster_list.hpp"
 #include "core/world/object_table.hpp"
@@ -132,6 +133,11 @@ struct MapSession {
     // Indoor geometry.
     BlvMap blv;
 
+    // The doors the event file places on an indoor map, with a live open
+    // flag per door. Bases are the shut position on 4,067 of 4,067 vertices
+    // across the 52 maps.
+    std::vector<MapDoor> doors;
+
     // Shared.
     CollisionWorld collision;
     std::vector<SessionDecoration> decorations;
@@ -191,6 +197,11 @@ struct MapSession {
 // a different population.
 void respawn_monsters(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
                       std::uint32_t seed, MapSession& out);
+
+// Rebuild the indoor collision world from the faces as they now stand.
+// Moving a door's vertices leaves the collision polygons where they were;
+// this is how the world pushes back at the new geometry.
+void rebuild_indoor_collision(MapSession& out);
 
 // MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up.
 [[nodiscard]] inline render::Vec3 to_render_space(int x, int y, int z) {

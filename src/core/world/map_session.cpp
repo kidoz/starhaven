@@ -203,6 +203,22 @@ void spawn_from_points(const std::filesystem::path& data_dir, const data::MapSta
 
 }  // namespace
 
+void rebuild_indoor_collision(MapSession& out) {
+    out.collision = {};
+    std::vector<render::Vec3> corners;
+    for (const auto& f : out.blv.faces) {
+        if (f.invisible() || f.vertex_count < 3) {
+            continue;
+        }
+        corners.clear();
+        for (std::size_t k = 0; k < f.vertex_count; ++k) {
+            const auto& v = out.blv.vertices[f.vertex_ids[k]];
+            corners.push_back(to_render_space(v.x, v.y, v.z));
+        }
+        out.collision.add_polygon(corners, {f.nx(), f.nz(), f.ny()});
+    }
+}
+
 void respawn_monsters(const data::MonsterStatsTable& monsters, assets::AssetCache& cache,
                       std::uint32_t seed, MapSession& out) {
     if (out.monster_spawns.empty() || out.placed_actor_count > out.actors.size()) {
@@ -264,6 +280,9 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::filesyste
     if (archive.payload(stem + extension, entry) != lod::GameLodArchive::PayloadError::None ||
         parse_map_event(entry, file) != MapEventError::None) {
         return;
+    }
+    if (out.indoor()) {
+        out.doors = extract_doors(file);
     }
     data::TextTable monster_text;
     data::MonsterStatsTable monster_stats;
@@ -412,18 +431,7 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
     }
 
     // Collision uses the same faces the renderer draws, minus the portals.
-    std::vector<render::Vec3> corners;
-    for (const auto& f : out.blv.faces) {
-        if (f.invisible() || f.vertex_count < 3) {
-            continue;
-        }
-        corners.clear();
-        for (std::size_t k = 0; k < f.vertex_count; ++k) {
-            const auto& v = out.blv.vertices[f.vertex_ids[k]];
-            corners.push_back(to_render_space(v.x, v.y, v.z));
-        }
-        out.collision.add_polygon(corners, {f.nx(), f.nz(), f.ny()});
-    }
+    rebuild_indoor_collision(out);
 
     // Indoor decorations carry a name and no type id, so the decoration table
     // is entered by name.

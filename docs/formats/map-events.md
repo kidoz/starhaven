@@ -381,8 +381,10 @@ using one prints its message.
   noises — the dense id region, not a meaning). `unknown`
 - What `OUT.EVT`'s 87 stub events are for, and what points at them. `unknown`
 - Which events point into `GLOBAL.EVT`'s quest bank. `unknown`
-- Opcode 15's door numbers against the indoor maps' own door records, and
-  what state 2 is where 0 and 1 read as shut and open. `unknown`
+- Opcode 15's door numbers are the ids of the indoor event files' own door
+  records — see [`event-tables.md`](event-tables.md) — and the engine moves
+  them. What state 2 is, where 0 and 1 read as shut and open, is still
+  `unknown`; the engine reads it as a toggle.
 - Opcode 11's outdoor uses: whether the u32 indexes model facets or terrain
   tiles there. `unknown`
 - Opcode 1's byte, always 0..2. `unknown`

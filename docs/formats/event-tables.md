@@ -89,6 +89,38 @@ The decoder requires room for both. Without that the indoor test would accept
 any chain that merely fits, since — unlike outdoor — the payload does not end
 on a trailer at a computable offset.
 
+### The 200-slot block is the door array
+
+The suspicion recorded below turned out right, and the whole mechanism is in
+this one file. Each 80-byte record is a door:
+
+| Offset | Size | Field | Evidence |
+| --- | --- | --- | --- |
+| +0x00 | u32 | attributes | zero on the doors examined |
+| +0x04 | u32 | id | **the id opcode 15 throws** |
+| +0x08 | u32 | timer/state | zero on disk |
+| +0x0C | 3×i32 | direction, 16.16 | unit axes: (-1,0,0), (0,0,+1)… |
+| +0x18 | u32 | distance | 8..504 world units |
+| +0x1C, +0x20 | u32 | open and close speeds | 50..150 |
+| +0x24 | 8×u32 | heap pointers | meaningless on disk |
+| +0x44 | u16, u16 | vertex count, face count | |
+| +0x48 | u16 | sector count | 0 on every D01 door |
+
+The region between the block and the trailer — the part whose size the
+paired level declares — is each door's id arrays in slot order, in exactly
+the order the eight runtime pointers walk: vertex ids, face ids, sector ids,
+per-face texture deltas U and V, then the vertices' X, Y and Z. Per door
+that is `4V + 3F + S` u16s, and the sum across a map's doors **is the
+declared size to the byte**. `observed`
+
+The X/Y/Z arrays are the shut position: across all 52 maps, **795 doors**
+carry 4,067 vertex entries, and **4,067 of 4,067** equal the position the
+level ships that vertex at. Opening a door is therefore moving its vertices
+from the base along the direction by the distance, which is what the engine
+now does — and rebuilds collision, so the doorway really opens. `observed`
+for the bases; the snap rather than a timed slide is the engine's.
+Reproduce with `ddm_info <map>.dlv --doors`.
+
 ### The tail's size is declared — in the other file
 
 The state between the fixed block and the trailer is **exactly as many bytes as
@@ -174,7 +206,5 @@ The decoder rejects an outdoor layout when:
 - Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
 - The first chest word and meanings of its 140 grid entries.
 - The indoor prefix's 883 bytes, and why the count lands unaligned.
-- What the fixed 200-slot array holds. Eight pointer fields per record and
-  200 slots regardless of level size suggest a capped table the engine fills
-  at load — doors are the obvious candidate — but nothing here names it, and
-  the slots carry defaults rather than a usable occupancy count.
+- What door attribute bits mean, and what the second count word's high half
+  duplicates.

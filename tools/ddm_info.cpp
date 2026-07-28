@@ -51,11 +51,12 @@ std::filesystem::path resolve_data_dir() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    if (argc < 2 || argc > 3) {
         print_usage(argv[0]);
         return 2;
     }
     const std::string name = argv[1];
+    const bool show_doors = argc == 3 && std::string(argv[2]) == "--doors";
 
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
@@ -105,6 +106,59 @@ int main(int argc, char** argv) {
                   << (layout.tail_size - layout.state_size) << " of the rest)";
     }
     std::cout << "\n";
+
+    // Research mode: the door block, decoded and verified against the paired
+    // level — every id in range, and every base coordinate the position the
+    // level ships that vertex at.
+    if (show_doors && layout.kind == world::MapEventKind::Indoor) {
+        std::string stem = name;
+        if (const std::size_t dot = stem.rfind('.'); dot != std::string::npos) {
+            stem = stem.substr(0, dot);
+        }
+        std::span<const std::byte> level;
+        world::BlvMap blv;
+        const bool have_level =
+            archive.payload(stem + ".blv", level) == lod::GameLodArchive::PayloadError::None &&
+            world::parse_blv(level, blv) == world::BlvError::None;
+
+        std::size_t vertex_ids_ok = 0, vertex_ids_all = 0;
+        std::size_t face_ids_ok = 0, face_ids_all = 0;
+        std::size_t base_ok = 0, base_all = 0;
+        std::size_t array_bytes = 0;
+        const auto doors = world::extract_doors(ev);
+        for (const auto& door : doors) {
+            std::cout << "  door " << door.id << ": dir " << door.dx << "," << door.dy << ","
+                      << door.dz << " distance " << door.distance << " speeds "
+                      << door.open_speed << "/" << door.close_speed << " vertices "
+                      << door.vertex_ids.size() << " faces " << door.face_ids.size() << "\n";
+            array_bytes += 2 * (4 * door.vertex_ids.size() + 3 * door.face_ids.size() +
+                                door.sector_ids.size());
+            if (!have_level) {
+                continue;
+            }
+            for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
+                ++vertex_ids_all;
+                const std::uint16_t vid = door.vertex_ids[i];
+                if (vid >= blv.vertices.size()) {
+                    continue;
+                }
+                ++vertex_ids_ok;
+                ++base_all;
+                const auto& v = blv.vertices[vid];
+                if (v.x == door.x_base[i] && v.y == door.y_base[i] && v.z == door.z_base[i]) {
+                    ++base_ok;
+                }
+            }
+            for (const std::uint16_t fid : door.face_ids) {
+                ++face_ids_all;
+                face_ids_ok += fid < blv.faces.size() ? 1 : 0;
+            }
+        }
+        std::cout << "  " << doors.size() << " doors, arrays " << array_bytes << " bytes; "
+                  << vertex_ids_ok << "/" << vertex_ids_all << " vertex ids in range, "
+                  << face_ids_ok << "/" << face_ids_all << " face ids in range, " << base_ok
+                  << "/" << base_all << " bases equal the shipped vertex\n";
+    }
 
     // The paired level declares how much saved state this file carries. It is
     // the only size in the event file that is not self-describing.

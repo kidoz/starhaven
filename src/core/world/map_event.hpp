@@ -201,6 +201,35 @@ constexpr std::size_t kSpriteObjectPreviousPositionOffset = 0x58;
 [[nodiscard]] std::vector<MapSpriteObject> extract_sprite_objects(const MapEventFile& file,
                                                                   std::size_t max_records = 4096);
 
+// --- Doors (see docs/formats/event-tables.md) ------------------------------
+
+// One door: which vertices slide, which way, how far, and the faces those
+// vertices touch. The indoor event file's fixed 200-slot block holds the
+// 80-byte records, and the region after it holds each door's id arrays in
+// slot order — their total is exactly the state size the paired `.blv`
+// declares.
+struct MapDoor {
+    std::uint32_t attributes = 0;
+    std::uint32_t id = 0;                  // what opcode 15 throws
+    float dx = 0, dy = 0, dz = 0;          // unit direction, from 16.16
+    int distance = 0;                      // how far it moves, world units
+    int open_speed = 0, close_speed = 0;
+    std::vector<std::uint16_t> vertex_ids;  // the vertices that move
+    std::vector<std::uint16_t> face_ids;    // the faces those vertices touch
+    std::vector<std::uint16_t> sector_ids;
+    std::vector<std::int16_t> delta_us, delta_vs;    // per-face texture slide
+    std::vector<std::int16_t> x_base, y_base, z_base;  // the shut position
+
+    // Live state, not from the file: every base equals its shipped vertex on
+    // 4,067 of 4,067 across the 52 maps, so a door starts shut.
+    bool open = false;
+};
+
+// Decode the door block of an indoor event file. Returns no records for an
+// outdoor file, and stops at the first slot whose arrays would run past the
+// region the paired level declared.
+[[nodiscard]] std::vector<MapDoor> extract_doors(const MapEventFile& file);
+
 struct MapChestItem {
     std::size_t chest_index = 0;
     std::size_t slot_index = 0;
