@@ -94,6 +94,12 @@ spelling their stem differently: there is no `TavPoor`, no `OracMid`, no
 `ThfMid`, and the magic shop's poor tier is `MagicPor` where its other two are
 `MagMid` and `MagRch`. `observed`
 
-That measurement used a stand-in for the quality tier, because the building
-parser does not yet read `2DEvents.txt`'s `Picture` column. Reading it is the
-next step, and the figure above should be taken again afterwards. `unknown`
+That measurement used a stand-in for the quality tier. Reading
+`2DEvents.txt`'s `Picture` column properly and taking it again gives
+**14 of 97**, not 82 — so the stand-in was doing the work and the pairing of
+that column to the videos' poor/middling/rich families is **wrong**.
+
+The column's values for shops run 1 to 8 and beyond, not 1 to 3. `observed`
+What selects a video's quality tier is `unknown`; it is not this column.
+The trade-to-family pairing above still stands on the names, but which of a
+family's three files a given shop shows does not.

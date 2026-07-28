@@ -15,6 +15,7 @@ constexpr std::size_t kColMap = 3;
 constexpr std::size_t kColName = 5;
 constexpr std::size_t kColProprietor = 6;
 constexpr std::size_t kColTitle = 7;
+constexpr std::size_t kColPicture = 4;
 constexpr std::size_t kColPriceFactor = 12;
 constexpr std::size_t kColStockA = 13;
 constexpr std::size_t kColStockB = 14;
@@ -83,6 +84,7 @@ BuildingStatsError BuildingStatsTable::parse(const TextTable& table, BuildingSta
         e.type_id = table.cell_int(r, kColTypeId);
         e.type = std::move(type);
         e.map = cell_text(table, r, kColMap);
+        e.picture = table.cell_int(r, kColPicture);
         e.name = std::move(name);
         e.proprietor = cell_text(table, r, kColProprietor);
         e.title = cell_text(table, r, kColTitle);

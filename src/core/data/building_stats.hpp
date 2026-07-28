@@ -20,6 +20,12 @@ struct BuildingStatsEntry {
     std::string proprietor;
     std::string title;  // "Blacksmith", "Barkeep", ...
 
+    // Which picture this establishment shows. The values run 1 to 8 and above
+    // for shops and 66 to 71 for houses; what they select is `unknown`. They
+    // are **not** a three-way quality tier, which is what pairing them with
+    // the videos' poor/middling/rich families assumed. See docs/formats/vid.md.
+    int picture = 0;
+
     // What the shop charges over an item's value: 1.5 or 2 on the shipped
     // rows. The column is headed "Val".
     float price_factor = 1.0f;
