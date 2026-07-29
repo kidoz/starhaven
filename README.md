@@ -222,6 +222,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Beg, bribe and threaten, in their own words**: the three approaches the
+  talk screen has always advertised now work — keys 5, 6 and 7, answered in
+  each personality's own `npcbtb.txt` phrasing, acceptance, refusal and the
+  "I already said no" for pressing twice. A success coaxes a rumor off the
+  news table; the rumor's pick and the fifty-gold bribe are the engine's.
 - **The hurt opcode, decoded**: opcode 9 is `[target][element][amount]` —
   the element in the resistance columns' own order, vouched for by the
   Pyramid's six trap rooms sweeping every type, poison in the sewer and at

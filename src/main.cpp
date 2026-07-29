@@ -1119,8 +1119,8 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
             how += (i == 0 ? "" : i + 1 == talk.approaches.size() ? " or " : ", ");
             how += talk.approaches[i];
         }
-        game::draw_text(scene.framebuffer(), font, 24, kHeight - line * 2 - 8, how + " them", dim,
-                        shadow);
+        game::draw_text(scene.framebuffer(), font, 24, kHeight - line * 2 - 8,
+                        how + " them (5 beg, 6 bribe, 7 threaten)", dim, shadow);
     }
     game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
                     "1-3 ask about something, H hires or dismisses, T closes", dim, shadow);
@@ -1598,6 +1598,8 @@ int main(int argc, char** argv) {
     (void)data::load_profession_text(data_dir, trade_talk);
     data::NpcProfessionTable professions;
     (void)data::load_npc_professions(data_dir, professions);
+    data::NpcNewsTable rumors;
+    (void)data::load_npc_news(data_dir, rumors);
     data::DescriptionTable stat_descriptions;
     data::DescriptionTable class_descriptions;
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
@@ -1697,6 +1699,7 @@ int main(int argc, char** argv) {
     bool porting = false;  // the destination list is open
     std::int64_t next_wage_day = 7;
     std::string talk_answer;
+    std::set<int> approaches_used;  // per conversation: 0 beg, 1 bribe, 2 threat
     // A town, for Town Portal's purposes, is an outdoor map with counters —
     // the engine's own reading of the spell's "last town visited"; the
     // spell's words pick the destination, only the list is ours.
@@ -2618,6 +2621,7 @@ int main(int argc, char** argv) {
                 // Talk to whoever the NPC table puts in this establishment.
                 talking_to = talking_to >= 0 ? -1 : 0;
                 talk_answer.clear();
+                approaches_used.clear();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
                        open_shop >= 0) {
                 open_shop = -1;
@@ -3196,6 +3200,57 @@ int main(int argc, char** argv) {
                 if (!read) {
                     pick_up_message = "Nobody carries a castable scroll";
                     pick_up_shown = SDL_GetTicks();
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && talking_to >= 0 && open_shop >= 0 &&
+                       event.key.key >= SDLK_5 && event.key.key <= SDLK_7) {
+                // Beg, bribe or threaten, answered in the personality's own
+                // phrasing: 19/21/23 accept, 20/22/24 refuse, 3/4/5 for
+                // asking twice. What a success coaxes — a rumor off the
+                // news table — and the fifty-gold bribe are the engine's.
+                const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                if (talking_to < static_cast<int>(here.size())) {
+                    const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
+                    const auto* personality = personalities.find(person.personality);
+                    const int which = static_cast<int>(event.key.key - SDLK_5);
+                    const game::Speech who{person.name, party[0].name,
+                                           game::face_is_female(party[0].face), clock.hour()};
+                    const auto say = [&](int number) {
+                        return personality != nullptr
+                                   ? game::substitute(data::cp1252_to_utf8(std::string(
+                                                          personality->message(number))),
+                                                      who, interface_words)
+                                   : std::string{};
+                    };
+                    if (approaches_used.contains(which)) {
+                        talk_answer = say(3 + which);
+                        if (talk_answer.empty()) {
+                            talk_answer = "They have nothing more to say to that.";
+                        }
+                    } else if (which == 1 && gold < 50) {
+                        talk_answer = "The party cannot spare a bribe.";
+                    } else {
+                        approaches_used.insert(which);
+                        if (which == 1) {
+                            gold -= 50;
+                        }
+                        const bool taken =
+                            personality != nullptr &&
+                            personality->allows_approach(static_cast<data::NpcApproach>(which));
+                        if (taken) {
+                            talk_answer = say(19 + which * 2);
+                            if (!rumors.entries().empty()) {
+                                const auto& rumor = rumors.entries()[misc_random.next() %
+                                                                     rumors.entries().size()];
+                                talk_answer += (talk_answer.empty() ? "" : "  ") +
+                                               data::cp1252_to_utf8(rumor.text);
+                            }
+                        } else {
+                            talk_answer = say(20 + which * 2);
+                            if (talk_answer.empty()) {
+                                talk_answer = "They are unmoved.";
+                            }
+                        }
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H &&
                        talking_to >= 0 && open_shop >= 0) {

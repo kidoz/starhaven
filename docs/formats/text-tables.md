@@ -471,6 +471,12 @@ The columns are headed `Peasant BTB`, `Thief BT`, `Sorcerer TB`, `Paladin Be` â€
 a name and a reminder of which approaches work, spelled with the initials. The
 suffix is dropped; the three rows below state the same thing exactly.
 
+The engine leans through it now: keys 5, 6 and 7 in a conversation beg,
+bribe and threaten, answered in the personality's own wording â€” 19/21/23
+accepting, 20/22/24 refusing, 3/4/5 for pressing twice. What a success
+coaxes (a rumor rolled off `NPCNews.txt`, whose rows join to no NPC) and
+the fifty-gold bribe are the engine's own and say so.
+
 The messages say it a third time. Six of the twenty-four are an acceptance and
 a refusal for each approach, and a personality has the acceptance exactly where
 the matrix allows the approach and the refusal exactly where it does not; the
