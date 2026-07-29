@@ -670,3 +670,71 @@ TEST_CASE("only a missile-armed monster attacks from range", "[combat]") {
         REQUIRE(idle.update(0.5f, far_session, melee_only, {}, party, {0, 0, 0}).empty());
     }
 }
+
+TEST_CASE("the second attack bites at its own written chance", "[combat]") {
+    // A cobra shape: physical fangs, and Att% 100 forcing the poison bite
+    // so the test can see it.
+    std::string body =
+        "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
+        "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
+        "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
+    body += "1\tCobraA\tCobra\t2\t20\t0\t24\t0\t0\tN\tMed\tAggress\t4\t200\t1\t0\t0\tPhys"
+            "\t1d2\t0\t100\tPois\t50d1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::MonsterStatsTable cobras;
+    REQUIRE(data::MonsterStatsTable::parse(table, cobras) == data::MonsterStatsError::None);
+
+    const auto session = with_monster({0, 0, 0});
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    for (auto& who : party) {
+        who.max_hit_points = 200;
+        who.hit_points = 200;
+    }
+    Battle battle;
+    battle.reset(session, cobras, 5);
+    // With Att% at 100 every landed blow is the 50-point poison fang, never
+    // the 1d2 nibble: any hit that lands takes at least 50.
+    for (int i = 0; i < 40; ++i) {
+        (void)battle.update(0.5f, session, cobras, {}, party, {0, 0, 0});
+    }
+    for (const auto& who : party) {
+        const int lost = 200 - who.hit_points;
+        REQUIRE(lost % 50 == 0);
+    }
+}
+
+TEST_CASE("a monster with a preference picks its named victims", "[combat]") {
+    std::string body =
+        "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
+        "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
+        "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
+    body += "1\tEyeA\tTerrible Eye\t2\t20\t0\t24\t0\t0\tY\tMed\tAggress\t4\t200\t1\t\"D,S\"\t0"
+            "\tPhys\t5d1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::MonsterStatsTable eyes;
+    REQUIRE(data::MonsterStatsTable::parse(table, eyes) == data::MonsterStatsError::None);
+    REQUIRE(eyes.entries()[0].flying);
+
+    const auto session = with_monster({0, 0, 0});
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    party[0].class_name = "Knight";
+    party[1].class_name = "Knight";
+    party[2].class_name = "Sorcerer";
+    party[3].class_name = "Knight";
+    for (auto& who : party) {
+        who.max_hit_points = 500;
+        who.hit_points = 500;
+    }
+    Battle battle;
+    battle.reset(session, eyes, 5);
+    for (int i = 0; i < 60; ++i) {
+        (void)battle.update(0.5f, session, eyes, {}, party, {0, 0, 0});
+    }
+    // Every wound sits on the sorcerer; the knights are unmarked.
+    REQUIRE(party[2].hit_points < 500);
+    REQUIRE(party[0].hit_points == 500);
+    REQUIRE(party[1].hit_points == 500);
+    REQUIRE(party[3].hit_points == 500);
+}

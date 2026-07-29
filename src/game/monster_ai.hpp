@@ -26,6 +26,7 @@ struct MonsterMotion {
     float roam = 0.0f;    // how far from where it started it will wander
     float notice = 0.0f;  // how near the party has to be for it to react
     bool flees = false;   // a Wimp runs the other way
+    bool flying = false;  // the Fly column: it keeps its height, not the floor's
 
     [[nodiscard]] bool still() const noexcept { return speed <= 0.0f; }
 };
@@ -53,6 +54,7 @@ inline constexpr float kSpeedScale = 1.0f;
 [[nodiscard]] inline MonsterMotion motion_for(const data::MonsterStatsEntry& monster) {
     MonsterMotion out;
     out.speed = static_cast<float>(monster.speed) * kSpeedScale;
+    out.flying = monster.flying;
 
     if (monster.movement == "Short") {
         out.roam = kRoamShort;
@@ -344,7 +346,12 @@ private:
 
         actor.position = to;
         if (session.outdoor()) {
-            actor.position.y = session.terrain_height_at(actor.position.x, actor.position.z);
+            const float ground = session.terrain_height_at(actor.position.x, actor.position.z);
+            // The Fly column: a flier rides above the ground instead of on
+            // it. The hover height is this engine's own. `inferred`
+            constexpr float kHover = 160.0f;
+            actor.position.y = state.motion.flying ? std::max(actor.position.y, ground + kHover)
+                                                   : ground;
         }
     }
 

@@ -293,6 +293,19 @@ Nothing in the table places a building anywhere *within* its map. The interiors
 are a separate screen the original drew in two dimensions, which is what the
 file's name refers to.
 
+### The monster table's last columns
+
+Three columns went unread until now. **Att%** sits in the header's Attack 1
+group but is the *second* attack's chance: its 10..30 values land exactly on
+the rows whose second attack is the rare elemental bite — a Cobra's poison
+fangs at 20 — and a first-attack share of 20 would invert every such
+monster; the engine rolls it as written. **Fly** lifts its monsters off the
+ground (the hover height is the engine's own). **Pref** names the victims a
+monster goes for, as class initials — "D,S" on the Terrible Eye, the
+casters — with M and F read as a gender taste (`inferred` for those two);
+the digit values on a dozen rows (2, 3, 4) match nothing tested and are
+filed `unknown`.
+
 ## `NPCdata.txt` and `npcprof.txt`
 
 396 named people and 77 professions. Two columns of `NPCdata.txt` are

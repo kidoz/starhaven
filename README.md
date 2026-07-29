@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The monster table, read to the last column**: the second attack swings
+  at its own Att% (whose 10..30 values betray it as the second's chance
+  despite the header's grouping — a Cobra's poison fangs at 20), the Fly
+  column lifts its bearers off the ground, and Pref aims monsters at the
+  classes its initials name — the Terrible Eye goes for "D,S", the casters.
+  The dozen digit-valued Pref rows are filed unknown.
 - **The casts ring true**: the sound archive names spells by their own
   `Spells.txt` rows — `04firebolt01`, `31townportal03`, `21fly03` — so every
   scroll, wand wave, H-cast, portal and beacon now plays its spell's own

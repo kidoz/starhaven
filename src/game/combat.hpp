@@ -624,7 +624,28 @@ private:
         if (standing.empty()) {
             return {};
         }
-        Character& target = party[standing[random_.next() % standing.size()]];
+        // The Pref column names who this monster goes for: class initials —
+        // "D,S" on the Terrible Eye, the casters — with M and F read as a
+        // gender taste. `inferred` for those two letters; the digit values
+        // (2, 3, 4 on a handful of rows) match nothing tested and are
+        // ignored. A preferred victim is chosen when one stands; otherwise
+        // anyone.
+        std::vector<std::size_t> preferred;
+        if (!monster.preference.empty() && monster.preference != "0") {
+            for (const std::size_t i : standing) {
+                for (const char c : monster.preference) {
+                    const char initial =
+                        party[i].class_name.empty() ? '?' : party[i].class_name.front();
+                    const bool female = face_is_female(party[i].face);
+                    if ((c == initial) || (c == 'F' && female) || (c == 'M' && !female)) {
+                        preferred.push_back(i);
+                        break;
+                    }
+                }
+            }
+        }
+        const auto& pool = preferred.empty() ? standing : preferred;
+        Character& target = party[pool[random_.next() % pool.size()]];
         const bool was_down = target.hit_points <= 0;
 
         // The table's own spell first: cast as often as the row's percent
@@ -654,9 +675,18 @@ private:
             }
         }
 
-        // The first attack it has dice for; the second is a spell or a missile
-        // more often than not.
-        for (const auto& attack : monster.attacks) {
+        // Which attack swings: the "Att%" column is the second attack's
+        // chance — the header groups it with the first, but its 10..30
+        // values sit exactly on the rows whose second attack is the rare
+        // elemental bite, and a first-attack share of 20 would invert every
+        // such monster. `observed` for the values, `inferred` for the
+        // reading. The parser leaves that column on the first slot.
+        const data::Dice second = data::parse_dice(monster.attacks[1].damage);
+        const bool use_second =
+            !second.empty() && monster.attacks[0].chance > 0 &&
+            static_cast<int>(random_.next() % 100) < monster.attacks[0].chance;
+        for (const auto& attack :
+             {use_second ? monster.attacks[1] : monster.attacks[0], monster.attacks[0]}) {
             const data::Dice dice = data::parse_dice(attack.damage);
             if (dice.empty()) {
                 continue;
