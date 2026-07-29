@@ -642,10 +642,13 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         if (row == nullptr || y > kHeight - font.height() - 20) {
             continue;
         }
-        game::draw_text(scene.framebuffer(), font, kLeft, y,
-                        data::cp1252_to_utf8(row->name) + "  " + std::to_string(row->value) +
-                            " gold",
-                        dim, shadow);
+        // An unidentified thing shows its table's own unknown name and
+        // keeps its worth to itself.
+        const std::string label =
+            carried.identified || row->unidentified_name.empty()
+                ? data::cp1252_to_utf8(row->name) + "  " + std::to_string(row->value) + " gold"
+                : data::cp1252_to_utf8(row->unidentified_name) + "  (unidentified)";
+        game::draw_text(scene.framebuffer(), font, kLeft, y, label, dim, shadow);
         y += font.height() + 1;
     }
 
@@ -1935,6 +1938,29 @@ int main(int argc, char** argv) {
         return game::haggled_price(asking, best);
     };
 
+    // Whether found loot arrives already known. Trivial things — no ID
+    // difficulty in their row — do; the rest need the party's best Identify
+    // to reach the item's own number, or a hired Scholar's unlimited eye.
+    // Points against difficulty, one for one, is the engine's own
+    // comparison. `inferred`
+    const auto arrives_identified = [&](const data::ItemStatsEntry& row) {
+        if (row.id_rep_st <= 0) {
+            return true;
+        }
+        for (const auto& h : hirelings) {
+            if (h.benefit.identifies) {
+                return true;
+            }
+        }
+        int best = 0;
+        for (const auto& member : party) {
+            if (const auto it = member.skills.find("Identify"); it != member.skills.end()) {
+                best = std::max(best, it->second);
+            }
+        }
+        return best >= row.id_rep_st;
+    };
+
     // A walked event's other payments, shared the same way. Experience goes
     // to every member alike — `inferred` from the rewards addressing the
     // party — while a cure or a permanent point lands on the character whose
@@ -2287,7 +2313,7 @@ int main(int argc, char** argv) {
                         packs[i].clear();
                         for (const auto& item : state.packs[i]) {
                             (void)packs[i].place(item.item_id, item.x, item.y, item.width,
-                                                 item.height);
+                                                 item.height, item.identified);
                         }
                     }
                     opened_chests =
@@ -2529,6 +2555,37 @@ int main(int argc, char** argv) {
                     }
                     shop_said = std::string(
                         game::merchant_line(merchant_words, data::MerchantAction::Repair, true));
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       event.key.key == SDLK_Y) {
+                // Have the counter name what the party could not: every
+                // unknown thing in the packs, a tenth of its value each —
+                // the price is this engine's, the words the merchant
+                // table's own Identify line.
+                int bill = 0;
+                for (const auto& pack : packs) {
+                    for (const auto& carried : pack.items()) {
+                        const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
+                        if (!carried.identified && row != nullptr) {
+                            bill += std::max(1, row->value / 10);
+                        }
+                    }
+                }
+                if (bill == 0) {
+                    shop_said = "Nothing here is a mystery.";
+                } else if (bill > gold) {
+                    shop_said = "Naming it all would cost " + std::to_string(bill) + " gold.";
+                } else {
+                    gold -= bill;
+                    for (auto& pack : packs) {
+                        for (const auto& carried : pack.items()) {
+                            if (!carried.identified) {
+                                (void)pack.identify_at(carried.x, carried.y);
+                            }
+                        }
+                    }
+                    shop_said = std::string(game::merchant_line(
+                        merchant_words, data::MerchantAction::Identify, true));
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_S) {
@@ -3134,10 +3191,13 @@ int main(int argc, char** argv) {
             const render::Texture& icon = cache.icon(row->picture);
             const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
             const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
+            const bool known = arrives_identified(*row);
             for (auto& pack : packs) {
-                if (pack.add(id, w, h)) {
+                if (pack.add(id, w, h, known)) {
                     found_text += (found_text.empty() ? "" : " and ") +
-                                  data::cp1252_to_utf8(row->name);
+                                  data::cp1252_to_utf8(known || row->unidentified_name.empty()
+                                                           ? row->name
+                                                           : row->unidentified_name);
                     break;
                 }
             }
@@ -3506,9 +3566,12 @@ int main(int argc, char** argv) {
                     const render::Texture& icon = cache.icon(row->picture);
                     const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
                     const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
+                    const bool known = arrives_identified(*row);
                     for (auto& pack : packs) {
-                        if (pack.add(id, w, h)) {
-                            took = data::cp1252_to_utf8(row->name);
+                        if (pack.add(id, w, h, known)) {
+                            took = data::cp1252_to_utf8(known || row->unidentified_name.empty()
+                                                            ? row->name
+                                                            : row->unidentified_name);
                             break;
                         }
                     }

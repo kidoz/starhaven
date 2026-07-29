@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Loot arrives unknown**: `ITEMS.TXT`'s two unread columns now work —
+  found things above their `ID/Rep/St` difficulty show only their own
+  "Not identified name" and keep their worth hidden, until the party's
+  Identify skill reaches the item's number, a hired Scholar's unlimited eye
+  sees it, or a counter names everything for a tenth of its value (Y at any
+  shop, answered by the merchant table's own Identify line).
 - **Promotions, a three-table join**: quest events set "Received Promotion
   to Crusader" awards, `Class.txt` holds the six ladders in row-order triples,
   and each promoted class's own prose prices itself — "an extra two hit

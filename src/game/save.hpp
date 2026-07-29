@@ -146,7 +146,8 @@ struct SaveState {
         out << "\n";
         for (const auto& item : state.packs[i]) {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
-                << "\t" << item.width << "\t" << item.height << "\n";
+                << "\t" << item.width << "\t" << item.height << "\t"
+                << (item.identified ? 1 : 0) << "\n";
         }
     }
     return out.str();
@@ -317,6 +318,11 @@ struct SaveState {
             item.y = next_int();
             item.width = next_int();
             item.height = next_int();
+            // Appended later; an old save's blank cell reads 0, and its
+            // items were all known when they were written.
+            std::string flag;
+            std::getline(fields, flag, '\t');
+            item.identified = flag.empty() || flag != "0";
             out.packs[i].push_back(item);
         }
     }

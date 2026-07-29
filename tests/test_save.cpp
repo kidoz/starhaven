@@ -143,3 +143,20 @@ TEST_CASE("the honors round-trip", "[save]") {
     REQUIRE(parse_save(save_text(state), after));
     REQUIRE(after.awards == std::vector<int>{53, 2});
 }
+
+TEST_CASE("an unidentified item stays unidentified through a save", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    PackedItem unknown;
+    unknown.item_id = 7;
+    unknown.identified = false;
+    state.packs[0].push_back(unknown);
+    PackedItem known;
+    known.item_id = 8;
+    known.x = 2;
+    state.packs[0].push_back(known);
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE_FALSE(after.packs[0][0].identified);
+    REQUIRE(after.packs[0][1].identified);
+}

@@ -51,6 +51,11 @@ struct PackedItem {
     int y = 0;
     int width = 1;  // in cells
     int height = 1;
+
+    // Whether its wearer knows what it is. Loot with an `ID/Rep/St`
+    // difficulty arrives unknown, shown by its table's own unidentified
+    // name until the Identify skill, a Scholar or a shop reveals it.
+    bool identified = true;
 };
 
 // One character's pack.
@@ -59,7 +64,7 @@ public:
     // Put an item in the first place it fits, reading left to right and top to
     // bottom. Returns false when there is no such place, which is the only
     // reason a pick-up fails.
-    bool add(int item_id, int width, int height) {
+    bool add(int item_id, int width, int height, bool identified = true) {
         if (item_id <= 0 || width <= 0 || height <= 0 || width > kPackWidth ||
             height > kPackHeight) {
             return false;
@@ -67,7 +72,7 @@ public:
         for (int y = 0; y + height <= kPackHeight; ++y) {
             for (int x = 0; x + width <= kPackWidth; ++x) {
                 if (free_at(x, y, width, height)) {
-                    items_.push_back({item_id, x, y, width, height});
+                    items_.push_back({item_id, x, y, width, height, identified});
                     return true;
                 }
             }
@@ -75,15 +80,27 @@ public:
         return false;
     }
 
+    // Reveal the item at a cell; false when nothing unknown is there.
+    bool identify_at(int x, int y) {
+        for (auto& item : items_) {
+            if (x >= item.x && x < item.x + item.width && y >= item.y &&
+                y < item.y + item.height && !item.identified) {
+                item.identified = true;
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Put an item back exactly where it was, which is what a load does.
     // Refuses what would overlap or overflow, like any other placement.
-    bool place(int item_id, int x, int y, int width, int height) {
+    bool place(int item_id, int x, int y, int width, int height, bool identified = true) {
         if (item_id <= 0 || x < 0 || y < 0 || width <= 0 || height <= 0 ||
             x + width > kPackWidth || y + height > kPackHeight ||
             !free_at(x, y, width, height)) {
             return false;
         }
-        items_.push_back({item_id, x, y, width, height});
+        items_.push_back({item_id, x, y, width, height, identified});
         return true;
     }
 

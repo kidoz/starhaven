@@ -110,3 +110,10 @@ TEST_CASE("the masters' skill bonuses parse", "[hire]") {
                           "Reputation is decreased by one full category.")
                 .merchant_skill_bonus == 8);
 }
+
+TEST_CASE("the scholar's unlimited eye parses", "[hire]") {
+    REQUIRE(parse_benefit("Unlimited item Identification and a 5 percent bonus on all "
+                          "experience gained.")
+                .identifies);
+    REQUIRE_FALSE(parse_benefit("Unlimited weapon repair.").identifies);
+}

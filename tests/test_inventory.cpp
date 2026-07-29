@@ -147,3 +147,15 @@ TEST_CASE("an object that is not an item is not loot", "[inventory]") {
     REQUIRE(take_nearby(session, items(), cache, {0, 0, 0}, packs).empty());
     REQUIRE(session.objects.size() == 1);
 }
+
+TEST_CASE("an unknown thing stays unknown until named", "[inventory]") {
+    starhaven::game::Pack pack;
+    REQUIRE(pack.add(7, 1, 1, false));
+    REQUIRE(pack.add(8, 1, 1));
+    REQUIRE_FALSE(pack.items()[0].identified);
+    REQUIRE(pack.items()[1].identified);
+    // Naming reveals exactly the unknown one; asking again finds nothing.
+    REQUIRE(pack.identify_at(pack.items()[0].x, pack.items()[0].y));
+    REQUIRE(pack.items()[0].identified);
+    REQUIRE_FALSE(pack.identify_at(pack.items()[0].x, pack.items()[0].y));
+}
