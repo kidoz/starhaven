@@ -55,6 +55,12 @@ struct SaveState {
     std::vector<std::string> visited_towns;
     std::int64_t fly_until = 0;
     int reputation = 0;
+
+    // Torch Light's hours, and Lloyd's marker: where, until when.
+    std::int64_t torch_until = 0;
+    std::string beacon_map;
+    float beacon_x = 0, beacon_y = 0, beacon_z = 0;
+    std::int64_t beacon_until = 0;
     std::set<int> bits;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
@@ -87,6 +93,13 @@ struct SaveState {
     }
     if (state.reputation != 0) {
         out << "reputation\t" << state.reputation << "\n";
+    }
+    if (state.torch_until > 0) {
+        out << "torch\t" << state.torch_until << "\n";
+    }
+    if (!state.beacon_map.empty()) {
+        out << "beacon\t" << state.beacon_until << "\t" << state.beacon_x << "\t"
+            << state.beacon_y << "\t" << state.beacon_z << "\t" << state.beacon_map << "\n";
     }
     for (const auto& h : state.hired) {
         out << "hired\t" << h.npc_id << "\t" << h.profession_id << "\t" << h.name << "\n";
@@ -231,6 +244,14 @@ struct SaveState {
             out.fly_until = next_int();
         } else if (kind == "reputation") {
             out.reputation = next_int();
+        } else if (kind == "torch") {
+            out.torch_until = next_int();
+        } else if (kind == "beacon") {
+            out.beacon_until = next_int();
+            out.beacon_x = next_float();
+            out.beacon_y = next_float();
+            out.beacon_z = next_float();
+            std::getline(fields, out.beacon_map, '\t');
         } else if (kind == "hired") {
             SaveState::Hired h;
             h.npc_id = next_int();

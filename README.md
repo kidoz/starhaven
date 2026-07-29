@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Torch Light and Lloyd's Beacon**: the torch brightens the indoor lamp
+  for its cell's own hour per point of skill (this renderer has no light
+  radius, so the whole lamp glows — marked as our reading); Lloyd's places
+  one marker at normal rank exactly as its cell writes — cast once to set
+  it, cast again to return and burn it, decaying in an hour per point —
+  both kept in the save.
 - **A name the world reacts to**: the party carries reputation and fame,
   and `npcbtb.txt`'s thirteen gated greetings finally gate — the notorious
   get "Oh No! Please don't hurt me", the saintly an honor, the unknown

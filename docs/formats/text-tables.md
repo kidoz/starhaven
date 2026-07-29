@@ -638,6 +638,13 @@ a cure reaches back an hour per point of its school's skill — the scale is
 the engine's own, the prose naming growth but no number — past which "the
 only way ... is to visit a temple", exactly as each cure writes.
 
+Torch Light and Lloyd's Beacon cast from their cells too: the torch's
+"Duration 1 hour per point of skill" brightens the indoor lamp (a whole-lamp
+glow standing in for the "radius of light", marked ours), and the Beacon's
+normal-rank "1 Beacon, decays in 1 hour per point of skill" is exactly one
+marker — set on one cast, returned-to and burned on the next, the decay on
+the cell's own clock. The expert and master beacon counts await a picker.
+
 Four of the unnumbered 74 are conditions, and their prose is exact enough to
 act on: **Charm** (61) "removes any hostile feelings ... If this creature
 takes any damage, it will immediately become hostile again"; **Mass Fear**

@@ -197,3 +197,20 @@ TEST_CASE("the conditions' minutes round-trip with them", "[save]") {
     REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\n", old));
     REQUIRE(old.party[0].poisoned_minute == 0);
 }
+
+TEST_CASE("the torch and the beacon round-trip", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.torch_until = 700;
+    state.beacon_map = "D01.Blv";
+    state.beacon_x = 12.5f;
+    state.beacon_y = -3.0f;
+    state.beacon_z = 640.0f;
+    state.beacon_until = 900;
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.torch_until == 700);
+    REQUIRE(after.beacon_map == "D01.Blv");
+    REQUIRE(after.beacon_x == 12.5f);
+    REQUIRE(after.beacon_until == 900);
+}

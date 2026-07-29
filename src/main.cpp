@@ -193,13 +193,15 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
 }
 
 void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
-                 assets::AssetCache& cache, const render::Vec3& lamp) {
+                 assets::AssetCache& cache, const render::Vec3& lamp, float glow = 1.0f) {
     for (const auto& f : session.blv.faces) {
         if (f.invisible() || f.vertex_count < 3) {
             continue;
         }
         const render::Vec3 n = render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
-        const float lambert = std::clamp(std::abs(render::dot(n, lamp)), 0.0f, 1.0f) * 0.7f + 0.3f;
+        const float lambert = std::clamp(
+            (std::clamp(std::abs(render::dot(n, lamp)), 0.0f, 1.0f) * 0.7f + 0.3f) * glow, 0.0f,
+            1.0f);
 
         const render::Texture& tex = cache.bitmap(f.texture_name);
         const float inv_w = tex.width() > 0 ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
@@ -1729,6 +1731,12 @@ int main(int argc, char** argv) {
     // reach (outdoor towns seen, first-visit order), and the Gate Master's
     // once-a-day.
     std::int64_t fly_until = 0;
+    std::int64_t torch_until = 0;  // Torch Light's written hours
+    // Lloyd's Beacon: one marker at normal rank — a map and a spot, and
+    // when it decays, "1 hour per point of skill" as its cell writes.
+    std::string beacon_map;
+    render::Vec3 beacon_at{};
+    std::int64_t beacon_until = 0;
     std::vector<std::string> visited_towns;
     std::int64_t portal_used_day = -1;
     bool porting = false;  // the destination list is open
@@ -2471,6 +2479,12 @@ int main(int argc, char** argv) {
                 state.visited_towns = visited_towns;
                 state.fly_until = fly_until;
                 state.reputation = reputation;
+                state.torch_until = torch_until;
+                state.beacon_map = beacon_map;
+                state.beacon_x = beacon_at.x;
+                state.beacon_y = beacon_at.y;
+                state.beacon_z = beacon_at.z;
+                state.beacon_until = beacon_until;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -2532,6 +2546,10 @@ int main(int argc, char** argv) {
                     visited_towns = state.visited_towns;
                     fly_until = state.fly_until;
                     reputation = state.reputation;
+                    torch_until = state.torch_until;
+                    beacon_map = state.beacon_map;
+                    beacon_at = {state.beacon_x, state.beacon_y, state.beacon_z};
+                    beacon_until = state.beacon_until;
                     note_town();
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
@@ -3233,6 +3251,45 @@ int main(int argc, char** argv) {
                                    !lifted.empty()) {
                             what = party[who].name + " reads " +
                                    data::cp1252_to_utf8(row->name) + ": " + lifted;
+                        } else if (spell_id == 1) {
+                            // Torch Light, for its cell's own hour per
+                            // point of skill.
+                            const int minutes = data::parse_spell_duration(*spell, 0).minutes(
+                                spell_skill_of(party[who], *spell));
+                            torch_until = std::max(torch_until, clock.minutes() + minutes);
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) +
+                                   ": the dark backs off for a while";
+                        } else if (spell_id == 33) {
+                            // Lloyd's Beacon at normal rank: one marker.
+                            // With none standing, the cast places it here;
+                            // with one, it returns and burns the marker.
+                            // "Decays in 1 hour per point of skill", the
+                            // cell's own clock.
+                            if (beacon_map.empty() || clock.minutes() >= beacon_until) {
+                                beacon_map = session.file_name;
+                                beacon_at = camera.position;
+                                beacon_until =
+                                    clock.minutes() +
+                                    static_cast<std::int64_t>(spell_skill_of(party[who],
+                                                                             *spell)) *
+                                        game::kMinutesPerHour;
+                                what = party[who].name + " reads " +
+                                       data::cp1252_to_utf8(row->name) +
+                                       ": a beacon marks this spot";
+                            } else {
+                                const std::string back_map = beacon_map;
+                                const render::Vec3 back_at = beacon_at;
+                                beacon_map.clear();
+                                packs[who].remove(carried.x, carried.y);
+                                pick_up_message = "The beacon calls the party back";
+                                pick_up_shown = SDL_GetTicks();
+                                if (session.file_name == back_map || open_map(back_map)) {
+                                    camera.position = back_at;
+                                }
+                                read = true;
+                                break;
+                            }
                         } else if (spell_id == 21) {
                             // Fly, "only works outdoors", for its rank
                             // cell's own minutes per point of skill.
@@ -3638,7 +3695,10 @@ int main(int argc, char** argv) {
             draw_outdoor(scene, session, cache, game::sun_direction(clock),
                          game::light_level(clock));
         } else {
-            draw_indoor(scene, session, cache, lamp);
+            // "Increases the radius of light": this renderer has no radius,
+            // so the lamp itself brightens for the written hours. `inferred`
+            draw_indoor(scene, session, cache, lamp,
+                        clock.minutes() < torch_until ? 1.45f : 1.0f);
         }
         mob.update(in.dt, session, camera.position, [&](std::size_t actor) {
             return battle.alive(actor) && battle.can_move(actor);
