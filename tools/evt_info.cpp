@@ -1524,6 +1524,67 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 7. The Seer points at each stage in the chain's own words.
+    {
+        game::WalkState state;
+        state.bits.insert(81);
+        const auto before = game::walk_event(global, 46, state);
+        game::WalkState later;
+        later.bits.insert(82);
+        const auto after = game::walk_event(global, 46, later);
+        // npctext.txt rows 436 and 428: "show The Letter to Andover
+        // Potbello", then "give The Letter to Regent Wilbur Humphrey in
+        // Ironfist Castle" — the ids are one past the row, the bank's own
+        // 1-based habit.
+        const bool ok =
+            std::find(before.said.begin(), before.said.end(), 435) != before.said.end() &&
+            std::find(after.said.begin(), after.said.end(), 427) != after.said.end();
+        if (!beat(ok, "the Seer names Andover first and then Regent Humphrey")) {
+            return 1;
+        }
+    }
+    // 8. The letter reaches Humphrey, and this delivery takes it.
+    {
+        game::WalkState state;
+        state.bits.insert(82);
+        state.items.push_back(505);
+        const auto outcome = game::walk_event(global, 9, state);
+        const bool ok = outcome.ran && state.gold == 5000 && state.experience == 3000 &&
+                        state.awards.contains(58) && !state.bits.contains(82) &&
+                        std::find(state.items.begin(), state.items.end(), 505) ==
+                            state.items.end() &&
+                        state.npc_topics.at({4, 0}) == 10;
+        if (!beat(ok, "Humphrey pays 5000 and 3000 experience, takes the letter, "
+                      "grants award 58")) {
+            return 1;
+        }
+    }
+    // 9. Humphrey's little detail: the first council task opens.
+    {
+        game::WalkState state;
+        const auto outcome = game::walk_event(global, 10, state);
+        const bool ok =
+            outcome.ran && state.bits.contains(86) && state.npc_topics.at({4, 0}) == 11;
+        if (!beat(ok, "his next word sets bit 86 and turns to the shield topic")) {
+            return 1;
+        }
+    }
+    // 10. Lord Kilburn's shield closes the first council quest.
+    {
+        game::WalkState state;
+        state.bits.insert(86);
+        state.items.push_back(499);
+        const auto outcome = game::walk_event(global, 11, state);
+        const bool ok = outcome.ran && state.gold == 5000 && state.experience == 40000 &&
+                        state.awards.contains(2) && !state.bits.contains(86) &&
+                        std::find(state.items.begin(), state.items.end(), 499) ==
+                            state.items.end() &&
+                        state.npc_topics.at({4, 0}) == 12;
+        if (!beat(ok, "the shield pays 5000 and 40000 experience and grants award 2, "
+                      "the first council seal")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }

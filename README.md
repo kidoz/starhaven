@@ -253,7 +253,14 @@ interoperability and compatibility with a legally purchased copy.
   held, the delivery's 1000 gold and topic rotation, the Goblinwatch
   combination's award and experience, a lever throwing its doors once and
   holding, the coach priced through to Ironfist, the Fire guild's roll —
-  six beats, exit-nonzero on any break. The audit found the one snag no
+  and now the road to Ironfist: the Seer naming each stage in the bank's
+  own words, Regent Humphrey paying 5000 and taking the letter (this
+  delivery does take it), his "little detail" opening the first council
+  task, and Lord Kilburn's shield closing it for award 2, the first
+  council seal — ten beats, exit-nonzero on any break. Walking the global
+  bank exposed that message indices were being read one byte wide, fine
+  for every map's own strings and wrong past 255; the walk now reads the
+  whole index. The audit found the one snag no
   unit test saw: bit 81's own note reads "Set when the party starts", so a
   fresh party now begins holding Sulman's letter, as the journal always
   claimed. It also recorded that neither the letter nor the combination

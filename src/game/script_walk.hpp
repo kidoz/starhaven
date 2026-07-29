@@ -295,8 +295,13 @@ struct WalkOutcome {
         }
         case world::kOpcodeMessage:
         case world::kOpcodeLongMessage:
+            // The whole index: the global bank runs past one byte's reach.
             if (!a.empty()) {
-                out.said.push_back(a.front());
+                int index = 0;
+                for (std::size_t i = std::min<std::size_t>(a.size(), 4); i-- > 0;) {
+                    index = index << 8 | a[i];
+                }
+                out.said.push_back(index);
             }
             break;
         case world::kOpcodeEnter:
