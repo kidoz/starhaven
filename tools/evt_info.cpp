@@ -1159,6 +1159,142 @@ int do_asks(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: the give/take/set types still unnamed, joined against the
+// numbers their own events speak. A quest's reward step and its reward prose
+// sit in the same event; when the prose says "500 experience" and a give of
+// an unnamed type carries 500, the type has told its name.
+int do_currencies(const starhaven::lod::LodArchive& icons,
+                  const std::filesystem::path& data_dir) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace data = starhaven::data;
+
+    data::NpcDialogueTable dialogue;
+    (void)data::load_npc_dialogue(data_dir, dialogue);
+
+    // type -> word spoken with a matching number -> how often.
+    std::map<int, std::map<std::string, std::size_t>> matches;
+    std::map<int, std::size_t> uses;
+
+    std::span<const std::byte> raw;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        const std::string stem = entry.name.substr(0, entry.name.size() - 4);
+        world::MapStrings strings;
+        if (icons.payload(stem + ".STR", raw) == lod::LodArchive::PayloadError::None) {
+            (void)world::MapStrings::parse(raw, strings);
+        }
+        const bool global = stem == "GLOBAL";
+
+        std::uint16_t last = 0xFFFF;
+        for (std::size_t i = 0; i < script.steps().size(); ++i) {
+            if (script.steps()[i].event_id == last) {
+                continue;
+            }
+            last = script.steps()[i].event_id;
+            const auto steps = script.event(last);
+
+            // Everything this event says, in one string.
+            std::string prose;
+            for (const auto& step : steps) {
+                if ((step.opcode != world::kOpcodeMessage &&
+                     step.opcode != world::kOpcodeLongMessage) ||
+                    step.arguments.empty()) {
+                    continue;
+                }
+                const int index = step.arguments.front();
+                if (global) {
+                    if (const auto* row = dialogue.at(index); row != nullptr) {
+                        prose += row->text + " ";
+                    }
+                } else if (static_cast<std::size_t>(index) < strings.size()) {
+                    prose += std::string(strings.at(static_cast<std::size_t>(index))) + " ";
+                }
+            }
+
+            // The numbers it speaks, each with the word that follows.
+            std::vector<std::pair<long, std::string>> spoken;
+            for (std::size_t at = 0; at < prose.size(); ++at) {
+                if (std::isdigit(static_cast<unsigned char>(prose[at])) == 0) {
+                    continue;
+                }
+                long value = 0;
+                std::size_t p = at;
+                while (p < prose.size() &&
+                       (std::isdigit(static_cast<unsigned char>(prose[p])) != 0 ||
+                        (prose[p] == ',' && p + 1 < prose.size() &&
+                         std::isdigit(static_cast<unsigned char>(prose[p + 1])) != 0))) {
+                    if (prose[p] != ',') {
+                        value = value * 10 + (prose[p] - '0');
+                    }
+                    ++p;
+                }
+                while (p < prose.size() && prose[p] == ' ') {
+                    ++p;
+                }
+                std::string word;
+                while (p < prose.size() &&
+                       std::isalpha(static_cast<unsigned char>(prose[p])) != 0) {
+                    word += static_cast<char>(
+                        std::tolower(static_cast<unsigned char>(prose[p])));
+                    ++p;
+                }
+                spoken.emplace_back(value, word);
+                at = p;
+            }
+
+            // The unnamed types this event gives, takes or sets.
+            for (const auto& step : steps) {
+                if ((step.opcode != world::kOpcodeGive && step.opcode != world::kOpcodeTake &&
+                     step.opcode != world::kOpcodeSet) ||
+                    step.arguments.size() < 5) {
+                    continue;
+                }
+                const int type = step.arguments[0];
+                if (type == world::kVarQuestBit || type == world::kVarItem ||
+                    type == world::kVarGold) {
+                    continue;
+                }
+                std::uint32_t value = 0;
+                for (std::size_t b = 4; b >= 1; --b) {
+                    value = (value << 8) | step.arguments[b];
+                }
+                ++uses[type];
+                for (const auto& [number, word] : spoken) {
+                    if (number == static_cast<long>(value) && !word.empty()) {
+                        ++matches[type][word];
+                    }
+                }
+            }
+        }
+    }
+
+    for (const auto& [type, words] : matches) {
+        std::cout << "type " << type << " (" << uses[type] << " uses):";
+        std::vector<std::pair<std::size_t, std::string>> ranked;
+        for (const auto& [word, count] : words) {
+            ranked.emplace_back(count, word);
+        }
+        std::sort(ranked.rbegin(), ranked.rend());
+        std::size_t shown = 0;
+        for (const auto& [count, word] : ranked) {
+            if (++shown > 6) {
+                break;
+            }
+            std::cout << " " << word << " x" << count;
+        }
+        std::cout << "\n";
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1189,6 +1325,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--asks") {
         return do_asks(icons);
+    }
+    if (stem == "--currencies") {
+        return do_currencies(icons, *install / "data");
     }
     if (stem == "--launches") {
         return do_launches(icons);

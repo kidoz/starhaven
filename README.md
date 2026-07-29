@@ -222,6 +222,14 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The reward types, named by their own prose**: a give-step and the number
+  its event speaks sit side by side, and where they match, the word after the
+  number names the type — experience (2,000 of it under Goblinwatch's
+  "Here's your gold!"), food, a cure's hit and spell points, the seven
+  attributes given permanently ("+2 Luck permanent" is the barrel's string),
+  and the five resistances. Quests pay experience now — the training halls
+  already knew how to spend it — and barrels raise stats for keeps.
+  Reproduce with `evt_info --currencies`.
   The engine reads them: across the 52 indoor maps 5,560 faces carry an event,
   206 name themselves under the crosshair and 1,567 say something when the
   party uses them. Outdoors the same trigger sits at +0x124 of a model facet —

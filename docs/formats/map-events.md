@@ -354,8 +354,29 @@ established by their closed sets:
 - **types 105 and up are numbered variables**, not one global enum: D01's
   five switches use five consecutive ids, one each. `observed`
 - **type 25 is the temporary Might bonus** — named by the event that sets it
-  (below); 26..31 as the remaining attributes in `stats.txt` order is
-  `inferred`.
+  (below); 26..31 as the remaining attributes is `inferred`, with the order
+  settled by the prose join: Speed at 29 and Accuracy at 30, the reverse of
+  the sheet's.
+
+More types told their names by a **prose join**: a reward's give and the
+number its event speaks sit side by side, and where the spoken number equals
+the given value, the word after it names the type. Reproduce with
+`evt_info --currencies`.
+
+- **type 13 is experience**: "experience" beside a matching give on 7
+  events, values 400..500,000 in big round numbers next to gold gives of the
+  same magnitude — the Goblinwatch reward gives 2,000 gold and 2,000 of
+  type 13 under "Here's your gold!". `observed` for the joins, `inferred`
+  for the 58 unspoken uses.
+- **type 23 is food**, 1..10 a give. **Type 3 is a cure's hit points and
+  type 5 its spell points** — "restores 15 hit points" beside a give of 15.
+- **types 32..38 are the seven attributes, given permanently** — "+2 Luck
+  permanent" is a barrel's own string — in the same Speed-before-Accuracy
+  order as the temporaries.
+- **types 46..50 are the five resistances** in the monster table's element
+  order, Fire, Electricity, Cold, Poison, Magic, given permanently.
+- **Type 22 stays unknown**: 62 gives of 200..3,500 and not one spoken
+  number beside them.
 
 Whole events confirm the readings. D01's switches all read: check my
 variable, jump to the end if it is set, set it, throw four doors — two open,
@@ -577,5 +598,6 @@ names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 - Opcode 1's byte, always 0..2. `unknown`
 - Opcode 21's middle byte, and what an aimless launch — the 83 with no
   second point — flies at; the party is the natural guess. `unknown`
-- The variable types beyond the named ones — 12, 13, 22, 205 and the rest of
-  the vocabulary. `unknown`
+- The variable types beyond the named ones — 12 (checked at 2..36, set to
+  small values beside quest turn-ins), 22 (62 gives of 200..3,500, spoken
+  nowhere), and the rest of the vocabulary. `unknown`

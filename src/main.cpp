@@ -1484,6 +1484,9 @@ int main(int argc, char** argv) {
     auto shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
 
     int gold = game::kStartingGold;
+    // Food rations, the counter quest events give to and take from. That the
+    // party starts with none is this engine's own choice.
+    int party_food = 0;
     int bank_gold = 0;  // what the vault keeps; no table pays interest
     int open_shop = -1;  // an index into shops_here, or none
     std::vector<game::StockItem> shop_stock;
@@ -1679,6 +1682,66 @@ int main(int argc, char** argv) {
         }
     };
 
+    // A walked event's other payments, shared the same way. Experience goes
+    // to every member alike — `inferred` from the rewards addressing the
+    // party — while a cure or a permanent point lands on the character whose
+    // sheet is open, else the first: the original asks who drinks from the
+    // barrel, and this shell does not yet. The typed sevens run Speed before
+    // Accuracy — the prose join's own order — where the sheet's runs the
+    // other way, hence the index maps.
+    const auto reward_note = [&](const game::WalkOutcome& outcome) -> std::string {
+        static constexpr std::size_t kEventStatOrder[7] = {0, 1, 2, 3, 5, 4, 6};
+        static constexpr const char* kStatNames[7] = {"Might",     "Intellect", "Personality",
+                                                      "Endurance", "Speed",     "Accuracy",
+                                                      "Luck"};
+        static constexpr std::size_t kEventResistOrder[5] = {
+            static_cast<std::size_t>(data::Resistance::Fire),
+            static_cast<std::size_t>(data::Resistance::Electricity),
+            static_cast<std::size_t>(data::Resistance::Cold),
+            static_cast<std::size_t>(data::Resistance::Poison),
+            static_cast<std::size_t>(data::Resistance::Magic)};
+        static constexpr const char* kResistNames[5] = {"Fire", "Electricity", "Cold", "Poison",
+                                                        "Magic"};
+        std::string note;
+        const auto add = [&note](const std::string& text) {
+            note += (note.empty() ? "" : "  ") + text;
+        };
+        if (script_state.experience > 0) {
+            for (auto& member : party) {
+                member.experience += script_state.experience;
+            }
+            add("+" + std::to_string(script_state.experience) + " experience");
+            script_state.experience = 0;
+        }
+        if (script_state.food > party_food) {
+            add("+" + std::to_string(script_state.food - party_food) + " food");
+        }
+        party_food = script_state.food;
+        auto& who = party[shown_member >= 0 ? static_cast<std::size_t>(shown_member) : 0];
+        if (outcome.healed_hp > 0) {
+            who.hit_points = std::min(who.max_hit_points, who.hit_points + outcome.healed_hp);
+        }
+        if (outcome.healed_sp > 0) {
+            who.spell_points =
+                std::min(who.max_spell_points, who.spell_points + outcome.healed_sp);
+        }
+        for (std::size_t i = 0; i < 7; ++i) {
+            if (outcome.stat_gains[i] > 0) {
+                who.attributes[kEventStatOrder[i]] += outcome.stat_gains[i];
+                add("+" + std::to_string(outcome.stat_gains[i]) + " " + kStatNames[i] + " for " +
+                    who.name);
+            }
+        }
+        for (std::size_t i = 0; i < 5; ++i) {
+            if (outcome.resist_gains[i] > 0) {
+                who.resistances[kEventResistOrder[i]] += outcome.resist_gains[i];
+                add("+" + std::to_string(outcome.resist_gains[i]) + " " + kResistNames[i] +
+                    " resistance for " + who.name);
+            }
+        }
+        return note;
+    };
+
     // Leave this map for another, through the same loader the command line
     // uses. What does not survive the trip is exactly what belongs to the old
     // map: its sounds, its shops, its opened chests, its fight.
@@ -1823,6 +1886,7 @@ int main(int argc, char** argv) {
                 state.minutes = clock.minutes();
                 state.gold = gold;
                 state.bank_gold = bank_gold;
+                state.food = party_food;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -1861,6 +1925,7 @@ int main(int argc, char** argv) {
                                       : std::numeric_limits<std::int64_t>::max();
                     gold = state.gold;
                     bank_gold = state.bank_gold;
+                    party_food = state.food;
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
@@ -2124,6 +2189,7 @@ int main(int argc, char** argv) {
                         talk_answer.clear();
                         if (id > 0 && global_script.defines(static_cast<std::uint16_t>(id))) {
                             script_state.gold = gold;
+                            script_state.food = party_food;
                             script_state.items.clear();
                             for (const auto& pack : packs) {
                                 for (const auto& carried : pack.items()) {
@@ -2133,6 +2199,10 @@ int main(int argc, char** argv) {
                             const game::WalkOutcome outcome = game::walk_event(
                                 global_script, static_cast<std::uint16_t>(id), script_state);
                             gold = script_state.gold;
+                            if (const std::string rewards = reward_note(outcome);
+                                !rewards.empty()) {
+                                talk_answer += (talk_answer.empty() ? "" : "  ") + rewards;
+                            }
                             for (const int index : outcome.said) {
                                 if (const auto* entry = dialogue.at(index); entry != nullptr) {
                                     talk_answer += (talk_answer.empty() ? "" : "  ") +
@@ -2653,6 +2723,7 @@ int main(int argc, char** argv) {
         if (want_strike && aimed.found()) {
             // The walker's view of the purse and the packs.
             script_state.gold = gold;
+            script_state.food = party_food;
             script_state.items.clear();
             for (const auto& pack : packs) {
                 for (const auto& carried : pack.items()) {
@@ -2664,6 +2735,7 @@ int main(int argc, char** argv) {
                 local ? session.script : global_script, aimed.event_id, script_state, walk_from);
             walk_from = -1;
             gold = script_state.gold;
+            const std::string rewards = reward_note(outcome);
 
             // What it said, resolved before any travel drops these strings.
             // The map's own events speak through its `.STR`; the global
@@ -2819,19 +2891,25 @@ int main(int argc, char** argv) {
 
             // A fountain's blessing: the walker keeps the seven attributes'
             // temporary bonuses in variables 25..31 — Might named by the
-            // fountain's own words, the rest by position — and they lie on
-            // the whole party until a rest. `inferred` for the party-wide
-            // reach and the until.
+            // fountain's own words, the rest by the prose join, which puts
+            // Speed at 29 and Accuracy at 30, the reverse of the sheet's
+            // order — and they lie on the whole party until a rest.
+            // `inferred` for the party-wide reach and the until.
+            static constexpr std::size_t kTempOrder[7] = {0, 1, 2, 3, 5, 4, 6};
             for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
                 const int bonus = script_state.variables[25 + static_cast<int>(a)];
                 if (bonus <= 0) {
                     continue;
                 }
                 for (auto& member : party) {
-                    member.temp_attributes[a] = std::max(member.temp_attributes[a], bonus);
+                    member.temp_attributes[kTempOrder[a]] =
+                        std::max(member.temp_attributes[kTempOrder[a]], bonus);
                 }
             }
 
+            if (!rewards.empty()) {
+                said_text += (said_text.empty() ? "" : "  ") + rewards;
+            }
             if (!said_text.empty()) {
                 pick_up_message = said_text;
                 pick_up_shown = SDL_GetTicks();

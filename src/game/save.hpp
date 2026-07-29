@@ -35,6 +35,7 @@ struct SaveState {
     std::int64_t minutes = 0;
     int gold = 0;
     int bank_gold = 0;
+    int food = 0;
     std::set<int> bits;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
@@ -54,7 +55,7 @@ struct SaveState {
     out << "camera\t" << state.x << "\t" << state.y << "\t" << state.z << "\t" << state.yaw
         << "\t" << state.pitch << "\n";
     out << "clock\t" << state.minutes << "\n";
-    out << "gold\t" << state.gold << "\n";
+    out << "gold\t" << state.gold << "\t" << state.food << "\n";
     out << "bank\t" << state.bank_gold << "\n";
     for (const int bit : state.bits) {
         out << "bit\t" << bit << "\n";
@@ -172,6 +173,7 @@ struct SaveState {
             out.minutes = cell.empty() ? 0 : std::stoll(cell);
         } else if (kind == "gold") {
             out.gold = next_int();
+            out.food = next_int();  // appended later; an old save reads 0
         } else if (kind == "bank") {
             out.bank_gold = next_int();
         } else if (kind == "bit") {

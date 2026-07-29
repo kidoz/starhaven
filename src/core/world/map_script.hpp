@@ -144,6 +144,23 @@ inline constexpr std::uint8_t kVarQuestBit = 16;
 inline constexpr std::uint8_t kVarItem = 17;
 inline constexpr std::uint8_t kVarGold = 21;
 
+// More told their names by the prose join: a reward's give and the number
+// its own event speaks sit side by side, and where the spoken number equals
+// the given value the word after it names the type. Experience ("2000
+// experience" beside a give of 2000, seven such, values 400..500,000 in big
+// round numbers), food (1..10 a give), a cure's hit points and spell
+// points, the seven attributes 32..38 given permanently — "+2 Luck
+// permanent" is the barrel's own string — and the five resistances 46..50
+// in the monster table's element order. `observed` for the joins;
+// extending each name to that type's unspoken uses is `inferred`.
+// Reproduce with `evt_info --currencies`.
+inline constexpr std::uint8_t kVarHitPoints = 3;
+inline constexpr std::uint8_t kVarSpellPoints = 5;
+inline constexpr std::uint8_t kVarExperience = 13;
+inline constexpr std::uint8_t kVarFood = 23;
+inline constexpr std::uint8_t kVarStatFirst = 32;    // Might .. Luck
+inline constexpr std::uint8_t kVarResistFirst = 46;  // Fire, Elec, Cold, Poison, Magic
+
 // Where an event sends the party.
 struct MapTravel {
     int x = 0, y = 0, z = 0;

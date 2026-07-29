@@ -318,3 +318,52 @@ TEST_CASE("a random jump rolls one of its listed steps", "[walk]") {
     // All three doors of this little roulette get walked through eventually.
     REQUIRE(seen == std::set<int>{1, 2, 4});
 }
+
+TEST_CASE("a quest pays experience and food alongside its gold", "[walk]") {
+    // GLOBAL event 4's shape: message, then gives of gold (21),
+    // experience (13) and food (23).
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 4, 0, kOpcodeMessage, {6, 0, 0, 0});
+    push_step(payload, 4, 1, kOpcodeGive, typed(21, 2000));
+    push_step(payload, 4, 2, kOpcodeGive, typed(13, 2000));
+    push_step(payload, 4, 3, kOpcodeGive, typed(23, 5));
+    push_step(payload, 4, 4, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    state.food = 2;
+    const auto outcome = starhaven::game::walk_event(script, 4, state);
+    REQUIRE(outcome.ran);
+    REQUIRE(state.gold == 2000);
+    REQUIRE(state.experience == 2000);
+    REQUIRE(state.food == 7);
+
+    // A take cannot push a currency below nothing.
+    std::vector<std::uint8_t> drain;
+    push_step(drain, 5, 0, kOpcodeTake, typed(23, 100));
+    push_step(drain, 5, 1, kOpcodeEnd, {0});
+    const MapScript drained = parse(drain);
+    (void)starhaven::game::walk_event(drained, 5, state);
+    REQUIRE(state.food == 0);
+}
+
+TEST_CASE("a cure and a barrel land in the outcome, not the variables", "[walk]") {
+    // "Cures 10 hit points", "+2 Luck permanent", "+5 Fire resistance":
+    // types 3, 38 and 46 by the prose join.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 9, 0, kOpcodeGive, typed(3, 10));
+    push_step(payload, 9, 1, kOpcodeGive, typed(5, 4));
+    push_step(payload, 9, 2, kOpcodeGive, typed(38, 2));
+    push_step(payload, 9, 3, kOpcodeGive, typed(46, 5));
+    push_step(payload, 9, 4, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 9, state);
+    REQUIRE(outcome.healed_hp == 10);
+    REQUIRE(outcome.healed_sp == 4);
+    REQUIRE(outcome.stat_gains[6] == 2);    // Luck is the seventh
+    REQUIRE(outcome.resist_gains[0] == 5);  // Fire is the first
+    REQUIRE(outcome.acted());
+    REQUIRE(state.variables.find(38) == state.variables.end());
+}

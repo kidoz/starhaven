@@ -12,6 +12,7 @@
 // way. See docs/formats/map-events.md.
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -34,6 +35,11 @@ struct WalkState {
     std::map<int, int> variables;
     std::vector<int> items;
     int gold = 0;
+
+    // The other party-level currencies the prose join named: experience and
+    // food rations, moved by give and take the way gold is.
+    int experience = 0;
+    int food = 0;
 
     // The quest chain's NPC rewrites, persistent like the bits: topic slots
     // overridden per (npc, slot) — zero clears — and where an NPC has been
@@ -89,12 +95,24 @@ struct WalkOutcome {
     };
     std::optional<Ask> ask;
 
+    // A cure's healing, and the permanent gains a barrel or shrine gives:
+    // the seven attributes in 32..38 order, the five resistances in 46..50
+    // order. Who in the party receives them is the caller's choice.
+    int healed_hp = 0;
+    int healed_sp = 0;
+    std::array<int, 7> stat_gains{};
+    std::array<int, 5> resist_gains{};
+
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
                chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
-               !summons.empty() || !launches.empty() || ask.has_value();
+               !summons.empty() || !launches.empty() || ask.has_value() || healed_hp != 0 ||
+               healed_sp != 0 ||
+               std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
+               std::any_of(resist_gains.begin(), resist_gains.end(),
+                           [](int g) { return g != 0; });
     }
 };
 
@@ -200,8 +218,35 @@ struct WalkOutcome {
                 state.gold += take ? -value : value;
                 state.gold = state.gold < 0 ? 0 : state.gold;
                 break;
+            case world::kVarExperience:
+                state.experience += take ? -value : value;
+                state.experience = state.experience < 0 ? 0 : state.experience;
+                break;
+            case world::kVarFood:
+                state.food += take ? -value : value;
+                state.food = state.food < 0 ? 0 : state.food;
+                break;
+            case world::kVarHitPoints:
+                if (!take) {
+                    out.healed_hp += value;
+                }
+                break;
+            case world::kVarSpellPoints:
+                if (!take) {
+                    out.healed_sp += value;
+                }
+                break;
             default:
-                if (step.opcode == world::kOpcodeSet) {
+                if (!take && step.opcode == world::kOpcodeGive &&
+                    type >= world::kVarStatFirst && type < world::kVarStatFirst + 7) {
+                    out.stat_gains[static_cast<std::size_t>(type - world::kVarStatFirst)] +=
+                        value;
+                } else if (!take && step.opcode == world::kOpcodeGive &&
+                           type >= world::kVarResistFirst &&
+                           type < world::kVarResistFirst + 5) {
+                    out.resist_gains[static_cast<std::size_t>(
+                        type - world::kVarResistFirst)] += value;
+                } else if (step.opcode == world::kOpcodeSet) {
                     state.variables[type] = value;
                 } else {
                     state.variables[type] += take ? -value : value;
