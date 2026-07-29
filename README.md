@@ -222,6 +222,9 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The Quest column, closed**: the monster table's last unread column is
+  zero on all 173 rows — vestigial. The quest items travel through the
+  event scripts' gives, as the walker already delivers them.
 - **The streets talk back**: T stops any of the monster table's own
   civilians — the hostility-zero Peasant rows — and a passerby persona
   assembles from the tables: a name from `npcnames.txt` by the sprite's own

@@ -295,6 +295,12 @@ file's name refers to.
 
 ### The monster table's last columns
 
+The **Quest** column is vestigial: zero on all 173 rows. Whatever
+guaranteed quest drops the designers once planned through it, the shipped
+game carries none — the quest items travel through the event scripts'
+gives instead. `observed`
+
+
 Three columns went unread until now. **Att%** sits in the header's Attack 1
 group but is the *second* attack's chance: its 10..30 values land exactly on
 the rows whose second attack is the rare elemental bite — a Cobra's poison
