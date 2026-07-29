@@ -4059,6 +4059,36 @@ int main(int argc, char** argv) {
             }
         }
 
+        // Nobody left standing: the party loses. Somebody drags the four
+        // back to the last town — a week gone, the name dented, everyone
+        // waking at a single hit point — every number the engine's own,
+        // marked; the tables say nothing about defeat.
+        {
+            bool anyone = false;
+            for (const auto& member : party) {
+                anyone = anyone || member.hit_points > 0;
+            }
+            if (!anyone) {
+                clock.advance_hours(7 * game::kHoursPerDay);
+                reputation -= 10;
+                for (auto& member : party) {
+                    member.hit_points = 1;
+                    member.poisoned = 0;
+                    member.diseased = 0;
+                    member.affliction.clear();
+                }
+                pick_up_message = "The party is dragged from the field. A week is lost.";
+                pick_up_shown = SDL_GetTicks();
+                if (!visited_towns.empty() && visited_towns.back() != session.file_name) {
+                    if (open_map(visited_towns.back())) {
+                        camera.position = {0, 32.0f * 30.0f, 0};
+                        camera.yaw = 0.6f;
+                        camera.pitch = -0.3f;
+                    }
+                }
+            }
+        }
+
         // The day turns: the cook makes food, the healer makes rounds, the
         // dawn casters cast — each at their row's own numbers — and every
         // seventh day the wages fall due, the cost column's own unit.

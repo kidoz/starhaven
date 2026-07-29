@@ -222,6 +222,10 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The party can lose**: four down means somebody drags them back to the
+  last town — a week gone, the name dented ten points, everyone waking at a
+  single hit point with their conditions shaken off. Every number is the
+  engine's own and says so; the tables never speak of defeat.
 - **The dungeons found their lights**: the section after the BLV decoration
   block is the level's static lights — 12-byte records of position,
   brightness (31 on every shipped record) and radius, every point inside
