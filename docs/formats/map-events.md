@@ -283,9 +283,11 @@ yaw is `inferred`.
 
 ### The scripts without maps
 
-Sixteen of the 83 scripts name no map: `GLOBAL`, `OUT`, `LWSPIRAL`, `SCI-FI`,
-`D4BM`, `DBM1`..`DBM5`, `DDB1`, `DWJ1`, and `ZDTL01`/`ZDTL02`/`ZDTL1`/`ZDTL2`.
-`observed`
+Thirteen of the 83 scripts name no map: `GLOBAL`, `OUT`, `LWSPIRAL`,
+`D4BM`, `DBM1`..`DBM5`, `DDB1`, `DWJ1`, and `ZDTL1`/`ZDTL2`. `observed`
+An earlier count reached sixteen by comparing names with case: `SCI-FI` is
+`Sci-Fi.Blv`'s script — the Control Center, the Oracle's sibling — and
+`ZDTL01`/`ZDTL02` are `zdtl01.blv`'s and `zdtl02.blv`'s.
 
 `OUT.EVT` stands apart in format: its records carry **no sequence byte** —
 `[size][id u16][opcode][args]` where every map script writes a sequence
