@@ -49,6 +49,11 @@ struct SaveState {
 
     // The honors earned: filled Awards.txt rows.
     std::vector<int> awards;
+
+    // Where Town Portal may reach: the outdoor towns seen, in first-visit
+    // order, and when spell-borne flight wears off.
+    std::vector<std::string> visited_towns;
+    std::int64_t fly_until = 0;
     std::set<int> bits;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
@@ -72,6 +77,12 @@ struct SaveState {
     out << "bank\t" << state.bank_gold << "\n";
     for (const int award : state.awards) {
         out << "award\t" << award << "\n";
+    }
+    for (const auto& town : state.visited_towns) {
+        out << "visited\t" << town << "\n";
+    }
+    if (state.fly_until > 0) {
+        out << "fly\t" << state.fly_until << "\n";
     }
     for (const auto& h : state.hired) {
         out << "hired\t" << h.npc_id << "\t" << h.profession_id << "\t" << h.name << "\n";
@@ -204,6 +215,14 @@ struct SaveState {
             out.bank_gold = next_int();
         } else if (kind == "award") {
             out.awards.push_back(next_int());
+        } else if (kind == "visited") {
+            std::string town;
+            std::getline(fields, town, '\t');
+            if (!town.empty()) {
+                out.visited_towns.push_back(std::move(town));
+            }
+        } else if (kind == "fly") {
+            out.fly_until = next_int();
         } else if (kind == "hired") {
             SaveState::Hired h;
             h.npc_id = next_int();

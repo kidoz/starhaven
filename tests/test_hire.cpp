@@ -130,3 +130,12 @@ TEST_CASE("the trap trades' bonuses parse", "[hire]") {
                           "are increased by ten points for each character.")
                 .perception_bonus == 5);
 }
+
+TEST_CASE("the wind and gate masters' daily casts parse", "[hire]") {
+    REQUIRE(parse_benefit("Casts the Fly spell (duration 2 hours) once per day.").fly_hours == 2);
+    REQUIRE(parse_benefit("Casts the Town Portal spell at master ranking once per day.")
+                .town_portal);
+    REQUIRE_FALSE(parse_benefit("Casts the Bless spell (duration 2 hours) at master ranking "
+                                "once per day.")
+                      .town_portal);
+}

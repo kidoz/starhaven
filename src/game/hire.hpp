@@ -41,6 +41,8 @@ struct HireBenefit {
     int food_saved_camping = 0;    // a porter's "less days of food use"
     int bless_hours = 0;    // cast at dawn, at the row's own duration
     int heroism_hours = 0;
+    int fly_hours = 0;         // the Wind Master's daily Fly, its written hours
+    bool town_portal = false;  // the Gate Master's daily master-rank portal
 
     // The masters' skill bonuses, in the rows' own points: "Two point bonus
     // to all weapon skills", "Three point bonus to all spell skills", the
@@ -58,6 +60,7 @@ struct HireBenefit {
                identifies ||
                luck_bonus != 0 || elemental_protection != 0 || food_per_day != 0 ||
                food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0 ||
+               fly_hours != 0 || town_portal ||
                weapon_skill_bonus != 0 || spell_skill_bonus != 0 ||
                merchant_skill_bonus != 0 || armor_skill_bonus != 0 || disarm_bonus != 0 ||
                perception_bonus != 0;
@@ -263,6 +266,10 @@ namespace hire_detail {
     if (text.find("casts the heroism spell") != std::string::npos) {
         out.heroism_hours = number_after(text, "duration");
     }
+    if (text.find("casts the fly spell") != std::string::npos) {
+        out.fly_hours = number_after(text, "duration");
+    }
+    out.town_portal = text.find("casts the town portal spell") != std::string::npos;
     return out;
 }
 

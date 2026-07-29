@@ -222,6 +222,14 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The travel spells cash in**: Fly grants the engine's existing flight for
+  its rank cell's own minutes per point of skill, outdoors only as its prose
+  insists, and Town Portal behaves exactly as written — a 10% chance per
+  point of Water skill, to "the last town visited" at a normal-rank scroll,
+  with the Gate Master's daily master-rank cast giving the promised choice of
+  destination (P opens the list of towns seen, kept in the save). The Wind
+  Master's daily two hours of Fly lift at dawn. What counts as a town — an
+  outdoor map with counters — is the engine's own reading, and says so.
 - **The chests fight back**: `MapStats.txt`'s "Trap 0-10" column finally
   gates something — a chest on a trapped map may blast the party for the
   difficulty's worth of dice, defused outright when the best Disarm Traps

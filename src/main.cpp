@@ -1688,8 +1688,28 @@ int main(int argc, char** argv) {
     // seat count. Wages fall due weekly, the cost column's own unit.
     std::vector<game::Hireling> hirelings;
     std::set<int> promoted_awards;  // promotion awards already stepped up
+    // Spell-borne travel: when flight wears off, where Town Portal may
+    // reach (outdoor towns seen, first-visit order), and the Gate Master's
+    // once-a-day.
+    std::int64_t fly_until = 0;
+    std::vector<std::string> visited_towns;
+    std::int64_t portal_used_day = -1;
+    bool porting = false;  // the destination list is open
     std::int64_t next_wage_day = 7;
     std::string talk_answer;
+    // A town, for Town Portal's purposes, is an outdoor map with counters —
+    // the engine's own reading of the spell's "last town visited"; the
+    // spell's words pick the destination, only the list is ours.
+    const auto note_town = [&] {
+        if (!session.outdoor() || shops_here.empty()) {
+            return;
+        }
+        if (std::find(visited_towns.begin(), visited_towns.end(), session.file_name) ==
+            visited_towns.end()) {
+            visited_towns.push_back(session.file_name);
+        }
+    };
+    note_town();
 
     // The design table's row and the session's building are two views of one
     // establishment, joined by the row id. The people answered are as the
@@ -2077,6 +2097,7 @@ int main(int argc, char** argv) {
             }
         }
         shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
+        note_town();
         open_shop = -1;
         talking_to = -1;
         shop_stock.clear();
@@ -2249,6 +2270,8 @@ int main(int argc, char** argv) {
                 }
                 state.wage_day = next_wage_day;
                 state.awards.assign(script_state.awards.begin(), script_state.awards.end());
+                state.visited_towns = visited_towns;
+                state.fly_until = fly_until;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -2307,6 +2330,9 @@ int main(int argc, char** argv) {
                     last_hire_day = clock.day();
                     script_state.awards = std::set<int>(state.awards.begin(), state.awards.end());
                     promoted_awards = script_state.awards;
+                    visited_towns = state.visited_towns;
+                    fly_until = state.fly_until;
+                    note_town();
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
@@ -2914,6 +2940,48 @@ int main(int argc, char** argv) {
                                                 spell->element, party[who].name, session,
                                                 monster_stats, item_stats, random_items,
                                                 standard_bonuses, special_bonuses);
+                        } else if (spell_id == 21) {
+                            // Fly, "only works outdoors", for its rank
+                            // cell's own minutes per point of skill.
+                            if (!session.outdoor()) {
+                                pick_up_message = "Fly only works outdoors";
+                                pick_up_shown = SDL_GetTicks();
+                                read = true;
+                                break;
+                            }
+                            const int minutes = data::parse_spell_duration(*spell, 0).minutes(
+                                spell_skill_of(party[who], *spell));
+                            fly_until = std::max(fly_until, clock.minutes() + minutes);
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) +
+                                   ": the party takes to the air";
+                        } else if (spell_id == 31) {
+                            // Town Portal, "a 10% chance per point of Water
+                            // Magic skill of working", "to the last town
+                            // visited" at this normal-rank cast.
+                            const int chance =
+                                spell_skill_of(party[who], *spell) * 10;
+                            if (visited_towns.empty()) {
+                                pick_up_message = "The portal finds no town to open on";
+                                pick_up_shown = SDL_GetTicks();
+                                read = true;  // keep the scroll: nothing was cast
+                                break;
+                            }
+                            if (static_cast<int>(misc_random.next() % 100) >= chance) {
+                                what = "The portal fizzles";
+                            } else {
+                                const std::string town = visited_towns.back();
+                                packs[who].remove(carried.x, carried.y);
+                                pick_up_message = "The portal opens";
+                                pick_up_shown = SDL_GetTicks();
+                                if (open_map(town)) {
+                                    camera.position = {0, 32.0f * 30.0f, 0};
+                                    camera.yaw = 0.6f;
+                                    camera.pitch = -0.3f;
+                                }
+                                read = true;
+                                break;
+                            }
                         } else if (const auto lays = condition_of(spell_id)) {
                             // Its written minutes per point of skill, on the
                             // fight's own clock.
@@ -3102,6 +3170,40 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE &&
                        shown_member < 0 && shown_pack < 0) {
                 want_strike = true;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_P &&
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+                // The Gate Master "casts the Town Portal spell at master
+                // ranking once per day" — and master rank "gives choice of
+                // destination", so the list opens.
+                const bool gated = std::any_of(
+                    hirelings.begin(), hirelings.end(),
+                    [](const auto& h) { return h.benefit.town_portal; });
+                if (!gated) {
+                    pick_up_message = "Nobody here can open a portal";
+                } else if (portal_used_day == clock.day()) {
+                    pick_up_message = "The Gate Master has already cast today";
+                } else if (visited_towns.empty()) {
+                    pick_up_message = "The portal finds no town to open on";
+                } else {
+                    porting = !porting;
+                    pick_up_message.clear();
+                }
+                pick_up_shown = SDL_GetTicks();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && porting &&
+                       event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
+                const auto pick = static_cast<std::size_t>(event.key.key - SDLK_1);
+                if (pick < visited_towns.size()) {
+                    porting = false;
+                    portal_used_day = clock.day();
+                    const std::string town = visited_towns[pick];
+                    pick_up_message = "The portal opens";
+                    pick_up_shown = SDL_GetTicks();
+                    if (open_map(town)) {
+                        camera.position = {0, 32.0f * 30.0f, 0};
+                        camera.yaw = 0.6f;
+                        camera.pitch = -0.3f;
+                    }
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R &&
                        shown_member < 0 && shown_pack < 0) {
                 want_rest = true;
@@ -3121,11 +3223,15 @@ int main(int argc, char** argv) {
         in.up = keys[SDL_SCANCODE_E];
         in.speed = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1200.0f : 400.0f;
 
-        game::step_player(camera, fall_speed, fly, in, session.collision,
+        // Spell-borne flight counts as the flag while it lasts; the spell's
+        // own words keep it outdoors.
+        const bool fly_now =
+            fly || (session.outdoor() && clock.minutes() < fly_until);
+        game::step_player(camera, fall_speed, fly_now, in, session.collision,
                           [&](float x, float z) { return session.terrain_height_at(x, z); });
 
         // And monsters block the party, the way the party blocks them.
-        if (!fly) {
+        if (!fly_now) {
             for (std::size_t i = 0; i < session.actors.size(); ++i) {
                 if (!battle.alive(i)) {
                     continue;
@@ -3262,6 +3368,13 @@ int main(int argc, char** argv) {
                             member.heroism_until,
                             clock.minutes() + h.benefit.heroism_hours * game::kMinutesPerHour);
                     }
+                }
+                // The Wind Master's daily Fly, at the row's written hours;
+                // that it lifts at dawn is the engine's reading of "once
+                // per day".
+                if (h.benefit.fly_hours > 0) {
+                    fly_until = std::max(
+                        fly_until, clock.minutes() + h.benefit.fly_hours * game::kMinutesPerHour);
                 }
             }
             if (!hirelings.empty() && clock.day() >= next_wage_day) {
@@ -3814,6 +3927,27 @@ int main(int argc, char** argv) {
                    game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,
                                  camera.forward(), visible));
 
+        if (porting && font.glyph_count() > 0) {
+            const int line = font.height() + 2;
+            int y = kHeight / 2 - static_cast<int>(visited_towns.size()) * line / 2;
+            game::draw_text(scene.framebuffer(), font, kWidth / 2 - 80, y - line * 2,
+                            "The portal reaches:", render::Color{225, 220, 190, 255},
+                            render::Color{0, 0, 0, 255});
+            for (std::size_t i = 0; i < visited_towns.size() && i < 9; ++i) {
+                std::string label = visited_towns[i];
+                for (const auto& m : map_stats.entries()) {
+                    if (m.file_name == visited_towns[i] && !m.name.empty()) {
+                        label = m.name;
+                        break;
+                    }
+                }
+                game::draw_text(scene.framebuffer(), font, kWidth / 2 - 80, y,
+                                std::to_string(i + 1) + "  " + data::cp1252_to_utf8(label),
+                                render::Color{230, 230, 230, 255},
+                                render::Color{0, 0, 0, 255});
+                y += line;
+            }
+        }
         if (creating) {
             draw_creation(scene, font, cache, party, create_slot, stat_descriptions,
                           class_descriptions);
