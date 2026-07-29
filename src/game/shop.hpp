@@ -21,6 +21,8 @@
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/merchant_text.hpp"
+#include "core/data/spell_stats.hpp"
+#include "core/data/use_items.hpp"
 #include "core/random.hpp"
 
 namespace starhaven::game {
@@ -100,6 +102,52 @@ struct StockSpec {
     return out;
 }
 
+// A magic guild's shelf, written in its own row: `"Type = Fire, Spells
+// 1-7"` names the school and the within-school numbers it sells — 1..7 at
+// an Initiate guild, 1..11 at an Adept — and `Val` (2 or 3) multiplies the
+// books' own values. `observed`
+struct GuildStock {
+    data::SpellSchool school = data::SpellSchool::Count;
+    int low = 0;
+    int high = 0;
+
+    [[nodiscard]] bool empty() const noexcept {
+        return school == data::SpellSchool::Count || low <= 0 || high < low;
+    }
+};
+
+[[nodiscard]] inline GuildStock parse_guild_stock(std::string_view cell) noexcept {
+    GuildStock out;
+    const std::size_t type = cell.find("Type = ");
+    const std::size_t spells = cell.find("Spells ");
+    if (type == std::string_view::npos || spells == std::string_view::npos) {
+        return out;
+    }
+    for (std::size_t school = 0; school < data::kSpellSchoolCount; ++school) {
+        const std::string_view name = data::school_name(static_cast<data::SpellSchool>(school));
+        if (cell.compare(type + 7, name.size(), name) == 0) {
+            out.school = static_cast<data::SpellSchool>(school);
+            break;
+        }
+    }
+    std::size_t at = spells + 7;
+    while (at < cell.size() && std::isdigit(static_cast<unsigned char>(cell[at])) != 0) {
+        out.low = out.low * 10 + (cell[at] - '0');
+        ++at;
+    }
+    if (at < cell.size() && cell[at] == '-') {
+        ++at;
+        while (at < cell.size() && std::isdigit(static_cast<unsigned char>(cell[at])) != 0) {
+            out.high = out.high * 10 + (cell[at] - '0');
+            ++at;
+        }
+    }
+    if (out.high < out.low) {
+        out.high = out.low;
+    }
+    return out;
+}
+
 // A bank rather than a shop: the sheet's own margin notes name its two
 // actions, "Deposit" and "Withdraw", and no column carries an interest
 // rate — so the vault only keeps what it is given.
@@ -118,6 +166,36 @@ struct StockSpec {
 [[nodiscard]] inline int offer_price(const data::ItemStatsEntry& item) noexcept {
     const auto price = static_cast<int>(static_cast<float>(item.value) * kSellFraction);
     return price < 1 ? 1 : price;
+}
+
+// A guild's shelves: the books of its school's spells in its own range,
+// priced at the books' values times the row's Val. Empty for anything that
+// is not a magic guild, so the caller can fall back to generated stock.
+[[nodiscard]] inline std::vector<StockItem>
+guild_stock_of(const data::BuildingStatsEntry& shop, const data::SpellStatsTable& spells,
+               const data::ItemStatsTable& items) {
+    std::vector<StockItem> out;
+    const GuildStock wanted = parse_guild_stock(shop.stock_a);
+    if (wanted.empty()) {
+        return out;
+    }
+    for (const auto& spell : spells.entries()) {
+        if (spell.school != wanted.school || spell.number < wanted.low ||
+            spell.number > wanted.high) {
+            continue;
+        }
+        for (std::size_t id = 1; id < items.entries().size(); ++id) {
+            const auto* row = items.at(id);
+            if (row == nullptr || row->equip_type != data::ItemEquipType::Book) {
+                continue;
+            }
+            if (data::scroll_spell_of(row->modifier_1) == spell.id) {
+                out.push_back({static_cast<int>(id), asking_price(*row, shop.price_factor)});
+                break;
+            }
+        }
+    }
+    return out;
 }
 
 // Fill a shop's shelves. The seed is the shop's own row id, so a shop holds

@@ -1530,12 +1530,21 @@ int main(int argc, char** argv) {
         }
         return out;
     };
+    // What a counter stocks: a magic guild's shelves are its own row's
+    // spell range as books; everything else is generated from its stock
+    // spec.
+    const auto stock_for = [&](const data::BuildingStatsEntry& shop, std::uint32_t seed) {
+        auto stock = game::guild_stock_of(shop, spell_stats, item_stats);
+        if (!stock.empty()) {
+            return stock;
+        }
+        return game::stock_of(shop, random_items, item_stats, standard_bonuses, special_bonuses,
+                              seed);
+    };
     if (start_shop >= 1 && start_shop <= static_cast<int>(shops_here.size())) {
         open_shop = start_shop - 1;
         const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
-        shop_stock =
-            game::stock_of(shop, random_items, item_stats, standard_bonuses, special_bonuses,
-                           static_cast<std::uint32_t>(shop.id) * 2654435761U);
+        shop_stock = stock_for(shop, static_cast<std::uint32_t>(shop.id) * 2654435761U);
     }
 
     // The monsters start where the map put them and wander from there.
@@ -2233,9 +2242,7 @@ int main(int argc, char** argv) {
                     open_shop = chosen;
                     show_directory = false;
                     const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
-                    shop_stock = game::stock_of(shop, random_items, item_stats, standard_bonuses,
-                                                special_bonuses,
-                                                static_cast<std::uint32_t>(shop.id) * 2654435761U);
+                    shop_stock = stock_for(shop, static_cast<std::uint32_t>(shop.id) * 2654435761U);
                     shop_said.clear();
                 } else if (shown_member >= 0 && chosen < 4) {
                     shown_member = chosen;
@@ -2693,8 +2700,7 @@ int main(int argc, char** argv) {
                     }
                     open_shop = static_cast<int>(i);
                     shop_stock =
-                        game::stock_of(*shops_here[i], random_items, item_stats, standard_bonuses,
-                                       special_bonuses, outcome.building * 2654435761U);
+                        stock_for(*shops_here[static_cast<std::size_t>(open_shop)], outcome.building * 2654435761U);
                     shop_said.clear();
                     break;
                 }

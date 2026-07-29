@@ -280,6 +280,12 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Guilds that sell their school**: the magic guilds' rows write their
+  shelves outright — `"Type = Fire, Spells 1-7"` at an Initiate guild,
+  `1-11` at an Adept — and the counter now stocks exactly those spells'
+  books at the books' own values times the row's `Val`. With books teaching
+  and **H** casting what is known, the whole arc is table-fed: buy the
+  Fireball book at the Adept Guild of Fire, learn it, and burn something.
 - **The monsters' whole dirty vocabulary**: the on-hit column's 38 values
   mostly land now — `DrainSP` drains, `Stealx2` cuts the purse, `Agex3` puts
   years on, `Disease1..3` runs poison's scaffold at half pace, and the three

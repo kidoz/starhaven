@@ -606,6 +606,16 @@ system from two sides. `observed`
 The remaining numeric cells on entrance rows — 16..37 running with the row
 order, 50 and 169 on the Oracle — join to nothing tested yet. `unknown`
 
+## The guilds' shelves, written outright
+
+The eighteen magic-guild rows put their stock in plain words: `"Type = Fire,
+Spells 1-7"` — the school, and the within-school spell numbers `Spells.txt`
+already carries — with 1..7 at every Initiate guild, 1..11 at every Adept,
+and `Val` of 2 or 3 as the price multiplier over the books' own values. The
+margin notes say what the counter does: `"Buy Spells"`. Since each of the 99
+spells has exactly one book carrying its S-number, a guild's shelf resolves
+without generation or invention. `observed`
+
 ## The banks' two verbs, and the town halls' silence
 
 The six `Bank` rows carry margin notes naming the counter's actions —

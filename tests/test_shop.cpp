@@ -107,3 +107,16 @@ TEST_CASE("a chest with no tables behind it holds nothing", "[shop]") {
     // not crash opening it.
     REQUIRE(chest_contents(2, {}, {}, {}, {}, 7, kChestItems).empty());
 }
+
+TEST_CASE("a guild's shelf is its own row's spell range", "[shop]") {
+    // "Type = Fire, Spells 1-7": the school and the within-school numbers.
+    const GuildStock fire = parse_guild_stock("Type = Fire, Spells 1-7");
+    REQUIRE(fire.school == data::SpellSchool::Fire);
+    REQUIRE(fire.low == 1);
+    REQUIRE(fire.high == 7);
+    REQUIRE_FALSE(fire.empty());
+    REQUIRE(parse_guild_stock("Type = Mind, Spells 1-11").school == data::SpellSchool::Mind);
+    // A stock spec that names no school is not a guild's.
+    REQUIRE(parse_guild_stock("L1 Weap").empty());
+    REQUIRE(parse_guild_stock("").empty());
+}
