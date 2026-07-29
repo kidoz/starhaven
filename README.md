@@ -222,6 +222,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The counter buys back properly**: the pack screen grew a cursor — arrows
+  choose a cell, the line above names the thing and what an open counter
+  would pay, and S sells exactly that, at the offer price bent toward the
+  item's value by the same Merchant reading the buy side uses, never past
+  the value itself.
 - **Beg, bribe and threaten, in their own words**: the three approaches the
   talk screen has always advertised now work — keys 5, 6 and 7, answered in
   each personality's own `npcbtb.txt` phrasing, acceptance, refusal and the

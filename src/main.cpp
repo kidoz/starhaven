@@ -586,7 +586,8 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
 // One character's pack, on the grid, with the item art the game draws.
 void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                const game::Character& who, const game::Pack& pack,  // NOLINT
-               const data::ItemStatsTable& items) {
+               const data::ItemStatsTable& items, int cursor_x = -1, int cursor_y = -1,
+               int sale_offer = -1) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -634,6 +635,40 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         }
         blit(scene.framebuffer(), cache.icon(row->picture), kLeft + carried.x * game::kCellSize,
              kTop + carried.y * game::kCellSize);
+    }
+
+    // The cursor: a bright cell border, and what the thing under it is —
+    // with what a counter would pay, when one is open.
+    if (cursor_x >= 0 && cursor_y >= 0) {
+        const int px = kLeft + cursor_x * game::kCellSize;
+        const int py = kTop + cursor_y * game::kCellSize;
+        for (int d = 0; d < game::kCellSize; ++d) {
+            for (const auto [ex, ey] : {std::pair{px + d, py}, {px + d, py + game::kCellSize},
+                                        {px, py + d}, {px + game::kCellSize, py + d}}) {
+                if (ex >= 0 && ex < kWidth && ey >= 0 && ey < kHeight) {
+                    const auto i =
+                        (static_cast<std::size_t>(ey) * kWidth + static_cast<std::size_t>(ex)) *
+                        4;
+                    pixels[i] = 230;
+                    pixels[i + 1] = 220;
+                    pixels[i + 2] = 150;
+                }
+            }
+        }
+        if (const auto* under = pack.at(cursor_x, cursor_y); under != nullptr) {
+            const auto* row = items.at(static_cast<std::size_t>(under->item_id));
+            if (row != nullptr) {
+                std::string line =
+                    under->identified || row->unidentified_name.empty()
+                        ? data::cp1252_to_utf8(row->name)
+                        : data::cp1252_to_utf8(row->unidentified_name) + " (unidentified)";
+                if (sale_offer >= 0) {
+                    line += "   the counter pays " + std::to_string(sale_offer) +
+                            " gold, S sells";
+                }
+                game::draw_text(scene.framebuffer(), font, kLeft + 200, 24, line, white, shadow);
+            }
+        }
     }
 
     // And the list, since the art alone does not say what anything is worth.
@@ -1700,6 +1735,7 @@ int main(int argc, char** argv) {
     std::int64_t next_wage_day = 7;
     std::string talk_answer;
     std::set<int> approaches_used;  // per conversation: 0 beg, 1 bribe, 2 threat
+    int pack_cursor_x = 0, pack_cursor_y = 0;  // the pack screen's chosen cell
     // A town, for Town Portal's purposes, is an outdoor map with counters —
     // the engine's own reading of the spell's "last town visited"; the
     // spell's words pick the destination, only the list is ours.
@@ -2732,21 +2768,46 @@ int main(int argc, char** argv) {
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_S) {
-                // Sell the first thing the first character is carrying.
-                for (auto& pack : packs) {
-                    if (pack.empty()) {
-                        continue;
-                    }
-                    const auto carried = pack.items().front();
+                // Sell the chosen thing when a pack is open — the cursor's
+                // cell — else the first thing anyone carries. The counter's
+                // offer is bent by the party's Merchant the same way its
+                // asking prices are; the bend never passes the item's value.
+                const auto sell_from = [&](game::Pack& pack, const game::PackedItem& carried) {
                     const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
                     if (row == nullptr) {
-                        break;
+                        return false;
                     }
-                    gold += game::offer_price(*row);
+                    const int offer = game::offer_price(*row);
+                    const int sweet = row->value - offer;
+                    const int best = std::min(
+                        row->value,
+                        offer + sweet * (row->value - haggled(row->value)) /
+                                    std::max(1, row->value));
+                    gold += best;
                     pack.remove(carried.x, carried.y);
                     shop_said = std::string(
                         game::merchant_line(merchant_words, data::MerchantAction::Sell, true));
-                    break;
+                    return true;
+                };
+                if (shown_pack >= 0) {
+                    auto& pack = packs[static_cast<std::size_t>(shown_pack)];
+                    if (const auto* under = pack.at(pack_cursor_x, pack_cursor_y);
+                        under != nullptr) {
+                        const auto chosen = *under;
+                        (void)sell_from(pack, chosen);
+                    } else {
+                        shop_said = "Nothing under the cursor to sell.";
+                    }
+                } else {
+                    for (auto& pack : packs) {
+                        if (pack.empty()) {
+                            continue;
+                        }
+                        const auto carried = pack.items().front();
+                        if (sell_from(pack, carried)) {
+                            break;
+                        }
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                        event.key.key <= SDLK_9) {
@@ -3423,6 +3484,17 @@ int main(int argc, char** argv) {
                         camera.pitch = -0.3f;
                     }
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && shown_pack >= 0 &&
+                       (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT ||
+                        event.key.key == SDLK_UP || event.key.key == SDLK_DOWN)) {
+                pack_cursor_x += event.key.key == SDLK_RIGHT ? 1
+                                 : event.key.key == SDLK_LEFT ? -1
+                                                              : 0;
+                pack_cursor_y += event.key.key == SDLK_DOWN ? 1
+                                 : event.key.key == SDLK_UP ? -1
+                                                            : 0;
+                pack_cursor_x = std::clamp(pack_cursor_x, 0, game::kPackWidth - 1);
+                pack_cursor_y = std::clamp(pack_cursor_y, 0, game::kPackHeight - 1);
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R &&
                        shown_member < 0 && shown_pack < 0) {
                 want_rest = true;
@@ -3460,9 +3532,9 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (keys[SDL_SCANCODE_LEFT])
+        if (keys[SDL_SCANCODE_LEFT] && shown_pack < 0)
             camera.yaw -= game::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_RIGHT])
+        if (keys[SDL_SCANCODE_RIGHT] && shown_pack < 0)
             camera.yaw += game::kLookSpeed * in.dt;
         if (keys[SDL_SCANCODE_UP])
             camera.pitch += game::kLookSpeed * in.dt;
@@ -4134,7 +4206,24 @@ int main(int argc, char** argv) {
         }
         if (shown_pack >= 0) {
             const auto who = static_cast<std::size_t>(shown_pack);
-            draw_pack(scene, font, cache, party[who], packs[who], item_stats);
+            int sale_offer = -1;
+            if (open_shop >= 0) {
+                if (const auto* under = packs[who].at(pack_cursor_x, pack_cursor_y);
+                    under != nullptr) {
+                    if (const auto* row =
+                            item_stats.at(static_cast<std::size_t>(under->item_id));
+                        row != nullptr) {
+                        const int offer = game::offer_price(*row);
+                        const int sweet = row->value - offer;
+                        sale_offer = std::min(
+                            row->value,
+                            offer + sweet * (row->value - haggled(row->value)) /
+                                        std::max(1, row->value));
+                    }
+                }
+            }
+            draw_pack(scene, font, cache, party[who], packs[who], item_stats, pack_cursor_x,
+                      pack_cursor_y, sale_offer);
         }
         // A thing behind a wall is not being looked at, whatever the aim says.
         auto visible = [&](const render::Vec3& at) {
