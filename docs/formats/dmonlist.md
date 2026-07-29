@@ -1,14 +1,15 @@
 # Monster table (`DMONLIST.BIN`, Might and Magic VI)
 
-Status: **verified for names and animations.** The table an actor's monster id
+Status: **verified for names, animations and the sound-set base.** The table an actor's monster id
 indexes, giving each monster its name and its animation sprite base names.
 Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the record's name field, and the eight animation sprite
-names. The remaining 36 bytes per record are `unknown`, as is how the game
-draws the B and C variants whose sprites are absent.
+Covers the container, the record's name field, the eight animation sprite
+names, and the sound-set base at +0x08. The remaining 34 bytes per record are
+`unknown`, as is how the game draws the B and C variants whose sprites are
+absent.
 
 ## Source provenance (non-expressive)
 
@@ -36,10 +37,25 @@ which is what pins the record size. `observed`
 
 | Offset | Size | Type | Field | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| +0x00 | 16 | — | unknown | unknown | |
+| +0x00 | 8 | — | unknown | unknown | |
+| +0x08 | 2 | u16 | sound-set base id | observed | see below |
+| +0x0A | 6 | — | unknown | unknown | |
 | +0x10 | 32 | char[32] | name | observed | e.g. `"ArcherA"`, `"PeasantF1B"` |
 | +0x30 | 80 | char[10][8] | animation sprites | observed | eight base names |
 | +0x80 | 20 | — | unknown | unknown | stats, presumably |
+
+### The sound-set base
+
+`DSOUNDS.BIN`'s monster block runs `1000 + 10k` with the action as the
+offset — attack, die, charge, fidget (see [`dsounds.md`](dsounds.md)) — and
+its names carry the monster's own table id, `"49elemairA_attack"`. For every
+one of the **31 monsters whose named set pins the answer, the u16 at +0x08
+equals that set's base id — 31 of 31 — and across all 173 records the field
+is a monster-block id**, so the monsters without a set of their own share
+another's, the way B and C variants share A's palette-swapped art. No other
+offset in the record matches even once. `observed` Reproduce with
+`sft_info --sounds`. The engine plays them: a monster's swing is its attack
+sound, its death its dying one.
 
 ### Animation slots
 

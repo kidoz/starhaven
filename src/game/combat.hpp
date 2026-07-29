@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "core/data/dice.hpp"
@@ -249,6 +250,15 @@ public:
     // Experience earned and not yet handed out.
     [[nodiscard]] int unclaimed_experience() const noexcept { return experience_; }
 
+    // The noises the fight made since last asked: a session actor and which
+    // slot of its `DSOUNDS.BIN` set to play — 0 attack, 1 die. The caller
+    // drains and plays them; the fight only remembers.
+    struct Noise {
+        std::size_t actor = 0;
+        int action = 0;
+    };
+    [[nodiscard]] std::vector<Noise> take_noises() { return std::exchange(noises_, {}); }
+
     // And the gold, which is the party's rather than any one character's.
     [[nodiscard]] int unclaimed_gold() const noexcept { return gold_; }
     int take_gold() noexcept {
@@ -392,6 +402,7 @@ public:
             c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale;
 
             if (std::string what = swing(monster, spells, party); !what.empty()) {
+                noises_.push_back({i, 0});
                 last = std::move(what);
             }
         }
@@ -424,6 +435,7 @@ private:
             target.alive = false;
             target.hit_points = 0;
             target.wince = 0.0f;
+            noises_.push_back({actor, 1});
             experience_ += monster.experience;
             // And whatever its treasure code leaves behind: one roll against
             // the chance, then the gold and the item the code names.
@@ -600,6 +612,7 @@ private:
     }
 
     std::vector<Combatant> combatants_;
+    std::vector<Noise> noises_;
     int experience_ = 0;
     int gold_ = 0;
     std::vector<int> loot_;

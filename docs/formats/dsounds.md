@@ -86,6 +86,11 @@ The leading number in the name is the monster's `MONSTERS.TXT` id (see
 block index is **not** that id, because only 57 of the 173 monsters have a
 sound set at all. `observed`
 
+How a monster reaches its set is now pinned: **`DMONLIST.BIN` carries the
+base id at +0x08 of its record** — equal to the named set's base on 31 of 31
+monsters whose names carry their id, a block id on all 173 (see
+[`dmonlist.md`](dmonlist.md)). Reproduce with `sft_info --sounds`.
+
 ### The group field
 
 Four values, and the names in each are consistent enough to be worth recording

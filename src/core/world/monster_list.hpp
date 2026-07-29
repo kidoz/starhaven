@@ -29,6 +29,10 @@ constexpr std::size_t kMonsterAnimationCount = static_cast<std::size_t>(MonsterA
 struct MonsterListEntry {
     std::string name;  // e.g. "ArcherA", "PeasantF1B"
 
+    // The base id of this monster's four-sound set in `DSOUNDS.BIN`:
+    // attack, die, charge and fidget at base+0..3. Variants share A's set.
+    std::uint16_t sound_base = 0;
+
     // Sprite base names, one per animation. A base name is completed with a
     // view-direction digit: "PFEMSTA" plus 0..4 selects the SPRITES.LOD entry.
     std::array<std::string, kMonsterAnimationCount> animations;
@@ -66,6 +70,11 @@ private:
 
 // Layout constants (see docs/formats/dmonlist.md).
 constexpr std::size_t kMonsterRecordSize = 148;
+// The monster's sound-set base id in `DSOUNDS.BIN`: equal to the named set's
+// base on 31 of 31 monsters whose set carries their table id in its name,
+// and a monster-block id (1000..1569) on all 173. Reproduce with
+// `sft_info --sounds`.
+constexpr std::size_t kMonsterSoundOffset = 0x08;
 constexpr std::size_t kMonsterNameOffset = 0x10;
 constexpr std::size_t kMonsterNameSize = 32;
 constexpr std::size_t kMonsterAnimationOffset = 0x30;

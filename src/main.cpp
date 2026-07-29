@@ -1810,6 +1810,23 @@ int main(int argc, char** argv) {
         ++frame;
         music.update();
         ambient.update(camera.position, ambient_sources, session.sounds);
+        // The fight's own vocabulary: each monster's attack and death play
+        // the `DSOUNDS.BIN` set its DMONLIST record names at +0x08.
+        for (const auto& noise : battle.take_noises()) {
+            if (noise.actor >= session.actors.size()) {
+                continue;
+            }
+            const int mid = session.actors[noise.actor].monster_id;
+            const auto* row = mid > 0 ? session.monsters.at(static_cast<std::size_t>(mid) - 1)
+                                      : nullptr;
+            if (row == nullptr || row->sound_base == 0) {
+                continue;
+            }
+            if (const auto* sound = session.sounds.find(
+                    static_cast<std::uint32_t>(row->sound_base + noise.action))) {
+                ambient.play_once(sound->name);
+            }
+        }
 
         bool want_strike = false;
         bool want_rest = false;

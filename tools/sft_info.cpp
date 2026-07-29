@@ -1,17 +1,21 @@
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "core/image/palette.hpp"
+#include "core/image/zlib_util.hpp"
 #include "core/image/sprite.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/monster_list.hpp"
+#include "core/world/sound_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
 namespace {
@@ -223,6 +227,91 @@ int do_check(const std::filesystem::path& data_dir, lod::LodArchive& icons,
 // A front or back view of a two-legged, two-armed creature is close to
 // left-right symmetric; a profile is not. Measuring symmetry per view index
 // answers the question without looking at a single picture.
+// Research mode: which field of the 148-byte DMONLIST record names a
+// monster's sound set. DSOUNDS.BIN's monster block runs 1000 + 10k with the
+// action as offset, and its names carry the monster's own table id
+// ("49elemairA_attack") — so for every monster with a named set, the right
+// field must hold that set's base id.
+int do_sounds(const lod::LodArchive& icons) {
+    world::SoundTable sounds;
+    std::span<const std::byte> raw;
+    if (icons.payload("DSOUNDS.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::SoundTable::parse(raw, sounds) != world::SoundTableError::None) {
+        std::cerr << "error: could not read DSOUNDS.BIN\n";
+        return 1;
+    }
+    // Monster table id (the name's leading digits) -> the set's base id.
+    std::map<int, int> base_of;
+    for (const auto& entry : sounds.entries()) {
+        if (entry.id < 1000 || entry.id >= 1570 ||
+            entry.name.find("_attack") == std::string::npos) {
+            continue;
+        }
+        std::size_t p = 0;
+        int id = 0;
+        while (p < entry.name.size() &&
+               std::isdigit(static_cast<unsigned char>(entry.name[p])) != 0) {
+            id = id * 10 + (entry.name[p] - '0');
+            ++p;
+        }
+        if (id > 0 && (entry.id - 1000) % 10 == 0) {
+            base_of[id] = static_cast<int>(entry.id);
+        }
+    }
+
+    // The raw records, since the parsed view drops the unknown bytes.
+    if (icons.payload("DMONLIST.BIN", raw) != lod::LodArchive::PayloadError::None) {
+        std::cerr << "error: could not read DMONLIST.BIN\n";
+        return 1;
+    }
+    std::vector<std::uint8_t> inflated;
+    if (raw.size() < 48 ||
+        !starhaven::image::detail::inflate_all(raw.subspan(48), inflated) || inflated.size() < 4) {
+        std::cerr << "error: could not inflate DMONLIST.BIN\n";
+        return 1;
+    }
+    constexpr std::size_t kRecord = 148;
+    const std::size_t count = (inflated.size() - 4) / kRecord;
+    const auto u16_at = [&inflated](std::size_t record, std::size_t offset) {
+        const std::size_t at = 4 + record * kRecord + offset;
+        return static_cast<int>(inflated[at] | (inflated[at + 1] << 8));
+    };
+
+    // Sweep every even offset in the two unknown regions. A monster's table
+    // id is its 1-based record number, the join `--check` verifies.
+    std::cout << base_of.size() << " named sound sets\n";
+    for (std::size_t offset = 0; offset < kRecord; offset += 2) {
+        if ((offset >= 0x10 && offset < 0x80)) {
+            continue;  // the name and the animations
+        }
+        std::size_t hits = 0, tested = 0;
+        for (std::size_t r = 0; r < count; ++r) {
+            const auto expect = base_of.find(static_cast<int>(r) + 1);
+            if (expect == base_of.end()) {
+                continue;
+            }
+            ++tested;
+            hits += u16_at(r, offset) == expect->second ? 1 : 0;
+        }
+        if (hits > 0) {
+            std::cout << "offset +0x" << std::hex << offset << std::dec << ": " << hits << "/"
+                      << tested << " equal the set base\n";
+        }
+    }
+
+    // The winning field across every record: each value should be a real
+    // sound id, and blockmates should share it the way palettes are shared.
+    std::size_t resolve = 0, in_block = 0;
+    for (std::size_t r = 0; r < count; ++r) {
+        const int value = u16_at(r, 0x08);
+        resolve += sounds.find(static_cast<std::uint32_t>(value)) != nullptr ? 1 : 0;
+        in_block += value >= 1000 && value < 1570 ? 1 : 0;
+    }
+    std::cout << "at +0x8 across all " << count << ": " << resolve
+              << " are DSOUNDS ids, " << in_block << " sit inside the monster block\n";
+    return 0;
+}
+
 int do_views(const std::filesystem::path& data_dir, const world::SpriteFrameTable& table) {
     lod::LodArchive sprites;
     if (lod::LodArchive::open(data_dir / "SPRITES.LOD", sprites) != lod::LodError::None) {
@@ -330,6 +419,8 @@ int main(int argc, char** argv) {
         return do_check(data_dir, icons, table);
     if (command == "--views")
         return do_views(data_dir, table);
+    if (command == "--sounds")
+        return do_sounds(icons);
     if (command.rfind("--", 0) == 0) {
         print_usage(argv[0]);
         return 2;

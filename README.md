@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The fight finds its voice**: each monster's DMONLIST record names its
+  four-sound `DSOUNDS.BIN` set at +0x08 — equal to the named set's base on 31
+  of 31 monsters whose sound names carry their own table id, a block id on
+  all 173 — so a swing plays that monster's attack sound and a kill its dying
+  one, through the same mixer the campfires and doors already use.
+  Reproduce with `sft_info --sounds`.
 - **Hired help from the streets**: talking to anyone with a trade offers H to
   hire them at their `npcprof.txt` row's weekly cost, two seats as the
   original's follower panel gives. Their benefit prose is read literally —
