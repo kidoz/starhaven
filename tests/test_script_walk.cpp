@@ -401,3 +401,23 @@ TEST_CASE("found gold fills the purse and reports itself apart", "[walk]") {
     REQUIRE(outcome.gold_found == 400);
     REQUIRE(outcome.acted());
 }
+
+TEST_CASE("a harm step surfaces who, what and how much", "[walk]") {
+    // D05's cave-in shape: the whole party, physical, twenty.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 6, 0, kOpcodeHarm, {5, 0, 20, 0, 0, 0});
+    push_step(payload, 6, 1, kOpcodeHarm, {2, 4, 30, 0, 0, 0});
+    push_step(payload, 6, 2, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 6, state);
+    REQUIRE(outcome.harms.size() == 2);
+    REQUIRE(outcome.harms[0].target == 5);
+    REQUIRE(outcome.harms[0].element == 0);
+    REQUIRE(outcome.harms[0].amount == 20);
+    REQUIRE(outcome.harms[1].target == 2);
+    REQUIRE(outcome.harms[1].element == 4);  // poison, the resistance order
+    REQUIRE(outcome.harms[1].amount == 30);
+    REQUIRE(outcome.acted());
+}

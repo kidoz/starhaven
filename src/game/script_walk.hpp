@@ -99,6 +99,16 @@ struct WalkOutcome {
     };
     std::optional<Ask> ask;
 
+    // The hurts an event deals: who (0..3 a member, 4 the user, 5 all,
+    // 6 one at random), the element as a resistance index, and how much —
+    // answered by that member's own resistance when the caller applies it.
+    struct Harm {
+        int target = 0;
+        int element = 0;
+        int amount = 0;
+    };
+    std::vector<Harm> harms;
+
     // Gold that was found rather than paid: type 22's sums, already added
     // to the purse, reported apart so a Factor's "bonus on all gold found"
     // can ride on exactly these.
@@ -117,7 +127,8 @@ struct WalkOutcome {
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
                chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
-               !summons.empty() || !launches.empty() || ask.has_value() || gold_found != 0 ||
+               !summons.empty() || !launches.empty() || ask.has_value() || !harms.empty() ||
+               gold_found != 0 ||
                healed_hp != 0 ||
                healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
@@ -384,6 +395,16 @@ struct WalkOutcome {
             out.ask = ask;
             return out;
         }
+        case world::kOpcodeHarm:
+            if (a.size() >= 6) {
+                WalkOutcome::Harm harm;
+                harm.target = a[0];
+                harm.element = a[1];
+                harm.amount = static_cast<int>(a[2]) | (a[3] << 8) | (a[4] << 16) |
+                              (a[5] << 24);
+                out.harms.push_back(harm);
+            }
+            break;
         case world::kOpcodeSetTopic:
             if (a.size() >= 9 && a[4] < 3) {
                 std::uint32_t npc = 0, topic = 0;

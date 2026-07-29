@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The hurt opcode, decoded**: opcode 9 is `[target][element][amount]` —
+  the element in the resistance columns' own order, vouched for by the
+  Pyramid's six trap rooms sweeping every type, poison in the sewer and at
+  Sweet Water's wells, electricity in the Control Center. Cave-ins, trap
+  floors and poisoned wells now hurt, answered by each victim's own
+  resistance like any blow.
 - **The last currency named**: variable type 22 is found gold — the mine's
   "Gold vein" digs, the sewer's stashes, D13's rising piles — `inferred`
   from the finds' own labels, and it is exactly the "gold you find" the

@@ -122,6 +122,18 @@ inline constexpr std::uint8_t kOpcodeSwitch = 32;
 // `evt_info --catalog 19`.
 inline constexpr std::uint8_t kOpcodeSummon = 19;
 
+// Hurt the party: `[target u8][element u8][amount u32]`. The element is an
+// index in the resistance columns' own order — 0 physical, 1 fire,
+// 2 electricity, 3 cold, 4 poison, 5 magic: the Pyramid's trap rooms sweep
+// all six at amount 5, poison sits in the sewer and at Sweet Water's wells,
+// electricity in the Control Center, and the haunted spiral lands a
+// physical 1,000. Targets 0..3 are the four characters — one event
+// addresses each in turn — and 4, 5 and 6 read as the user, the whole
+// party and a random member: `inferred`, the majority uses ride the
+// "Cave-in!" and "Ouch!" strings that hit everyone. Reproduce with
+// `evt_info --catalog 9`.
+inline constexpr std::uint8_t kOpcodeHarm = 9;
+
 inline constexpr std::uint8_t kOpcodeSetTopic = 39;
 inline constexpr std::uint8_t kOpcodeMoveNpc = 40;
 

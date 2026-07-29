@@ -2050,6 +2050,41 @@ int main(int argc, char** argv) {
         const auto add = [&note](const std::string& text) {
             note += (note.empty() ? "" : "  ") + text;
         };
+        // The hurts, answered by each victim's own resistance the way the
+        // fight's blows are; bare physical goes unresisted.
+        for (const auto& harm : outcome.harms) {
+            static constexpr std::array<const char*, 6> kElements{"Phys", "Fire", "Elec",
+                                                                  "Cold", "Pois", "Magic"};
+            const char* type =
+                harm.element >= 0 && harm.element < 6 ? kElements[static_cast<std::size_t>(
+                                                            harm.element)]
+                                                      : "Phys";
+            int total = 0;
+            const auto hit_one = [&](game::Character& member) {
+                if (member.hit_points <= 0) {
+                    return;
+                }
+                const int dealt =
+                    game::after_resistance(harm.amount, game::resistance_to(member, type));
+                member.hit_points = std::max(0, member.hit_points - dealt);
+                total += dealt;
+            };
+            if (harm.target >= 0 && harm.target <= 3) {
+                hit_one(party[static_cast<std::size_t>(harm.target)]);
+            } else if (harm.target == 4) {
+                hit_one(party[shown_member >= 0 ? static_cast<std::size_t>(shown_member) : 0]);
+            } else if (harm.target == 6) {
+                hit_one(party[misc_random.next() % party.size()]);
+            } else {
+                for (auto& member : party) {
+                    hit_one(member);
+                }
+            }
+            if (total > 0) {
+                add("-" + std::to_string(total) + (harm.element == 0 ? "" : " ") +
+                    (harm.element == 0 ? "" : type) + " damage");
+            }
+        }
         if (outcome.gold_found > 0) {
             // The Factor's and Banker's "bonus on all gold found" rides on
             // exactly what was found, not what was paid.
