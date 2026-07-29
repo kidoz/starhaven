@@ -422,3 +422,54 @@ TEST_CASE("outdoors the event sits on a model facet", "[inspect]") {
     REQUIRE(aimed.event_id == 150);
     REQUIRE_FALSE(game::aimed_face(session, {0, 100, 400}, {0, 0, 1}).found());
 }
+
+namespace {
+
+// The 48-byte container the archive wraps scripts and strings in; a zero
+// unpacked size means stored as-is.
+std::vector<std::byte> wrap_payload(const std::vector<std::uint8_t>& payload) {
+    std::vector<std::byte> out(48, std::byte{0});
+    for (const std::uint8_t b : payload) {
+        out.push_back(static_cast<std::byte>(b));
+    }
+    return out;
+}
+
+void push_script_step(std::vector<std::uint8_t>& p, std::uint16_t id, std::uint8_t sequence,
+                      std::uint8_t opcode, const std::vector<std::uint8_t>& args) {
+    p.push_back(static_cast<std::uint8_t>(4 + args.size()));
+    p.push_back(static_cast<std::uint8_t>(id & 0xFF));
+    p.push_back(static_cast<std::uint8_t>(id >> 8));
+    p.push_back(sequence);
+    p.push_back(opcode);
+    for (const std::uint8_t a : args) {
+        p.push_back(a);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("a face names itself from its header's label", "[inspect]") {
+    world::MapSession s;
+    std::vector<std::uint8_t> payload;
+    // Event 1: a plain door, labelled by its header.
+    push_script_step(payload, 1, 0, world::kOpcodeHeader, {2});
+    push_script_step(payload, 1, 0, world::kOpcodeDoor, {1, 1});
+    // Event 2: an establishment; its header is a 2DEvents row, not a label.
+    push_script_step(payload, 2, 0, world::kOpcodeHeader, {45});
+    push_script_step(payload, 2, 0, world::kOpcodeEnter, {45, 0, 0, 0});
+    // Event 3: a name opcode outranks the header.
+    push_script_step(payload, 3, 0, world::kOpcodeHeader, {2});
+    push_script_step(payload, 3, 0, world::kOpcodeName, {1});
+    REQUIRE(world::MapScript::parse(wrap_payload(payload), s.script) ==
+            world::MapScriptError::None);
+    REQUIRE(world::MapStrings::parse(wrap_payload({' ', 0, 'S', 'i', 'g', 'n', 0, 'D', 'o',
+                                                   'o', 'r', ' ', 0}),
+                                     s.script_strings) == world::MapScriptError::None);
+
+    // The label, with its trailing space trimmed.
+    REQUIRE(game::face_name(s, 1) == "Door");
+    // The establishment's header is a row id; not a string of this map.
+    REQUIRE(game::face_name(s, 2).empty());
+    REQUIRE(game::face_name(s, 3) == "Sign");
+}

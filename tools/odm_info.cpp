@@ -15,7 +15,7 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <map.odm> [--facets|--index|--tail [FILE]]\n"
+    std::cerr << "Usage: " << argv0 << " <map.odm> [--facets|--events|--index|--tail [FILE]]\n"
               << "\n"
               << "Decompresses one .odm outdoor map from your own legal game\n"
               << "install (Games.lod) and prints its header metadata. The tile\n"
@@ -47,6 +47,7 @@ int main(int argc, char** argv) {
     const std::string map_name = argv[1];
     // Research mode: one line per model facet, attributes and plane normal.
     const bool dump_facets = argc == 3 && std::string(argv[2]) == "--facets";
+    const bool dump_events = argc == 3 && std::string(argv[2]) == "--events";
     const bool dump_tail = argc >= 3 && std::string(argv[2]) == "--tail";
     const bool check_index = argc >= 3 && std::string(argv[2]) == "--index";
     const std::string tail_path = (dump_tail && argc >= 4) ? argv[3] : std::string();
@@ -142,6 +143,38 @@ int main(int argc, char** argv) {
                 for (const auto& f : mesh.facets) {
                     std::cout << f.attributes << "\t" << f.nx() << "\t" << f.ny() << "\t" << f.nz()
                               << "\t" << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
+                }
+            }
+            return 0;
+        }
+
+        // Every facet with an event on it, with its centre in the map's own
+        // axes: where to stand to try the thing the event runs.
+        if (dump_events) {
+            for (const auto& mesh : meshes) {
+                for (const auto& f : mesh.facets) {
+                    if (f.event_id == 0 || f.vertex_count < 3) {
+                        continue;
+                    }
+                    long cx = 0, cy = 0, cz = 0;
+                    bool bad = false;
+                    for (std::size_t k = 0; k < f.vertex_count; ++k) {
+                        if (f.vertex_ids[k] >= mesh.vertices.size()) {
+                            bad = true;
+                            break;
+                        }
+                        const auto& p = mesh.vertices[f.vertex_ids[k]];
+                        cx += p.x;
+                        cy += p.y;
+                        cz += p.z;
+                    }
+                    if (bad) {
+                        continue;
+                    }
+                    const auto n = static_cast<long>(f.vertex_count);
+                    std::cout << "event " << f.event_id << "\tat " << cx / n << "," << cy / n
+                              << "," << cz / n << "\t"
+                              << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
                 }
             }
             return 0;
