@@ -35,6 +35,7 @@
 #include "game/combat.hpp"
 #include "game/conversation.hpp"
 #include "game/daylight.hpp"
+#include "game/hire.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
 #include "game/launches.hpp"
@@ -416,12 +417,13 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
 // Who is in the party, along the bottom-left: enough to know they exist and
 // that the sheet keys mean something. The inspect panel sits bottom-right.
 void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
-                      const std::array<game::Character, 4>& party) {
+                      const std::array<game::Character, 4>& party,
+                      const std::vector<game::Hireling>& hirelings) {
     if (font.glyph_count() == 0) {
         return;
     }
     const int line = font.height() + 2;
-    int y = kHeight - line * static_cast<int>(party.size()) - 8;
+    int y = kHeight - line * static_cast<int>(party.size() + hirelings.size()) - 8;
     for (std::size_t i = 0; i < party.size(); ++i) {
         const auto& who = party[i];
         std::string text = std::to_string(i + 1) + " " + who.name + "  " +
@@ -444,6 +446,11 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
         const render::Color colour = who.hit_points <= 0 ? render::Color{170, 110, 110, 255}
                                                          : render::Color{215, 215, 215, 255};
         game::draw_text(scene.framebuffer(), font, 8, y, text, colour, render::Color{0, 0, 0, 255});
+        y += line;
+    }
+    for (const auto& h : hirelings) {
+        game::draw_text(scene.framebuffer(), font, 8, y, "+ " + h.name + ", " + h.profession,
+                        render::Color{190, 190, 215, 255}, render::Color{0, 0, 0, 255});
         y += line;
     }
 }
@@ -985,7 +992,7 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
                         shadow);
     }
     game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
-                    "1-3 ask about something, T closes", dim, shadow);
+                    "1-3 ask about something, H hires or dismisses, T closes", dim, shadow);
 }
 
 // The game's own interface font. A missing font is not fatal: the world still
@@ -1455,6 +1462,8 @@ int main(int argc, char** argv) {
     (void)data::load_names(data_dir, given_names);
     data::ProfessionTextTable trade_talk;
     (void)data::load_profession_text(data_dir, trade_talk);
+    data::NpcProfessionTable professions;
+    (void)data::load_npc_professions(data_dir, professions);
     data::DescriptionTable stat_descriptions;
     data::DescriptionTable class_descriptions;
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
@@ -1494,6 +1503,7 @@ int main(int argc, char** argv) {
     std::set<int> opened_chests;  // a chest gives up its contents once
 
     std::int64_t last_poison_hour = 0;  // when poison last gnawed
+    std::int64_t last_hire_day = 0;  // when the followers last did their daily work
 
     // A die for what is neither combat's nor a map's: potion explosions.
     Mm6Random misc_random{0xA1C4E317u};
@@ -1526,6 +1536,10 @@ int main(int argc, char** argv) {
     (void)data::load_npc_dialogue(data_dir, dialogue);
     (void)data::load_npc_personalities(data_dir, personalities);
     int talking_to = -1;  // an index into the open shop's people, or none
+    // The help the party pays for: at most two, the follower panel's own
+    // seat count. Wages fall due weekly, the cost column's own unit.
+    std::vector<game::Hireling> hirelings;
+    std::int64_t next_wage_day = 7;
     std::string talk_answer;
 
     // The design table's row and the session's building are two views of one
@@ -1707,10 +1721,17 @@ int main(int argc, char** argv) {
             note += (note.empty() ? "" : "  ") + text;
         };
         if (script_state.experience > 0) {
-            for (auto& member : party) {
-                member.experience += script_state.experience;
+            // A hired teacher's percent rides on top; the best one speaks
+            // for the party rather than stacking. `inferred`
+            int bonus = 0;
+            for (const auto& h : hirelings) {
+                bonus = std::max(bonus, h.benefit.experience_percent);
             }
-            add("+" + std::to_string(script_state.experience) + " experience");
+            const int paid = script_state.experience + script_state.experience * bonus / 100;
+            for (auto& member : party) {
+                member.experience += paid;
+            }
+            add("+" + std::to_string(paid) + " experience");
             script_state.experience = 0;
         }
         if (script_state.food > party_food) {
@@ -1887,6 +1908,10 @@ int main(int argc, char** argv) {
                 state.gold = gold;
                 state.bank_gold = bank_gold;
                 state.food = party_food;
+                for (const auto& h : hirelings) {
+                    state.hired.push_back({h.npc_id, h.profession_id, h.name});
+                }
+                state.wage_day = next_wage_day;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -1926,6 +1951,23 @@ int main(int argc, char** argv) {
                     gold = state.gold;
                     bank_gold = state.bank_gold;
                     party_food = state.food;
+                    hirelings.clear();
+                    for (const auto& h : state.hired) {
+                        const auto* row = professions.at(h.profession_id);
+                        if (row == nullptr) {
+                            continue;
+                        }
+                        game::Hireling hire;
+                        hire.npc_id = h.npc_id;
+                        hire.name = h.name;
+                        hire.profession_id = h.profession_id;
+                        hire.profession = data::cp1252_to_utf8(row->name);
+                        hire.weekly_cost = row->hire_cost;
+                        hire.benefit = game::parse_benefit(row->party_benefit);
+                        hirelings.push_back(std::move(hire));
+                    }
+                    next_wage_day = state.wage_day > 0 ? state.wage_day : clock.day() + 7;
+                    last_hire_day = clock.day();
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
@@ -2132,6 +2174,27 @@ int main(int argc, char** argv) {
                 // Mend what monsters broke: half the item's value per piece,
                 // said with the merchant table's own Repair line. The price
                 // is this engine's. `inferred`
+                // A hired smith mends weapons and an armorer the rest,
+                // free, before any bill is drawn up: their rows' own
+                // "unlimited repair".
+                bool smith = false, armorer = false;
+                for (const auto& h : hirelings) {
+                    smith = smith || h.benefit.repairs_weapons;
+                    armorer = armorer || h.benefit.repairs_armor;
+                }
+                int mended = 0;
+                for (auto& member : party) {
+                    for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
+                        if (!member.equipped_broken[slot]) {
+                            continue;
+                        }
+                        const bool weapon = slot == static_cast<std::size_t>(game::Slot::Weapon);
+                        if ((weapon && smith) || (!weapon && armorer)) {
+                            member.equipped_broken[slot] = false;
+                            ++mended;
+                        }
+                    }
+                }
                 int bill = 0;
                 for (const auto& member : party) {
                     for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
@@ -2142,6 +2205,9 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
+                if (mended > 0 && bill == 0) {
+                    shop_said = "Your followers see to the repairs.";
+                } else
                 if (bill == 0) {
                     shop_said = "Nothing here is broken.";
                 } else if (bill > gold) {
@@ -2320,13 +2386,22 @@ int main(int argc, char** argv) {
                             shop_said = "You cannot afford the fare.";
                         } else {
                             gold -= fare;
-                            clock.advance_hours(route.days * game::kHoursPerDay);
+                            // A guide shaves land routes, a sailor sea ones,
+                            // never below the minimum their own rows state.
+                            const bool boat = shop.type == "Boats";
+                            int shaved = 0;
+                            for (const auto& h : hirelings) {
+                                shaved = std::max(shaved, boat ? h.benefit.boat_days_faster
+                                                              : h.benefit.coach_days_faster);
+                            }
+                            const int days = std::max(1, route.days - shaved);
+                            clock.advance_hours(days * game::kHoursPerDay);
                             if (open_map(route.map_file)) {
                                 camera.position = {0, 32.0f * 30.0f, 0};
                                 camera.yaw = 0.6f;
                                 camera.pitch = -0.3f;
-                                pick_up_message = "After " + std::to_string(route.days) +
-                                                  (route.days == 1 ? " day" : " days") +
+                                pick_up_message = "After " + std::to_string(days) +
+                                                  (days == 1 ? " day" : " days") +
                                                   " you arrive in " + session.title();
                                 pick_up_shown = SDL_GetTicks();
                             }
@@ -2458,6 +2533,46 @@ int main(int argc, char** argv) {
                 if (!read) {
                     pick_up_message = "Nobody carries a castable scroll";
                     pick_up_shown = SDL_GetTicks();
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H &&
+                       talking_to >= 0 && open_shop >= 0) {
+                // Hire whoever is being talked to, at their row's weekly
+                // cost — or let a follower go. Two seats, the panel's own.
+                const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                if (talking_to < static_cast<int>(here.size())) {
+                    const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
+                    const auto hired =
+                        std::find_if(hirelings.begin(), hirelings.end(), [&](const auto& h) {
+                            return h.npc_id == person.npc_id;
+                        });
+                    const auto* row = professions.at(person.profession_id);
+                    if (hired != hirelings.end()) {
+                        talk_answer = hired->name + " leaves the party.";
+                        hirelings.erase(hired);
+                    } else if (row == nullptr) {
+                        talk_answer = "They have no trade to offer.";
+                    } else if (hirelings.size() >= game::kHirelingLimit) {
+                        talk_answer = "The party has followers enough.";
+                    } else if (gold < row->hire_cost) {
+                        talk_answer = "Their price is " + std::to_string(row->hire_cost) +
+                                      " gold a week.";
+                    } else {
+                        gold -= row->hire_cost;
+                        if (hirelings.empty()) {
+                            next_wage_day = clock.day() + 7;
+                        }
+                        game::Hireling hire;
+                        hire.npc_id = person.npc_id;
+                        hire.name = person.name;
+                        hire.profession_id = person.profession_id;
+                        hire.profession = data::cp1252_to_utf8(row->name);
+                        hire.weekly_cost = row->hire_cost;
+                        hire.benefit = game::parse_benefit(row->party_benefit);
+                        hirelings.push_back(std::move(hire));
+                        talk_answer = row->join_text.empty()
+                                          ? person.name + " joins the party."
+                                          : data::cp1252_to_utf8(row->join_text);
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H &&
                        shown_member < 0 && shown_pack < 0 && open_shop < 0) {
@@ -2600,11 +2715,22 @@ int main(int argc, char** argv) {
         party_recovery = std::max(0.0f, party_recovery - in.dt);
         clock.advance_seconds(in.dt);
         game::advance_launches(launches, in.dt);
-        battle.award(party);
+        {
+            int xp_bonus = 0;
+            for (const auto& h : hirelings) {
+                xp_bonus = std::max(xp_bonus, h.benefit.experience_percent);
+            }
+            battle.award(party, xp_bonus);
+        }
         // What the kills left: the gold goes to the purse, the items to
         // whichever pack has room, and one line names the lot.
         std::string found_text;
-        if (const int found = battle.take_gold(); found > 0) {
+        if (int found = battle.take_gold(); found > 0) {
+            int gold_bonus = 0;
+            for (const auto& h : hirelings) {
+                gold_bonus = std::max(gold_bonus, h.benefit.gold_percent);
+            }
+            found += found * gold_bonus / 100;
             gold += found;
             found_text = std::to_string(found) + " gold";
         }
@@ -2646,6 +2772,79 @@ int main(int argc, char** argv) {
                 if (member.diseased > 0 && last_poison_hour % 2 == 0 &&
                     member.hit_points > 1) {
                     member.hit_points = std::max(1, member.hit_points - member.diseased);
+                }
+            }
+        }
+
+        // The day turns: the cook makes food, the healer makes rounds, the
+        // dawn casters cast — each at their row's own numbers — and every
+        // seventh day the wages fall due, the cost column's own unit.
+        if (clock.day() > last_hire_day) {
+            last_hire_day = clock.day();
+            for (const auto& h : hirelings) {
+                if (h.benefit.food_per_day > 0 && party_food < h.benefit.food_cap) {
+                    party_food = std::min(party_food + h.benefit.food_per_day,
+                                          h.benefit.food_cap);
+                }
+                for (auto& member : party) {
+                    const bool beyond = member.dead() || member.affliction == "Stone" ||
+                                        member.affliction == "Eradicated";
+                    if (h.benefit.heal_level >= 3 || (h.benefit.heal_level >= 1 && !beyond)) {
+                        member.hit_points = member.max_hit_points;
+                    }
+                    if (h.benefit.heal_level >= 3 || (h.benefit.heal_level >= 2 && !beyond)) {
+                        member.poisoned = 0;
+                        member.diseased = 0;
+                        member.affliction.clear();
+                    }
+                    if (h.benefit.bless_hours > 0) {
+                        member.bless_until = std::max(
+                            member.bless_until,
+                            clock.minutes() + h.benefit.bless_hours * game::kMinutesPerHour);
+                    }
+                    if (h.benefit.heroism_hours > 0) {
+                        member.heroism_until = std::max(
+                            member.heroism_until,
+                            clock.minutes() + h.benefit.heroism_hours * game::kMinutesPerHour);
+                    }
+                }
+            }
+            if (!hirelings.empty() && clock.day() >= next_wage_day) {
+                while (clock.day() >= next_wage_day) {
+                    next_wage_day += 7;
+                }
+                int wages = 0;
+                for (const auto& h : hirelings) {
+                    wages += h.weekly_cost;
+                }
+                if (gold >= wages) {
+                    gold -= wages;
+                    pick_up_message = "You pay " + std::to_string(wages) + " gold in wages";
+                } else {
+                    hirelings.clear();
+                    pick_up_message = "Unpaid, your followers leave";
+                }
+                pick_up_shown = SDL_GetTicks();
+            }
+        }
+
+        // A fool's luck and an enchanter's wards lie on the party while they
+        // are kept, reapplied as floors the way a fountain's blessing is.
+        for (const auto& h : hirelings) {
+            for (auto& member : party) {
+                if (h.benefit.luck_bonus > 0) {
+                    auto& luck = member.temp_attributes[static_cast<std::size_t>(
+                        game::Attribute::Luck)];
+                    luck = std::max(luck, h.benefit.luck_bonus);
+                }
+                if (h.benefit.elemental_protection > 0) {
+                    for (const auto element :
+                         {data::Resistance::Fire, data::Resistance::Electricity,
+                          data::Resistance::Cold, data::Resistance::Poison}) {
+                        auto& ward =
+                            member.temp_resistances[static_cast<std::size_t>(element)];
+                        ward = std::max(ward, h.benefit.elemental_protection);
+                    }
                 }
             }
         }
@@ -2982,7 +3181,7 @@ int main(int argc, char** argv) {
             draw_directory(scene, font, session, clock, trade_talk);
         }
         if (shown_member < 0 && shown_pack < 0 && open_shop < 0) {
-            draw_party_strip(scene, font, party);
+            draw_party_strip(scene, font, party, hirelings);
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
                             render::Color{0, 0, 0, 255});

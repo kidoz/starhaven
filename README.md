@@ -222,6 +222,14 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Hired help from the streets**: talking to anyone with a trade offers H to
+  hire them at their `npcprof.txt` row's weekly cost, two seats as the
+  original's follower panel gives. Their benefit prose is read literally —
+  teachers' experience percents, guides shaving travel days, healers'
+  daily rounds, cooks making food, smiths mending for free, the Enchanter's
+  elemental wards, dawn casts of Bless and Heroism — and wages fall due
+  every seventh day; an unpaid party walks alone again. The "%17 percent of
+  gold" the prose threatens is in no column of the table, so nobody takes it.
 - **The reward types, named by their own prose**: a give-step and the number
   its event speaks sit side by side, and where they match, the word after the
   number names the type — experience (2,000 of it under Goblinwatch's

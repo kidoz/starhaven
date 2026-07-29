@@ -346,7 +346,21 @@ data.
 | 5–7 | action text, benefit while in the party, join text | observed |
 
 The prose carries `%01`-style placeholders the engine substitutes; what each
-stands for is `unknown`.
+stands for is `unknown`. The recurring benefit tail "%01 takes %17 percent of
+all gold you find" names a share **no column of the table carries** — the
+eight columns above are all there are — so the gold share stays `unknown`
+and this engine's hirelings take none.
+
+The 51 filled benefit cells use a small set of phrasings, and the engine
+reads their numbers out — "Ten percent bonus on all experience learned",
+"All boat travel 2 days faster (minimum one day)", "Makes one day of food
+per day (maximum of 14 days)", the healers' three rungs, "Unlimited weapon
+repair", "Five point bonus to Luck statistic", "Increases protection from
+the four elements by 20", the dawn casts of Bless and Heroism at their
+written durations. A benefit whose mechanic the engine lacks (skill points,
+reputation, the travel spells) is carried as prose only. `observed` for the
+phrasings; that the best bonus speaks for the party rather than stacking,
+and the two-seat limit, are the engine's own. See src/game/hire.hpp.
 
 ## `npctopic.txt`, `npctext.txt` and `NPCNews.txt`
 

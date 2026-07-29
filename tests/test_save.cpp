@@ -110,3 +110,27 @@ TEST_CASE("unknown record kinds are skipped, not fatal", "[save]") {
     REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\nfuture-thing\t7\t8\n", state));
     REQUIRE(state.map_file == "D01.blv");
 }
+
+TEST_CASE("the hired help and their wage day round-trip", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.food = 6;
+    state.hired.push_back({12, 10, "Sharry"});
+    state.hired.push_back({44, 33, "Cooky Tom"});
+    state.wage_day = 21;
+
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.food == 6);
+    REQUIRE(after.hired.size() == 2);
+    REQUIRE(after.hired[0].npc_id == 12);
+    REQUIRE(after.hired[0].profession_id == 10);
+    REQUIRE(after.hired[0].name == "Sharry");
+    REQUIRE(after.hired[1].name == "Cooky Tom");
+    REQUIRE(after.wage_day == 21);
+    // A save from before the followers reads as none of them.
+    SaveState old;
+    REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\ngold\t50\n", old));
+    REQUIRE(old.hired.empty());
+    REQUIRE(old.food == 0);
+}

@@ -274,7 +274,8 @@ public:
 
     // Share it among whoever is still standing, the way a party splits a kill.
     // Nobody standing means nobody collects, and it waits. `inferred`
-    void award(std::array<Character, 4>& party) {
+    // `bonus_percent` is a hired teacher's cut on top, from their row's prose.
+    void award(std::array<Character, 4>& party, int bonus_percent = 0) {
         if (experience_ <= 0) {
             return;
         }
@@ -285,7 +286,7 @@ public:
         if (standing == 0) {
             return;
         }
-        const int each = experience_ / standing;
+        const int each = (experience_ + experience_ * bonus_percent / 100) / standing;
         for (auto& who : party) {
             if (who.hit_points > 0) {
                 who.experience += each;
