@@ -495,9 +495,12 @@ Reproduce with `blv_info <map> --bsp`.
 
 ## Open questions (next slice)
 
-- The sections between the face extras and the decorations: rooms/sectors, the
-  BSP tree, lights and doors. Locating the decoration array by offset rather
-  than by scanning depends on these. `unknown`
+- The sections between the face extras and the decorations. The sector
+  table at the region's front is partly read and the lights turned out to
+  live *after* the decorations, so what remains here is the high-entropy
+  middle — plausibly the BSP — and the exact section offsets; locating the
+  decoration array by offset rather than by scanning still depends on
+  them. `unknown`
 
   Sliding-window stride detection over that region on `D03.blv` segments it
   into a **stride-8** run, a high-entropy run with no stride above noise
@@ -517,14 +520,15 @@ Reproduce with `blv_info <map> --bsp`.
      first search attempt, and it turned out not to be a section at all: it is
      the face-extra name array, now decoded. Finding it moved the boundary
      forward but did not make the count-prefixed model work for what follows.
-- Whatever follows the decoration block — 32,456 bytes on `D01.blv`, 70,020 on
-  `CD1.blv`. `unknown`
+- What follows the decoration block is now partly read: first the lights,
+  then the quad section, both above. What the quads mean, and whatever
+  trails them, stays `unknown`.
 - The header fields at 0x00, 0x6C and 0x70. `unknown`
 - The face-extra field at +0x1A is the **event id**: see
   [`map-events.md`](map-events.md). It was carried as unknown here until the
   scripts were found.
-- The region after the face extras — rooms, BSP, lights and doors — remains
-  undecoded. Reading its stale pointers through the recovered load address does
+- The undecoded middle of the region after the face extras resists its
+  own pointers too. Reading its stale pointers through the recovered load address does
   **not** open it: only 4% of the region's words map inside the payload at all,
   and of those just 7 land on a face boundary, none of them a face carrying the
   door or event bits. The pointers that are pointers mostly address other

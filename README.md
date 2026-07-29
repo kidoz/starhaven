@@ -4,10 +4,15 @@ An open-source engine for **Might and Magic VI: The Mandate of Heaven**,
 targeting macOS, Linux, and Windows. The goal is a portable reimplementation
 that lets you play the original game using your **own legally obtained** copy.
 
-This project is in its early stages. It currently reads the game's archives,
-decodes outdoor maps, and renders them in 3D: textured terrain with the game's
-own ground art, and every placed model drawn as a filled, textured mesh. Audio,
-UI, and gameplay come in later slices.
+This is a playable engine. It renders every outdoor and indoor map with the
+game's own art, lights, music and sound, and runs the game's systems — event
+scripts, real-time and turn-based combat, skills, spells, shops, hirelings,
+promotions, reputation, travel, rest, saves — grounded in the game's own data
+tables rather than invented: New Sorpigal's opening arc, from the letter to
+Goblinwatch's reward to the coach out, runs end to end under a scripted
+regression. Every decoded format is documented with its evidence tagged
+`observed`, `inferred` or `unknown`, and where the engine had to choose a
+number the tables don't give, the code and docs say so.
 
 ## Legal posture
 
@@ -1002,7 +1007,8 @@ docs/
 18. ~~Decode the `.blv` lights and light the dungeons with them.~~ ✓ (the quad section after them is measured but unread; exact section offsets remain)
 19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
 20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)
-21. Decode event-record bodies.
+21. ~~Decode event-record bodies.~~ ✓ (90 opcodes measured, two dozen named
+    and running — the scripts walk, ask, pay, hurt and teleport)
 22. ~~Smacker DPCM audio and an SDL3 audio sink.~~ ✓ (this slice)
 23. ~~Decode the sound-effect archive and its IMA ADPCM waves.~~ ✓ (this slice)
 24. ~~Decode actor placements from the event files.~~ ✓ (this slice)
@@ -1011,7 +1017,15 @@ docs/
 27. ~~Share the scene, camera and asset code between the walkers; draw indoor decorations.~~ ✓ (this slice)
 28. ~~Play the installation's MP3 music.~~ ✓ (this slice)
 29. ~~Decode the BLV face-extra name array.~~ ✓ (this slice)
-30. UI and gameplay systems.
+30. ~~Gameplay systems from the game's own tables: combat, skills, spells,
+    shops, hirelings, promotions, reputation, travel, rest, saves.~~ ✓
+31. The game's own screen furniture: the interface layout and panel art
+    around the 3D view, in place of the engine's overlay.
+32. The rest of the spell book, beyond the buffs, cures and travel spells
+    that are in.
+33. Quest arcs beyond New Sorpigal, proven the same scripted way.
+34. The unread corners: the BLV quad section, `DMONLIST.BIN`'s 34 silent
+    bytes per record, the opcode tail.
 
 ## Performance
 

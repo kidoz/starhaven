@@ -604,7 +604,9 @@ names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 
 ## Open questions
 
-- Most opcodes. `unknown`
+- The rare tail of the 90 distinct opcodes. Two dozen are named above
+  and carry the scripts' bulk; the rest are single-digit-use strays.
+  `unknown`
 - Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
   on the rest, including consecutive runs within one script. Three readings
   are tested and fail: `2DEvents.txt` row ids (the values run past the

@@ -909,11 +909,13 @@ because ragged rows make out-of-range reads normal rather than exceptional.
 - The container's `unknown` field at 0x2C (256 on every table). `unknown`
 - Which A/B/C variant an encounter slot selects, and what `Dif 1-5` drives.
   `unknown`
-- The semantics of the monster columns tagged `inferred` above — `Pref`,
-  `Bonus`, `Hst`, `Rec` — and of the `Misc Special` column. `unknown`
+- The semantics of the monster columns still unread — `Bonus`, `Hst`,
+  `Rec` — and of the `Misc Special` column; `Pref`'s digit values (2, 3,
+  4), where its letters now read as class initials. `unknown`
 - The `%01` codes other than 1, 2, 5 and 6. `unknown`
 - What indexes `GLOBAL.TXT` by id. `unknown`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
   `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`
-- Where `MONSTERS.TXT`'s treasure codes (`"5%6D20+L2Bow"`) are interpreted, and
-  how they index `ITEMS.TXT`. `unknown`
+- `MONSTERS.TXT`'s treasure codes are read and paid out through the four
+  item-generator tables — see the treasure-code section above. This was
+  carried as `unknown` here until those tables were joined.
