@@ -41,11 +41,21 @@ struct HireBenefit {
     int bless_hours = 0;    // cast at dawn, at the row's own duration
     int heroism_hours = 0;
 
+    // The masters' skill bonuses, in the rows' own points: "Two point bonus
+    // to all weapon skills", "Three point bonus to all spell skills", the
+    // merchants' "Four point bonus to Merchant skill".
+    int weapon_skill_bonus = 0;
+    int spell_skill_bonus = 0;
+    int merchant_skill_bonus = 0;
+    int armor_skill_bonus = 0;  // the Squire's "Armor and weapon skills"
+
     [[nodiscard]] bool any() const noexcept {
         return experience_percent != 0 || gold_percent != 0 || coach_days_faster != 0 ||
                boat_days_faster != 0 || heal_level != 0 || repairs_weapons || repairs_armor ||
                luck_bonus != 0 || elemental_protection != 0 || food_per_day != 0 ||
-               food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0;
+               food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0 ||
+               weapon_skill_bonus != 0 || spell_skill_bonus != 0 ||
+               merchant_skill_bonus != 0 || armor_skill_bonus != 0;
     }
 };
 
@@ -205,6 +215,25 @@ namespace hire_detail {
         out.food_saved_camping = number_before(text, "less day");
     } else if (text.find("food use is reduced by") != std::string::npos) {
         out.food_saved_camping = number_after(text, "food use is reduced by");
+    }
+
+    // "Two point bonus to all weapon skills for all characters", "Armor and
+    // weapon skills are increased by two points for each character".
+    if (text.find("point bonus to all weapon skills") != std::string::npos) {
+        out.weapon_skill_bonus = number_before(text, "point bonus to all weapon skills");
+    } else if (text.find("armor and weapon skills are increased by") != std::string::npos) {
+        out.weapon_skill_bonus = number_after(text, "armor and weapon skills are increased by");
+        out.armor_skill_bonus = out.weapon_skill_bonus;
+    }
+    if (text.find("point bonus to all spell skills") != std::string::npos) {
+        out.spell_skill_bonus = number_before(text, "point bonus to all spell skills");
+    }
+    // "Four point bonus to Merchant skill", "Merchant skill is increased by
+    // eight points".
+    if (text.find("point bonus to merchant skill") != std::string::npos) {
+        out.merchant_skill_bonus = number_before(text, "point bonus to merchant skill");
+    } else if (text.find("merchant skill is increased by") != std::string::npos) {
+        out.merchant_skill_bonus = number_after(text, "merchant skill is increased by");
     }
 
     // "Casts the Bless spell (duration 2 hours) at master ranking once per

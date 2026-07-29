@@ -530,6 +530,25 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
+## The skills' own effect lines
+
+`SKILLDES.TXT` lists 31 skills, and beside each skill's prose its columns
+state what the skill does, one line per rank: `"Skill added to Attack
+Bonus"`, `"Skill added to Attack Damage"`, `"Skill added to Armor Class"`,
+`"Skill adds to Hit Points"`, `"Skill adds to Spell Points"`, `"Skill
+adjusts shop prices in your favor"`, and the nine magic schools' `"Effects
+vary per spell"`. `observed` The engine applies exactly what the first
+(normal) line names: a weapon skill's points ride on the to-hit roll, and on
+damage where its line grants damage; armour and shield points join the
+armour class; Merchant bends counter prices; a school's points are the
+per-skill dice multiplier its spells scale by. The expert and master lines —
+doublings, stuns, dual wielding, the second arrow — are beyond this slice.
+What a point is numerically worth where the line names no number, the
+raising staircase (the next point costs its own number), five points a
+level, and each class's one starting skill are the engine's own and say so.
+`inferred` for those. The hired masters' bonuses — Arms Master, Squire, the
+merchants — add their rows' points to the same reads.
+
 ## The spells' own numbers
 
 `Spells.txt` states what a spell does in prose, and the damage and healing

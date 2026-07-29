@@ -126,6 +126,9 @@ struct SaveState {
             }
             out << "\n";
         }
+        for (const auto& [skill, points] : who.skills) {
+            out << "skill\t" << i << "\t" << points << "\t" << skill << "\n";
+        }
         out << "temps\t" << i << "\t" << who.temp_armor << "\t" << who.haste_until << "\t"
             << who.bless_until << "\t" << who.heroism_until << "\t" << who.stone_skin_until;
         for (const int bonus : who.temp_attributes) {
@@ -224,6 +227,14 @@ struct SaveState {
             out.opened_chests.push_back(next_int());
         } else if (kind == "door") {
             out.open_doors.push_back(static_cast<std::uint32_t>(next_int()));
+        } else if (kind == "skill") {
+            const int member = next_int();
+            const int points = next_int();
+            std::string name;
+            std::getline(fields, name, '\t');
+            if (member >= 0 && member < 4 && !name.empty()) {
+                out.party[static_cast<std::size_t>(member)].skills[name] = points;
+            }
         } else if (kind == "character") {
             const auto i = static_cast<std::size_t>(next_int());
             if (i >= out.party.size()) {

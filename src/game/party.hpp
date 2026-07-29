@@ -12,6 +12,7 @@
 // they are defined.
 
 #include <array>
+#include <map>
 #include <cstdint>
 #include <set>
 #include <string>
@@ -159,6 +160,10 @@ struct Character {
     // The spells this character has learned from books, as Spells.txt ids.
     std::set<int> known_spells;
 
+    // Skill points held, by SKILLDES.TXT heading. What each grants is the
+    // table's own effect line; see src/game/skills.hpp.
+    std::map<std::string, int> skills;
+
     // Poisoned or diseased, at the level the tables name (Poison1..3,
     // Disease1..3); zero is well. What they do over time is this engine's
     // and marked where it ticks. `affliction` is a further condition the
@@ -255,6 +260,13 @@ inline constexpr std::array<std::string_view, 6> kBaseClasses{"Knight", "Cleric"
 // runs this again; every number is this engine's. `inferred`
 inline void derive_start(Character& c) {
     c.max_hit_points = 20 + attribute_bonus(c.attribute(Attribute::Endurance)) * 2;
+    // One weapon skill at one point, by class; which is this engine's
+    // reading of the class prose (see skills.hpp for the choices).
+    c.skills.clear();
+    c.skills[c.class_name == "Knight"                                  ? "Sword"
+             : c.class_name == "Paladin" || c.class_name == "Cleric"   ? "Mace"
+             : c.class_name == "Archer"                                ? "Bow"
+                                                                       : "Staff"] = 1;
     c.hit_points = c.max_hit_points;
     c.known_spells.clear();
     c.max_spell_points = 0;

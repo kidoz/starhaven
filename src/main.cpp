@@ -47,6 +47,7 @@
 #include "game/save.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
+#include "game/skills.hpp"
 #include "game/sprites.hpp"
 #include "game/temple.hpp"
 #include "game/text.hpp"
@@ -371,7 +372,28 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
         }
     }
 
+    // The skills held, each with what raising it would cost. The staircase
+    // is the engine's own; the effects are the table's lines.
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    "Skills  (" + std::to_string(who.skill_points) + " to spend)", white,
+                    shadow);
+    y += line;
+    int numbered = 5;
+    for (const auto& [skill, points] : who.skills) {
+        std::string label = std::to_string(numbered) + "  " + skill + "  " +
+                            std::to_string(points) + "  (raise for " +
+                            std::to_string(game::raise_cost(points)) + ")";
+        game::draw_text(scene.framebuffer(), font, 24, y, label,
+                        who.skill_points >= game::raise_cost(points) ? white : dim, shadow);
+        y += line;
+        if (++numbered > 9) {
+            break;
+        }
+    }
+
     // And the derived numbers, in the same order the table lists them.
+    const int left_bottom = y;
     y = 120;
     const std::array<std::pair<std::size_t, std::string>, 5> derived{{
         {7, std::to_string(who.hit_points) + " / " + std::to_string(who.max_hit_points)},
@@ -406,12 +428,12 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
         }
     }
 
-    // What the class is, in the designers' own words.
+    // What the class is, in the designers' own words, below both columns.
     if (const auto* described = classes.find(who.class_name);
         described != nullptr && !described->text.empty()) {
         const std::string text = data::cp1252_to_utf8(described->text.front());
         int x = 24;
-        int wrap_y = y + line * 2;
+        int wrap_y = std::max(left_bottom, y) + line * 2;
         std::string word;
         for (std::size_t i = 0; i <= text.size(); ++i) {
             const char ch = i < text.size() ? text[i] : ' ';
@@ -424,7 +446,7 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
                 x = 24;
                 wrap_y += line;
             }
-            if (wrap_y < kHeight - line) {
+            if (wrap_y < kHeight - line * 2 - 6) {
                 game::draw_text(scene.framebuffer(), font, x, wrap_y, word, dim, shadow);
             }
             x += width;
@@ -433,7 +455,7 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
     }
 
     game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 6,
-                    "1-4 choose a character, C closes", dim, shadow);
+                    "1-4 choose a character, 5-9 raise a skill, C closes", dim, shadow);
 }
 
 // Who is in the party, along the bottom-left: enough to know they exist and
@@ -1577,6 +1599,8 @@ int main(int argc, char** argv) {
     (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
     data::JournalTable award_texts;
     (void)data::load_awards(data_dir, award_texts);
+    data::DescriptionTable skill_table;
+    (void)data::load_descriptions(data_dir, "SkillDes.txt", skill_table);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
     // The party is the player's to shape before the world starts: class,
     // face and name from the game's own tables and portraits, the numbers
@@ -1851,6 +1875,62 @@ int main(int argc, char** argv) {
             }
         }
         return false;
+    };
+
+    // The weapon skill behind a swing: the striker's points in the equipped
+    // weapon's own Skill Group plus the best hired master's, split into what
+    // that skill's SKILLDES.TXT lines actually grant.
+    const auto weapon_skill_of = [&](const game::Character& who) -> std::pair<int, int> {
+        const int held = who.equipped[static_cast<std::size_t>(game::Slot::Weapon)];
+        const auto* row = held > 0 ? item_stats.at(static_cast<std::size_t>(held)) : nullptr;
+        if (row == nullptr || row->skill_group.empty()) {
+            return {0, 0};
+        }
+        int points = 0;
+        if (const auto it = who.skills.find(row->skill_group); it != who.skills.end()) {
+            points = it->second;
+        }
+        int mastered = 0;
+        for (const auto& h : hirelings) {
+            mastered = std::max(mastered, h.benefit.weapon_skill_bonus);
+        }
+        points += mastered;
+        const auto* skill = skill_table.find(row->skill_group);
+        if (points <= 0 || skill == nullptr) {
+            return {0, 0};
+        }
+        const game::SkillEffect effect = game::parse_skill_effect(skill->text);
+        return {effect.attack_bonus ? points : 0, effect.attack_damage ? points : 0};
+    };
+    // And the school skill behind a cast: the caster's points in the school's
+    // own heading, the hired masters added, their level standing in only
+    // when they have no points at all.
+    const auto spell_skill_of = [&](const game::Character& who,
+                                    const data::SpellStatsEntry& spell) {
+        int points = 0;
+        if (const auto it = who.skills.find(std::string(game::school_skill(spell.school)));
+            it != who.skills.end()) {
+            points = it->second;
+        }
+        int mastered = 0;
+        for (const auto& h : hirelings) {
+            mastered = std::max(mastered, h.benefit.spell_skill_bonus);
+        }
+        return points > 0 ? points + mastered : who.level;
+    };
+    // What the party pays over a counter: the best merchant among them,
+    // hired or born, bends the asking price by skills.hpp's own curve.
+    const auto haggled = [&](int asking) {
+        int best = 0;
+        for (const auto& member : party) {
+            if (const auto it = member.skills.find("Merchant"); it != member.skills.end()) {
+                best = std::max(best, it->second);
+            }
+        }
+        for (const auto& h : hirelings) {
+            best = std::max(best, h.benefit.merchant_skill_bonus);
+        }
+        return game::haggled_price(asking, best);
     };
 
     // A walked event's other payments, shared the same way. Experience goes
@@ -2616,7 +2696,8 @@ int main(int argc, char** argv) {
                     if (static_cast<std::size_t>(chosen) < shop_stock.size()) {
                         const auto& offered = shop_stock[static_cast<std::size_t>(chosen)];
                         const auto* row = item_stats.at(static_cast<std::size_t>(offered.item_id));
-                        const bool affordable = row != nullptr && offered.price <= gold;
+                        const int price = haggled(offered.price);
+                        const bool affordable = row != nullptr && price <= gold;
                         bool carried = false;
                         if (affordable) {
                             const render::Texture& icon = cache.icon(row->picture);
@@ -2632,7 +2713,7 @@ int main(int argc, char** argv) {
                             }
                         }
                         if (carried) {
-                            gold -= offered.price;
+                            gold -= price;
                             shop_stock.erase(shop_stock.begin() + chosen);
                         }
                         game::Speech counter;
@@ -2645,7 +2726,7 @@ int main(int argc, char** argv) {
                         counter.item =
                             row == nullptr ? std::string{} : data::cp1252_to_utf8(row->name);
                         counter.asking = row == nullptr ? 0 : row->value;
-                        counter.offered = offered.price;
+                        counter.offered = price;
                         shop_said = game::substitute(game::merchant_line(merchant_words,
                                                                          data::MerchantAction::Buy,
                                                                          affordable),
@@ -2657,6 +2738,21 @@ int main(int argc, char** argv) {
                     const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
                     shop_stock = stock_for(shop, static_cast<std::uint32_t>(shop.id) * 2654435761U);
                     shop_said.clear();
+                } else if (shown_member >= 0 && chosen >= 4 && chosen < 9) {
+                    // Raise the numbered skill, at the staircase's price.
+                    auto& who = party[static_cast<std::size_t>(shown_member)];
+                    int index = chosen - 4;
+                    for (auto& [skill, points] : who.skills) {
+                        if (index-- != 0) {
+                            continue;
+                        }
+                        const int cost = game::raise_cost(points);
+                        if (who.skill_points >= cost) {
+                            who.skill_points -= cost;
+                            ++points;
+                        }
+                        break;
+                    }
                 } else if (shown_member >= 0 && chosen < 4) {
                     shown_member = chosen;
                 } else if (shown_pack >= 0 && chosen < 4) {
@@ -2715,16 +2811,16 @@ int main(int argc, char** argv) {
                                 break;
                             }
                             what = battle.smite(target, effect.damage, effect.damage_per_skill,
-                                                party[who].level, spell->element,
-                                                party[who].name, session, monster_stats,
-                                                item_stats, random_items, standard_bonuses,
-                                                special_bonuses);
+                                                spell_skill_of(party[who], *spell),
+                                                spell->element, party[who].name, session,
+                                                monster_stats, item_stats, random_items,
+                                                standard_bonuses, special_bonuses);
                         } else if (const auto lays = condition_of(spell_id)) {
                             // Its written minutes per point of skill, on the
                             // fight's own clock.
                             const int seconds =
                                 data::parse_spell_duration(*spell, 0).minutes(
-                                    party[who].level) *
+                                    spell_skill_of(party[who], *spell)) *
                                 60;
                             std::size_t touched = 0;
                             if (lays->second) {
@@ -2891,8 +2987,9 @@ int main(int argc, char** argv) {
                         caster.spell_points -= best->cost_normal;
                         pick_up_message = battle.smite(
                             target, best_effect.damage, best_effect.damage_per_skill,
-                            caster.level, best->element, caster.name, session, monster_stats,
-                            item_stats, random_items, standard_bonuses, special_bonuses);
+                            spell_skill_of(caster, *best), best->element, caster.name, session,
+                            monster_stats, item_stats, random_items, standard_bonuses,
+                            special_bonuses);
                     } else {
                         pick_up_message = "Nothing in reach to cast at";
                     }
@@ -3141,9 +3238,37 @@ int main(int argc, char** argv) {
 
         // Armour class is what the party is wearing plus its own footwork.
         for (std::size_t i = 0; i < party.size(); ++i) {
+            // Worn skill on top of worn steel: each equipped piece whose
+            // Skill Group's own line grants Armor Class adds the wearer's
+            // points in it, the Squire's bonus included.
+            int skilled_armor = 0;
+            int squire = 0;
+            for (const auto& h : hirelings) {
+                squire = std::max(squire, h.benefit.armor_skill_bonus);
+            }
+            for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
+                const int worn = party[i].equipped[slot];
+                if (worn <= 0 || party[i].equipped_broken[slot]) {
+                    continue;
+                }
+                const auto* row = item_stats.at(static_cast<std::size_t>(worn));
+                if (row == nullptr || row->skill_group.empty()) {
+                    continue;
+                }
+                const auto* skill = skill_table.find(row->skill_group);
+                if (skill == nullptr || !game::parse_skill_effect(skill->text).armor_class) {
+                    continue;
+                }
+                int points = squire;
+                if (const auto it = party[i].skills.find(row->skill_group);
+                    it != party[i].skills.end()) {
+                    points += it->second;
+                }
+                skilled_armor += points;
+            }
             party[i].armor_class =
                 game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
-                game::armour_of(party[i], item_stats) + party[i].temp_armor;
+                game::armour_of(party[i], item_stats) + party[i].temp_armor + skilled_armor;
         }
 
         if (want_rest) {
@@ -3416,7 +3541,9 @@ int main(int argc, char** argv) {
                     }
                     std::string blow =
                         battle.strike(target, party[who], packs[who], session, monster_stats,
-                                      item_stats, random_items, standard_bonuses, special_bonuses);
+                                      item_stats, random_items, standard_bonuses, special_bonuses,
+                                      weapon_skill_of(party[who]).first,
+                                      weapon_skill_of(party[who]).second);
                     if (!blow.empty()) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();

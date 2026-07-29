@@ -95,3 +95,18 @@ TEST_CASE("the porters' camping savings parse, gypsy phrasing included", "[hire]
                           "each character, and Reputation is decreased by one full category.")
                 .food_saved_camping == 1);
 }
+
+TEST_CASE("the masters' skill bonuses parse", "[hire]") {
+    REQUIRE(parse_benefit("Two point bonus to all weapon skills for all characters.")
+                .weapon_skill_bonus == 2);
+    REQUIRE(parse_benefit("Armor and weapon skills are increased by two points for each "
+                          "character.")
+                .weapon_skill_bonus == 2);
+    REQUIRE(parse_benefit("Four point bonus to all spell skills for all characters.")
+                .spell_skill_bonus == 4);
+    REQUIRE(parse_benefit("Four point bonus to Merchant skill for all characters.")
+                .merchant_skill_bonus == 4);
+    REQUIRE(parse_benefit("Merchant skill is increased by eight points for each character and "
+                          "Reputation is decreased by one full category.")
+                .merchant_skill_bonus == 8);
+}

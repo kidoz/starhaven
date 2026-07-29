@@ -222,6 +222,15 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Skills, read off their own table**: `SKILLDES.TXT` writes what each of
+  its 31 skills does in effect lines — "Skill added to Attack Bonus",
+  "...to Attack Damage", "...to Armor Class", "Skill adjusts shop prices in
+  your favor" — and the engine applies exactly those: weapon points ride the
+  to-hit roll and the damage where granted, armour and shield points join
+  the AC, a school's points are what its spells scale by, and a merchant in
+  the party haggles every counter. Points come five a level and are spent on
+  the sheet at an engine-own staircase; the hired Arms Masters, Squires and
+  merchants add their rows' bonuses to the same numbers.
 - **The fight's conditions cut both ways**: Mass Fear, Slow, Paralyze and
   Charm now do to monsters exactly what their prose says — fear holds their
   blows and breaks on damage, slow doubles their recovery, paralysis pins

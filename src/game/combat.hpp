@@ -349,12 +349,17 @@ public:
 
     // The party strikes one monster. Returns what happened, for the message
     // line, or empty when the blow was not possible at all.
+    // `skill_to_hit` and `skill_damage` are the striker's weapon-skill
+    // points where that skill's own SKILLDES.TXT line grants each — "Skill
+    // added to Attack Bonus", "Skill added to Attack Damage" — computed by
+    // the caller, who holds the table.
     std::string strike(std::size_t actor, Character& who, const Pack& pack,  // NOLINT
                        const world::MapSession& session, const data::MonsterStatsTable& monsters,
                        const data::ItemStatsTable& items,
                        const data::RandomItemTable& random_items,
                        const data::StandardBonusTable& standard_bonuses,
-                       const data::SpecialBonusTable& special_bonuses) {
+                       const data::SpecialBonusTable& special_bonuses, int skill_to_hit = 0,
+                       int skill_damage = 0) {
         if (!alive(actor) || who.hit_points <= 0) {
             return {};
         }
@@ -366,8 +371,8 @@ public:
 
         // Whether it lands: the character's accuracy against the monster's
         // armour class, on a hundred. `inferred`
-        const int aim =
-            50 + attribute_bonus(who.attribute(Attribute::Accuracy)) * 5 - monster.armor_class;
+        const int aim = 50 + attribute_bonus(who.attribute(Attribute::Accuracy)) * 5 +
+                        skill_to_hit - monster.armor_class;
         if (static_cast<int>(random_.next() % 100) >= aim) {
             return who.name + " misses " + monster.name;
         }
@@ -375,7 +380,7 @@ public:
         // A weapon does physical damage, which no resistance column answers;
         // the call is here so an elemental one would be answered correctly.
         int damage = data::roll(weapon_of(who, items), random_) +
-                     attribute_bonus(who.attribute(Attribute::Might));
+                     attribute_bonus(who.attribute(Attribute::Might)) + skill_damage;
         damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, "Phys"));
         damage = damage < 1 ? 1 : damage;
 

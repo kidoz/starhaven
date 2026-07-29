@@ -82,6 +82,9 @@ inline void train(Character& who) {
         who.max_spell_points += 3;
         who.spell_points = who.max_spell_points;
     }
+    // Skill points to spend on the sheet; that a level grants five is this
+    // engine's own number. `inferred`
+    who.skill_points += 5;
 }
 
 }  // namespace starhaven::game
