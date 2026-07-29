@@ -144,7 +144,10 @@ interoperability and compatibility with a legally purchased copy.
   statistics: a
   monster's level, hit points, armour, experience, attacks and resistances, or
   an item's type, damage and value. Spells are named rather than printed as
-  table codes — `Fireball`, not `Fireball,N,5`.
+  table codes — `Fireball`, not `Fireball,N,5`. Interactables name themselves
+  under the cursor from their event's own header — "Exit Door", "Lever",
+  "Drink from Fountain" — and an establishment's door names the establishment
+  from its `2DEvents.txt` row.
 - A typed view over the **town establishments** (`2DEvents.txt`): 556 shops,
   temples, taverns and guilds with proprietors, titles, stock and opening
   hours, joined to the map each stands on — 95 in Free Haven, 47 in New

@@ -238,13 +238,26 @@ inline constexpr float kUseRange = 512.0f;
     return out;
 }
 
-// What a face with an event on it calls itself, from its script.
+// What a face with an event on it calls itself, from its script: its name
+// opcode when it carries one, else its header, whose byte is the thing's
+// label as a string index — "Door", "Lever", "Drink from Fountain". Not on
+// an event that enters an establishment: there the header is a `2DEvents.txt`
+// row, and the caller has the table that names those.
 [[nodiscard]] inline std::string face_name(const world::MapSession& session,
                                            std::uint16_t event_id) {
-    const int index = session.script.string_of(event_id, world::kOpcodeName);
-    return index < 0 ? std::string{}
-                     : data::cp1252_to_utf8(
-                           std::string(session.script_strings.at(static_cast<std::size_t>(index))));
+    int index = session.script.string_of(event_id, world::kOpcodeName);
+    if (index < 0 && session.script.building_of(event_id) == 0) {
+        index = session.script.label_of(event_id);
+    }
+    if (index < 0) {
+        return {};
+    }
+    std::string named = data::cp1252_to_utf8(
+        std::string(session.script_strings.at(static_cast<std::size_t>(index))));
+    while (!named.empty() && (named.back() == ' ' || named.back() == '\r')) {
+        named.pop_back();
+    }
+    return named;
 }
 
 // And what it says when the party uses it.

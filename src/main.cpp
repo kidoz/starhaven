@@ -2870,10 +2870,22 @@ int main(int argc, char** argv) {
                    p.z - 0.0005f;
         };
         // A face with a script on it names itself, which the inspect panel
-        // shows the same way it names a monster.
+        // shows the same way it names a monster. An establishment's door
+        // names the establishment, from the design table's own row.
         if (aimed.found() && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
-            if (const std::string named = game::face_name(session, aimed.event_id);
-                !named.empty()) {
+            std::string named;
+            if (const std::uint32_t row = session.script.building_of(aimed.event_id); row != 0) {
+                for (const auto* shop : shops_here) {
+                    if (static_cast<std::uint32_t>(shop->id) == row) {
+                        named = data::cp1252_to_utf8(shop->name);
+                        break;
+                    }
+                }
+            }
+            if (named.empty()) {
+                named = game::face_name(session, aimed.event_id);
+            }
+            if (!named.empty()) {
                 game::draw_text(scene.framebuffer(), font, kWidth / 2 - font.text_width(named) / 2,
                                 kHeight / 2 + 16, named, render::Color{225, 220, 190, 255},
                                 render::Color{0, 0, 0, 255});

@@ -373,6 +373,34 @@ TEST_CASE("a face says what its script says", "[inspect]") {
     REQUIRE(game::face_message(session, 99).empty());
 }
 
+TEST_CASE("a face with no name opcode is labelled by its header", "[inspect]") {
+    auto session = spoken_door();
+
+    std::vector<std::uint8_t> code;
+    // Event 3: a lever, labelled only by its header. Event 4: an
+    // establishment, whose header is a 2DEvents row, not a string.
+    push_step(code, 3, 0, world::kOpcodeHeader, {2});
+    push_step(code, 3, 0, world::kOpcodeDoor, {1, 1});
+    push_step(code, 4, 0, world::kOpcodeHeader, {5});
+    push_step(code, 4, 0, world::kOpcodeEnter, {5, 0, 0, 0});
+    // Event 5: a name opcode outranks the header.
+    push_step(code, 5, 0, world::kOpcodeHeader, {2});
+    push_step(code, 5, 0, world::kOpcodeName, {3});
+    REQUIRE(world::MapScript::parse(wrap_script(code), session.script) ==
+            world::MapScriptError::None);
+
+    const std::vector<std::uint8_t> text{' ', 0, 'x', 0,   'L', 'e', 'v', 'e',
+                                         'r', 0, 'S', 'i', 'g', 'n', 0};
+    REQUIRE(world::MapStrings::parse(wrap_script(text), session.script_strings) ==
+            world::MapScriptError::None);
+
+    REQUIRE(game::face_name(session, 3) == "Lever");
+    // The establishment's header is not read as a string index; its name
+    // comes from the design table, which is the caller's to resolve.
+    REQUIRE(game::face_name(session, 4).empty());
+    REQUIRE(game::face_name(session, 5) == "Sign");
+}
+
 TEST_CASE("outdoors the event sits on a model facet", "[inspect]") {
     // The outdoor counterpart of the indoor face's event id, at +0x124 of the
     // 308-byte facet record. See docs/formats/map-events.md.

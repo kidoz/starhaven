@@ -18,7 +18,7 @@ namespace {
 
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0
-              << " <map.blv> [--extras|--faces|--uv|--tail|--sectors|--region [FILE]]\n"
+              << " <map.blv> [--extras|--faces|--events|--uv|--tail|--sectors|--region [FILE]]\n"
               << "\n"
               << "Decompresses one .blv indoor map from your own legal game\n"
               << "install's Games.lod and prints non-expressive statistics.\n"
@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
     const bool dump_sectors = argc >= 3 && std::string(argv[2]) == "--sectors";
     const std::string region_path = (dump_region && argc >= 4) ? argv[3] : std::string();
     const bool dump_faces = argc == 3 && std::string(argv[2]) == "--faces";
+    const bool dump_events = argc == 3 && std::string(argv[2]) == "--events";
     const bool dump_uv = argc == 3 && std::string(argv[2]) == "--uv";
     // Research mode: the still-undecoded region after the face extras, raw.
     const bool dump_tail = argc == 3 && std::string(argv[2]) == "--tail";
@@ -265,6 +266,39 @@ int main(int argc, char** argv) {
             const auto& f = map.faces[i];
             std::cout << i << "\t" << f.attributes << "\t" << f.nx() << "\t" << f.ny() << "\t"
                       << f.nz() << "\t" << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
+        }
+        return 0;
+    }
+
+    // Every face with an event on it, with its centre in the map's own axes:
+    // where to stand to try the thing the event runs.
+    if (dump_events) {
+        for (const auto& extra : map.face_extras) {
+            if (extra.event_id == 0 || extra.face_index >= map.faces.size()) {
+                continue;
+            }
+            const auto& face = map.faces[extra.face_index];
+            if (face.vertex_ids.empty()) {
+                continue;
+            }
+            long cx = 0, cy = 0, cz = 0;
+            bool bad = false;
+            for (const std::uint16_t v : face.vertex_ids) {
+                if (v >= map.vertices.size()) {
+                    bad = true;
+                    break;
+                }
+                cx += map.vertices[v].x;
+                cy += map.vertices[v].y;
+                cz += map.vertices[v].z;
+            }
+            if (bad) {
+                continue;
+            }
+            const auto n = static_cast<long>(face.vertex_ids.size());
+            std::cout << "event " << extra.event_id << "\tface " << extra.face_index << "\tat "
+                      << cx / n << "," << cy / n << "," << cz / n << "\t"
+                      << (face.texture_name.empty() ? "-" : face.texture_name) << "\n";
         }
         return 0;
     }
