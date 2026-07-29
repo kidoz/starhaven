@@ -67,12 +67,17 @@ struct WalkOutcome {
     };
     std::vector<Summon> summons;
 
+    // Sprites to launch, in MM6's own coordinates. What flies is the
+    // record's; how fast, and that an aimless one flies at the party, are
+    // the session's.
+    std::vector<world::MapLaunch> launches;
+
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
                chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
-               !summons.empty();
+               !summons.empty() || !launches.empty();
     }
 };
 
@@ -248,6 +253,11 @@ struct WalkOutcome {
                 summon.y = i32_at(7);
                 summon.z = i32_at(11);
                 out.summons.push_back(summon);
+            }
+            break;
+        case world::kOpcodeLaunch:
+            if (auto launch = world::parse_launch(step)) {
+                out.launches.push_back(*launch);
             }
             break;
         case world::kOpcodeSetTopic:

@@ -216,3 +216,13 @@ TEST_CASE("malformed entries are rejected", "[sprite_frames]") {
     std::vector<std::byte> junk(60, std::byte{0});
     REQUIRE(SpriteFrameTable::parse(junk, t) == SpriteFrameError::NotCompressed);
 }
+
+TEST_CASE("groups are numbered in file order", "[sprite_frames]") {
+    // The id space a map script's launch opcode uses: the Nth group as the
+    // file stores the frames, not the lookup's alphabetical order.
+    SpriteFrameTable t;
+    REQUIRE(SpriteFrameTable::parse(sample_entry(), t) == SpriteFrameError::None);
+    REQUIRE(t.group_name_at(0) == "arc1wka");
+    REQUIRE(t.group_name_at(1) == "torch01");
+    REQUIRE(t.group_name_at(2).empty());
+}

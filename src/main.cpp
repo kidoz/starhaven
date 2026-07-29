@@ -37,6 +37,7 @@
 #include "game/daylight.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
+#include "game/launches.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/party.hpp"
@@ -107,6 +108,7 @@ void print_usage(const char* argv0) {
               << "  --time HOUR         start at this hour of day (0-23)\n"
               << "  --shop N            open the Nth establishment's counter\n"
               << "  --fly               disable gravity and collision\n"
+              << "  --walk N            use map event N on startup (research)\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
               << "Set " << platform::kInstallEnvVar << " to the install directory.\n";
@@ -219,7 +221,8 @@ void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
 // changes: a monster flinches when hit and keeps its death picture after.
 void draw_billboards(render::SceneRenderer& scene, const world::MapSession& session,
                      assets::AssetCache& cache, std::uint32_t ticks, const game::Mob& mob,
-                     const render::Vec3& eye, const std::vector<std::string>& shown) {
+                     const render::Vec3& eye, const std::vector<std::string>& shown,
+                     const std::vector<game::ActiveLaunch>& launches = {}) {
     auto draw = [&](const std::string& animation, const render::Vec3& position, float scale,
                     game::SpriteView view = {}) {
         const game::SpriteChoice pick =
@@ -258,6 +261,10 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
             continue;
         }
         draw(frame.group_name, o.position, kObjectScale);
+    }
+    // What a script launched, mid-flight.
+    for (const auto& l : launches) {
+        draw(l.animation, l.position, kObjectScale);
     }
 }
 
@@ -1183,6 +1190,7 @@ int main(int argc, char** argv) {
     int open_pack = 0;    // and the same for the inventory
     int start_hour = -1;  // --time, for looking at the world at a given hour
     int start_shop = 0;   // --shop, to open a counter straight away
+    int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -1207,6 +1215,8 @@ int main(int argc, char** argv) {
             start_hour = std::atoi(argv[++i]);
         } else if (a == "--shop" && i + 1 < argc) {
             start_shop = std::atoi(argv[++i]);
+        } else if (a == "--walk" && i + 1 < argc) {
+            walk_on_start = std::atoi(argv[++i]);
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -1570,6 +1580,7 @@ int main(int argc, char** argv) {
     std::vector<world::MonsterAnimation> shown_kind(session.actors.size(),
                                                     world::MonsterAnimation::Stand);
     std::vector<std::string> shown_animation(session.actors.size());
+    std::vector<game::ActiveLaunch> launches;  // sprites a script put in the air
 
     render::SceneRenderer scene(kWidth, kHeight);
 
@@ -1697,6 +1708,7 @@ int main(int argc, char** argv) {
                                               : std::numeric_limits<std::int64_t>::max();
         shown_kind.assign(session.actors.size(), world::MonsterAnimation::Stand);
         shown_animation.assign(session.actors.size(), {});
+        launches.clear();
         fall_speed = 0.0f;
         SDL_SetWindowTitle(window,
                            ("StarHaven - " + session.title() + " (" + session.file_name + ")")
@@ -2465,6 +2477,7 @@ int main(int argc, char** argv) {
         }
         party_recovery = std::max(0.0f, party_recovery - in.dt);
         clock.advance_seconds(in.dt);
+        game::advance_launches(launches, in.dt);
         battle.award(party);
         // What the kills left: the gold goes to the purse, the items to
         // whichever pack has room, and one line names the lot.
@@ -2577,7 +2590,14 @@ int main(int argc, char** argv) {
         // event's own checks decide what happens — a gated exit stays shut
         // until the quest bit it asks for is set. See
         // docs/formats/map-events.md.
-        const game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
+        game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
+        // `--walk N` uses event N as though the party had, once, on startup.
+        if (walk_on_start >= 0) {
+            aimed.event_id = static_cast<std::uint16_t>(walk_on_start);
+            aimed.distance = 0.0f;
+            want_strike = true;
+            walk_on_start = -1;
+        }
         if (want_strike && aimed.found()) {
             // The walker's view of the purse and the packs.
             script_state.gold = gold;
@@ -2679,6 +2699,13 @@ int main(int argc, char** argv) {
                 mob.recruit(session, monster_stats);
                 shown_kind.resize(session.actors.size(), world::MonsterAnimation::Stand);
                 shown_animation.resize(session.actors.size());
+            }
+            // A launch puts its sprite in the air; an aimless one flies at
+            // the party, which is this engine's reading of a trap.
+            if (!outcome.launches.empty()) {
+                auto started = game::start_launches(outcome.launches, session.sprite_frames,
+                                                    camera.position);
+                launches.insert(launches.end(), started.begin(), started.end());
             }
 
             if (doors_moved) {
@@ -2804,7 +2831,7 @@ int main(int argc, char** argv) {
             pick_up_shown = SDL_GetTicks();
         }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
-                        camera.position, shown_animation);
+                        camera.position, shown_animation, launches);
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }

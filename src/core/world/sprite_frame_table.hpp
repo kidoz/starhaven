@@ -97,6 +97,18 @@ public:
     // ("ARC1STA" in one table, "arc1sta" in another).
     [[nodiscard]] std::span<const SpriteFrame> group(std::string_view name) const;
 
+    // The Nth group's name, in the order the file stores the frames — the id
+    // space a map script's launch opcode names animations by. Empty when out
+    // of range. See docs/formats/map-events.md.
+    [[nodiscard]] std::string_view group_name_at(std::size_t n) const noexcept {
+        for (const auto& frame : frames_) {
+            if (!frame.group_name.empty() && n-- == 0) {
+                return frame.group_name;
+            }
+        }
+        return {};
+    }
+
     // The frame a named animation shows at `time`, which wraps around the
     // group's length. Returns nullptr when the name is not a group.
     [[nodiscard]] const SpriteFrame* frame_at(std::string_view name, std::uint32_t time) const;

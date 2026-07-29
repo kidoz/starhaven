@@ -243,3 +243,28 @@ TEST_CASE("a trap's event names what it summons and where", "[walk]") {
     REQUIRE(outcome.summons[0].z == -240);
     REQUIRE(outcome.acted());
 }
+
+TEST_CASE("a trap's event puts a sprite in the air", "[walk]") {
+    // Opcode 21: an animation, a byte, and two points; the second all zeros
+    // when the record states no target.
+    std::vector<std::uint8_t> args{6, 0, 3};
+    for (const std::int32_t v : {2496, 4864, 360, 0, 0, 0}) {
+        for (int i = 0; i < 4; ++i) {
+            args.push_back(static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) &
+                                                     0xFF));
+        }
+    }
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 19, 0, kOpcodeLaunch, args);
+    const MapScript script = parse(payload);
+
+    WalkState state;
+    const WalkOutcome outcome = walk_event(script, 19, state);
+    REQUIRE(outcome.launches.size() == 1);
+    REQUIRE(outcome.launches[0].animation == 6);
+    REQUIRE(outcome.launches[0].from_x == 2496);
+    REQUIRE(outcome.launches[0].from_y == 4864);
+    REQUIRE(outcome.launches[0].from_z == 360);
+    REQUIRE(outcome.launches[0].aimless());
+    REQUIRE(outcome.acted());
+}

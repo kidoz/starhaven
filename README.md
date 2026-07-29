@@ -184,8 +184,17 @@ interoperability and compatibility with a legally purchased copy.
   file's twenty-slot array, and since the shipped chests are all empty, opening
   one rolls its contents from the map's own treasure level. Opcode 4, the
   commonest in the game, turns out to be an event's opening step — 2,182 of
-  2,182 events that contain it begin with it — though what it declares is still
-  unread after four rejected readings.
+  2,182 events that contain it begin with it — and its byte is the thing's own
+  label, a string index naming "Door" 419 times, "Chest" 244, "Lever",
+  "Drink from Fountain" (1,523 of 1,542 non-establishment events; an
+  establishment's header is its `2DEvents.txt` row instead, 620 of 633).
+  Opcode 21 launches a sprite: its u16 names an animation group of `DSFT.BIN`
+  in file order on 154 of 154 uses — `fire04` bolts down Castle Darkmoor's
+  halls, thrown pillows and stalactites in the haunted spiral — and the
+  engine flies them from the recorded point toward the recorded target, or at
+  the party when the record states none, at an engine-own speed. They fly and
+  land; whether they hurt is not in the record. Reproduce a trap with
+  `starhaven CD2.Blv --walk 25`.
 - **Opcode 6 is the door out, and the world is connected**: its argument is a
   spawn point — X, Y, Z and a facing — and a NUL-terminated destination, either
   `"0"` for a teleport within the map or a map file name. Of the 99 named
