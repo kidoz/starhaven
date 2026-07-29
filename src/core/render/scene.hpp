@@ -74,6 +74,12 @@ public:
     // when the point is behind the camera.
     [[nodiscard]] bool project_point(Vec3 world, ScreenVertex& out) const;
 
+    // Whether a sphere could touch the view at all: a conservative test in
+    // clip space, for callers that can skip whole faces cheaply. A sphere
+    // that fails is provably outside; one that passes may still rasterize
+    // to nothing.
+    [[nodiscard]] bool might_see(Vec3 center, float radius) const;
+
     [[nodiscard]] Framebuffer& framebuffer() noexcept { return framebuffer_; }
     [[nodiscard]] const Framebuffer& framebuffer() const noexcept { return framebuffer_; }
     [[nodiscard]] int width() const noexcept { return width_; }

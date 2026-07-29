@@ -992,6 +992,17 @@ docs/
 29. ~~Decode the BLV face-extra name array.~~ ✓ (this slice)
 30. UI and gameplay systems.
 
+## Performance
+
+Measured with `--bench 120` at 640x480 on the heaviest maps, release build
+(`meson setup buildRel --buildtype=release`): Castle Alamos (`CD1.Blv`,
+4,000-odd faces) renders at ~80 fps median, Free Haven (`OutC2.Odm`) at
+~125. A debug build is roughly eight times slower and is what `buildDir`
+holds by default — bench release before believing a number. Faces the
+camera provably cannot see are skipped by a conservative sphere test baked
+per face at load, and the per-frame equipped sync reads parsed skill and
+enchantment powers from a memo instead of re-parsing table prose.
+
 ## Contributing
 
 C++20, Meson + Ninja, `warning_level=3`. Keep `src/main.cpp` thin; put logic in the

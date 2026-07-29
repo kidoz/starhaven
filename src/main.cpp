@@ -193,12 +193,16 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
     }
 }
 
+template <typename BoundsFn>
 void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
-                 assets::AssetCache& cache, const render::Vec3& lamp, float glow = 1.0f,
-                 const std::vector<float>* baked = nullptr) {
+                 assets::AssetCache& cache, const render::Vec3& lamp, float glow,
+                 const std::vector<float>* baked, BoundsFn skippable) {
     for (std::size_t index = 0; index < session.blv.faces.size(); ++index) {
         const auto& f = session.blv.faces[index];
         if (f.invisible() || f.vertex_count < 3) {
+            continue;
+        }
+        if (skippable(index)) {
             continue;
         }
         const render::Vec3 n = render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
@@ -1646,6 +1650,40 @@ int main(int argc, char** argv) {
                         static_cast<std::uint32_t>(session.actors.size()) + 1u);
         const std::vector<std::string> bench_shown(session.actors.size());
 
+        // The same face bounds the game bakes, so the bench measures the
+        // culled path it actually runs.
+        struct BenchBound {
+            render::Vec3 center{};
+            float radius = 0.0f;
+        };
+        std::vector<BenchBound> bench_bounds(session.blv.faces.size());
+        for (std::size_t i = 0; i < session.blv.faces.size(); ++i) {
+            const auto& face = session.blv.faces[i];
+            if (face.vertex_ids.empty()) {
+                continue;
+            }
+            float cx = 0, cy = 0, cz = 0;
+            for (const std::uint16_t v : face.vertex_ids) {
+                const auto& p = session.blv.vertices[v];
+                cx += p.x;
+                cy += p.y;
+                cz += p.z;
+            }
+            const auto n = static_cast<float>(face.vertex_ids.size());
+            const render::Vec3 center = world::to_render_space(
+                static_cast<int>(cx / n), static_cast<int>(cy / n), static_cast<int>(cz / n));
+            float radius = 0.0f;
+            for (const std::uint16_t v : face.vertex_ids) {
+                const auto& p = session.blv.vertices[v];
+                const render::Vec3 at = world::to_render_space(p.x, p.y, p.z);
+                const float dx = at.x - center.x;
+                const float dy = at.y - center.y;
+                const float dz = at.z - center.z;
+                radius = std::max(radius, std::sqrt(dx * dx + dy * dy + dz * dz));
+            }
+            bench_bounds[i] = {center, radius};
+        }
+
         std::vector<double> geometry;
         std::vector<double> billboards;
         geometry.reserve(static_cast<std::size_t>(bench_frames));
@@ -1657,7 +1695,13 @@ int main(int argc, char** argv) {
             if (session.outdoor()) {
                 draw_outdoor(bench_scene, session, cache, bench_light);
             } else {
-                draw_indoor(bench_scene, session, cache, bench_light);
+                draw_indoor(bench_scene, session, cache, bench_light, 1.0f, nullptr,
+                            [&](std::size_t index) {
+                                return index < bench_bounds.size() &&
+                                       bench_bounds[index].radius > 0.0f &&
+                                       !bench_scene.might_see(bench_bounds[index].center,
+                                                              bench_bounds[index].radius);
+                            });
             }
             const auto t1 = std::chrono::steady_clock::now();
             // Animation time advances with the frame so the billboard work is
@@ -1991,8 +2035,16 @@ int main(int argc, char** argv) {
     // are this engine's; the positions, radii and brightness are the
     // file's. `inferred` for the curve.
     std::vector<float> face_light;
+    // Each face's centre and a radius that encloses it, baked once so the
+    // frame loop can skip whole faces the camera cannot see.
+    struct FaceBound {
+        render::Vec3 center{};
+        float radius = 0.0f;
+    };
+    std::vector<FaceBound> face_bounds;
     const auto bake_lights = [&] {
         face_light.assign(session.blv.faces.size(), 0.0f);
+        face_bounds.assign(session.blv.faces.size(), {});
         if (!session.indoor()) {
             return;
         }
@@ -2015,6 +2067,22 @@ int main(int argc, char** argv) {
             cx /= n;
             cy /= n;
             cz /= n;
+            // The bound, in renderer axes like everything drawn.
+            const render::Vec3 center = world::to_render_space(
+                static_cast<int>(cx), static_cast<int>(cy), static_cast<int>(cz));
+            float radius = 0.0f;
+            for (const std::uint16_t v : face.vertex_ids) {
+                if (v >= session.blv.vertices.size()) {
+                    continue;
+                }
+                const auto& p = session.blv.vertices[v];
+                const render::Vec3 at = world::to_render_space(p.x, p.y, p.z);
+                const float dx = at.x - center.x;
+                const float dy = at.y - center.y;
+                const float dz = at.z - center.z;
+                radius = std::max(radius, std::sqrt(dx * dx + dy * dy + dz * dz));
+            }
+            face_bounds[i] = {center, radius};
             float glow = 0.0f;
             for (const auto& light : lights) {
                 const float dx = cx - static_cast<float>(light.x);
@@ -2227,6 +2295,40 @@ int main(int argc, char** argv) {
             }
         }
         return false;
+    };
+
+    // Parsed skill and enchantment powers, memoized: the tables never
+    // change after load, and the equipped sync asks every frame.
+    std::map<std::pair<std::string, int>, game::SkillPower> skill_power_memo;
+    const auto power_of_skill = [&](const std::string& name, int points) -> game::SkillPower {
+        const auto key = std::make_pair(name, points);
+        if (const auto it = skill_power_memo.find(key); it != skill_power_memo.end()) {
+            return it->second;
+        }
+        const auto* skill = skill_table.find(name);
+        const game::SkillPower power =
+            skill != nullptr ? game::skill_power(skill->text, points) : game::SkillPower{};
+        skill_power_memo.emplace(key, power);
+        return power;
+    };
+    std::map<std::tuple<int, int, int>, game::EnchantPower> enchant_memo;
+    const auto power_of_enchant = [&](int standard, int strength, int special) {
+        const auto key = std::make_tuple(standard, strength, special);
+        if (const auto it = enchant_memo.find(key); it != enchant_memo.end()) {
+            return it->second;
+        }
+        game::EnchantPower power;
+        if (standard > 0) {
+            if (const auto* bonus = standard_bonuses.at(static_cast<std::size_t>(standard))) {
+                power = game::standard_power(*bonus, strength);
+            }
+        } else if (special > 0) {
+            if (const auto* bonus = special_bonuses.at(static_cast<std::size_t>(special))) {
+                power = game::special_power(*bonus);
+            }
+        }
+        enchant_memo.emplace(key, power);
+        return power;
     };
 
     // The weapon skill behind a swing: the striker's points in the equipped
@@ -4173,7 +4275,13 @@ int main(int argc, char** argv) {
             // "Increases the radius of light": this renderer has no radius,
             // so the lamp itself brightens for the written hours. `inferred`
             draw_indoor(scene, session, cache, lamp,
-                        clock.minutes() < torch_until ? 1.45f : 1.0f, &face_light);
+                        clock.minutes() < torch_until ? 1.45f : 1.0f, &face_light,
+                        [&](std::size_t index) {
+                            return index < face_bounds.size() &&
+                                   face_bounds[index].radius > 0.0f &&
+                                   !scene.might_see(face_bounds[index].center,
+                                                    face_bounds[index].radius);
+                        });
         }
         // Real time flows every frame; turn-based time flows only when a
         // round is owed, one quantum at a time.
@@ -4423,18 +4531,10 @@ int main(int argc, char** argv) {
                 if (party[i].equipped[slot] <= 0 || party[i].equipped_broken[slot]) {
                     continue;
                 }
-                game::EnchantPower power;
-                if (party[i].worn_standard[slot] > 0) {
-                    if (const auto* bonus = standard_bonuses.at(
-                            static_cast<std::size_t>(party[i].worn_standard[slot]))) {
-                        power = game::standard_power(*bonus, party[i].worn_strength[slot]);
-                    }
-                } else if (party[i].worn_special[slot] > 0) {
-                    if (const auto* bonus = special_bonuses.at(
-                            static_cast<std::size_t>(party[i].worn_special[slot]))) {
-                        power = game::special_power(*bonus);
-                    }
-                }
+                const game::EnchantPower power =
+                    power_of_enchant(party[i].worn_standard[slot],
+                                     party[i].worn_strength[slot],
+                                     party[i].worn_special[slot]);
                 for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
                     party[i].gear_attributes[a] += power.attributes[a];
                 }
@@ -4460,16 +4560,12 @@ int main(int argc, char** argv) {
                 if (row == nullptr || row->skill_group.empty()) {
                     continue;
                 }
-                const auto* skill = skill_table.find(row->skill_group);
-                if (skill == nullptr) {
-                    continue;
-                }
                 int points = squire;
                 if (const auto it = party[i].skills.find(row->skill_group);
                     it != party[i].skills.end()) {
                     points += it->second;
                 }
-                skilled_armor += game::skill_power(skill->text, points).armor;
+                skilled_armor += power_of_skill(row->skill_group, points).armor;
             }
             party[i].armor_class =
                 game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +

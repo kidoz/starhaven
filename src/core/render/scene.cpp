@@ -42,6 +42,24 @@ bool SceneRenderer::project_point(Vec3 world, ScreenVertex& out) const {
     return project(view_projection_, world, 1.0f, 1.0f, 1.0f, {0.0f, 0.0f}, out);
 }
 
+bool SceneRenderer::might_see(Vec3 center, float radius) const {
+    // View space: the camera looks down -z, so a sphere wholly at positive
+    // z is behind the eye. Sideways, the frustum widens with depth by the
+    // projection's own 60-degree field; comparing against that width plus
+    // the radius errs toward keeping.
+    const Vec4 v = view_ * Vec4{center.x, center.y, center.z, 1};
+    if (v.z - radius > 0.0f) {
+        return false;
+    }
+    const float depth = -v.z + radius;
+    constexpr float kTanHalfFov = 0.57735f;  // tan(30 degrees)
+    const float half_h = depth * kTanHalfFov;
+    const float half_w =
+        half_h * (static_cast<float>(width_) / static_cast<float>(height_)) + radius;
+    return v.x >= -half_w && v.x <= half_w && v.y >= -(half_h + radius) &&
+           v.y <= half_h + radius;
+}
+
 void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world, std::span<const Vec2, 3> uv,
                                   float shade, const Texture& texture, WrapMode wrap,
                                   bool cull_backfaces) {
