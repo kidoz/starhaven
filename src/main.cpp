@@ -1876,6 +1876,13 @@ int main(int argc, char** argv) {
     // own and say so where they act.
     int reputation = 0;
     std::set<int> greeted_npcs;  // who has met the party, this session
+    // A passerby stopped in the street: the actor index, and the persona
+    // assembled for them — a name from npcnames.txt by the sprite's own
+    // gender letter, the Peasant personality's words. The assembly is the
+    // engine's; every word is a table's.
+    int street_talk = -1;
+    std::string street_name;
+    bool street_female = false;
     // A town, for Town Portal's purposes, is an outdoor map with counters —
     // the engine's own reading of the spell's "last town visited"; the
     // spell's words pick the destination, only the list is ours.
@@ -3003,6 +3010,36 @@ int main(int argc, char** argv) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
                 shown_member = -1;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T &&
+                       open_shop < 0 && !creating) {
+                // Stop a passerby: any of the monster table's own civilians
+                // — the hostility-zero Peasant rows — within reach.
+                if (street_talk >= 0) {
+                    greeted_npcs.insert(100000 + street_talk);
+                    street_talk = -1;
+                    approaches_used.clear();
+                    talk_answer.clear();
+                } else {
+                    const std::size_t who = game::aimed_actor(
+                        session, battle, camera.position, camera.forward(), game::kPartyReach);
+                    if (who != game::kNoActor && battle.alive(who)) {
+                        const int mid = session.actors[who].monster_id;
+                        const auto* row =
+                            mid > 0 && static_cast<std::size_t>(mid) <=
+                                           monster_stats.entries().size()
+                                ? &monster_stats.entries()[static_cast<std::size_t>(mid) - 1]
+                                : nullptr;
+                        if (row != nullptr && row->hostility == 0) {
+                            street_talk = static_cast<int>(who);
+                            street_female = row->picture.find('F') != std::string::npos;
+                            street_name = std::string(given_names.name(
+                                street_female,
+                                static_cast<std::uint32_t>(who + 1) * 2654435761U));
+                            approaches_used.clear();
+                            talk_answer.clear();
+                        }
+                    }
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T &&
                        open_shop >= 0) {
                 // Talk to whoever the NPC table puts in this establishment.
                 if (talking_to >= 0) {
@@ -3764,6 +3801,54 @@ int main(int argc, char** argv) {
                 if (!read) {
                     pick_up_message = "Nobody carries a castable scroll";
                     pick_up_shown = SDL_GetTicks();
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && street_talk >= 0 && open_shop < 0 &&
+                       event.key.key >= SDLK_5 && event.key.key <= SDLK_7) {
+                // The same three levers, on whoever was stopped: the
+                // Peasant personality answers in its own wording.
+                const auto* personality = personalities.find("Peasant");
+                const int which = static_cast<int>(event.key.key - SDLK_5);
+                const game::Speech who{street_name, party[0].name,
+                                       game::face_is_female(party[0].face), clock.hour()};
+                const auto say = [&](int number) {
+                    return personality != nullptr
+                               ? game::substitute(data::cp1252_to_utf8(std::string(
+                                                      personality->message(number))),
+                                                  who, interface_words)
+                               : std::string{};
+                };
+                if (approaches_used.contains(which)) {
+                    talk_answer = say(3 + which);
+                    if (talk_answer.empty()) {
+                        talk_answer = "They have nothing more to say to that.";
+                    }
+                } else if (which == 1 && gold < 50) {
+                    talk_answer = "The party cannot spare a bribe.";
+                } else {
+                    approaches_used.insert(which);
+                    if (which == 1) {
+                        gold -= 50;
+                    }
+                    if (which == 2) {
+                        reputation -= 1;
+                    }
+                    const bool taken =
+                        personality != nullptr &&
+                        personality->allows_approach(static_cast<data::NpcApproach>(which));
+                    if (taken) {
+                        talk_answer = say(19 + which * 2);
+                        if (!rumors.entries().empty()) {
+                            const auto& rumor = rumors.entries()[misc_random.next() %
+                                                                 rumors.entries().size()];
+                            talk_answer += (talk_answer.empty() ? "" : "  ") +
+                                           data::cp1252_to_utf8(rumor.text);
+                        }
+                    } else {
+                        talk_answer = say(20 + which * 2);
+                        if (talk_answer.empty()) {
+                            talk_answer = "They are unmoved.";
+                        }
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && talking_to >= 0 && open_shop >= 0 &&
                        event.key.key >= SDLK_5 && event.key.key <= SDLK_7) {
@@ -5075,6 +5160,19 @@ int main(int argc, char** argv) {
                                 render::Color{190, 215, 190, 255},
                                 render::Color{0, 0, 0, 255});
             }
+        }
+        if (street_talk >= 0 && font.glyph_count() > 0) {
+            world::SessionNpc passerby;
+            passerby.name = street_name;
+            passerby.npc_id = 100000 + street_talk;
+            passerby.profession = "Peasant";
+            passerby.personality = "Peasant";
+            draw_conversation(scene, font,
+                              game::talk_to(passerby, dialogue, personalities, trade_talk,
+                                            clock, interface_words, party[0].name,
+                                            game::face_is_female(party[0].face),
+                                            standing_for(passerby.npc_id)),
+                              talk_answer);
         }
         if (porting && font.glyph_count() > 0) {
             const int line = font.height() + 2;

@@ -222,6 +222,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The streets talk back**: T stops any of the monster table's own
+  civilians — the hostility-zero Peasant rows — and a passerby persona
+  assembles from the tables: a name from `npcnames.txt` by the sprite's own
+  gender letter, the Peasant personality's reputation-gated greeting, and
+  the same beg, bribe and threaten levers as anyone indoors, rumors and
+  refusals in the table's wording. The assembly is the engine's; every word
+  is a table's.
 - **The monster table, read to the last column**: the second attack swings
   at its own Att% (whose 10..30 values betray it as the second's chance
   despite the header's grouping — a Cobra's poison fangs at 20), the Fly
