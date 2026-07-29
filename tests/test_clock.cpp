@@ -116,3 +116,32 @@ TEST_CASE("every outcome says something", "[clock]") {
     REQUIRE_FALSE(rest_message(RestResult::Disturbed, clock).empty());
     REQUIRE_FALSE(rest_message(RestResult::NobodyStanding, clock).empty());
 }
+
+TEST_CASE("a camp eats its days of food, or wakes the party weak", "[rest]") {
+    std::array<Character, 4> party;
+    for (auto& who : party) {
+        who.max_hit_points = 20;
+        who.hit_points = 5;
+        who.max_spell_points = 8;
+        who.spell_points = 0;
+    }
+    GameClock clock;
+    int food = 7;
+    REQUIRE(rest(party, clock, false, food, 3) == RestResult::Rested);
+    REQUIRE(food == 4);
+    REQUIRE(party[0].hit_points == 20);
+    REQUIRE(party[0].spell_points == 8);
+
+    // Not enough left: the night passes, nobody heals, everyone wakes weak.
+    party[0].hit_points = 5;
+    food = 2;
+    REQUIRE(rest(party, clock, false, food, 3) == RestResult::Starved);
+    REQUIRE(food == 0);
+    REQUIRE(party[0].hit_points == 5);
+    REQUIRE(party[0].affliction == "Weak");
+    // A worse affliction is not overwritten by mere hunger.
+    party[1].affliction = "Cursed";
+    food = 0;
+    REQUIRE(rest(party, clock, false, food, 3) == RestResult::Starved);
+    REQUIRE(party[1].affliction == "Cursed");
+}

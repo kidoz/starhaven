@@ -84,3 +84,14 @@ TEST_CASE("a benefit this engine has no mechanic for parses to nothing", "[hire]
                       .any());
     REQUIRE_FALSE(parse_benefit("").any());
 }
+
+TEST_CASE("the porters' camping savings parse, gypsy phrasing included", "[hire]") {
+    REQUIRE(parse_benefit("One less day of food use when camping, (minimum of one used).")
+                .food_saved_camping == 1);
+    REQUIRE(parse_benefit("Two less days of food use when camping, (minimum of one used).")
+                .food_saved_camping == 2);
+    REQUIRE(parse_benefit("Food use is reduced by one day's worth of food when resting "
+                          "(minimum one day), Merchant skill is increased by three points for "
+                          "each character, and Reputation is decreased by one full category.")
+                .food_saved_camping == 1);
+}

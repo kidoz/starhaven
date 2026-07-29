@@ -1588,9 +1588,10 @@ int main(int argc, char** argv) {
     auto shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
 
     int gold = game::kStartingGold;
-    // Food rations, the counter quest events give to and take from. That the
-    // party starts with none is this engine's own choice.
-    int party_food = 0;
+    // Food rations, the counter quest events give to and take from and a
+    // camp eats. A week's worth to start with is this engine's own choice;
+    // the tables do not say.
+    int party_food = 7;
     int bank_gold = 0;  // what the vault keeps; no table pays interest
     int open_shop = -1;  // an index into shops_here, or none
     std::vector<game::StockItem> shop_stock;
@@ -3033,7 +3034,15 @@ int main(int argc, char** argv) {
         if (want_rest) {
             const bool disturbed =
                 battle.anything_near(session, camera.position, game::kRestDisturbance);
-            const game::RestResult result = game::rest(party, clock, disturbed);
+            // The camp's appetite, less the best food-saver hired, never
+            // below the one day the professions' own floors state.
+            int saved = 0;
+            for (const auto& h : hirelings) {
+                saved = std::max(saved, h.benefit.food_saved_camping);
+            }
+            const int cost = std::max(1, game::kRestFoodCost - saved);
+            const game::RestResult result =
+                game::rest(party, clock, disturbed, party_food, cost);
             if (result == game::RestResult::Rested) {
                 // What lasts until a rest ends with one, fountains included.
                 for (auto& member : party) {
@@ -3324,6 +3333,11 @@ int main(int argc, char** argv) {
             draw_party_strip(scene, font, party, hirelings);
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
+                            render::Color{0, 0, 0, 255});
+            const std::string purse =
+                std::to_string(gold) + " gold, " + std::to_string(party_food) + " food";
+            game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(purse) - 8,
+                            8 + font.height() + 2, purse, render::Color{180, 175, 155, 255},
                             render::Color{0, 0, 0, 255});
             if (ask_event >= 0) {
                 const int prompt = ask_pending.prompt;

@@ -15,9 +15,20 @@ namespace starhaven::game {
 // the distance one can reach you from. `inferred`
 inline constexpr float kRestDisturbance = 1600.0f;
 
-// Why a rest did not happen, or that it did.
+// What a camp eats, in days of food. The tables never state it, but the
+// professions bound it: a Quarter Master saves "two less days of food use
+// when camping, (minimum of one used)", and a reduction of two with a floor
+// of one only matters if the base is at least three. Three it is. `inferred`
+// from the rows' own arithmetic.
+inline constexpr int kRestFoodCost = 3;
+
+// Why a rest did not happen, or how it went.
 enum class RestResult : std::uint8_t {
     Rested,
+    // The larder was empty: the night passes but heals nothing, and everyone
+    // standing wakes Weak. That hunger costs the night's good is this
+    // engine's reading of camping on an empty stomach. `inferred`
+    Starved,
     // Something alive is close enough to object.
     Disturbed,
     // Nobody is left standing to make camp.
@@ -25,9 +36,10 @@ enum class RestResult : std::uint8_t {
 };
 
 // Rest the party: eight hours, and everyone who is still standing wakes up
-// whole. A character who is down stays down — getting back up is a temple's
-// business, not a night's sleep. `inferred`
-inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool disturbed) {
+// whole — if the party can eat. `food_cost` is what this camp consumes, the
+// caller's to reduce by a Porter's or a Gypsy's savings.
+inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool disturbed,
+                       int& food, int food_cost) {
     if (disturbed) {
         return RestResult::Disturbed;
     }
@@ -40,10 +52,18 @@ inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool d
     }
 
     clock.advance_hours(kRestHours);
+    const bool fed = food >= food_cost;
+    food = fed ? food - food_cost : 0;
     for (auto& who : party) {
         // The dead do not rest; the merely unconscious come to at a single
         // hit point rather than a full night's worth. `inferred`
         if (who.dead()) {
+            continue;
+        }
+        if (!fed) {
+            if (who.hit_points > 0 && who.affliction.empty()) {
+                who.affliction = "Weak";
+            }
             continue;
         }
         if (who.hit_points <= 0) {
@@ -53,7 +73,13 @@ inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool d
         who.hit_points = who.max_hit_points;
         who.spell_points = who.max_spell_points;
     }
-    return RestResult::Rested;
+    return fed ? RestResult::Rested : RestResult::Starved;
+}
+
+// A camp with food enough, for callers that do not track a larder.
+inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool disturbed) {
+    int pantry = kRestFoodCost;
+    return rest(party, clock, disturbed, pantry, kRestFoodCost);
 }
 
 // What to tell the player.
@@ -61,6 +87,8 @@ inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool d
     switch (result) {
     case RestResult::Rested:
         return "You rest. It is " + clock.text();
+    case RestResult::Starved:
+        return "You camp without food and wake weak. It is " + clock.text();
     case RestResult::Disturbed:
         return "You cannot rest with monsters nearby";
     case RestResult::NobodyStanding:
