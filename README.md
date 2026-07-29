@@ -959,7 +959,7 @@ docs/
 15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
 16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
 17. ~~Render indoor levels (`starhaven`), with per-face texture coordinates.~~ ✓ (this slice)
-18. ~~Decode the `.blv` lights and light the dungeons with them.~~ ✓ (this slice; the BSP and exact section offsets remain)
+18. ~~Decode the `.blv` lights and light the dungeons with them.~~ ✓ (the quad section after them is measured but unread; exact section offsets remain)
 19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
 20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)
 21. Decode event-record bodies.

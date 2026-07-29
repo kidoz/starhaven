@@ -367,6 +367,78 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    // Research mode: the section after the lights, read as i16 quads and
+    // tested for tree shape.
+    if (argc == 3 && std::string(argv[2]) == "--bsp") {
+        const world::BlvDecorationBlock block = world::find_decoration_block(map);
+        if (!block.found()) {
+            return 1;
+        }
+        const auto& payload = map.payload;
+        const auto u32_at = [&payload](std::size_t offset) {
+            std::uint32_t v = 0;
+            std::memcpy(&v, payload.data() + offset, sizeof(v));
+            return v;
+        };
+        const auto i16_at = [&payload](std::size_t offset) {
+            std::int16_t v = 0;
+            std::memcpy(&v, payload.data() + offset, sizeof(v));
+            return static_cast<int>(v);
+        };
+        std::size_t at = block.end();
+        const std::uint32_t lights = u32_at(at);
+        at += 4 + static_cast<std::size_t>(lights) * 12;
+        if (at + 4 > payload.size()) {
+            return 1;
+        }
+        const std::uint32_t count = u32_at(at);
+        if (count == 0 || at + 4 + count * 8 > payload.size()) {
+            std::cout << "no quad section (count " << count << ")\n";
+            return 0;
+        }
+        // Field stats and child-shape tests.
+        int min_f[4] = {1 << 30, 1 << 30, 1 << 30, 1 << 30};
+        int max_f[4] = {-(1 << 30), -(1 << 30), -(1 << 30), -(1 << 30)};
+        std::size_t a_in = 0, c_in = 0, a_leaf = 0;
+        std::vector<int> referenced(count, 0);
+        for (std::uint32_t i = 0; i < count; ++i) {
+            const std::size_t r = at + 4 + i * 8;
+            int f[4];
+            for (int k = 0; k < 4; ++k) {
+                f[k] = i16_at(r + static_cast<std::size_t>(k) * 2);
+                min_f[k] = std::min(min_f[k], f[k]);
+                max_f[k] = std::max(max_f[k], f[k]);
+            }
+            const auto child_ok = [&](int v) {
+                return v >= 0 && v < static_cast<int>(count);
+            };
+            a_in += child_ok(f[0]) ? 1 : 0;
+            a_leaf += f[0] == -1 ? 1 : 0;
+            c_in += child_ok(f[2]) ? 1 : 0;
+            if (child_ok(f[0])) {
+                ++referenced[static_cast<std::size_t>(f[0])];
+            }
+            if (child_ok(f[2])) {
+                ++referenced[static_cast<std::size_t>(f[2])];
+            }
+        }
+        std::size_t once = 0, never = 0, more = 0;
+        for (const int n : referenced) {
+            once += n == 1 ? 1 : 0;
+            never += n == 0 ? 1 : 0;
+            more += n > 1 ? 1 : 0;
+        }
+        std::cout << count << " quads after " << lights << " lights\n";
+        for (int k = 0; k < 4; ++k) {
+            std::cout << "  field " << k << ": " << min_f[k] << ".." << max_f[k] << "\n";
+        }
+        std::cout << "  field0 child-shaped " << a_in << " leaf(-1) " << a_leaf
+                  << "; field2 child-shaped " << c_in << "\n";
+        std::cout << "  as children: " << once << " referenced once, " << never << " never, "
+                  << more << " more than once\n";
+        return 0;
+    }
+
     if (dump_faces) {
         for (std::size_t i = 0; i < map.faces.size(); ++i) {
             const auto& f = map.faces[i];

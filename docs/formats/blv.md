@@ -482,9 +482,16 @@ the stride — and the counts run from CD2's 3 to CD1's and the Pyramid's 400.
 twice the written radius, over a dim floor, is this engine's own curve and
 says so. Reproduce with `blv_info <map> --after`.
 
-The section after the lights opens with a count of 8-byte records whose
-inner fields climb by one and drop to -1 — tree-shaped, the likely BSP —
-recorded here as the next lead. `unknown`
+The section after the lights opens with a count of 8-byte i16 quads — 1,037
+on `D01` against its 2,291 faces — and a closer look weakens the first
+tree reading: fields 0 and 1 are index-shaped over the section's own count
+with `-1` on roughly half, but field 2 is bounded far below it (9..169 on
+`D01`, 7..217 on `CD1`) and matches no table counted so far — not sectors,
+not vertices, not faces — while field 3 stays within 1..31. Read as
+children, field 0's references split almost evenly between once, never and
+repeatedly, which a binary tree would not do. The quads are measured and
+the readings tried are recorded; what the section is remains `unknown`.
+Reproduce with `blv_info <map> --bsp`.
 
 ## Open questions (next slice)
 
