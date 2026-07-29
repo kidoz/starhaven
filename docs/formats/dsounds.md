@@ -149,6 +149,15 @@ indexed by name.
 - What the group field selects — looping, attenuation, or channel priority are
   all consistent with the names. `unknown`
 - The 72 zero bytes at `+0x28`. `unknown`
+The archive's own entry names carry a second numbering: many casts open
+with their spell's `Spells.txt` id — `04firebolt01` is Fire Bolt's row 4,
+`06fireball01` row 6, `21fly03` Fly's 21, `31townportal03` Town Portal's
+31, `33lloydsbeacon03` Lloyd's 33 — with 91 of the 99 ids matched by some
+numbered entry. The monster sets share the prefix space (`04barbarianB_
+attack`), so the engine's resolver requires a letter after the digits and
+none of the set-action suffixes. `observed` for the numbering on the named
+examples; which of a spell's variants plays is the engine's pick.
+
 - How ids outside the monster block are allocated; they are neither dense nor
   ordered. `unknown`
 - What `DDECLIST.BIN` `+0x4A` holds. `unknown`

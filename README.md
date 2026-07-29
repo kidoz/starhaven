@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The casts ring true**: the sound archive names spells by their own
+  `Spells.txt` rows — `04firebolt01`, `31townportal03`, `21fly03` — so every
+  scroll, wand wave, H-cast, portal and beacon now plays its spell's own
+  sound through that join (91 of 99 ids have one). Bows release with
+  `ArchShoot` and blades land with the archive's sword hits, those two picks
+  the engine's own and marked.
 - **Wands cast their charges**: a wand equips as a weapon — "you must equip
   it as though you were equipping a weapon", the rows' own instruction — and
   X waves it first: its Mod1 S-number is the spell, its Mod2 the fresh

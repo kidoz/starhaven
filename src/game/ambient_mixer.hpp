@@ -6,8 +6,10 @@
 // campfire crackles and a fountain runs. See docs/formats/dsounds.md.
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <map>
 #include <vector>
@@ -76,6 +78,40 @@ public:
             if (gain > 0.0f && SDL_GetAudioStreamAvailable(voice->stream) == 0) {
                 queue(*voice);
             }
+        }
+    }
+
+    // Play a spell's own sound: the archive names its casts by Spells.txt
+    // id — "04firebolt01" is Fire Bolt's row 4, "31townportal03" Town
+    // Portal's 31, "21fly03" Fly's 21 — so the two-digit prefix is a join,
+    // not a guess. The monster sets share the prefix space ("04barbarianB_
+    // attack"), so a candidate must open with a letter after the digits and
+    // carry none of the set-action suffixes. `observed` for the numbering
+    // on the named examples; picking the first match is the engine's.
+    void play_spell(int spell_id) {
+        if (spell_id <= 0 || spell_id > 99) {
+            return;
+        }
+        char prefix[3];
+        std::snprintf(prefix, sizeof prefix, "%02d", spell_id);
+        for (const auto& entry : archive_.entries()) {
+            const std::string& name = entry.name;
+            if (name.size() < 4 || name[0] != prefix[0] || name[1] != prefix[1]) {
+                continue;
+            }
+            if (std::isalpha(static_cast<unsigned char>(name[2])) == 0) {
+                continue;
+            }
+            if (name.find("_attack") != std::string::npos ||
+                name.find("_die") != std::string::npos ||
+                name.find("_charge") != std::string::npos ||
+                name.find("_fidget") != std::string::npos ||
+                name.find("Wince") != std::string::npos ||
+                name.find("wince") != std::string::npos) {
+                continue;
+            }
+            play_once(name);
+            return;
         }
     }
 

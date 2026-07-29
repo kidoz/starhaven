@@ -3548,6 +3548,7 @@ int main(int argc, char** argv) {
                         continue;  // a wand of something this slice cannot cast
                     }
                     --party[who].worn_charges[wi];
+                    ambient.play_spell(spell_id);
                     pick_up_message = std::move(what);
                     pick_up_shown = SDL_GetTicks();
                     pending_round = turn_based;
@@ -3752,6 +3753,7 @@ int main(int argc, char** argv) {
                             continue;  // a spell this slice cannot cast yet
                         }
                         packs[who].remove(carried.x, carried.y);
+                        ambient.play_spell(spell_id);
                         pick_up_message = std::move(what);
                         pick_up_shown = SDL_GetTicks();
                         read = true;
@@ -3894,6 +3896,7 @@ int main(int argc, char** argv) {
                                 cure_with(*spell, spell_skill_of(caster, *spell));
                             !lifted.empty()) {
                             caster.spell_points -= spell->cost_normal;
+                            ambient.play_spell(id);
                             pick_up_message = caster.name + " casts: " + lifted;
                             pick_up_shown = SDL_GetTicks();
                             cast = true;
@@ -3930,6 +3933,7 @@ int main(int argc, char** argv) {
                     }
                     if (wounded) {
                         caster.spell_points -= best->cost_normal;
+                        ambient.play_spell(best->id);
                         party[worst].hit_points =
                             std::min(party[worst].max_hit_points,
                                      party[worst].hit_points + std::max(1, best_effect.heal.low));
@@ -3938,6 +3942,7 @@ int main(int argc, char** argv) {
                                           party[worst].name;
                     } else if (target != game::kNoActor) {
                         caster.spell_points -= best->cost_normal;
+                        ambient.play_spell(best->id);
                         pick_up_message = battle.smite(
                             target, best_effect.damage, best_effect.damage_per_skill,
                             spell_skill_of(caster, *best), best->element, caster.name, session,
@@ -3984,6 +3989,7 @@ int main(int argc, char** argv) {
                     const auto chosen = beacons[pick];
                     beacons.erase(beacons.begin() + static_cast<std::ptrdiff_t>(pick));
                     beaconing = false;
+                    ambient.play_spell(33);
                     pick_up_message = "The beacon calls the party back";
                     pick_up_shown = SDL_GetTicks();
                     if (session.file_name == chosen.map || open_map(chosen.map)) {
@@ -4004,6 +4010,7 @@ int main(int argc, char** argv) {
                     porting = false;
                     portal_used_day = clock.day();
                     const std::string town = visited_towns[pick];
+                    ambient.play_spell(31);
                     pick_up_message = "The portal opens";
                     pick_up_shown = SDL_GetTicks();
                     if (open_map(town)) {
@@ -4760,6 +4767,18 @@ int main(int argc, char** argv) {
                                       weapon_skill_of(party[who]), rider.extra_damage,
                                       rider.damage_element);
                     if (!blow.empty()) {
+                        // The release and the blow: archive names picked by
+                        // this engine, marked as such.
+                        const int held_now =
+                            party[who].equipped[static_cast<std::size_t>(game::Slot::Weapon)];
+                        const auto* held_row =
+                            held_now > 0 ? item_stats.at(static_cast<std::size_t>(held_now))
+                                         : nullptr;
+                        ambient.play_once(held_row != nullptr &&
+                                                  held_row->equip_type ==
+                                                      data::ItemEquipType::Missile
+                                              ? "ArchShoot"
+                                              : "hit with sword 02m");
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
                         pending_round = turn_based;
