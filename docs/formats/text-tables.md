@@ -557,8 +557,14 @@ vary per spell"`. `observed` The engine applies exactly what the first
 (normal) line names: a weapon skill's points ride on the to-hit roll, and on
 damage where its line grants damage; armour and shield points join the
 armour class; Merchant bends counter prices; a school's points are the
-per-skill dice multiplier its spells scale by. The expert and master lines —
-doublings, stuns, dual wielding, the second arrow — are beyond this slice.
+per-skill dice multiplier its spells scale by. The expert and master lines wake at
+this engine's own thresholds — four points and seven, the teachers who set
+the real ones living in no table — and grant what each line says at its
+rank: the Shield's and Merchant's doublings and triplings, the Mace's and
+Staff's "Chance to stun equal to skill", the Dagger's triple damage at the
+same odds, the Bow's second arrow, the Sword's and Axe's recovery cuts (the
+percent per point being the engine's own). Dual wielding and the armor
+recovery penalties await mechanics to hang from.
 What a point is numerically worth where the line names no number, the
 raising staircase (the next point costs its own number), five points a
 level, and each class's one starting skill are the engine's own and say so.

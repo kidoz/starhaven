@@ -240,9 +240,12 @@ interoperability and compatibility with a legally purchased copy.
   your favor" — and the engine applies exactly those: weapon points ride the
   to-hit roll and the damage where granted, armour and shield points join
   the AC, a school's points are what its spells scale by, and a merchant in
-  the party haggles every counter. Points come five a level and are spent on
-  the sheet at an engine-own staircase; the hired Arms Masters, Squires and
-  merchants add their rows' bonuses to the same numbers.
+  the party haggles every counter. The expert and master lines wake at
+  engine-own thresholds and do what they say: stuns and triple blows at
+  odds "equal to skill", the Bow's second arrow, doubled and tripled
+  shields and discounts, faster swords. Points come five a level and are
+  spent on the sheet at an engine-own staircase; the hired Arms Masters,
+  Squires and merchants add their rows' bonuses to the same numbers.
 - **The fight's conditions cut both ways**: Mass Fear, Slow, Paralyze and
   Charm now do to monsters exactly what their prose says — fear holds their
   blows and breaks on damage, slow doubles their recovery, paralysis pins

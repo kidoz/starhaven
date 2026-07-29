@@ -30,6 +30,7 @@
 #include "core/world/map_session.hpp"
 #include "game/inventory.hpp"
 #include "game/party.hpp"
+#include "game/skills.hpp"
 
 namespace starhaven::game {
 
@@ -349,17 +350,17 @@ public:
 
     // The party strikes one monster. Returns what happened, for the message
     // line, or empty when the blow was not possible at all.
-    // `skill_to_hit` and `skill_damage` are the striker's weapon-skill
-    // points where that skill's own SKILLDES.TXT line grants each — "Skill
-    // added to Attack Bonus", "Skill added to Attack Damage" — computed by
-    // the caller, who holds the table.
+    // `skill` is what the striker's weapon skill grants at its rank, read
+    // from that skill's own SKILLDES.TXT lines by the caller, who holds the
+    // table: the attack bonus, any damage, the Dagger's triple chance, the
+    // Mace's stun, the Bow's second arrow.
     std::string strike(std::size_t actor, Character& who, const Pack& pack,  // NOLINT
                        const world::MapSession& session, const data::MonsterStatsTable& monsters,
                        const data::ItemStatsTable& items,
                        const data::RandomItemTable& random_items,
                        const data::StandardBonusTable& standard_bonuses,
-                       const data::SpecialBonusTable& special_bonuses, int skill_to_hit = 0,
-                       int skill_damage = 0) {
+                       const data::SpecialBonusTable& special_bonuses,
+                       const SkillPower& skill = {}) {
         if (!alive(actor) || who.hit_points <= 0) {
             return {};
         }
@@ -372,7 +373,7 @@ public:
         // Whether it lands: the character's accuracy against the monster's
         // armour class, on a hundred. `inferred`
         const int aim = 50 + attribute_bonus(who.attribute(Attribute::Accuracy)) * 5 +
-                        skill_to_hit - monster.armor_class;
+                        skill.to_hit - monster.armor_class;
         if (static_cast<int>(random_.next() % 100) >= aim) {
             return who.name + " misses " + monster.name;
         }
@@ -380,12 +381,33 @@ public:
         // A weapon does physical damage, which no resistance column answers;
         // the call is here so an elemental one would be answered correctly.
         int damage = data::roll(weapon_of(who, items), random_) +
-                     attribute_bonus(who.attribute(Attribute::Might)) + skill_damage;
+                     attribute_bonus(who.attribute(Attribute::Might)) + skill.damage;
+        std::string flourish;
+        // "Bow fires two arrows on every attack": a second roll of the
+        // same weapon joins the blow.
+        if (skill.second_arrow) {
+            damage += data::roll(weapon_of(who, items), random_);
+            flourish = ", twice-feathered";
+        }
+        // "Chance to cause triple damage equal to skill."
+        if (skill.triple_percent > 0 &&
+            static_cast<int>(random_.next() % 100) < skill.triple_percent) {
+            damage *= 3;
+            flourish = ", a vicious strike";
+        }
         damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, "Phys"));
         damage = damage < 1 ? 1 : damage;
 
-        return land(actor, damage, monster, who.name, items, random_items, standard_bonuses,
-                    special_bonuses);
+        // "Chance to stun equal to skill": the stunned lose their next
+        // moment — a second on their recovery is the engine's own length.
+        if (skill.stun_percent > 0 && alive(actor) &&
+            static_cast<int>(random_.next() % 100) < skill.stun_percent) {
+            combatants_[actor].recovery += 1.0f;
+            flourish += ", stunned";
+        }
+        std::string what = land(actor, damage, monster, who.name, items, random_items,
+                                standard_bonuses, special_bonuses);
+        return flourish.empty() ? what : what + flourish;
     }
 
     // A spell's blow at one monster: the prose's flat part, plus one roll of

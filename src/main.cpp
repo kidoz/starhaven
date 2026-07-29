@@ -1885,11 +1885,11 @@ int main(int argc, char** argv) {
     // The weapon skill behind a swing: the striker's points in the equipped
     // weapon's own Skill Group plus the best hired master's, split into what
     // that skill's SKILLDES.TXT lines actually grant.
-    const auto weapon_skill_of = [&](const game::Character& who) -> std::pair<int, int> {
+    const auto weapon_skill_of = [&](const game::Character& who) -> game::SkillPower {
         const int held = who.equipped[static_cast<std::size_t>(game::Slot::Weapon)];
         const auto* row = held > 0 ? item_stats.at(static_cast<std::size_t>(held)) : nullptr;
         if (row == nullptr || row->skill_group.empty()) {
-            return {0, 0};
+            return {};
         }
         int points = 0;
         if (const auto it = who.skills.find(row->skill_group); it != who.skills.end()) {
@@ -1902,10 +1902,9 @@ int main(int argc, char** argv) {
         points += mastered;
         const auto* skill = skill_table.find(row->skill_group);
         if (points <= 0 || skill == nullptr) {
-            return {0, 0};
+            return {};
         }
-        const game::SkillEffect effect = game::parse_skill_effect(skill->text);
-        return {effect.attack_bonus ? points : 0, effect.attack_damage ? points : 0};
+        return game::skill_power(skill->text, points);
     };
     // And the school skill behind a cast: the caster's points in the school's
     // own heading, the hired masters added, their level standing in only
@@ -1935,7 +1934,10 @@ int main(int argc, char** argv) {
         for (const auto& h : hirelings) {
             best = std::max(best, h.benefit.merchant_skill_bonus);
         }
-        return game::haggled_price(asking, best);
+        const auto* skill = skill_table.find("Merchant");
+        const int percent =
+            skill != nullptr ? game::skill_power(skill->text, best).price_percent : best;
+        return game::haggled_price(asking, percent);
     };
 
     // Whether found loot arrives already known. Trivial things — no ID
@@ -3355,7 +3357,7 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 const auto* skill = skill_table.find(row->skill_group);
-                if (skill == nullptr || !game::parse_skill_effect(skill->text).armor_class) {
+                if (skill == nullptr) {
                     continue;
                 }
                 int points = squire;
@@ -3363,7 +3365,7 @@ int main(int argc, char** argv) {
                     it != party[i].skills.end()) {
                     points += it->second;
                 }
-                skilled_armor += points;
+                skilled_armor += game::skill_power(skill->text, points).armor;
             }
             party[i].armor_class =
                 game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
@@ -3644,12 +3646,14 @@ int main(int argc, char** argv) {
                     std::string blow =
                         battle.strike(target, party[who], packs[who], session, monster_stats,
                                       item_stats, random_items, standard_bonuses, special_bonuses,
-                                      weapon_skill_of(party[who]).first,
-                                      weapon_skill_of(party[who]).second);
+                                      weapon_skill_of(party[who]));
                     if (!blow.empty()) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
-                        party_recovery = game::kPartyRecovery;
+                        // "Skill reduces recovery time", at the engine's own
+                        // percent a point.
+                        party_recovery = game::kPartyRecovery *
+                                         weapon_skill_of(party[who]).recovery_scale;
                     }
                     break;
                 }

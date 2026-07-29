@@ -55,6 +55,77 @@ struct SkillEffect {
     return out;
 }
 
+// The rank thresholds. The tables state what expert and master ranks do,
+// but not where they begin — the original keeps that with teachers no table
+// lists — so the steps are this engine's own: expert at four points, master
+// at seven. `inferred`
+inline constexpr int kExpertAt = 4;
+inline constexpr int kMasterAt = 7;
+
+[[nodiscard]] inline int rank_of(int points) noexcept {
+    return points >= kMasterAt ? 2 : points >= kExpertAt ? 1 : 0;
+}
+
+// Everything a skill grants at a rank, each from the table's own line for
+// that rank; a line beyond the held rank grants nothing yet.
+struct SkillPower {
+    int to_hit = 0;          // "Skill added to Attack Bonus", times any doubling
+    int damage = 0;          // "Skill added to Attack Damage"
+    int armor = 0;           // "Skill added to Armor Class", times any doubling
+    int stun_percent = 0;    // "Chance to stun equal to skill"
+    int triple_percent = 0;  // "Chance to cause triple damage equal to skill"
+    bool second_arrow = false;  // "Bow fires two arrows on every attack"
+    // "Skill reduces recovery time": how much per point is unnamed, so one
+    // percent per point to at most half is the engine's own. `inferred`
+    float recovery_scale = 1.0f;
+    int price_percent = 0;  // "Skill adjusts shop prices...", times any doubling
+};
+
+// Read what `points` in a skill grant at their rank, from the skill's own
+// SKILLDES.TXT lines in rank order.
+[[nodiscard]] inline SkillPower skill_power(const std::vector<std::string>& lines, int points) {
+    SkillPower out;
+    if (points <= 0) {
+        return out;
+    }
+    const int rank = rank_of(points);
+    int multiplier = 1;
+    bool base_attack = false, base_armor = false, base_prices = false, adds_damage = false;
+    bool cuts_recovery = false;
+    for (int i = 0; i <= rank && i < static_cast<int>(lines.size()); ++i) {
+        std::string low;
+        for (const char c : lines[static_cast<std::size_t>(i)]) {
+            low += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        if (low.find("triple effect") != std::string::npos) {
+            multiplier = 3;
+        } else if (low.find("double effect") != std::string::npos) {
+            multiplier = multiplier < 2 ? 2 : multiplier;
+        }
+        base_attack = base_attack || low.find("added to attack bonus") != std::string::npos;
+        adds_damage = adds_damage || low.find("added to attack damage") != std::string::npos;
+        base_armor = base_armor || low.find("added to armor class") != std::string::npos;
+        base_prices = base_prices || low.find("adjusts shop prices") != std::string::npos;
+        out.stun_percent = low.find("chance to stun equal to skill") != std::string::npos
+                               ? points
+                               : out.stun_percent;
+        out.triple_percent =
+            low.find("triple damage equal to skill") != std::string::npos ? points
+                                                                          : out.triple_percent;
+        out.second_arrow = out.second_arrow || low.find("fires two arrows") != std::string::npos;
+        cuts_recovery = cuts_recovery || low.find("reduces recovery time") != std::string::npos;
+    }
+    out.to_hit = base_attack ? points * multiplier : 0;
+    out.damage = adds_damage ? points : 0;
+    out.armor = base_armor ? points * multiplier : 0;
+    out.price_percent = base_prices ? points * multiplier : 0;
+    if (cuts_recovery) {
+        const int percent = points > 50 ? 50 : points;
+        out.recovery_scale = 1.0f - static_cast<float>(percent) / 100.0f;
+    }
+    return out;
+}
+
 // Raising a skill from `points` costs the next number of skill points: the
 // second point costs 2, the third 3. The tables never state the price; this
 // staircase is the engine's own. `inferred`

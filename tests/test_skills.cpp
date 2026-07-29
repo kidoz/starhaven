@@ -47,3 +47,48 @@ TEST_CASE("every base class starts with a weapon skill", "[skills]") {
     REQUIRE(starting_skill("Cleric") == "Mace");
     REQUIRE(starting_skill("Sorcerer") == "Staff");
 }
+
+TEST_CASE("the higher lines wake at their ranks", "[skills]") {
+    const std::vector<std::string> mace{"Skill added to Attack Bonus",
+                                        "Skill added to Attack Damage",
+                                        "Chance to stun equal to skill"};
+    // Three points: normal only — bonus but no damage, no stun.
+    auto low = skill_power(mace, 3);
+    REQUIRE(low.to_hit == 3);
+    REQUIRE(low.damage == 0);
+    REQUIRE(low.stun_percent == 0);
+    // Five points: expert — damage joins.
+    auto mid = skill_power(mace, 5);
+    REQUIRE(mid.damage == 5);
+    REQUIRE(mid.stun_percent == 0);
+    // Eight points: master — the stun equals the skill.
+    auto high = skill_power(mace, 8);
+    REQUIRE(high.stun_percent == 8);
+
+    const std::vector<std::string> shield{"Skill added to Armor Class",
+                                          "Skill added to Armor Class (double effect)",
+                                          "Skill added to Armor Class (triple effect)"};
+    REQUIRE(skill_power(shield, 3).armor == 3);
+    REQUIRE(skill_power(shield, 4).armor == 8);
+    REQUIRE(skill_power(shield, 7).armor == 21);
+
+    const std::vector<std::string> bow{"Skill added to Attack Bonus",
+                                       "Skill reduces recovery time",
+                                       "Bow fires two arrows on every attack"};
+    REQUIRE_FALSE(skill_power(bow, 6).second_arrow);
+    REQUIRE(skill_power(bow, 7).second_arrow);
+    REQUIRE(skill_power(bow, 6).recovery_scale < 1.0f);
+    REQUIRE(skill_power(bow, 3).recovery_scale == 1.0f);
+
+    const std::vector<std::string> dagger{"Skill added to Attack Bonus",
+                                          "Permits use of dagger in left hand",
+                                          "Chance to cause triple damage equal to skill"};
+    REQUIRE(skill_power(dagger, 7).triple_percent == 7);
+    REQUIRE(skill_power(dagger, 6).triple_percent == 0);
+
+    const std::vector<std::string> merchant{"Skill adjusts shop prices in your favor",
+                                            "Double effect of skill", "Triple effect of skill"};
+    REQUIRE(skill_power(merchant, 3).price_percent == 3);
+    REQUIRE(skill_power(merchant, 4).price_percent == 8);
+    REQUIRE(skill_power(merchant, 7).price_percent == 21);
+}
