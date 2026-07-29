@@ -293,7 +293,10 @@ struct SpellDuration {
     // of Mass Fear is 3 minutes per point of skill in Mind Magic". The same
     // walk reads it there, taken only when the scaling phrase is present so
     // a stray number in the prose is not mistaken for a clock.
-    const std::size_t in_text = find_ignoring_case(spell.description, "duration");
+    std::size_t in_text = find_ignoring_case(spell.description, "duration");
+    if (in_text == std::string_view::npos) {
+        in_text = find_ignoring_case(spell.description, "lasts");  // "lasts 1 hour per point"
+    }
     if (in_text != std::string_view::npos &&
         find_ignoring_case(spell.description, "per point of skill") != std::string_view::npos) {
         SpellDuration from_text =

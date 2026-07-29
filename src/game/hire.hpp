@@ -46,6 +46,9 @@ struct HireBenefit {
     int heroism_hours = 0;
     int fly_hours = 0;         // the Wind Master's daily Fly, its written hours
     bool town_portal = false;  // the Gate Master's daily master-rank portal
+    // The Cartographer "Keeps the Wizard Eye spell at expert ranking going
+    // at all times".
+    bool wizard_eye = false;
 
     // The masters' skill bonuses, in the rows' own points: "Two point bonus
     // to all weapon skills", "Three point bonus to all spell skills", the
@@ -63,7 +66,7 @@ struct HireBenefit {
                identifies || reputation_drop ||
                luck_bonus != 0 || elemental_protection != 0 || food_per_day != 0 ||
                food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0 ||
-               fly_hours != 0 || town_portal ||
+               fly_hours != 0 || town_portal || wizard_eye ||
                weapon_skill_bonus != 0 || spell_skill_bonus != 0 ||
                merchant_skill_bonus != 0 || armor_skill_bonus != 0 || disarm_bonus != 0 ||
                perception_bonus != 0;
@@ -275,6 +278,7 @@ namespace hire_detail {
         out.fly_hours = number_after(text, "duration");
     }
     out.town_portal = text.find("casts the town portal spell") != std::string::npos;
+    out.wizard_eye = text.find("keeps the wizard eye spell") != std::string::npos;
     return out;
 }
 

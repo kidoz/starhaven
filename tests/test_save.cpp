@@ -214,3 +214,14 @@ TEST_CASE("the torch and the beacon round-trip", "[save]") {
     REQUIRE(after.beacon_x == 12.5f);
     REQUIRE(after.beacon_until == 900);
 }
+
+TEST_CASE("the wizard eye round-trips", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.eye_until = 1200;
+    state.eye_rank = 1;
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.eye_until == 1200);
+    REQUIRE(after.eye_rank == 1);
+}

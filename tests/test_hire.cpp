@@ -79,9 +79,8 @@ TEST_CASE("repairs, luck, protection, food and the dawn spells parse", "[hire]")
 TEST_CASE("a benefit this engine has no mechanic for parses to nothing", "[hire]") {
     REQUIRE_FALSE(parse_benefit("Grants a constant, single category bonus to your reputation.")
                       .any());
-    REQUIRE_FALSE(parse_benefit("Keeps the Wizard Eye spell at expert ranking going at all "
-                                "times.")
-                      .any());
+    REQUIRE(parse_benefit("Keeps the Wizard Eye spell at expert ranking going at all times.")
+                .wizard_eye);
     REQUIRE_FALSE(parse_benefit("").any());
 }
 

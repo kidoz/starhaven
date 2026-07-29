@@ -1453,6 +1453,7 @@ int main(int argc, char** argv) {
     int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
     bool force_create = false;  // --create: the party door, even under --screenshot
     bool start_journal = false;  // --journal: open the journal at once
+    bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
     game::WalkOutcome::Ask ask_pending;
@@ -1487,6 +1488,8 @@ int main(int argc, char** argv) {
             force_create = true;
         } else if (a == "--journal") {
             start_journal = true;
+        } else if (a == "--eye") {
+            start_eye = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -1820,6 +1823,8 @@ int main(int argc, char** argv) {
     // once-a-day.
     std::int64_t fly_until = 0;
     std::int64_t torch_until = 0;  // Torch Light's written hours
+    std::int64_t eye_until = start_eye ? 1 << 30 : 0;  // Wizard Eye's written hours
+    int eye_rank = start_eye ? 2 : 0;  // 0 monsters, 1 + treasure, 2 + interest
     // Lloyd's Beacon: one marker at normal rank — a map and a spot, and
     // when it decays, "1 hour per point of skill" as its cell writes.
     std::string beacon_map;
@@ -2598,6 +2603,8 @@ int main(int argc, char** argv) {
                 state.fly_until = fly_until;
                 state.reputation = reputation;
                 state.torch_until = torch_until;
+                state.eye_until = eye_until;
+                state.eye_rank = eye_rank;
                 state.beacon_map = beacon_map;
                 state.beacon_x = beacon_at.x;
                 state.beacon_y = beacon_at.y;
@@ -2665,6 +2672,8 @@ int main(int argc, char** argv) {
                     fly_until = state.fly_until;
                     reputation = state.reputation;
                     torch_until = state.torch_until;
+                    eye_until = state.eye_until;
+                    eye_rank = state.eye_rank;
                     beacon_map = state.beacon_map;
                     beacon_at = {state.beacon_x, state.beacon_y, state.beacon_z};
                     beacon_until = state.beacon_until;
@@ -3372,6 +3381,16 @@ int main(int argc, char** argv) {
                                    !lifted.empty()) {
                             what = party[who].name + " reads " +
                                    data::cp1252_to_utf8(row->name) + ": " + lifted;
+                        } else if (spell_id == 12) {
+                            // Wizard Eye: the corner automap, "while
+                            // outdoors", for its written hour per point.
+                            const int minutes = data::parse_spell_duration(*spell, 0).minutes(
+                                spell_skill_of(party[who], *spell));
+                            eye_until = std::max(eye_until, clock.minutes() + minutes);
+                            eye_rank = std::max(eye_rank, 0);
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) +
+                                   ": the corner of the eye opens";
                         } else if (spell_id == 1) {
                             // Torch Light, for its cell's own hour per
                             // point of skill.
@@ -4548,6 +4567,94 @@ int main(int argc, char** argv) {
                    game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,
                                  camera.forward(), visible));
 
+        // Wizard Eye's automap, "in the upper right corner ... while
+        // outdoors": dots in a north-up window. The window's reach and the
+        // dot colours are the engine's; what each rank shows is the cells'
+        // own — monsters, then treasure, then points of interest. A hired
+        // Cartographer keeps it lit at expert, as their row says.
+        const bool eye_open =
+            session.outdoor() &&
+            (clock.minutes() < eye_until ||
+             std::any_of(hirelings.begin(), hirelings.end(),
+                         [](const auto& h) { return h.benefit.wizard_eye; }));
+        if (eye_open) {
+            const int rank = std::any_of(hirelings.begin(), hirelings.end(),
+                                         [](const auto& h) { return h.benefit.wizard_eye; })
+                                 ? std::max(eye_rank, 1)
+                                 : eye_rank;
+            constexpr int kBox = 110;
+            constexpr float kReach = 6144.0f;  // world units across the box
+            const int left = kWidth - kBox - 8;
+            const int top = 30;
+            auto pixels = scene.framebuffer().color();
+            for (int y = top; y < top + kBox; ++y) {
+                for (int x = left; x < left + kBox; ++x) {
+                    const auto i =
+                        (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+                    pixels[i] = static_cast<std::uint8_t>(pixels[i] / 3 + 10);
+                    pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 3 + 10);
+                    pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 3 + 20);
+                }
+            }
+            for (int d = 0; d < kBox; ++d) {
+                for (const auto [ex, ey] :
+                     {std::pair{left + d, top}, {left + d, top + kBox - 1}, {left, top + d},
+                      {left + kBox - 1, top + d}}) {
+                    const auto i =
+                        (static_cast<std::size_t>(ey) * kWidth + static_cast<std::size_t>(ex)) * 4;
+                    pixels[i] = 180;
+                    pixels[i + 1] = 175;
+                    pixels[i + 2] = 140;
+                }
+            }
+            const auto plot = [&](const render::Vec3& at, render::Color colour) {
+                const float dx = (at.x - camera.position.x) / kReach + 0.5f;
+                const float dz = (at.z - camera.position.z) / kReach + 0.5f;
+                if (dx < 0.0f || dx >= 1.0f || dz < 0.0f || dz >= 1.0f) {
+                    return;
+                }
+                const int px = left + static_cast<int>(dx * kBox);
+                const int py = top + kBox - 1 - static_cast<int>(dz * kBox);
+                for (int oy = -1; oy <= 1; ++oy) {
+                    for (int ox = -1; ox <= 1; ++ox) {
+                        const int qx = px + ox;
+                        const int qy = py + oy;
+                        if (qx < left || qx >= left + kBox || qy < top || qy >= top + kBox) {
+                            continue;
+                        }
+                        const auto i = (static_cast<std::size_t>(qy) * kWidth +
+                                        static_cast<std::size_t>(qx)) *
+                                       4;
+                        pixels[i] = colour.r;
+                        pixels[i + 1] = colour.g;
+                        pixels[i + 2] = colour.b;
+                    }
+                }
+            };
+            for (std::size_t i = 0; i < session.actors.size(); ++i) {
+                if (battle.alive(i)) {
+                    plot(session.actors[i].position, {220, 60, 60, 255});
+                }
+            }
+            if (rank >= 1) {
+                for (const auto& object : session.objects) {
+                    plot(object.position, {230, 210, 90, 255});
+                }
+            }
+            if (rank >= 2) {
+                for (const auto& mesh : session.meshes) {
+                    for (const auto& facet : mesh.facets) {
+                        if (facet.event_id == 0 || facet.vertex_count < 1 ||
+                            facet.vertex_ids[0] >= mesh.vertices.size()) {
+                            continue;
+                        }
+                        const auto& v = mesh.vertices[facet.vertex_ids[0]];
+                        plot(world::to_render_space(v.x, v.y, v.z), {110, 200, 220, 255});
+                    }
+                }
+            }
+            plot(camera.position, {240, 240, 240, 255});
+        }
         if (porting && font.glyph_count() > 0) {
             const int line = font.height() + 2;
             int y = kHeight / 2 - static_cast<int>(visited_towns.size()) * line / 2;

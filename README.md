@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Wizard Eye opens the corner automap**, exactly where its prose puts it
+  — "the upper right corner ... while outdoors", an hour per point of
+  skill — showing what each rank cell says: monsters, treasure at expert,
+  points of interest at master. The window's reach and the dot colours are
+  the engine's; the hired Cartographer keeps it lit at expert as their row
+  promises. `--eye` lights it for reproducing.
 - **A journal at last**: J opens the page the walker has been keeping all
   along — every held quest bit's note in `Quests.txt`'s own words, the
   honors beneath — and `--journal` opens it from the command line for

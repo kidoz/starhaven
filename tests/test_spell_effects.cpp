@@ -147,3 +147,11 @@ TEST_CASE("the cures' first sentences name their conditions", "[spells]") {
     spell.description = "Does 2-6 points of damage.";
     REQUIRE(starhaven::data::parse_spell_cure(spell).empty());
 }
+
+TEST_CASE("a duration written as 'lasts' is read like one", "[spells]") {
+    starhaven::data::SpellStatsEntry spell;
+    spell.description = "The spell lasts 1 hour per point of skill in Air Magic.";
+    spell.normal = "Only shows terrain and monsters";
+    const auto duration = starhaven::data::parse_spell_duration(spell, 0);
+    REQUIRE(duration.per_skill_minutes == 60);
+}

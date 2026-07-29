@@ -58,6 +58,8 @@ struct SaveState {
 
     // Torch Light's hours, and Lloyd's marker: where, until when.
     std::int64_t torch_until = 0;
+    std::int64_t eye_until = 0;
+    int eye_rank = 0;
     std::string beacon_map;
     float beacon_x = 0, beacon_y = 0, beacon_z = 0;
     std::int64_t beacon_until = 0;
@@ -96,6 +98,9 @@ struct SaveState {
     }
     if (state.torch_until > 0) {
         out << "torch\t" << state.torch_until << "\n";
+    }
+    if (state.eye_until > 0) {
+        out << "eye\t" << state.eye_until << "\t" << state.eye_rank << "\n";
     }
     if (!state.beacon_map.empty()) {
         out << "beacon\t" << state.beacon_until << "\t" << state.beacon_x << "\t"
@@ -246,6 +251,9 @@ struct SaveState {
             out.reputation = next_int();
         } else if (kind == "torch") {
             out.torch_until = next_int();
+        } else if (kind == "eye") {
+            out.eye_until = next_int();
+            out.eye_rank = next_int();
         } else if (kind == "beacon") {
             out.beacon_until = next_int();
             out.beacon_x = next_float();
