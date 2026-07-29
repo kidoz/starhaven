@@ -109,6 +109,53 @@ struct Speech {
     return out;
 }
 
+// How the party stands in the world's eyes when a greeting is chosen. The
+// bands are this engine's own — the table names them ("Rep notorious",
+// "Rep below zero", "Rep above 10", "Rep saintly", "Fame too low") without
+// numbers — and say so: notorious at -50, saintly at +50, fame wanted at 5.
+// `inferred`
+struct Standing {
+    int reputation = 0;
+    int fame = 0;
+    bool met_before = false;
+};
+
+inline constexpr int kNotoriousAt = -50;
+inline constexpr int kSaintlyAt = 50;
+inline constexpr int kFameWanted = 5;
+
+// Which npcbtb message number greets this standing: the table's own ladder,
+// most specific first, falling back to the plain greeting where a
+// personality has no wording for a rung.
+[[nodiscard]] inline int greeting_number(const data::NpcPersonality& personality,
+                                         const Standing& standing) {
+    const auto has = [&personality](int number) {
+        return !personality.message(number).empty();
+    };
+    if (standing.fame < kFameWanted && has(6)) {
+        return 6;
+    }
+    if (standing.reputation <= kNotoriousAt && (has(7) || has(8))) {
+        return has(7) ? 7 : 8;
+    }
+    if (standing.reputation >= kSaintlyAt && (has(9) || has(10))) {
+        return has(9) ? 9 : 10;
+    }
+    if (standing.reputation < 0) {
+        const int number = standing.met_before ? 15 : 11;
+        if (has(number)) {
+            return number;
+        }
+    }
+    if (standing.reputation > 10) {
+        const int number = standing.met_before ? 16 : 12;
+        if (has(number)) {
+            return number;
+        }
+    }
+    return standing.met_before && has(2) ? 2 : 1;
+}
+
 // What one person has to say right now.
 struct Conversation {
     std::string who;                      // "Caine, Blacksmith"
@@ -124,7 +171,8 @@ struct Conversation {
 talk_to(const world::SessionNpc& person, const data::NpcDialogueTable& dialogue,
         const data::NpcPersonalityTable& personalities, const data::ProfessionTextTable& trade_talk,
         const GameClock& clock, const data::InterfaceStrings& words = {},
-        std::string_view listener = {}, bool listener_is_female = false) {
+        std::string_view listener = {}, bool listener_is_female = false,
+        const Standing& standing = {}) {
     const Speech who{person.name, std::string(listener), listener_is_female, clock.hour()};
     Conversation out;
     out.who = person.name;
@@ -134,8 +182,10 @@ talk_to(const world::SessionNpc& person, const data::NpcDialogueTable& dialogue,
 
     // The personality's opening line, and which approaches it entertains.
     if (const auto* personality = personalities.find(person.personality); personality != nullptr) {
-        out.greeting =
-            substitute(data::cp1252_to_utf8(std::string(personality->message(1))), who, words);
+        out.greeting = substitute(
+            data::cp1252_to_utf8(std::string(
+                personality->message(greeting_number(*personality, standing)))),
+            who, words);
         static constexpr std::array<std::pair<data::NpcApproach, const char*>, 3> kApproaches{
             {{data::NpcApproach::Beg, "beg"},
              {data::NpcApproach::Bribe, "bribe"},

@@ -222,6 +222,14 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **A name the world reacts to**: the party carries reputation and fame,
+  and `npcbtb.txt`'s thirteen gated greetings finally gate — the notorious
+  get "Oh No! Please don't hurt me", the saintly an honor, the unknown
+  "I only talk to real people" — each in the personality's own words, with
+  second meetings remembered. Charity betters the name, threats sour it,
+  and the Pirate's, Gypsy's, Duper's and Burglar's written "one full
+  category" of reputation finally costs one while they're kept. The bands
+  and prices are the engine's own and say so.
 - **The counter buys back properly**: the pack screen grew a cursor — arrows
   choose a cell, the line above names the thing and what an open counter
   would pay, and S sells exactly that, at the offer price bent toward the

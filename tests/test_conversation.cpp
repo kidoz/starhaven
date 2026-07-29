@@ -174,3 +174,54 @@ TEST_CASE("a price of nothing leaves its code alone", "[talk]") {
     REQUIRE(substitute("for %25 gold", Speech{}, w) == "for %25 gold");
     REQUIRE(substitute("this %24", Speech{}, w) == "this %24");
 }
+
+TEST_CASE("the greeting climbs the table's own reputation ladder", "[conversation]") {
+    data::NpcPersonality personality;
+    personality.name = "Peasant";
+    personality.messages.resize(25);
+    personality.messages[1] = "First hello";
+    personality.messages[2] = "Second hello";
+    personality.messages[6] = "Fame too low";
+    personality.messages[7] = "Notorious!";
+    personality.messages[9] = "Saintly!";
+    personality.messages[11] = "Below zero, first";
+    personality.messages[15] = "Below zero, second";
+    personality.messages[12] = "Above ten, first";
+
+    game::Standing plain;
+    plain.fame = 10;
+    REQUIRE(game::greeting_number(personality, plain) == 1);
+    plain.met_before = true;
+    REQUIRE(game::greeting_number(personality, plain) == 2);
+
+    game::Standing unknown;
+    unknown.fame = 0;
+    REQUIRE(game::greeting_number(personality, unknown) == 6);
+
+    game::Standing bad;
+    bad.fame = 10;
+    bad.reputation = -60;
+    REQUIRE(game::greeting_number(personality, bad) == 7);
+    bad.reputation = -5;
+    REQUIRE(game::greeting_number(personality, bad) == 11);
+    bad.met_before = true;
+    REQUIRE(game::greeting_number(personality, bad) == 15);
+
+    game::Standing good;
+    good.fame = 10;
+    good.reputation = 60;
+    REQUIRE(game::greeting_number(personality, good) == 9);
+    good.reputation = 15;
+    REQUIRE(game::greeting_number(personality, good) == 12);
+
+    // A rung the personality has no wording for falls through to the plain
+    // greeting rather than saying nothing.
+    data::NpcPersonality terse;
+    terse.name = "Guard";
+    terse.messages.resize(25);
+    terse.messages[1] = "What is it?";
+    game::Standing notorious;
+    notorious.fame = 10;
+    notorious.reputation = -60;
+    REQUIRE(game::greeting_number(terse, notorious) == 1);
+}

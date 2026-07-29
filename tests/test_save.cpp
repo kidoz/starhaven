@@ -171,3 +171,12 @@ TEST_CASE("the visited towns and the flight round-trip", "[save]") {
     REQUIRE(after.visited_towns == std::vector<std::string>{"OutE3.Odm", "OutD3.Odm"});
     REQUIRE(after.fly_until == 5000);
 }
+
+TEST_CASE("the party's name round-trips", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.reputation = -12;
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.reputation == -12);
+}

@@ -1736,6 +1736,11 @@ int main(int argc, char** argv) {
     std::string talk_answer;
     std::set<int> approaches_used;  // per conversation: 0 beg, 1 bribe, 2 threat
     int pack_cursor_x = 0, pack_cursor_y = 0;  // the pack screen's chosen cell
+    // How the world sees the party: reputation moved by deeds, fame worn
+    // from experience. The derivation and the deed prices are the engine's
+    // own and say so where they act.
+    int reputation = 0;
+    std::set<int> greeted_npcs;  // who has met the party, this session
     // A town, for Town Portal's purposes, is an outdoor map with counters —
     // the engine's own reading of the spell's "last town visited"; the
     // spell's words pick the destination, only the list is ours.
@@ -1749,6 +1754,26 @@ int main(int argc, char** argv) {
         }
     };
     note_town();
+    const auto standing_for = [&](int npc_id) {
+        game::Standing standing;
+        standing.reputation = reputation;
+        // "Reputation is decreased by one full category" while such help is
+        // kept; a category is one greeting band, sized by the engine at 25.
+        for (const auto& h : hirelings) {
+            if (h.benefit.reputation_drop) {
+                standing.reputation -= 25;
+            }
+        }
+        long long total = 0;
+        for (const auto& member : party) {
+            total += member.experience;
+        }
+        // Fame as the average thousand of experience: the engine's own
+        // derivation, the table naming no other source.
+        standing.fame = static_cast<int>(total / 4 / 1000);
+        standing.met_before = greeted_npcs.contains(npc_id);
+        return standing;
+    };
 
     // The design table's row and the session's building are two views of one
     // establishment, joined by the row id. The people answered are as the
@@ -2399,6 +2424,7 @@ int main(int argc, char** argv) {
                 state.awards.assign(script_state.awards.begin(), script_state.awards.end());
                 state.visited_towns = visited_towns;
                 state.fly_until = fly_until;
+                state.reputation = reputation;
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -2459,6 +2485,7 @@ int main(int argc, char** argv) {
                     promoted_awards = script_state.awards;
                     visited_towns = state.visited_towns;
                     fly_until = state.fly_until;
+                    reputation = state.reputation;
                     note_town();
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
@@ -2655,6 +2682,13 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T &&
                        open_shop >= 0) {
                 // Talk to whoever the NPC table puts in this establishment.
+                if (talking_to >= 0) {
+                    const auto met =
+                        people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                    if (talking_to < static_cast<int>(met.size())) {
+                        greeted_npcs.insert(met[static_cast<std::size_t>(talking_to)].npc_id);
+                    }
+                }
                 talking_to = talking_to >= 0 ? -1 : 0;
                 talk_answer.clear();
                 approaches_used.clear();
@@ -2872,6 +2906,7 @@ int main(int argc, char** argv) {
                     const int price = game::heal_price(shop);
                     if (chosen == 4) {
                         if (gold >= price) {
+                            reputation += 2;  // charity betters the name; the price is ours
                             gold -= price;
                             for (auto& member : party) {
                                 member.bless_until =
@@ -3293,6 +3328,9 @@ int main(int argc, char** argv) {
                         approaches_used.insert(which);
                         if (which == 1) {
                             gold -= 50;
+                        }
+                        if (which == 2) {
+                            reputation -= 1;  // a threat sours the name; ours
                         }
                         const bool taken =
                             personality != nullptr &&
@@ -4180,12 +4218,12 @@ int main(int argc, char** argv) {
         if (talking_to >= 0 && open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
             if (talking_to < static_cast<int>(here.size())) {
+                const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
                 draw_conversation(scene, font,
-                                  game::talk_to(patched(here[static_cast<std::size_t>(
-                                                    talking_to)]),
-                                                dialogue, personalities, trade_talk, clock,
-                                                interface_words, party[0].name,
-                                                game::face_is_female(party[0].face)),
+                                  game::talk_to(person, dialogue, personalities, trade_talk,
+                                                clock, interface_words, party[0].name,
+                                                game::face_is_female(party[0].face),
+                                                standing_for(person.npc_id)),
                                   talk_answer);
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {

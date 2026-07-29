@@ -471,6 +471,17 @@ The columns are headed `Peasant BTB`, `Thief BT`, `Sorcerer TB`, `Paladin Be` �
 a name and a reminder of which approaches work, spelled with the initials. The
 suffix is dropped; the three rows below state the same thing exactly.
 
+The engine also greets through it: thirteen of the messages are reputation-
+and fame-gated — "Rep ok, 1st greet", "Rep notorious", "Rep saintly", "Rep
+below zero", "Rep above 10", "Fame too low", each with a second-meeting
+variant — and the greeting now climbs that ladder, falling back to the
+plain hello where a personality has no wording for a rung. The bands
+(notorious at -50, saintly at +50, fame wanted at 5), fame as the party's
+average thousand of experience, and the deed prices (charity +2, threats
+-1) are the engine's own; the four professions' "Reputation is decreased by
+one full category" costs one 25-point band while they are kept. `inferred`
+for all the numbers; the ladder and the wordings are the table's.
+
 The engine leans through it now: keys 5, 6 and 7 in a conversation beg,
 bribe and threaten, answered in the personality's own wording — 19/21/23
 accepting, 20/22/24 refusing, 3/4/5 for pressing twice. What a success

@@ -34,6 +34,9 @@ struct HireBenefit {
     bool repairs_weapons = false;
     bool repairs_armor = false;
     bool identifies = false;  // the Scholar's "Unlimited item Identification"
+    // "Reputation is decreased by one full category" — the Pirate's,
+    // Gypsy's, Duper's and Burglar's price, paid while they are kept.
+    bool reputation_drop = false;
     int luck_bonus = 0;            // to every character while hired
     int elemental_protection = 0;  // to the four elemental resistances
     int food_per_day = 0;          // a cook's make, capped by their own words
@@ -57,7 +60,7 @@ struct HireBenefit {
     [[nodiscard]] bool any() const noexcept {
         return experience_percent != 0 || gold_percent != 0 || coach_days_faster != 0 ||
                boat_days_faster != 0 || heal_level != 0 || repairs_weapons || repairs_armor ||
-               identifies ||
+               identifies || reputation_drop ||
                luck_bonus != 0 || elemental_protection != 0 || food_per_day != 0 ||
                food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0 ||
                fly_hours != 0 || town_portal ||
@@ -196,6 +199,8 @@ namespace hire_detail {
     out.repairs_weapons = text.find("unlimited weapon repair") != std::string::npos;
     out.repairs_armor = text.find("unlimited armor repair") != std::string::npos;
     out.identifies = text.find("unlimited item identification") != std::string::npos;
+    out.reputation_drop =
+        text.find("reputation is decreased by one full category") != std::string::npos;
 
     // "Five point bonus to Luck statistic", "Luck statistics are increased
     // by ten points".
