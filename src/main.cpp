@@ -2681,10 +2681,16 @@ int main(int argc, char** argv) {
                     who.hit_points = std::min(who.hit_points, who.max_hit_points);
                     who.max_spell_points -= off.spell_points;
                     who.spell_points = std::min(who.spell_points, who.max_spell_points);
+                    const int old_charges = who.worn_charges[si];
                     who.equipped[si] = carried.item_id;
                     who.worn_standard[si] = carried.standard_bonus;
                     who.worn_strength[si] = carried.standard_strength;
                     who.worn_special[si] = carried.special_bonus;
+                    who.worn_charges[si] =
+                        carried.charges > 0
+                            ? carried.charges
+                            : (row->equip_type == data::ItemEquipType::Wand ? row->modifier_2
+                                                                            : 0);
                     const game::EnchantPower on =
                         power_of(carried.standard_bonus, carried.standard_strength,
                                  carried.special_bonus);
@@ -2700,7 +2706,7 @@ int main(int argc, char** argv) {
                         (void)pack.add(
                             worn, std::max(1, game::cells_across(static_cast<int>(icon.width()))),
                             std::max(1, game::cells_across(static_cast<int>(icon.height()))),
-                            true, old_standard, old_strength, old_special);
+                            true, old_standard, old_strength, old_special, old_charges);
                     }
                     pick_up_message = who.name + " wears the " + data::cp1252_to_utf8(row->name);
                     pick_up_shown = SDL_GetTicks();
@@ -3474,6 +3480,79 @@ int main(int argc, char** argv) {
                 // first character standing, at their level — is this
                 // engine's. `inferred`
                 bool read = false;
+                // A drawn wand goes first: its row's S-number is the spell,
+                // "you must equip it" its own instruction, and a charge
+                // burns per cast.
+                for (std::size_t who = 0; who < party.size() && !read; ++who) {
+                    if (!party[who].can_act() || party[who].afraid()) {
+                        continue;
+                    }
+                    const auto wi = static_cast<std::size_t>(game::Slot::Weapon);
+                    const int held = party[who].equipped[wi];
+                    const auto* row =
+                        held > 0 ? item_stats.at(static_cast<std::size_t>(held)) : nullptr;
+                    if (row == nullptr || row->equip_type != data::ItemEquipType::Wand) {
+                        continue;
+                    }
+                    if (party[who].worn_charges[wi] <= 0) {
+                        pick_up_message = "The wand is spent";
+                        pick_up_shown = SDL_GetTicks();
+                        read = true;
+                        break;
+                    }
+                    const int spell_id = data::scroll_spell_of(row->modifier_1);
+                    const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id));
+                    if (spell == nullptr) {
+                        continue;
+                    }
+                    const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
+                    std::string what;
+                    if (std::string lifted =
+                            cure_with(*spell, spell_skill_of(party[who], *spell));
+                        !lifted.empty()) {
+                        what = party[who].name + " waves the wand: " + lifted;
+                    } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
+                        const std::size_t target =
+                            game::aimed_actor(session, battle, camera.position,
+                                              camera.forward(), game::kMissileRange);
+                        if (target == game::kNoActor) {
+                            pick_up_message = "Nothing in reach to cast at";
+                            pick_up_shown = SDL_GetTicks();
+                            read = true;
+                            break;
+                        }
+                        what = battle.smite(target, effect.damage, effect.damage_per_skill,
+                                            spell_skill_of(party[who], *spell), spell->element,
+                                            party[who].name, session, monster_stats, item_stats,
+                                            random_items, standard_bonuses, special_bonuses);
+                    } else if (const auto lays = condition_of(spell_id)) {
+                        const std::size_t single = game::aimed_actor(
+                            session, battle, camera.position, camera.forward(),
+                            game::kMissileRange);
+                        const int seconds =
+                            data::parse_spell_duration(*spell, 0).minutes(
+                                spell_skill_of(party[who], *spell)) *
+                            60;
+                        if (single != game::kNoActor &&
+                            battle.afflict(single, lays->first,
+                                           static_cast<float>(seconds))) {
+                            what = party[who].name + " waves the wand: " +
+                                   data::cp1252_to_utf8(spell->name) + " takes hold";
+                        } else {
+                            pick_up_message = "Nothing in reach to cast at";
+                            pick_up_shown = SDL_GetTicks();
+                            read = true;
+                            break;
+                        }
+                    } else {
+                        continue;  // a wand of something this slice cannot cast
+                    }
+                    --party[who].worn_charges[wi];
+                    pick_up_message = std::move(what);
+                    pick_up_shown = SDL_GetTicks();
+                    pending_round = turn_based;
+                    read = true;
+                }
                 for (std::size_t who = 0; who < packs.size() && !read; ++who) {
                     if (!party[who].can_act()) {
                         continue;
@@ -4053,7 +4132,8 @@ int main(int argc, char** argv) {
             const bool known = arrives_identified(*row);
             for (auto& pack : packs) {
                 if (pack.add(id, w, h, known, rolled.standard_bonus,
-                             rolled.standard_bonus_strength, rolled.special_bonus)) {
+                             rolled.standard_bonus_strength, rolled.special_bonus,
+                             rolled.charges)) {
                     found_text +=
                         (found_text.empty() ? "" : " and ") +
                         data::cp1252_to_utf8(
@@ -4567,7 +4647,8 @@ int main(int argc, char** argv) {
                     const bool known = arrives_identified(*row);
                     for (auto& pack : packs) {
                         if (pack.add(id, w, h, known, rolled.standard_bonus,
-                                     rolled.standard_bonus_strength, rolled.special_bonus)) {
+                                     rolled.standard_bonus_strength, rolled.special_bonus,
+                                     rolled.charges)) {
                             took += (took.empty() || took.back() == ' ' ? "You find "
                                                                           : ", ") +
                                     data::cp1252_to_utf8(known ||

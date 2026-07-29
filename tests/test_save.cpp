@@ -245,3 +245,17 @@ TEST_CASE("the enchantments ride the save on gear and in packs", "[save]") {
     REQUIRE(after.packs[1][0].standard_bonus == 1);
     REQUIRE(after.packs[1][0].standard_strength == 5);
 }
+
+TEST_CASE("a wand's charges ride the save", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.party[0].worn_charges[0] = 37;
+    PackedItem wand;
+    wand.item_id = 135;
+    wand.charges = 12;
+    state.packs[3].push_back(wand);
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.party[0].worn_charges[0] == 37);
+    REQUIRE(after.packs[3][0].charges == 12);
+}

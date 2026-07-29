@@ -62,6 +62,7 @@ struct PackedItem {
     int standard_bonus = 0;
     int standard_strength = 0;
     int special_bonus = 0;
+    int charges = 0;  // a wand's casts, the generator's roll
 };
 
 // One character's pack.
@@ -71,7 +72,8 @@ public:
     // bottom. Returns false when there is no such place, which is the only
     // reason a pick-up fails.
     bool add(int item_id, int width, int height, bool identified = true,
-             int standard_bonus = 0, int standard_strength = 0, int special_bonus = 0) {
+             int standard_bonus = 0, int standard_strength = 0, int special_bonus = 0,
+             int charges = 0) {
         if (item_id <= 0 || width <= 0 || height <= 0 || width > kPackWidth ||
             height > kPackHeight) {
             return false;
@@ -80,7 +82,7 @@ public:
             for (int x = 0; x + width <= kPackWidth; ++x) {
                 if (free_at(x, y, width, height)) {
                     items_.push_back({item_id, x, y, width, height, identified, standard_bonus,
-                                      standard_strength, special_bonus});
+                                      standard_strength, special_bonus, charges});
                     return true;
                 }
             }

@@ -96,6 +96,10 @@ inline constexpr std::size_t kSlotCount = static_cast<std::size_t>(Slot::Count);
     case data::ItemEquipType::TwoHandedWeapon:
     case data::ItemEquipType::Missile:
         return Slot::Weapon;
+    case data::ItemEquipType::Wand:
+        // "To use this wand, you must equip it as though you were equipping
+        // a weapon" — the rows' own instruction.
+        return Slot::Weapon;
     case data::ItemEquipType::Shield:
         return Slot::Shield;
     case data::ItemEquipType::Armor:
@@ -152,6 +156,7 @@ struct Character {
     std::array<int, kSlotCount> worn_standard{};
     std::array<int, kSlotCount> worn_strength{};
     std::array<int, kSlotCount> worn_special{};
+    std::array<int, kSlotCount> worn_charges{};  // a wand's remaining casts
 
     // What the worn enchantments add, recomputed by the shell each frame
     // from the bonus tables so nothing double-applies.

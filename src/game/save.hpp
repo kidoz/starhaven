@@ -164,6 +164,9 @@ struct SaveState {
         for (const int special : who.worn_special) {
             out << "\t" << special;
         }
+        for (const int charges : who.worn_charges) {
+            out << "\t" << charges;
+        }
         out << "\n";
         if (!who.known_spells.empty()) {
             out << "spells\t" << i;
@@ -196,7 +199,8 @@ struct SaveState {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
                 << "\t" << item.width << "\t" << item.height << "\t"
                 << (item.identified ? 1 : 0) << "\t" << item.standard_bonus << "\t"
-                << item.standard_strength << "\t" << item.special_bonus << "\n";
+                << item.standard_strength << "\t" << item.special_bonus << "\t"
+                << item.charges << "\n";
         }
     }
     return out.str();
@@ -392,6 +396,9 @@ struct SaveState {
                 for (auto& special : who.worn_special) {
                     special = next_int();
                 }
+                for (auto& charges : who.worn_charges) {
+                    charges = next_int();
+                }
             }
         } else if (kind == "item") {
             const auto i = static_cast<std::size_t>(next_int());
@@ -412,6 +419,7 @@ struct SaveState {
             item.standard_bonus = next_int();
             item.standard_strength = next_int();
             item.special_bonus = next_int();
+            item.charges = next_int();
             out.packs[i].push_back(item);
         }
     }
