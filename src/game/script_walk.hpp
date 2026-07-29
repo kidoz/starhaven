@@ -41,6 +41,10 @@ struct WalkState {
     int experience = 0;
     int food = 0;
 
+    // The honors earned: `Awards.txt` rows, set by quest events and worn on
+    // the sheet. Persistent like the bits.
+    std::set<int> awards;
+
     // The quest chain's NPC rewrites, persistent like the bits: topic slots
     // overridden per (npc, slot) — zero clears — and where an NPC has been
     // moved, zero meaning away.
@@ -169,6 +173,9 @@ struct WalkOutcome {
             case world::kVarQuestBit:
                 passes = state.bits.contains(value);
                 break;
+            case world::kVarAward:
+                passes = state.awards.contains(value);
+                break;
             case world::kVarItem:
                 passes = std::find(state.items.begin(), state.items.end(), value) !=
                          state.items.end();
@@ -217,6 +224,13 @@ struct WalkOutcome {
             case world::kVarGold:
                 state.gold += take ? -value : value;
                 state.gold = state.gold < 0 ? 0 : state.gold;
+                break;
+            case world::kVarAward:
+                if (take) {
+                    state.awards.erase(value);
+                } else {
+                    state.awards.insert(value);
+                }
                 break;
             case world::kVarExperience:
                 state.experience += take ? -value : value;

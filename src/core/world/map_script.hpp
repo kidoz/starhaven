@@ -154,6 +154,12 @@ inline constexpr std::uint8_t kVarGold = 21;
 // in the monster table's element order. `observed` for the joins;
 // extending each name to that type's unspoken uses is `inferred`.
 // Reproduce with `evt_info --currencies`.
+// And the award: type 12's value is a filled `Awards.txt` row on 193 of 193
+// checks, gives and sets — and the one a known quest sets, Goblinwatch's 53,
+// reads "Solved the Goblinwatch Combination", the very quest whose reward
+// event sets it. The sheet's honors are quest-given bits in an id space of
+// their own. `observed`
+inline constexpr std::uint8_t kVarAward = 12;
 inline constexpr std::uint8_t kVarHitPoints = 3;
 inline constexpr std::uint8_t kVarSpellPoints = 5;
 inline constexpr std::uint8_t kVarExperience = 13;

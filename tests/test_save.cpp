@@ -134,3 +134,12 @@ TEST_CASE("the hired help and their wage day round-trip", "[save]") {
     REQUIRE(old.hired.empty());
     REQUIRE(old.food == 0);
 }
+
+TEST_CASE("the honors round-trip", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.awards = {53, 2};
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.awards == std::vector<int>{53, 2});
+}

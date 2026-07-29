@@ -1276,6 +1276,68 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
         }
     }
 
+    // Type 12 against `Awards.txt`: the range fits the filled rows, and the
+    // one value a known quest sets — Goblinwatch's 53 — names exactly
+    // "Solved the Goblinwatch Combination". Count the whole join.
+    {
+        data::JournalTable awards;
+        if (data::load_awards(data_dir, awards) == data::GameDataError::None) {
+            std::set<int> filled;
+            for (const auto& row : awards.entries()) {
+                if (row.has_text()) {
+                    filled.insert(row.bit);
+                }
+            }
+            std::size_t uses = 0, hits = 0;
+            std::map<int, std::size_t> misses;
+            std::size_t fame_uses = 0;
+            long fame_min = 0, fame_max = 0;
+            for (const auto& entry : icons.entries()) {
+                if (!is_script(entry.name)) {
+                    continue;
+                }
+                world::MapScript script;
+                if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+                    world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+                    continue;
+                }
+                for (const auto& step : script.steps()) {
+                    const bool typed = step.opcode == world::kOpcodeCheck ||
+                                       step.opcode == world::kOpcodeGive ||
+                                       step.opcode == world::kOpcodeTake ||
+                                       step.opcode == world::kOpcodeSet;
+                    if (!typed || step.arguments.size() < 5) {
+                        continue;
+                    }
+                    std::uint32_t value = 0;
+                    for (std::size_t b = 4; b >= 1; --b) {
+                        value = (value << 8) | step.arguments[b];
+                    }
+                    if (step.arguments[0] == 12) {
+                        ++uses;
+                        if (filled.contains(static_cast<int>(value))) {
+                            ++hits;
+                        } else {
+                            ++misses[static_cast<int>(value)];
+                        }
+                    } else if (step.arguments[0] == 22) {
+                        ++fame_uses;
+                        fame_min = fame_uses == 1
+                                       ? static_cast<long>(value)
+                                       : std::min(fame_min, static_cast<long>(value));
+                        fame_max = std::max(fame_max, static_cast<long>(value));
+                    }
+                }
+            }
+            std::cout << "type 12 vs Awards.txt filled rows: " << hits << "/" << uses;
+            for (const auto& [value, count] : misses) {
+                std::cout << " (miss " << value << " x" << count << ")";
+            }
+            std::cout << "\ntype 22: " << fame_uses << " uses, values " << fame_min << ".."
+                      << fame_max << "\n";
+        }
+    }
+
     for (const auto& [type, words] : matches) {
         std::cout << "type " << type << " (" << uses[type] << " uses):";
         std::vector<std::pair<std::size_t, std::string>> ranked;

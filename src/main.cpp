@@ -306,7 +306,8 @@ void blit(render::Framebuffer& fb, const render::Texture& texture, int left, int
 // design tables name them.
 void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                 const game::Character& who, const data::DescriptionTable& stats,
-                const data::DescriptionTable& classes, std::int64_t minute) {
+                const data::DescriptionTable& classes, std::int64_t minute,
+                const data::JournalTable& awards, const std::set<int>& earned) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -383,6 +384,26 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
         game::draw_text(scene.framebuffer(), font, 260, y,
                         std::string(game::stat_label(stats, row)) + "  " + value, white, shadow);
         y += line;
+    }
+
+    // The honors the quests set, worded by Awards.txt itself.
+    if (!earned.empty()) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 260, y, "Honors", white, shadow);
+        y += line;
+        std::size_t listed = 0;
+        for (const auto& row : awards.entries()) {
+            if (!earned.contains(row.bit) || !row.has_text()) {
+                continue;
+            }
+            if (++listed > 4) {
+                game::draw_text(scene.framebuffer(), font, 268, y, "...", dim, shadow);
+                break;
+            }
+            game::draw_text(scene.framebuffer(), font, 268, y, data::cp1252_to_utf8(row.text),
+                            dim, shadow);
+            y += line;
+        }
     }
 
     // What the class is, in the designers' own words.
@@ -1554,6 +1575,8 @@ int main(int argc, char** argv) {
     data::DescriptionTable class_descriptions;
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
     (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
+    data::JournalTable award_texts;
+    (void)data::load_awards(data_dir, award_texts);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
     // The party is the player's to shape before the world starts: class,
     // face and name from the game's own tables and portraits, the numbers
@@ -2053,6 +2076,7 @@ int main(int argc, char** argv) {
                     state.hired.push_back({h.npc_id, h.profession_id, h.name});
                 }
                 state.wage_day = next_wage_day;
+                state.awards.assign(script_state.awards.begin(), script_state.awards.end());
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -2109,6 +2133,7 @@ int main(int argc, char** argv) {
                     }
                     next_wage_day = state.wage_day > 0 ? state.wage_day : clock.day() + 7;
                     last_hire_day = clock.day();
+                    script_state.awards = std::set<int>(state.awards.begin(), state.awards.end());
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
@@ -3358,7 +3383,8 @@ int main(int argc, char** argv) {
         }
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
-                       stat_descriptions, class_descriptions, clock.minutes());
+                       stat_descriptions, class_descriptions, clock.minutes(), award_texts,
+                       script_state.awards);
         }
         if (talking_to >= 0 && open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);

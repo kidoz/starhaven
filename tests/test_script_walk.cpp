@@ -367,3 +367,22 @@ TEST_CASE("a cure and a barrel land in the outcome, not the variables", "[walk]"
     REQUIRE(outcome.acted());
     REQUIRE(state.variables.find(38) == state.variables.end());
 }
+
+TEST_CASE("a quest sets an award and a later check wears it", "[walk]") {
+    // Goblinwatch's shape: set award 53, then an event gated on it.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 4, 0, kOpcodeSet, typed(12, 53));
+    push_step(payload, 4, 1, kOpcodeEnd, {0});
+    push_step(payload, 7, 0, kOpcodeCheck, check(12, 53, 2));
+    push_step(payload, 7, 1, kOpcodeEnd, {0});
+    push_step(payload, 7, 2, kOpcodeMessage, {5, 0, 0, 0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    (void)starhaven::game::walk_event(script, 7, state);
+    REQUIRE_FALSE(state.awards.contains(53));
+    (void)starhaven::game::walk_event(script, 4, state);
+    REQUIRE(state.awards.contains(53));
+    const auto outcome = starhaven::game::walk_event(script, 7, state);
+    REQUIRE(outcome.said == std::vector<int>{5});
+}

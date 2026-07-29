@@ -222,6 +222,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The honors have a home**: variable type 12 is an `Awards.txt` row on 193
+  of 193 uses — Goblinwatch's reward sets 53, "Solved the Goblinwatch
+  Combination", naming its own quest — so the character sheet now lists the
+  honors the quests bestow, in the table's own words. Type 22 was tried
+  against fame and reputation and stays honestly unknown.
 - **A party of your own**: starting the walker now opens on the creation
   screen — the twelve portrait families, the six base classes of `Class.txt`
   (its every third heading; the other twelve read as promotions), names from

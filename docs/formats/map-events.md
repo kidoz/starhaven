@@ -375,8 +375,17 @@ the given value, the word after it names the type. Reproduce with
   order as the temporaries.
 - **types 46..50 are the five resistances** in the monster table's element
   order, Fire, Electricity, Cold, Poison, Magic, given permanently.
+- **type 12 is an award**: its value is a filled `Awards.txt` row on 193 of
+  193 checks, gives and sets — and the one a known quest sets, Goblinwatch's
+  53, reads "Solved the Goblinwatch Combination", the very quest whose
+  reward event sets it. The engine wears them: the sheet lists the honors
+  in the table's own words.
 - **Type 22 stays unknown**: 62 gives of 200..3,500 and not one spoken
-  number beside them.
+  number beside them. Fame and reputation were tried against `NPCdata.txt`'s
+  own columns and are not confirmed: the shipped fame column tops out at
+  1,600 and reputation at ±1,000, both short of the gives' 3,500 — though a
+  party's tally could outrun a person's, so the readings are unproven rather
+  than dead.
 
 Whole events confirm the readings. D01's switches all read: check my
 variable, jump to the end if it is set, set it, throw four doors — two open,
@@ -598,6 +607,6 @@ names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 - Opcode 1's byte, always 0..2. `unknown`
 - Opcode 21's middle byte, and what an aimless launch — the 83 with no
   second point — flies at; the party is the natural guess. `unknown`
-- The variable types beyond the named ones — 12 (checked at 2..36, set to
-  small values beside quest turn-ins), 22 (62 gives of 200..3,500, spoken
-  nowhere), and the rest of the vocabulary. `unknown`
+- The variable types beyond the named ones — 22 (62 gives of 200..3,500,
+  spoken nowhere, past both fame and reputation's shipped ranges) and the
+  rest of the vocabulary. `unknown`

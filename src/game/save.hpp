@@ -46,6 +46,9 @@ struct SaveState {
     };
     std::vector<Hired> hired;
     std::int64_t wage_day = 0;
+
+    // The honors earned: filled Awards.txt rows.
+    std::vector<int> awards;
     std::set<int> bits;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
@@ -67,6 +70,9 @@ struct SaveState {
     out << "clock\t" << state.minutes << "\n";
     out << "gold\t" << state.gold << "\t" << state.food << "\n";
     out << "bank\t" << state.bank_gold << "\n";
+    for (const int award : state.awards) {
+        out << "award\t" << award << "\n";
+    }
     for (const auto& h : state.hired) {
         out << "hired\t" << h.npc_id << "\t" << h.profession_id << "\t" << h.name << "\n";
     }
@@ -192,6 +198,8 @@ struct SaveState {
             out.food = next_int();  // appended later; an old save reads 0
         } else if (kind == "bank") {
             out.bank_gold = next_int();
+        } else if (kind == "award") {
+            out.awards.push_back(next_int());
         } else if (kind == "hired") {
             SaveState::Hired h;
             h.npc_id = next_int();
