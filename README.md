@@ -222,6 +222,10 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The pack obeys its cursor**: wearing, drinking and mixing all start
+  from the chosen cell when the pack is open — the sell key already did —
+  falling back to the old first-found walk otherwise. Reading scrolls stays
+  a world verb: it casts at what the party aims at.
 - **The opening arc, proven**: `evt_info --arc` walks New Sorpigal's first
   hours through the same code the game runs — the letter refused until
   held, the delivery's 1000 gold and topic rotation, the Goblinwatch

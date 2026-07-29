@@ -883,7 +883,7 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
     }
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
-                    "1-4 choose a character, E wear, U drink, M mix, I closes", dim, shadow);
+                    "arrows choose, E wears, U drinks, M mixes from the chosen cell, I closes", dim, shadow);
 }
 
 // A temple's counter: the two verbs its margin notes name, at its own Val.
@@ -2422,6 +2422,21 @@ int main(int argc, char** argv) {
         return best >= row.id_rep_st;
     };
 
+    // The pack verbs act on the chosen cell first when a pack is open,
+    // then fall back to the old first-found walk.
+    const auto cursor_first = [&](const game::Pack& pack) {
+        std::vector<game::PackedItem> order(pack.items().begin(), pack.items().end());
+        if (shown_pack >= 0) {
+            if (const auto* under = pack.at(pack_cursor_x, pack_cursor_y); under != nullptr) {
+                std::stable_partition(order.begin(), order.end(),
+                                      [&](const game::PackedItem& item) {
+                                          return item.x == under->x && item.y == under->y;
+                                      });
+            }
+        }
+        return order;
+    };
+
     // A walked event's other payments, shared the same way. Experience goes
     // to every member alike — `inferred` from the rewards addressing the
     // party — while a cure or a permanent point lands on the character whose
@@ -2741,7 +2756,7 @@ int main(int argc, char** argv) {
                 // Wear the first thing in this pack that can be worn.
                 auto& who = party[static_cast<std::size_t>(shown_pack)];
                 auto& pack = packs[static_cast<std::size_t>(shown_pack)];
-                for (const auto& carried : pack.items()) {
+                for (const auto& carried : cursor_first(pack)) {
                     const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
                     if (row == nullptr) {
                         continue;
@@ -2968,7 +2983,7 @@ int main(int argc, char** argv) {
                 // or becomes what the table says — an emptied bottle.
                 auto& who = party[static_cast<std::size_t>(shown_pack)];
                 auto& pack = packs[static_cast<std::size_t>(shown_pack)];
-                for (const auto& carried : pack.items()) {
+                for (const auto& carried : cursor_first(pack)) {
                     // A spell book first: the USEITEMS header's own rule —
                     // the character learns the spell and the book is spent,
                     // or nothing happens if it is already known. That only
@@ -3069,7 +3084,7 @@ int main(int argc, char** argv) {
                 auto& who = party[static_cast<std::size_t>(shown_pack)];
                 auto& pack = packs[static_cast<std::size_t>(shown_pack)];
                 std::vector<game::PackedItem> known;
-                for (const auto& carried : pack.items()) {
+                for (const auto& carried : cursor_first(pack)) {
                     if (use_items.find(carried.item_id) != nullptr && known.size() < 2) {
                         known.push_back(carried);
                     }
