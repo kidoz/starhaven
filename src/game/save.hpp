@@ -111,7 +111,12 @@ struct SaveState {
         for (const int bonus : who.temp_resistances) {
             out << "\t" << bonus;
         }
-        out << "\t" << who.poisoned;  // appended last so older saves still read
+        out << "\t" << who.poisoned;  // this and the rest appended in order,
+        out << "\t" << who.diseased;  // so older saves still read
+        out << "\t" << who.affliction;
+        for (const bool broken : who.equipped_broken) {
+            out << "\t" << (broken ? 1 : 0);
+        }
         out << "\n";
         for (const auto& item : state.packs[i]) {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
@@ -232,6 +237,11 @@ struct SaveState {
                 bonus = next_int();
             }
             who.poisoned = next_int();
+            who.diseased = next_int();
+            std::getline(fields, who.affliction, '\t');
+            for (auto&& broken : who.equipped_broken) {
+                broken = next_int() != 0;
+            }
         } else if (kind == "attributes" || kind == "resistances" || kind == "equipped") {
             const auto i = static_cast<std::size_t>(next_int());
             if (i >= out.party.size()) {

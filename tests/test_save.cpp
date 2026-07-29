@@ -43,6 +43,9 @@ SaveState full_state() {
     who.haste_until = 360;
     who.known_spells = {4, 68};
     who.poisoned = 2;
+    who.diseased = 1;
+    who.affliction = "Asleep";
+    who.equipped_broken[0] = true;
     state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
     return state;
 }
@@ -82,6 +85,10 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(who.haste_until == 360);
     REQUIRE(who.known_spells == std::set<int>{4, 68});
     REQUIRE(who.poisoned == 2);
+    REQUIRE(who.diseased == 1);
+    REQUIRE(who.affliction == "Asleep");
+    REQUIRE(who.equipped_broken[0]);
+    REQUIRE_FALSE(who.equipped_broken[1]);
 
     REQUIRE(after.packs[0].size() == 2);
     REQUIRE(after.packs[0][0].item_id == 505);

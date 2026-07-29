@@ -424,6 +424,10 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
             text += "  down";
         } else if (who.poisoned > 0) {
             text += "  poisoned";
+        } else if (who.diseased > 0) {
+            text += "  diseased";
+        } else if (!who.affliction.empty()) {
+            text += "  " + who.affliction;
         } else if (who.max_spell_points > 0) {
             text += "  sp " + std::to_string(who.spell_points) + "/" +
                     std::to_string(who.max_spell_points);
@@ -577,7 +581,8 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         game::draw_text(scene.framebuffer(), font, kLeft + game::kPackWidth * game::kCellSize + 12,
                         worn_y,
                         std::string(game::slot_name(static_cast<game::Slot>(i))) + ": " +
-                            data::cp1252_to_utf8(row->name),
+                            data::cp1252_to_utf8(row->name) +
+                            (who.equipped_broken[i] ? " (broken)" : ""),
                         white, shadow);
         worn_y += font.height() + 1;
     }
@@ -897,7 +902,7 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
                         shadow);
     }
     game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
-                    "1-9 buy, S sell, T talk to whoever is here, B closes", dim, shadow);
+                    "1-9 buy, S sell, F repair, T talk, B closes", dim, shadow);
 }
 
 // Somebody in an establishment, and what they have to say.
@@ -1887,6 +1892,10 @@ int main(int argc, char** argv) {
                     }
                     if (use->cures_poison) {
                         who.poisoned = 0;
+                        if (use->effect.find("all Conditions") != std::string::npos) {
+                            who.diseased = 0;
+                            who.affliction.clear();
+                        }
                     }
                     if (use->buff_hours > 0) {
                         const std::int64_t until =
@@ -1986,6 +1995,33 @@ int main(int argc, char** argv) {
                 open_shop = -1;
                 shop_said.clear();
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       event.key.key == SDLK_F) {
+                // Mend what monsters broke: half the item's value per piece,
+                // said with the merchant table's own Repair line. The price
+                // is this engine's. `inferred`
+                int bill = 0;
+                for (const auto& member : party) {
+                    for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
+                        if (member.equipped_broken[slot] && member.equipped[slot] > 0) {
+                            const auto* row =
+                                item_stats.at(static_cast<std::size_t>(member.equipped[slot]));
+                            bill += row != nullptr ? std::max(1, row->value / 2) : 1;
+                        }
+                    }
+                }
+                if (bill == 0) {
+                    shop_said = "Nothing here is broken.";
+                } else if (bill > gold) {
+                    shop_said = "Repairs would cost " + std::to_string(bill) + " gold.";
+                } else {
+                    gold -= bill;
+                    for (auto& member : party) {
+                        member.equipped_broken.fill(false);
+                    }
+                    shop_said = std::string(
+                        game::merchant_line(merchant_words, data::MerchantAction::Repair, true));
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_S) {
                 // Sell the first thing the first character is carrying.
                 for (auto& pack : packs) {
@@ -2074,7 +2110,8 @@ int main(int argc, char** argv) {
                         auto& who = party[static_cast<std::size_t>(chosen)];
                         const bool needs = who.hit_points < who.max_hit_points ||
                                            who.spell_points < who.max_spell_points ||
-                                           who.poisoned > 0;
+                                           who.poisoned > 0 || who.diseased > 0 ||
+                                           !who.affliction.empty();
                         if (!needs) {
                             shop_said = who.name + " needs no healing.";
                         } else if (gold < price) {
@@ -2084,6 +2121,8 @@ int main(int argc, char** argv) {
                             who.hit_points = who.max_hit_points;
                             who.spell_points = who.max_spell_points;
                             who.poisoned = 0;
+                            who.diseased = 0;
+                            who.affliction.clear();
                             shop_said = who.name + " is made whole.";
                         }
                     }
@@ -2447,6 +2486,9 @@ int main(int argc, char** argv) {
             pick_up_message = "You find " + found_text;
             pick_up_shown = SDL_GetTicks();
         }
+        if (const int cut = battle.take_stolen(); cut > 0) {
+            gold = std::max(0, gold - cut);
+        }
 
         // Poison gnaws by the hour: its level in hit points, down to the
         // floor but not through it — the last point stands until a cure or
@@ -2457,6 +2499,11 @@ int main(int argc, char** argv) {
             for (auto& member : party) {
                 if (member.poisoned > 0 && member.hit_points > 1) {
                     member.hit_points = std::max(1, member.hit_points - member.poisoned);
+                }
+                // Disease is poison's slower sibling: half the pace.
+                if (member.diseased > 0 && last_poison_hour % 2 == 0 &&
+                    member.hit_points > 1) {
+                    member.hit_points = std::max(1, member.hit_points - member.diseased);
                 }
             }
         }

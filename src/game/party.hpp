@@ -159,9 +159,18 @@ struct Character {
     // The spells this character has learned from books, as Spells.txt ids.
     std::set<int> known_spells;
 
-    // Poisoned, at the level the tables name (Poison1..3); zero is well.
-    // What poison does over time is this engine's and marked where it ticks.
+    // Poisoned or diseased, at the level the tables name (Poison1..3,
+    // Disease1..3); zero is well. What they do over time is this engine's
+    // and marked where it ticks. `affliction` is a further condition the
+    // monster column named — Asleep, Afraid, Curse — carried by name and
+    // shown, its mechanics not yet built.
     int poisoned = 0;
+    int diseased = 0;
+    std::string affliction;
+
+    // What has been broken on the body, slot by slot: a broken weapon
+    // swings as a fist and broken armour counts for nothing.
+    std::array<bool, kSlotCount> equipped_broken{};
 
     std::array<int, kAttributeCount> temp_attributes{};
     std::array<int, data::kResistanceCount> temp_resistances{};

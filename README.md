@@ -280,6 +280,15 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **The monsters' whole dirty vocabulary**: the on-hit column's 38 values
+  mostly land now — `DrainSP` drains, `Stealx2` cuts the purse, `Agex3` puts
+  years on, `Disease1..3` runs poison's scaffold at half pace, and the three
+  `Brk` words break the slot they name: a broken sword swings as a fist, a
+  broken hauberk counts for nothing, and **F** at any counter mends it all
+  for half value in the merchant table's own Repair words. Asleep, Afraid,
+  Curse and their kin are carried by name and shown, their mechanics still
+  ahead. Triggers and levels are the table's; magnitudes and the one-in-five
+  are this engine's.
 - **Temples that mend for money**: the ten `Temple` rows write their own
   terms — margin notes naming Heal and Donate, `Val` as the price, and a
   service ceiling in the stock cell, from Temple Stone's "All OK" down to

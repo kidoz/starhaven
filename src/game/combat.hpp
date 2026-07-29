@@ -122,7 +122,7 @@ struct Combatant {
 // meant picking something up could change what you were fighting with.
 [[nodiscard]] inline data::Dice weapon_of(const Character& who, const data::ItemStatsTable& items) {
     const int held = who.equipped[static_cast<std::size_t>(Slot::Weapon)];
-    if (held > 0) {
+    if (held > 0 && !who.equipped_broken[static_cast<std::size_t>(Slot::Weapon)]) {
         if (const auto* row = items.at(static_cast<std::size_t>(held)); row != nullptr) {
             if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
                 return dice;
@@ -136,8 +136,9 @@ struct Combatant {
 // worn piece carries. `inferred`
 [[nodiscard]] inline int armour_of(const Character& who, const data::ItemStatsTable& items) {
     int total = 0;
-    for (const int id : who.equipped) {
-        if (id <= 0) {
+    for (std::size_t slot = 0; slot < who.equipped.size(); ++slot) {
+        const int id = who.equipped[slot];
+        if (id <= 0 || who.equipped_broken[slot]) {
             continue;
         }
         const auto* row = items.at(static_cast<std::size_t>(id));
@@ -253,6 +254,13 @@ public:
     int take_gold() noexcept {
         const int taken = gold_;
         gold_ = 0;
+        return taken;
+    }
+
+    // What pickpockets have cut from the purse and not yet been charged.
+    int take_stolen() noexcept {
+        const int taken = stolen_;
+        stolen_ = 0;
         return taken;
     }
 
@@ -501,26 +509,66 @@ private:
             target.hit_points -= damage;
             std::string what =
                 monster.name + " hits " + target.name + " for " + std::to_string(damage);
-            // The row's own on-hit word: a poison at its written level, or a
-            // knockout. That it lands one time in five is this engine's.
+            // The row's own on-hit word: the trigger is the table's, the
+            // magnitudes and the one-in-five chance are this engine's.
             // `inferred`
             if (damage > 0 && !monster.bonus.empty() && random_.next() % 5 == 0) {
                 const std::string_view bonus = monster.bonus;
-                if (bonus.substr(0, 6) == "Poison" || bonus.substr(0, 4) == "Pois") {
-                    int level = 1;
-                    for (const char c : bonus) {
-                        if (c >= '1' && c <= '3') {
-                            level = c - '0';
-                            break;
+                int level = 1;   // the digit inside Poison2, Disease3
+                int repeat = 1;  // the xN suffix, as a multiplier
+                for (std::size_t i = 0; i < bonus.size(); ++i) {
+                    if (bonus[i] >= '1' && bonus[i] <= '9') {
+                        if (i > 0 && (bonus[i - 1] == 'x' || bonus[i - 1] == 'X')) {
+                            repeat = bonus[i] - '0';
+                        } else {
+                            level = bonus[i] - '0';
                         }
                     }
+                }
+                if (bonus.substr(0, 6) == "Poison" || bonus.substr(0, 4) == "Pois") {
                     if (level > target.poisoned) {
                         target.poisoned = level;
                         what += ", poisoning them";
                     }
+                } else if (bonus.substr(0, 7) == "Disease") {
+                    if (level > target.diseased) {
+                        target.diseased = level;
+                        what += ", infecting them";
+                    }
                 } else if (bonus == "Uncon") {
                     target.hit_points = 0;
                     what += ", knocking them out";
+                } else if (bonus.substr(0, 7) == "DrainSP") {
+                    const int drained = std::min(target.spell_points, monster.level * repeat);
+                    if (drained > 0) {
+                        target.spell_points -= drained;
+                        what += ", draining " + std::to_string(drained) + " spell points";
+                    }
+                } else if (bonus.substr(0, 5) == "Steal") {
+                    stolen_ += monster.level * 5 * repeat;
+                    what += ", cutting your purse";
+                } else if (bonus.substr(0, 3) == "Age") {
+                    target.age += repeat;
+                    what += ", aging them";
+                } else if (bonus.substr(0, 7) == "BrkItem" || bonus.substr(0, 6) == "BrkArm" ||
+                           bonus.substr(0, 9) == "Brkweapon") {
+                    const Slot slot = bonus.substr(0, 9) == "Brkweapon" ? Slot::Weapon
+                                      : bonus.substr(0, 6) == "BrkArm"  ? Slot::Armor
+                                                                        : static_cast<Slot>(
+                                                                            random_.next() %
+                                                                            kSlotCount);
+                    const auto at = static_cast<std::size_t>(slot);
+                    if (target.equipped[at] > 0 && !target.equipped_broken[at]) {
+                        target.equipped_broken[at] = true;
+                        what += ", breaking their " + std::string(slot_name(slot));
+                    }
+                } else if (bonus == "Asleep" || bonus == "Affraid" || bonus == "Weak" ||
+                           bonus == "Drunk" || bonus == "Insane" || bonus == "Paralyze" ||
+                           bonus.substr(0, 5) == "Curse") {
+                    if (target.affliction.empty()) {
+                        target.affliction = std::string(bonus.substr(0, bonus.find('x')));
+                        what += ", leaving them " + target.affliction;
+                    }
                 }
             }
             if (target.hit_points <= 0) {
@@ -536,6 +584,7 @@ private:
     int experience_ = 0;
     int gold_ = 0;
     std::vector<int> loot_;
+    int stolen_ = 0;
     data::ArtifactGenerationState artifacts_;
     Mm6Random random_{1};
 };
