@@ -180,6 +180,45 @@ namespace detail {
     return out;
 }
 
+// What a cure spell lifts, spoken in its first sentence — "Cures poison",
+// "Removes the afraid condition", "Automatically awakens" — mapped to the
+// condition vocabulary the monster column writes, its own spellings
+// ("Affraid") included.
+struct SpellCure {
+    bool poison = false;
+    bool disease = false;
+    std::string affliction;  // the column's spelling, e.g. "Affraid"
+
+    [[nodiscard]] bool empty() const noexcept {
+        return !poison && !disease && affliction.empty();
+    }
+};
+
+[[nodiscard]] inline SpellCure parse_spell_cure(const SpellStatsEntry& spell) {
+    using detail::find_ignoring_case;
+    const std::string_view text = spell.description;
+    SpellCure out;
+    if (find_ignoring_case(text, "cures poison") != std::string_view::npos) {
+        out.poison = true;
+    } else if (find_ignoring_case(text, "cures disease") != std::string_view::npos) {
+        out.disease = true;
+    } else if (find_ignoring_case(text, "the afraid condition") != std::string_view::npos) {
+        out.affliction = "Affraid";
+    } else if (find_ignoring_case(text, "awakens") != std::string_view::npos &&
+               find_ignoring_case(text, "sleep") != std::string_view::npos) {
+        out.affliction = "Asleep";
+    } else if (find_ignoring_case(text, "the cursed condition") != std::string_view::npos) {
+        out.affliction = "Curse";
+    } else if (find_ignoring_case(text, "the weak condition") != std::string_view::npos) {
+        out.affliction = "Weak";
+    } else if (find_ignoring_case(text, "cures paralysis") != std::string_view::npos) {
+        out.affliction = "Paralyze";
+    } else if (find_ignoring_case(text, "cures insanity") != std::string_view::npos) {
+        out.affliction = "Insane";
+    }
+    return out;
+}
+
 // A duration written the rank cells' way: `"Duration 1 hour + 5 minutes
 // per point of skill"`, or minutes alone, or hours alone.
 struct SpellDuration {

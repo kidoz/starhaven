@@ -1865,6 +1865,48 @@ int main(int argc, char** argv) {
         }
     };
 
+    // Lift what a cure spell names from whoever suffers it first. Dead,
+    // Stone and Eradicated stay a temple's business, the cures' own prose
+    // sending them there. Returns the message, or nothing when nobody
+    // suffers what this spell lifts.
+    const auto cure_with = [&](const data::SpellStatsEntry& spell) -> std::string {
+        const data::SpellCure cure = data::parse_spell_cure(spell);
+        if (cure.empty()) {
+            return {};
+        }
+        std::string cured;
+        for (auto& member : party) {
+            if (member.dead() || member.affliction == "Stone" ||
+                member.affliction == "Eradicated") {
+                continue;
+            }
+            bool lifted = false;
+            if (cure.poison && member.poisoned > 0) {
+                member.poisoned = 0;
+                lifted = true;
+            }
+            if (cure.disease && member.diseased > 0) {
+                member.diseased = 0;
+                lifted = true;
+            }
+            if (!cure.affliction.empty() &&
+                member.affliction.substr(0, cure.affliction.size()) == cure.affliction) {
+                member.affliction.clear();
+                lifted = true;
+            }
+            if (lifted) {
+                cured = member.name;
+                // "Awakens all of your characters": sleep lifts from the
+                // whole party; the single-target cures stop at the first.
+                if (cure.affliction != "Asleep") {
+                    break;
+                }
+            }
+        }
+        return cured.empty() ? std::string{}
+                             : data::cp1252_to_utf8(spell.name) + " lifts " + cured + "'s burden";
+    };
+
     // The condition a spell lays on a monster, by its Spells.txt row —
     // Charm 61, Mass Fear 62, Slow 81, Paralyze 86, each described in
     // exactly those words — and whether it reaches everything in sight.
@@ -2940,6 +2982,9 @@ int main(int argc, char** argv) {
                                                 spell->element, party[who].name, session,
                                                 monster_stats, item_stats, random_items,
                                                 standard_bonuses, special_bonuses);
+                        } else if (std::string lifted = cure_with(*spell); !lifted.empty()) {
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) + ": " + lifted;
                         } else if (spell_id == 21) {
                             // Fly, "only works outdoors", for its rank
                             // cell's own minutes per point of skill.
@@ -3116,6 +3161,25 @@ int main(int argc, char** argv) {
                 for (auto& caster : party) {
                     if (!caster.can_act() || cast) {
                         continue;
+                    }
+                    // First, whatever somebody suffers that this caster can
+                    // lift: the cures outrank the heals, the way the heals
+                    // outrank the smiting.
+                    for (const int id : caster.known_spells) {
+                        const auto* spell = spell_stats.at(static_cast<std::size_t>(id));
+                        if (spell == nullptr || caster.spell_points < spell->cost_normal) {
+                            continue;
+                        }
+                        if (std::string lifted = cure_with(*spell); !lifted.empty()) {
+                            caster.spell_points -= spell->cost_normal;
+                            pick_up_message = caster.name + " casts: " + lifted;
+                            pick_up_shown = SDL_GetTicks();
+                            cast = true;
+                            break;
+                        }
+                    }
+                    if (cast) {
+                        break;
                     }
                     const data::SpellStatsEntry* best = nullptr;
                     data::SpellEffect best_effect;

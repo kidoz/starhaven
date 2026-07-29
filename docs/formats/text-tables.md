@@ -603,6 +603,14 @@ own element. What the prose does not state is the engine's and says so: the
 reader is the first character standing, their level stands in for the skill,
 and First Aid is the one spell casters cast from their own points.
 
+Eight more of the unnumbered are cures, and their first sentences name
+their targets plainly — "Cures poison", "Removes the afraid condition",
+"Automatically awakens all of your characters" — in the same condition
+vocabulary the monster column writes, misspellings included, so the engine
+lifts exactly what each says: from the first sufferer, or from the whole
+party where the prose says "all". The "point of no return" the cures all
+warn of — a condition too old to lift — is not modelled yet and noted here.
+
 Four of the unnumbered 74 are conditions, and their prose is exact enough to
 act on: **Charm** (61) "removes any hostile feelings ... If this creature
 takes any damage, it will immediately become hostile again"; **Mass Fear**

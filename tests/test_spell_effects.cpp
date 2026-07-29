@@ -124,3 +124,26 @@ TEST_CASE("a duration written only in the description is still read", "[spells]"
     other.normal = "";
     REQUIRE(starhaven::data::parse_spell_duration(other, 0).empty());
 }
+
+TEST_CASE("the cures' first sentences name their conditions", "[spells]") {
+    starhaven::data::SpellStatsEntry spell;
+    spell.description = "Cures poison in a character if you cast this spell in time.";
+    REQUIRE(starhaven::data::parse_spell_cure(spell).poison);
+
+    spell.description = "Removes the afraid condition from a character if you cast this spell.";
+    REQUIRE(starhaven::data::parse_spell_cure(spell).affliction == "Affraid");
+
+    spell.description =
+        "Automatically awakens all of your characters from a normal sleep and will awaken them "
+        "from a magical sleep.";
+    REQUIRE(starhaven::data::parse_spell_cure(spell).affliction == "Asleep");
+
+    spell.description = "Cures paralysis if you cast this spell in time.";
+    REQUIRE(starhaven::data::parse_spell_cure(spell).affliction == "Paralyze");
+
+    spell.description = "Removes the cursed condition from a character.";
+    REQUIRE(starhaven::data::parse_spell_cure(spell).affliction == "Curse");
+
+    spell.description = "Does 2-6 points of damage.";
+    REQUIRE(starhaven::data::parse_spell_cure(spell).empty());
+}

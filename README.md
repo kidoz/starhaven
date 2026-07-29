@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The cures close the loop**: Cure Poison, Cure Disease, Remove Fear,
+  Awaken, Remove Curse, Cure Weakness, Cure Paralysis and Cure Insanity lift
+  exactly the conditions their first sentences name — in the monster
+  column's own vocabulary, misspellings included — from the first sufferer,
+  or the whole party where Awaken says "all". The H-cast prefers a cure when
+  someone is afflicted, above heals, above smiting.
 - **The travel spells cash in**: Fly grants the engine's existing flight for
   its rank cell's own minutes per point of skill, outdoors only as its prose
   insists, and Town Portal behaves exactly as written — a 10% chance per
