@@ -68,6 +68,7 @@ inline constexpr int kPortraitFrameCount = 53;
     return face >= kMaleFaceCount;
 }
 
+
 // The places a character can wear something. `ITEMS.TXT`'s equip type says
 // which slot an item belongs in, so the list is the table's, not this
 // engine's — the one judgement here is that a two-handed weapon occupies the
@@ -234,6 +235,33 @@ struct Character {
         }
     }
 };
+
+// Which of the 53 portrait frames a condition shows. The numbers were read
+// off the sheet itself — frame 8 is the green face, 12 the stone-grey one,
+// 33 blacked out, 35 slumped shut-eyed, 36 a corpse, 2 a wince — an
+// observation of the shipped art rather than any table, and marked so.
+// `inferred` Reproduce with `view_bitmap icons.lod MaleA08 --dump`.
+[[nodiscard]] inline int portrait_frame_of(const Character& who, bool wincing) noexcept {
+    if (who.dead() || who.affliction == "Eradicated") {
+        return 36;
+    }
+    if (who.affliction == "Stone") {
+        return 12;
+    }
+    if (who.hit_points <= 0) {
+        return 33;
+    }
+    if (who.affliction == "Asleep") {
+        return 35;
+    }
+    if (wincing) {
+        return 2;
+    }
+    if (who.poisoned > 0) {
+        return 8;
+    }
+    return 1;
+}
 
 // How an attribute reads on the sheet: MM6 shows a value and the game applies
 // a bonus derived from it. The bonus table is in the original's executable, so

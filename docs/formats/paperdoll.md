@@ -129,3 +129,14 @@ for front/behind.
 - `BODY000`..`BODY011`: twelve more entries, 68x51 up to 126x82 — body-count
   many, but head-sized. `unknown`
 - `LEFTHAND`, `backhand`, `FACEMASK`. `unknown`
+
+## The portrait frames
+
+Each of the twelve portrait families ships 53 frames, and a contact sheet of
+them names several by their own art: frame 8 is the face gone green, 12 the
+face turned stone-grey, 33 blacked out, 35 slumped with eyes shut, 36 a
+corpse, and 2 a wince — with the remainder reading as conversational
+expressions not yet needed. The engine shows them for poisoned, petrified,
+unconscious, asleep, dead and freshly hurt; the naming is an observation of
+the shipped pictures rather than any table, and is marked `inferred`.
+Reproduce with `view_bitmap icons.lod MaleA08 --dump out.ppm` and kin.

@@ -1,6 +1,7 @@
 #include <cctype>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <span>
 #include <string>
@@ -87,9 +88,16 @@ int main(int argc, char** argv) {
     std::string entry_name;
     int scale = 1;
 
+    std::string dump_path;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
-        if (a == "--scale") {
+        if (a == "--dump") {
+            if (++i >= argc) {
+                print_usage(argv[0]);
+                return 2;
+            }
+            dump_path = argv[i];
+        } else if (a == "--scale") {
             if (++i >= argc) {
                 print_usage(argv[0]);
                 return 2;
@@ -185,6 +193,18 @@ int main(int argc, char** argv) {
     std::cout << "decoded " << entry_name << ": " << image.width << "x" << image.height
               << (image.is_sprite ? " (sprite)" : " (bitmap)") << " (showing at x" << scale
               << ")\n";
+
+    // --dump writes the pixels and skips the window, for headless research.
+    if (!dump_path.empty()) {
+        std::ofstream out(dump_path, std::ios::binary);
+        out << "P6\n" << image.width << " " << image.height << "\n255\n";
+        for (std::size_t i = 0; i + 3 < image.rgba.size(); i += 4) {
+            out.put(static_cast<char>(image.rgba[i]));
+            out.put(static_cast<char>(image.rgba[i + 1]));
+            out.put(static_cast<char>(image.rgba[i + 2]));
+        }
+        return out.good() ? 0 : 1;
+    }
 
     // SDL3 returns true on success, unlike SDL2's 0-on-success convention.
     if (!SDL_Init(SDL_INIT_VIDEO)) {

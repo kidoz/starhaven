@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The faces react**: the portrait families' 53 frames gave up their
+  meanings to a contact sheet — the green poisoned face, the stone-grey
+  petrified one, the slumped sleeper, the corpse, the wince — and the party
+  strip now wears them: four portraits above the text, each in the frame
+  its condition picks, flinching for half a second when a blow lands. The
+  frame naming is an observation of the shipped art and says so.
 - **The party can lose**: four down means somebody drags them back to the
   last town — a week gone, the name dented ten points, everyone waking at a
   single hit point with their conditions shaken off. Every number is the

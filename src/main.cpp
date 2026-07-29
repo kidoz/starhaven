@@ -339,7 +339,9 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
 
-    blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face)), 24, 28);
+    blit(scene.framebuffer(), cache.icon(game::portrait_entry(
+                                  who.face, game::portrait_frame_of(who, false))),
+         24, 28);
     game::draw_text(scene.framebuffer(), font, 100, 30, who.name, white, shadow);
     game::draw_text(scene.framebuffer(), font, 100, 30 + line,
                     who.class_name + ", level " + std::to_string(who.level), dim, shadow);
@@ -473,8 +475,18 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
 // Who is in the party, along the bottom-left: enough to know they exist and
 // that the sheet keys mean something. The inspect panel sits bottom-right.
 void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
-                      const std::array<game::Character, 4>& party,
-                      const std::vector<game::Hireling>& hirelings) {
+                      assets::AssetCache& cache, const std::array<game::Character, 4>& party,
+                      const std::vector<game::Hireling>& hirelings,
+                      const std::array<bool, 4>& wincing) {
+    // The four faces above the text, each in the frame its condition picks
+    // from the portrait sheet's own 53.
+    for (std::size_t i = 0; i < party.size(); ++i) {
+        const int frame = game::portrait_frame_of(party[i], wincing[i]);
+        blit(scene.framebuffer(), cache.icon(game::portrait_entry(party[i].face, frame)),
+             8 + static_cast<int>(i) * 62,
+             kHeight - (font.height() + 2) * static_cast<int>(party.size() + hirelings.size()) -
+                 8 - 79);
+    }
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1857,6 +1869,8 @@ int main(int argc, char** argv) {
     std::set<int> approaches_used;  // per conversation: 0 beg, 1 bribe, 2 threat
     int pack_cursor_x = 0, pack_cursor_y = 0;  // the pack screen's chosen cell
     bool show_journal = start_journal;
+    std::array<int, 4> known_hp{};        // last seen, to spot fresh wounds
+    std::array<std::uint64_t, 4> wince_until{};  // SDL ticks, per member
     // How the world sees the party: reputation moved by deeds, fame worn
     // from experience. The derivation and the deed prices are the engine's
     // own and say so where they act.
@@ -4697,8 +4711,18 @@ int main(int argc, char** argv) {
         if (show_directory) {
             draw_directory(scene, font, session, clock, trade_talk);
         }
+        for (std::size_t i = 0; i < party.size(); ++i) {
+            if (party[i].hit_points < known_hp[i]) {
+                wince_until[i] = SDL_GetTicks() + 500;
+            }
+            known_hp[i] = party[i].hit_points;
+        }
         if (shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating && !show_journal) {
-            draw_party_strip(scene, font, party, hirelings);
+            std::array<bool, 4> wincing{};
+            for (std::size_t i = 0; i < party.size(); ++i) {
+                wincing[i] = SDL_GetTicks() < wince_until[i];
+            }
+            draw_party_strip(scene, font, cache, party, hirelings, wincing);
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
                             render::Color{0, 0, 0, 255});
