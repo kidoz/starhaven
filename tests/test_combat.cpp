@@ -588,3 +588,46 @@ TEST_CASE("a party of corpses is not swung at", "[combat]") {
         REQUIRE(battle.update(0.5f, session, table, {}, party, {0, 0, 0}).empty());
     }
 }
+
+TEST_CASE("fear, slow, paralysis and charm do what their spells say", "[combat]") {
+    const auto session = with_monster({0, 0, 0});
+    const auto table = monsters("20", "0", "1d4");
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+
+    Battle battle;
+    battle.reset(session, table, 5);
+    // A feared monster holds its blows until the fear runs out.
+    REQUIRE(battle.afflict(0, MonsterCondition::Fear, 10.0f));
+    for (int i = 0; i < 19; ++i) {
+        REQUIRE(battle.update(0.5f, session, table, {}, party, {0, 0, 0}).empty());
+    }
+    bool swings_again = false;
+    for (int i = 0; i < 40 && !swings_again; ++i) {
+        swings_again = !battle.update(0.5f, session, table, {}, party, {0, 0, 0}).empty();
+    }
+    REQUIRE(swings_again);
+
+    // A paralyzed one neither strikes nor moves; damage does not free it.
+    battle.reset(session, table, 5);
+    REQUIRE(battle.afflict(0, MonsterCondition::Paralyze, 30.0f));
+    REQUIRE_FALSE(battle.can_move(0));
+    (void)battle.strike(0, party[0], Pack{}, session, table, items(), {}, {}, {});
+    REQUIRE_FALSE(battle.can_move(0));
+
+    // A charmed one is calm exactly until it is hurt. A tougher rat, so the
+    // charm-breaking blows do not simply kill it.
+    const auto tough = monsters("200", "0", "1d4");
+    battle.reset(session, tough, 5);
+    REQUIRE(battle.afflict(0, MonsterCondition::Charm, 1000.0f));
+    REQUIRE(battle.update(0.5f, session, tough, {}, party, {0, 0, 0}).empty());
+    // Strike until a blow lands; a miss does not break the calm.
+    for (int i = 0; i < 20 && battle.alive(0); ++i) {
+        (void)battle.strike(0, party[0], Pack{}, session, tough, items(), {}, {}, {});
+    }
+    REQUIRE(battle.alive(0));
+    bool hostile = false;
+    for (int i = 0; i < 40 && !hostile; ++i) {
+        hostile = !battle.update(0.5f, session, tough, {}, party, {0, 0, 0}).empty();
+    }
+    REQUIRE(hostile);
+}

@@ -64,7 +64,19 @@ struct Combatant {
     float recovery = 0.0f;  // seconds until it can strike again
     float wince = 0.0f;     // seconds left of flinching
     bool alive = true;
+
+    // What the party's spells laid on it, in seconds of the fight's clock,
+    // each by its spell's own words: fear flees and breaks on damage, slow
+    // doubles the recovery, paralysis holds still and cannot retaliate,
+    // charm calms until hurt.
+    float feared = 0.0f;
+    float slowed = 0.0f;
+    float paralyzed = 0.0f;
+    float charmed = 0.0f;
 };
+
+// The conditions a spell can lay on a monster.
+enum class MonsterCondition : std::uint8_t { Fear, Slow, Paralyze, Charm };
 
 // The five resistance columns, by the name the attack types use. `observed`
 [[nodiscard]] inline int resistance_index(std::string_view type) noexcept {
@@ -250,6 +262,36 @@ public:
     // Experience earned and not yet handed out.
     [[nodiscard]] int unclaimed_experience() const noexcept { return experience_; }
 
+    // Lay a condition on a monster for so many seconds of fight time. False
+    // when there is nothing there to afflict.
+    bool afflict(std::size_t actor, MonsterCondition condition, float seconds) {
+        if (actor >= combatants_.size() || !combatants_[actor].alive) {
+            return false;
+        }
+        Combatant& c = combatants_[actor];
+        switch (condition) {
+        case MonsterCondition::Fear:
+            c.feared = std::max(c.feared, seconds);
+            break;
+        case MonsterCondition::Slow:
+            c.slowed = std::max(c.slowed, seconds);
+            break;
+        case MonsterCondition::Paralyze:
+            c.paralyzed = std::max(c.paralyzed, seconds);
+            break;
+        case MonsterCondition::Charm:
+            c.charmed = std::max(c.charmed, seconds);
+            break;
+        }
+        return true;
+    }
+
+    // Whether a monster may move at all: a paralyzed one is held where it
+    // stands, in its spell's own words.
+    [[nodiscard]] bool can_move(std::size_t actor) const noexcept {
+        return actor >= combatants_.size() || combatants_[actor].paralyzed <= 0.0f;
+    }
+
     // The noises the fight made since last asked: a session actor and which
     // slot of its `DSOUNDS.BIN` set to play — 0 attack, 1 die. The caller
     // drains and plays them; the fight only remembers.
@@ -384,8 +426,20 @@ public:
                 continue;
             }
             c.wince = c.wince > dt ? c.wince - dt : 0.0f;
+            const auto tick = [dt](float& left) {
+                left = left > dt ? left - dt : 0.0f;
+            };
+            tick(c.feared);
+            tick(c.slowed);
+            tick(c.paralyzed);
+            tick(c.charmed);
             c.recovery -= dt;
             if (c.recovery > 0.0f) {
+                continue;
+            }
+            // The afflicted hold their blows: the fearful flee, the held
+            // cannot retaliate, the calmed have no hostile feelings.
+            if (c.feared > 0.0f || c.paralyzed > 0.0f || c.charmed > 0.0f) {
                 continue;
             }
             const auto& actor = session.actors[i];
@@ -399,7 +453,9 @@ public:
                 continue;
             }
             const auto& monster = monsters.entries()[id - 1];
-            c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale;
+            // Slow "doubles the recovery rate of a single monster".
+            c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale *
+                         (c.slowed > 0.0f ? 2.0f : 1.0f);
 
             if (std::string what = swing(monster, spells, party); !what.empty()) {
                 noises_.push_back({i, 0});
@@ -430,6 +486,10 @@ private:
         Combatant& target = combatants_[actor];
         target.hit_points -= damage;
         target.wince = kWinceSeconds;
+        // "If a creature takes damage ... the spell will be broken", and a
+        // charmed one "will immediately become hostile again".
+        target.feared = 0.0f;
+        target.charmed = 0.0f;
         std::string what = attacker + " hits " + monster.name + " for " + std::to_string(damage);
         if (target.hit_points <= 0) {
             target.alive = false;

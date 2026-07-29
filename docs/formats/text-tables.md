@@ -550,6 +550,19 @@ own element. What the prose does not state is the engine's and says so: the
 reader is the first character standing, their level stands in for the skill,
 and First Aid is the one spell casters cast from their own points.
 
+Four of the unnumbered 74 are conditions, and their prose is exact enough to
+act on: **Charm** (61) "removes any hostile feelings ... If this creature
+takes any damage, it will immediately become hostile again"; **Mass Fear**
+(62) makes "all creatures in the caster's sight ... flee", broken by damage,
+"will not work on Undead"; **Slow** (81) "doubles the recovery rate of a
+single monster"; **Paralyze** (86) "prevents a monster from moving or
+attacking ... cannot retaliate". Their durations sit in the *description* —
+"3 minutes per point of skill" — where the buffs' sit in the mastery cells,
+so the duration parser reads both places, trusting running prose only when
+the scaling phrase is present. The engine lays all four through scrolls;
+which creatures count as Undead is read off their names and marked the
+engine's own. `observed` for the phrasings.
+
 ## The monsters' spell column, cast
 
 `MONSTERS.TXT` column 25 writes `"Fireball,N,5"` — the spell's display name,

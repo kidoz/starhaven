@@ -106,3 +106,21 @@ TEST_CASE("a monster's spell cell parses whole, typos included", "[spells]") {
     // answers nothing.)
     REQUIRE(find_spell_tolerant(spells, "Psychic Shockt") == nullptr);
 }
+
+TEST_CASE("a duration written only in the description is still read", "[spells]") {
+    starhaven::data::SpellStatsEntry spell;
+    spell.description =
+        "All creatures in the caster's sight fear the caster and flee.  The duration of Mass "
+        "Fear is 3 minutes per point of skill in Mind Magic.";
+    spell.normal = "Moderate recovery rate";
+    const auto duration = starhaven::data::parse_spell_duration(spell, 0);
+    REQUIRE(duration.per_skill_minutes == 3);
+    REQUIRE(duration.base_minutes == 0);
+    REQUIRE(duration.minutes(5) == 15);
+
+    // A description with numbers but no scaling phrase is not a clock.
+    starhaven::data::SpellStatsEntry other;
+    other.description = "Does 25 points of damage to the 4 nearest monsters.";
+    other.normal = "";
+    REQUIRE(starhaven::data::parse_spell_duration(other, 0).empty());
+}

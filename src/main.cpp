@@ -1815,6 +1815,44 @@ int main(int argc, char** argv) {
         }
     };
 
+    // The condition a spell lays on a monster, by its Spells.txt row —
+    // Charm 61, Mass Fear 62, Slow 81, Paralyze 86, each described in
+    // exactly those words — and whether it reaches everything in sight.
+    const auto condition_of =
+        [](int id) -> std::optional<std::pair<game::MonsterCondition, bool>> {
+        switch (id) {
+        case 61:
+            return std::make_pair(game::MonsterCondition::Charm, false);
+        case 62:
+            return std::make_pair(game::MonsterCondition::Fear, true);
+        case 81:
+            return std::make_pair(game::MonsterCondition::Slow, false);
+        case 86:
+            return std::make_pair(game::MonsterCondition::Paralyze, false);
+        default:
+            return std::nullopt;
+        }
+    };
+    // "Mass Fear will not work on Undead creatures." Which creatures those
+    // are is not a column of any table; reading it off the names is this
+    // engine's own. `inferred`
+    const auto looks_undead = [](std::string_view name) {
+        const std::string low = [&] {
+            std::string out;
+            for (const char c : name) {
+                out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            return out;
+        }();
+        for (const std::string_view kind :
+             {"skeleton", "zombie", "ghost", "lich", "mummy", "spirit", "bone"}) {
+            if (low.find(kind) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     // A walked event's other payments, shared the same way. Experience goes
     // to every member alike — `inferred` from the rewards addressing the
     // party — while a cure or a permanent point lands on the character whose
@@ -2681,6 +2719,57 @@ int main(int argc, char** argv) {
                                                 party[who].name, session, monster_stats,
                                                 item_stats, random_items, standard_bonuses,
                                                 special_bonuses);
+                        } else if (const auto lays = condition_of(spell_id)) {
+                            // Its written minutes per point of skill, on the
+                            // fight's own clock.
+                            const int seconds =
+                                data::parse_spell_duration(*spell, 0).minutes(
+                                    party[who].level) *
+                                60;
+                            std::size_t touched = 0;
+                            if (lays->second) {
+                                // Everything in the caster's sight; how far
+                                // sight reaches is this engine's own.
+                                for (std::size_t a = 0; a < session.actors.size(); ++a) {
+                                    if (!battle.alive(a)) {
+                                        continue;
+                                    }
+                                    const auto& at = session.actors[a].position;
+                                    const float dx = at.x - camera.position.x;
+                                    const float dz = at.z - camera.position.z;
+                                    if (dx * dx + dz * dz > 2048.0f * 2048.0f) {
+                                        continue;
+                                    }
+                                    if (looks_undead(session.actors[a].name)) {
+                                        continue;
+                                    }
+                                    touched += battle.afflict(a, lays->first,
+                                                              static_cast<float>(seconds))
+                                                   ? 1
+                                                   : 0;
+                                }
+                            } else {
+                                const std::size_t single = game::aimed_actor(
+                                    session, battle, camera.position, camera.forward(),
+                                    game::kPartyReach);
+                                if (single != game::kNoActor) {
+                                    touched += battle.afflict(single, lays->first,
+                                                              static_cast<float>(seconds))
+                                                   ? 1
+                                                   : 0;
+                                }
+                            }
+                            if (touched == 0) {
+                                pick_up_message = "Nothing in reach to cast at";
+                                pick_up_shown = SDL_GetTicks();
+                                read = true;  // keep the scroll: nothing was cast
+                                break;
+                            }
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) + ": " +
+                                   data::cp1252_to_utf8(spell->name) + " takes " +
+                                   std::to_string(touched) +
+                                   (touched == 1 ? " creature" : " creatures");
                         } else if (apply_buff(*spell, party[who], party[who].level)) {
                             what = party[who].name + " reads " +
                                    data::cp1252_to_utf8(row->name) + ": " +
@@ -2870,8 +2959,9 @@ int main(int argc, char** argv) {
         } else {
             draw_indoor(scene, session, cache, lamp);
         }
-        mob.update(in.dt, session, camera.position,
-                   [&](std::size_t actor) { return battle.alive(actor); });
+        mob.update(in.dt, session, camera.position, [&](std::size_t actor) {
+            return battle.alive(actor) && battle.can_move(actor);
+        });
         if (std::string blow = battle.update(in.dt, session, monster_stats, spell_stats, party,
                                              camera.position);
             !blow.empty()) {

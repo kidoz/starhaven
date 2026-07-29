@@ -194,32 +194,25 @@ struct SpellDuration {
     }
 };
 
-[[nodiscard]] inline SpellDuration parse_spell_duration(const SpellStatsEntry& spell,
-                                                        int mastery) {
+// Walk a passage that starts at its "duration" word, reading each number as
+// hours or minutes by the word after it; a number before "per point of
+// skill"/"per skill point" scales, the rest is base.
+[[nodiscard]] inline SpellDuration parse_duration_text(std::string_view text) {
     using detail::find_ignoring_case;
     using detail::range_at;
 
-    const std::string_view rank = mastery >= 2   ? spell.master
-                                  : mastery == 1 ? spell.expert
-                                                 : spell.normal;
     SpellDuration out;
-    const std::size_t at = find_ignoring_case(rank, "duration ");
-    if (at == std::string_view::npos) {
-        return out;
-    }
-    // Each number is hours or minutes by the word after it; a number before
-    // "per point of skill"/"per skill point" scales, the rest is base.
-    std::size_t p = at;
-    while (p < rank.size()) {
-        while (p < rank.size() && std::isdigit(static_cast<unsigned char>(rank[p])) == 0) {
+    std::size_t p = 0;
+    while (p < text.size()) {
+        while (p < text.size() && std::isdigit(static_cast<unsigned char>(text[p])) == 0) {
             ++p;
         }
-        if (p >= rank.size()) {
+        if (p >= text.size()) {
             break;
         }
         std::size_t end = p;
-        const SpellRange value = range_at(rank, p, &end);
-        const std::string_view rest = rank.substr(end);
+        const SpellRange value = range_at(text, p, &end);
+        const std::string_view rest = text.substr(end);
         int minutes = value.low;
         if (find_ignoring_case(rest.substr(0, 8), "hour") != std::string_view::npos ||
             (rest.size() > 1 && rest.substr(0, 3) == " hr")) {
@@ -244,6 +237,34 @@ struct SpellDuration {
         p = end;
     }
     return out;
+}
+
+[[nodiscard]] inline SpellDuration parse_spell_duration(const SpellStatsEntry& spell,
+                                                        int mastery) {
+    using detail::find_ignoring_case;
+
+    const std::string_view rank = mastery >= 2   ? spell.master
+                                  : mastery == 1 ? spell.expert
+                                                 : spell.normal;
+    if (const std::size_t at = find_ignoring_case(rank, "duration ");
+        at != std::string_view::npos) {
+        return parse_duration_text(rank.substr(at));
+    }
+    // Some spells state their time in the description instead: "The duration
+    // of Mass Fear is 3 minutes per point of skill in Mind Magic". The same
+    // walk reads it there, taken only when the scaling phrase is present so
+    // a stray number in the prose is not mistaken for a clock.
+    const std::size_t in_text = find_ignoring_case(spell.description, "duration");
+    if (in_text != std::string_view::npos &&
+        find_ignoring_case(spell.description, "per point of skill") != std::string_view::npos) {
+        SpellDuration from_text =
+            parse_duration_text(std::string_view(spell.description).substr(in_text));
+        // Only the scaling part is trusted from running prose; flat numbers
+        // there are usually not times at all.
+        from_text.base_minutes = 0;
+        return from_text;
+    }
+    return {};
 }
 
 // One monster's spell, as `MONSTERS.TXT`'s own column writes it:

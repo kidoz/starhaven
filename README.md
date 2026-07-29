@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The fight's conditions cut both ways**: Mass Fear, Slow, Paralyze and
+  Charm now do to monsters exactly what their prose says — fear holds their
+  blows and breaks on damage, slow doubles their recovery, paralysis pins
+  them where they stand and cannot retaliate, charm calms until hurt — for
+  the "3 minutes per point of skill" their own descriptions state, read by
+  the same duration parser the buffs use.
 - **The honors have a home**: variable type 12 is an `Awards.txt` row on 193
   of 193 uses — Goblinwatch's reward sets 53, "Solved the Goblinwatch
   Combination", naming its own quest — so the character sheet now lists the
