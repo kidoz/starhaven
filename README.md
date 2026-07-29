@@ -222,6 +222,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Turn-based combat**: Enter holds the world's breath, the original's own
+  toggle. Time then flows only in rounds a party action spends — a strike,
+  a cast, a scroll — each advancing the fight, the wanderers, the launches
+  and the clock by one engine-own second, everything inside it still running
+  on the tables' numbers. Enter again and time flows free.
 - **The faces react**: the portrait families' 53 frames gave up their
   meanings to a contact sheet — the green poisoned face, the stone-grey
   petrified one, the slumped sleeper, the corpse, the wince — and the party

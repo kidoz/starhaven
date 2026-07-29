@@ -1954,6 +1954,12 @@ int main(int argc, char** argv) {
     game::Battle battle;
     battle.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 7u);
     float party_recovery = 0.0f;
+    // Turn-based: the world holds still and time passes only in rounds a
+    // party action spends. The round's one second is the engine's own
+    // quantum; everything inside it runs on the tables' numbers as ever.
+    bool turn_based = false;
+    bool pending_round = false;
+    constexpr float kRoundSeconds = 1.0f;
     int striker = 0;  // whose turn it is to swing
 
     // Time, and when this map is next due to refill. The interval is the map's
@@ -3059,6 +3065,14 @@ int main(int argc, char** argv) {
                         game::merchant_line(merchant_words, data::MerchantAction::Repair, true));
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop < 0 &&
+                       (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) &&
+                       shown_member < 0 && shown_pack < 0 && !porting && !beaconing) {
+                // The original's own toggle: the fight in turns.
+                turn_based = !turn_based;
+                pick_up_message = turn_based ? "The world holds its breath: turn-based"
+                                             : "Time flows again: real-time";
+                pick_up_shown = SDL_GetTicks();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop < 0 &&
                        event.key.key == SDLK_J && !creating) {
                 show_journal = !show_journal;
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
@@ -3665,6 +3679,7 @@ int main(int argc, char** argv) {
                         break;
                     }
                 }
+                pending_round = pending_round || (turn_based && read);
                 if (!read) {
                     pick_up_message = "Nobody carries a castable scroll";
                     pick_up_shown = SDL_GetTicks();
@@ -3855,6 +3870,7 @@ int main(int argc, char** argv) {
                     pick_up_shown = SDL_GetTicks();
                     cast = true;
                 }
+                pending_round = pending_round || (turn_based && cast);
                 if (!cast) {
                     pick_up_message = "Nobody can cast what the moment needs";
                     pick_up_shown = SDL_GetTicks();
@@ -3988,18 +4004,24 @@ int main(int argc, char** argv) {
             draw_indoor(scene, session, cache, lamp,
                         clock.minutes() < torch_until ? 1.45f : 1.0f, &face_light);
         }
-        mob.update(in.dt, session, camera.position, [&](std::size_t actor) {
-            return battle.alive(actor) && battle.can_move(actor);
-        });
-        if (std::string blow = battle.update(in.dt, session, monster_stats, spell_stats, party,
-                                             camera.position, clock.minutes());
-            !blow.empty()) {
-            pick_up_message = std::move(blow);
-            pick_up_shown = SDL_GetTicks();
+        // Real time flows every frame; turn-based time flows only when a
+        // round is owed, one quantum at a time.
+        const float sim_dt = turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt;
+        pending_round = false;
+        if (sim_dt > 0.0f) {
+            mob.update(sim_dt, session, camera.position, [&](std::size_t actor) {
+                return battle.alive(actor) && battle.can_move(actor);
+            });
+            if (std::string blow = battle.update(sim_dt, session, monster_stats, spell_stats,
+                                                 party, camera.position, clock.minutes());
+                !blow.empty()) {
+                pick_up_message = std::move(blow);
+                pick_up_shown = SDL_GetTicks();
+            }
+            party_recovery = std::max(0.0f, party_recovery - sim_dt);
+            clock.advance_seconds(sim_dt);
+            game::advance_launches(launches, sim_dt);
         }
-        party_recovery = std::max(0.0f, party_recovery - in.dt);
-        clock.advance_seconds(in.dt);
-        game::advance_launches(launches, in.dt);
         {
             int xp_bonus = 0;
             for (const auto& h : hirelings) {
@@ -4659,6 +4681,7 @@ int main(int argc, char** argv) {
                     if (!blow.empty()) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
+                        pending_round = turn_based;
                         // "Skill reduces recovery time", at the engine's own
                         // percent a point — and worn armor's own penalty on
                         // top, reduced or eliminated by the armor skill's
@@ -4727,7 +4750,8 @@ int main(int argc, char** argv) {
                             8, clock.text(), render::Color{210, 205, 185, 255},
                             render::Color{0, 0, 0, 255});
             const std::string purse =
-                std::to_string(gold) + " gold, " + std::to_string(party_food) + " food";
+                std::to_string(gold) + " gold, " + std::to_string(party_food) + " food" +
+                (turn_based ? "  \x95 turn-based" : "");
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(purse) - 8,
                             8 + font.height() + 2, purse, render::Color{180, 175, 155, 255},
                             render::Color{0, 0, 0, 255});
