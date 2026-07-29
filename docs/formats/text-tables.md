@@ -575,8 +575,12 @@ the real ones living in no table — and grant what each line says at its
 rank: the Shield's and Merchant's doublings and triplings, the Mace's and
 Staff's "Chance to stun equal to skill", the Dagger's triple damage at the
 same odds, the Bow's second arrow, the Sword's and Axe's recovery cuts (the
-percent per point being the engine's own). Dual wielding and the armor
-recovery penalties await mechanics to hang from.
+percent per point being the engine's own). Bodybuilding and Meditation pay
+their "adds to Hit Points"/"Spell Points" into the maxima when the point is
+bought, rank doublings included; the armor skills' "Recovery penalty
+reduced"/"eliminated" lift a worn-armor drag the engine sizes itself — a
+tenth in leather, a fifth in chain, three tenths in plate, all `inferred`.
+Dual wielding still awaits an off-hand to hang from.
 What a point is numerically worth where the line names no number, the
 raising staircase (the next point costs its own number), five points a
 level, and each class's one starting skill are the engine's own and say so.

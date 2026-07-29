@@ -2999,7 +2999,24 @@ int main(int argc, char** argv) {
                         const int cost = game::raise_cost(points);
                         if (who.skill_points >= cost) {
                             who.skill_points -= cost;
+                            // "Skill adds to Hit Points" / "...Spell
+                            // Points": the raise pays its whole delta at
+                            // once, rank doublings included, so the maxima
+                            // carry it through saves and promotions alike.
+                            const auto* row = skill_table.find(skill);
+                            const game::SkillPower before =
+                                row != nullptr ? game::skill_power(row->text, points)
+                                               : game::SkillPower{};
                             ++points;
+                            const game::SkillPower after =
+                                row != nullptr ? game::skill_power(row->text, points)
+                                               : game::SkillPower{};
+                            who.max_hit_points += after.hp_bonus - before.hp_bonus;
+                            who.hit_points += after.hp_bonus - before.hp_bonus;
+                            if (after.sp_bonus > before.sp_bonus) {
+                                who.max_spell_points += after.sp_bonus - before.sp_bonus;
+                                who.spell_points += after.sp_bonus - before.sp_bonus;
+                            }
                         }
                         break;
                     }
@@ -3950,9 +3967,34 @@ int main(int argc, char** argv) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
                         // "Skill reduces recovery time", at the engine's own
-                        // percent a point.
+                        // percent a point — and worn armor's own penalty on
+                        // top, reduced or eliminated by the armor skill's
+                        // higher lines.
+                        float armor_drag = 0.0f;
+                        const int worn =
+                            party[who].equipped[static_cast<std::size_t>(game::Slot::Armor)];
+                        if (const auto* armor_row =
+                                worn > 0 ? item_stats.at(static_cast<std::size_t>(worn))
+                                         : nullptr;
+                            armor_row != nullptr && !armor_row->skill_group.empty()) {
+                            armor_drag = game::armor_penalty(armor_row->skill_group);
+                            int points = 0;
+                            if (const auto it = party[who].skills.find(armor_row->skill_group);
+                                it != party[who].skills.end()) {
+                                points = it->second;
+                            }
+                            if (const auto* skill = skill_table.find(armor_row->skill_group);
+                                skill != nullptr && points > 0) {
+                                const int lift =
+                                    game::skill_power(skill->text, points).armor_penalty_lift;
+                                armor_drag = lift >= 2 ? 0.0f
+                                             : lift == 1 ? armor_drag / 2.0f
+                                                         : armor_drag;
+                            }
+                        }
                         party_recovery = game::kPartyRecovery *
-                                         weapon_skill_of(party[who]).recovery_scale;
+                                         weapon_skill_of(party[who]).recovery_scale *
+                                         (1.0f + armor_drag);
                     }
                     break;
                 }

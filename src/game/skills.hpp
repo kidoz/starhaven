@@ -79,6 +79,11 @@ struct SkillPower {
     // percent per point to at most half is the engine's own. `inferred`
     float recovery_scale = 1.0f;
     int price_percent = 0;  // "Skill adjusts shop prices...", times any doubling
+    int hp_bonus = 0;       // "Skill adds to Hit Points", times any doubling
+    int sp_bonus = 0;       // "Skill adds to Spell Points", the same way
+    // The armor skills' higher lines: 0 the full penalty, 1 "Recovery
+    // penalty reduced", 2 "Recovery penalty eliminated".
+    int armor_penalty_lift = 0;
 };
 
 // Read what `points` in a skill grant at their rank, from the skill's own
@@ -91,7 +96,7 @@ struct SkillPower {
     const int rank = rank_of(points);
     int multiplier = 1;
     bool base_attack = false, base_armor = false, base_prices = false, adds_damage = false;
-    bool cuts_recovery = false;
+    bool cuts_recovery = false, adds_hp = false, adds_sp = false;
     for (int i = 0; i <= rank && i < static_cast<int>(lines.size()); ++i) {
         std::string low;
         for (const char c : lines[static_cast<std::size_t>(i)]) {
@@ -114,11 +119,20 @@ struct SkillPower {
                                                                           : out.triple_percent;
         out.second_arrow = out.second_arrow || low.find("fires two arrows") != std::string::npos;
         cuts_recovery = cuts_recovery || low.find("reduces recovery time") != std::string::npos;
+        adds_hp = adds_hp || low.find("adds to hit points") != std::string::npos;
+        adds_sp = adds_sp || low.find("adds to spell points") != std::string::npos;
+        if (low.find("recovery penalty eliminated") != std::string::npos) {
+            out.armor_penalty_lift = 2;
+        } else if (low.find("recovery penalty reduced") != std::string::npos) {
+            out.armor_penalty_lift = out.armor_penalty_lift < 1 ? 1 : out.armor_penalty_lift;
+        }
     }
     out.to_hit = base_attack ? points * multiplier : 0;
     out.damage = adds_damage ? points : 0;
     out.armor = base_armor ? points * multiplier : 0;
     out.price_percent = base_prices ? points * multiplier : 0;
+    out.hp_bonus = adds_hp ? points * multiplier : 0;
+    out.sp_bonus = adds_sp ? points * multiplier : 0;
     if (cuts_recovery) {
         const int percent = points > 50 ? 50 : points;
         out.recovery_scale = 1.0f - static_cast<float>(percent) / 100.0f;
@@ -151,6 +165,22 @@ struct SkillPower {
 // skill's SKILLDES.TXT heading.
 [[nodiscard]] inline std::string_view school_skill(data::SpellSchool school) noexcept {
     return data::school_name(school);
+}
+
+// What wearing armor costs the swing before skill lifts it: a tenth slower
+// in leather, a fifth in chain, three tenths in plate. The table names the
+// penalty and who lifts it; these sizes are the engine's own. `inferred`
+[[nodiscard]] inline float armor_penalty(std::string_view skill_group) noexcept {
+    if (skill_group == "Leather") {
+        return 0.10f;
+    }
+    if (skill_group == "Chain") {
+        return 0.20f;
+    }
+    if (skill_group == "Plate") {
+        return 0.30f;
+    }
+    return 0.0f;
 }
 
 // How a merchant's points move a price: one percent per point in the

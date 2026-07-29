@@ -92,3 +92,25 @@ TEST_CASE("the higher lines wake at their ranks", "[skills]") {
     REQUIRE(skill_power(merchant, 4).price_percent == 8);
     REQUIRE(skill_power(merchant, 7).price_percent == 21);
 }
+
+TEST_CASE("the body's lines grant points and lift the armor's drag", "[skills]") {
+    const std::vector<std::string> body{"Skill adds to Hit Points", "Double effect of skill",
+                                        "Triple effect of skill"};
+    REQUIRE(skill_power(body, 3).hp_bonus == 3);
+    REQUIRE(skill_power(body, 4).hp_bonus == 8);
+    REQUIRE(skill_power(body, 7).hp_bonus == 21);
+    const std::vector<std::string> meditation{"Skill adds to Spell Points",
+                                              "Double effect of skill",
+                                              "Triple effect of skill"};
+    REQUIRE(skill_power(meditation, 5).sp_bonus == 10);
+
+    const std::vector<std::string> plate{"Skill added to Armor Class",
+                                         "Recovery penalty reduced",
+                                         "Recovery penalty eliminated"};
+    REQUIRE(skill_power(plate, 3).armor_penalty_lift == 0);
+    REQUIRE(skill_power(plate, 4).armor_penalty_lift == 1);
+    REQUIRE(skill_power(plate, 7).armor_penalty_lift == 2);
+    REQUIRE(armor_penalty("Plate") > armor_penalty("Chain"));
+    REQUIRE(armor_penalty("Chain") > armor_penalty("Leather"));
+    REQUIRE(armor_penalty("Sword") == 0.0f);
+}
