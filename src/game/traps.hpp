@@ -29,6 +29,17 @@ namespace starhaven::game {
     return static_cast<int>(salt % 10) < difficulty;
 }
 
+// Whether this chest is locked, by the map's own "Lock 0-10" column read
+// the same chance-in-ten way, salted apart from the trap roll so a chest
+// can be either, both or neither. `inferred` for the reading.
+[[nodiscard]] inline bool chest_locked(int difficulty, int chest_id) {
+    if (difficulty <= 0) {
+        return false;
+    }
+    const auto salt = static_cast<std::uint32_t>(chest_id + 1) * 40503U + 7U;
+    return static_cast<int>(salt % 10) < difficulty;
+}
+
 // Disarming: the best Disarm Traps in the party against the map's number,
 // point for point. Reaching it defuses outright. `inferred`
 [[nodiscard]] inline bool disarmed(int difficulty, int best_disarm) noexcept {

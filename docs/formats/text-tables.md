@@ -557,7 +557,9 @@ difficulty's worth of d6 at everyone standing, unless the party's best
 Disarm Traps reaches the map's number, with Perception avoiding at five
 percent a point. The chance reading, the dice and both scales are the
 engine's own (`inferred`); the difficulty and the two skills' jobs are the
-tables'. The lock column still gates nothing. See src/game/traps.hpp.
+tables'. The lock column gates the same chests now, by its own chance-in-ten with a
+salt of its own: a locked chest stays shut until the party's best Disarm
+Traps reaches the map's number. See src/game/traps.hpp.
 
 ## The promotion join
 
@@ -643,7 +645,9 @@ Torch Light and Lloyd's Beacon cast from their cells too: the torch's
 glow standing in for the "radius of light", marked ours), and the Beacon's
 normal-rank "1 Beacon, decays in 1 hour per point of skill" is exactly one
 marker — set on one cast, returned-to and burned on the next, the decay on
-the cell's own clock. The expert and master beacon counts await a picker.
+the cell's own clock. The expert and master counts cast
+through a place-or-recall list now, each marker decaying on its own cell's
+days or weeks per point.
 
 Four of the unnumbered 74 are conditions, and their prose is exact enough to
 act on: **Charm** (61) "removes any hostile feelings ... If this creature

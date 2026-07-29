@@ -202,17 +202,16 @@ TEST_CASE("the torch and the beacon round-trip", "[save]") {
     SaveState state;
     state.map_file = "OutE3.Odm";
     state.torch_until = 700;
-    state.beacon_map = "D01.Blv";
-    state.beacon_x = 12.5f;
-    state.beacon_y = -3.0f;
-    state.beacon_z = 640.0f;
-    state.beacon_until = 900;
+    state.beacons.push_back({"D01.Blv", 12.5f, -3.0f, 640.0f, 900});
+    state.beacons.push_back({"OutE3.Odm", 1.0f, 2.0f, 3.0f, 1200});
     SaveState after;
     REQUIRE(parse_save(save_text(state), after));
     REQUIRE(after.torch_until == 700);
-    REQUIRE(after.beacon_map == "D01.Blv");
-    REQUIRE(after.beacon_x == 12.5f);
-    REQUIRE(after.beacon_until == 900);
+    REQUIRE(after.beacons.size() == 2);
+    REQUIRE(after.beacons[0].map == "D01.Blv");
+    REQUIRE(after.beacons[0].x == 12.5f);
+    REQUIRE(after.beacons[0].until == 900);
+    REQUIRE(after.beacons[1].map == "OutE3.Odm");
 }
 
 TEST_CASE("the wizard eye round-trips", "[save]") {

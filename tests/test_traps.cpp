@@ -61,3 +61,16 @@ TEST_CASE("the blast rolls the difficulty's dice and spares the perceptive", "[t
     // through, but four rolls at seed 11 do not.
     REQUIRE(total == 0);
 }
+
+TEST_CASE("locks roll their own dice, apart from the traps", "[traps]") {
+    for (int chest = 0; chest < 20; ++chest) {
+        REQUIRE_FALSE(chest_locked(0, chest));
+        REQUIRE(chest_locked(10, chest));
+    }
+    // The two rolls disagree somewhere: a chest can be one and not the other.
+    bool differs = false;
+    for (int chest = 0; chest < 20 && !differs; ++chest) {
+        differs = chest_locked(5, chest) != chest_trapped(5, chest);
+    }
+    REQUIRE(differs);
+}

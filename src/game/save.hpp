@@ -56,13 +56,16 @@ struct SaveState {
     std::int64_t fly_until = 0;
     int reputation = 0;
 
-    // Torch Light's hours, and Lloyd's marker: where, until when.
+    // Torch Light's hours, the eye, and Lloyd's markers: where, until when.
     std::int64_t torch_until = 0;
     std::int64_t eye_until = 0;
     int eye_rank = 0;
-    std::string beacon_map;
-    float beacon_x = 0, beacon_y = 0, beacon_z = 0;
-    std::int64_t beacon_until = 0;
+    struct Beacon {
+        std::string map;
+        float x = 0, y = 0, z = 0;
+        std::int64_t until = 0;
+    };
+    std::vector<Beacon> beacons;
     std::set<int> bits;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
@@ -102,9 +105,9 @@ struct SaveState {
     if (state.eye_until > 0) {
         out << "eye\t" << state.eye_until << "\t" << state.eye_rank << "\n";
     }
-    if (!state.beacon_map.empty()) {
-        out << "beacon\t" << state.beacon_until << "\t" << state.beacon_x << "\t"
-            << state.beacon_y << "\t" << state.beacon_z << "\t" << state.beacon_map << "\n";
+    for (const auto& beacon : state.beacons) {
+        out << "beacon\t" << beacon.until << "\t" << beacon.x << "\t" << beacon.y << "\t"
+            << beacon.z << "\t" << beacon.map << "\n";
     }
     for (const auto& h : state.hired) {
         out << "hired\t" << h.npc_id << "\t" << h.profession_id << "\t" << h.name << "\n";
@@ -255,11 +258,15 @@ struct SaveState {
             out.eye_until = next_int();
             out.eye_rank = next_int();
         } else if (kind == "beacon") {
-            out.beacon_until = next_int();
-            out.beacon_x = next_float();
-            out.beacon_y = next_float();
-            out.beacon_z = next_float();
-            std::getline(fields, out.beacon_map, '\t');
+            SaveState::Beacon beacon;
+            beacon.until = next_int();
+            beacon.x = next_float();
+            beacon.y = next_float();
+            beacon.z = next_float();
+            std::getline(fields, beacon.map, '\t');
+            if (!beacon.map.empty()) {
+                out.beacons.push_back(std::move(beacon));
+            }
         } else if (kind == "hired") {
             SaveState::Hired h;
             h.npc_id = next_int();

@@ -1825,11 +1825,18 @@ int main(int argc, char** argv) {
     std::int64_t torch_until = 0;  // Torch Light's written hours
     std::int64_t eye_until = start_eye ? 1 << 30 : 0;  // Wizard Eye's written hours
     int eye_rank = start_eye ? 2 : 0;  // 0 monsters, 1 + treasure, 2 + interest
-    // Lloyd's Beacon: one marker at normal rank — a map and a spot, and
-    // when it decays, "1 hour per point of skill" as its cell writes.
-    std::string beacon_map;
-    render::Vec3 beacon_at{};
-    std::int64_t beacon_until = 0;
+    // Lloyd's Beacon: the markers, capped by the caster's rank cell — "1
+    // Beacon", "3 Beacons", "5 Beacons" — each decaying on its cell's own
+    // clock.
+    struct Beacon {
+        std::string map;
+        render::Vec3 at{};
+        std::int64_t until = 0;
+    };
+    std::vector<Beacon> beacons;
+    bool beaconing = false;  // the marker list is open
+    int beacon_capacity = 1;
+    std::int64_t beacon_decay = 0;  // minutes a fresh marker lives
     std::vector<std::string> visited_towns;
     std::int64_t portal_used_day = -1;
     bool porting = false;  // the destination list is open
@@ -2605,11 +2612,10 @@ int main(int argc, char** argv) {
                 state.torch_until = torch_until;
                 state.eye_until = eye_until;
                 state.eye_rank = eye_rank;
-                state.beacon_map = beacon_map;
-                state.beacon_x = beacon_at.x;
-                state.beacon_y = beacon_at.y;
-                state.beacon_z = beacon_at.z;
-                state.beacon_until = beacon_until;
+                for (const auto& beacon : beacons) {
+                    state.beacons.push_back(
+                        {beacon.map, beacon.at.x, beacon.at.y, beacon.at.z, beacon.until});
+                }
                 state.bits = script_state.bits;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -2674,9 +2680,12 @@ int main(int argc, char** argv) {
                     torch_until = state.torch_until;
                     eye_until = state.eye_until;
                     eye_rank = state.eye_rank;
-                    beacon_map = state.beacon_map;
-                    beacon_at = {state.beacon_x, state.beacon_y, state.beacon_z};
-                    beacon_until = state.beacon_until;
+                    beacons.clear();
+                    for (const auto& beacon : state.beacons) {
+                        beacons.push_back({beacon.map,
+                                           {beacon.x, beacon.y, beacon.z},
+                                           beacon.until});
+                    }
                     note_town();
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
@@ -3277,11 +3286,21 @@ int main(int argc, char** argv) {
                                                      counter, interface_words);
                     }
                 } else if (show_directory && chosen < static_cast<int>(shops_here.size())) {
-                    open_shop = chosen;
+                    // The opens/closes columns finally bar the door: a shut
+                    // counter names its hours instead of trading.
+                    const auto& shop = *shops_here[static_cast<std::size_t>(chosen)];
                     show_directory = false;
-                    const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
-                    shop_stock = stock_for(shop, static_cast<std::uint32_t>(shop.id) * 2654435761U);
-                    shop_said.clear();
+                    if (!clock.open(shop.opens, shop.closes)) {
+                        pick_up_message = data::cp1252_to_utf8(shop.name) + " is closed; open " +
+                                          std::to_string(shop.opens) + " to " +
+                                          std::to_string(shop.closes);
+                        pick_up_shown = SDL_GetTicks();
+                    } else {
+                        open_shop = chosen;
+                        shop_stock =
+                            stock_for(shop, static_cast<std::uint32_t>(shop.id) * 2654435761U);
+                        shop_said.clear();
+                    }
                 } else if (shown_member >= 0 && chosen >= 4 && chosen < 9) {
                     // Raise the numbered skill, at the staircase's price.
                     auto& who = party[static_cast<std::size_t>(shown_member)];
@@ -3401,35 +3420,29 @@ int main(int argc, char** argv) {
                                    data::cp1252_to_utf8(row->name) +
                                    ": the dark backs off for a while";
                         } else if (spell_id == 33) {
-                            // Lloyd's Beacon at normal rank: one marker.
-                            // With none standing, the cast places it here;
-                            // with one, it returns and burns the marker.
-                            // "Decays in 1 hour per point of skill", the
-                            // cell's own clock.
-                            if (beacon_map.empty() || clock.minutes() >= beacon_until) {
-                                beacon_map = session.file_name;
-                                beacon_at = camera.position;
-                                beacon_until =
-                                    clock.minutes() +
-                                    static_cast<std::int64_t>(spell_skill_of(party[who],
-                                                                             *spell)) *
-                                        game::kMinutesPerHour;
-                                what = party[who].name + " reads " +
-                                       data::cp1252_to_utf8(row->name) +
-                                       ": a beacon marks this spot";
-                            } else {
-                                const std::string back_map = beacon_map;
-                                const render::Vec3 back_at = beacon_at;
-                                beacon_map.clear();
-                                packs[who].remove(carried.x, carried.y);
-                                pick_up_message = "The beacon calls the party back";
-                                pick_up_shown = SDL_GetTicks();
-                                if (session.file_name == back_map || open_map(back_map)) {
-                                    camera.position = back_at;
-                                }
-                                read = true;
-                                break;
-                            }
+                            // Lloyd's Beacon: the rank cell's own count and
+                            // decay — "3 Beacons, decays in 1 day per point
+                            // of skill" — then a list, place or recall.
+                            const int points = spell_skill_of(party[who], *spell);
+                            const int rank = game::rank_of(points);
+                            const std::string_view cell = rank >= 2   ? spell->master
+                                                          : rank == 1 ? spell->expert
+                                                                      : spell->normal;
+                            beacon_capacity = std::max(
+                                1, data::parse_int(cell.substr(0, cell.find(' ')), 1));
+                            const std::size_t decays = cell.find("decays in");
+                            beacon_decay =
+                                decays == std::string_view::npos
+                                    ? static_cast<std::int64_t>(points) * game::kMinutesPerHour
+                                    : data::parse_duration_text(cell.substr(decays + 9))
+                                          .minutes(points);
+                            std::erase_if(beacons, [&](const Beacon& b) {
+                                return clock.minutes() >= b.until;
+                            });
+                            beaconing = true;
+                            what = party[who].name + " reads " +
+                                   data::cp1252_to_utf8(row->name) +
+                                   ": the beacons answer";
                         } else if (spell_id == 21) {
                             // Fly, "only works outdoors", for its rank
                             // cell's own minutes per point of skill.
@@ -3754,6 +3767,27 @@ int main(int argc, char** argv) {
                     pick_up_message.clear();
                 }
                 pick_up_shown = SDL_GetTicks();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && beaconing &&
+                       event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
+                const auto pick = static_cast<std::size_t>(event.key.key - SDLK_1);
+                if (pick < beacons.size()) {
+                    // Recall to a standing marker, which burns it.
+                    const auto chosen = beacons[pick];
+                    beacons.erase(beacons.begin() + static_cast<std::ptrdiff_t>(pick));
+                    beaconing = false;
+                    pick_up_message = "The beacon calls the party back";
+                    pick_up_shown = SDL_GetTicks();
+                    if (session.file_name == chosen.map || open_map(chosen.map)) {
+                        camera.position = chosen.at;
+                    }
+                } else if (pick == beacons.size() &&
+                           static_cast<int>(beacons.size()) < beacon_capacity) {
+                    beacons.push_back(
+                        {session.file_name, camera.position, clock.minutes() + beacon_decay});
+                    beaconing = false;
+                    pick_up_message = "A beacon marks this spot";
+                    pick_up_shown = SDL_GetTicks();
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && porting &&
                        event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
                 const auto pick = static_cast<std::size_t>(event.key.key - SDLK_1);
@@ -4238,6 +4272,14 @@ int main(int argc, char** argv) {
                     if (static_cast<std::uint32_t>(shops_here[i]->id) != outcome.building) {
                         continue;
                     }
+                    if (!clock.open(shops_here[i]->opens, shops_here[i]->closes)) {
+                        pick_up_message = data::cp1252_to_utf8(shops_here[i]->name) +
+                                          " is closed; open " +
+                                          std::to_string(shops_here[i]->opens) + " to " +
+                                          std::to_string(shops_here[i]->closes);
+                        pick_up_shown = SDL_GetTicks();
+                        break;
+                    }
                     open_shop = static_cast<int>(i);
                     shop_stock =
                         stock_for(*shops_here[static_cast<std::size_t>(open_shop)], outcome.building * 2654435761U);
@@ -4248,6 +4290,25 @@ int main(int argc, char** argv) {
             // A chest gives up what the map's treasure level rolls — after
             // any trap the map's own difficulty put on it has its say.
             if (outcome.chest >= 0 && !opened_chests.contains(outcome.chest)) {
+                // A locked chest — the Lock column's own chance — stays
+                // shut until the party's best Disarm reaches the number.
+                int party_disarm = 0;
+                for (const auto& member : party) {
+                    if (const auto it = member.skills.find("Disarm Traps");
+                        it != member.skills.end()) {
+                        party_disarm = std::max(party_disarm, it->second);
+                    }
+                }
+                for (const auto& h : hirelings) {
+                    party_disarm = std::max(party_disarm, h.benefit.disarm_bonus);
+                }
+                const bool locked_fast =
+                    game::chest_locked(session.lock_difficulty, outcome.chest) &&
+                    !game::disarmed(session.lock_difficulty, party_disarm);
+                if (locked_fast) {
+                    said_text = "The chest is locked fast.";
+                }
+                if (!locked_fast) {
                 opened_chests.insert(outcome.chest);
                 std::string took;
                 if (game::chest_trapped(session.trap_difficulty, outcome.chest)) {
@@ -4310,6 +4371,7 @@ int main(int argc, char** argv) {
                     }
                 }
                 said_text = took.empty() ? "The chest is empty" : took;
+                }
             }
 
             // A fountain's blessing: the walker keeps the seven attributes'
@@ -4654,6 +4716,34 @@ int main(int argc, char** argv) {
                 }
             }
             plot(camera.position, {240, 240, 240, 255});
+        }
+        if (beaconing && font.glyph_count() > 0) {
+            const int line = font.height() + 2;
+            int y = kHeight / 2 - (static_cast<int>(beacons.size()) + 2) * line / 2;
+            game::draw_text(scene.framebuffer(), font, kWidth / 2 - 90, y - line,
+                            "The beacons stand at:", render::Color{225, 220, 190, 255},
+                            render::Color{0, 0, 0, 255});
+            std::size_t shown = 0;
+            for (; shown < beacons.size() && shown < 8; ++shown) {
+                std::string label = beacons[shown].map;
+                for (const auto& m : map_stats.entries()) {
+                    if (m.file_name == beacons[shown].map && !m.name.empty()) {
+                        label = m.name;
+                        break;
+                    }
+                }
+                game::draw_text(scene.framebuffer(), font, kWidth / 2 - 90, y,
+                                std::to_string(shown + 1) + "  " + data::cp1252_to_utf8(label),
+                                render::Color{230, 230, 230, 255},
+                                render::Color{0, 0, 0, 255});
+                y += line;
+            }
+            if (static_cast<int>(beacons.size()) < beacon_capacity) {
+                game::draw_text(scene.framebuffer(), font, kWidth / 2 - 90, y,
+                                std::to_string(shown + 1) + "  set a new marker here",
+                                render::Color{190, 215, 190, 255},
+                                render::Color{0, 0, 0, 255});
+            }
         }
         if (porting && font.glyph_count() > 0) {
             const int line = font.height() + 2;

@@ -222,6 +222,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The drawer, emptied**: Lloyd's Beacon now honors its expert and master
+  cells — "3 Beacons", "5 Beacons", decaying in their written days and weeks
+  per point — through a place-or-recall list; the shops' opens/closes
+  columns finally bar the door, a shut counter naming its hours instead of
+  trading; and the lock column joins the trap column on the chests — a
+  locked chest stays shut until the party's best Disarm reaches the map's
+  own number.
 - **Wizard Eye opens the corner automap**, exactly where its prose puts it
   — "the upper right corner ... while outdoors", an hour per point of
   skill — showing what each rank cell says: monsters, treasure at expert,

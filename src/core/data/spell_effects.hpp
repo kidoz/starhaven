@@ -253,8 +253,12 @@ struct SpellDuration {
         const SpellRange value = range_at(text, p, &end);
         const std::string_view rest = text.substr(end);
         int minutes = value.low;
-        if (find_ignoring_case(rest.substr(0, 8), "hour") != std::string_view::npos ||
-            (rest.size() > 1 && rest.substr(0, 3) == " hr")) {
+        if (find_ignoring_case(rest.substr(0, 8), "week") != std::string_view::npos) {
+            minutes *= 60 * 24 * 7;
+        } else if (find_ignoring_case(rest.substr(0, 8), "day") != std::string_view::npos) {
+            minutes *= 60 * 24;
+        } else if (find_ignoring_case(rest.substr(0, 8), "hour") != std::string_view::npos ||
+                   (rest.size() > 1 && rest.substr(0, 3) == " hr")) {
             minutes *= 60;
         }
         // The scaling phrase must belong to this number: look only up to

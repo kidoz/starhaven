@@ -155,3 +155,11 @@ TEST_CASE("a duration written as 'lasts' is read like one", "[spells]") {
     const auto duration = starhaven::data::parse_spell_duration(spell, 0);
     REQUIRE(duration.per_skill_minutes == 60);
 }
+
+TEST_CASE("days and weeks read as their minutes", "[spells]") {
+    const auto days = starhaven::data::parse_duration_text("decays in 1 day per point of skill");
+    REQUIRE(days.per_skill_minutes == 60 * 24);
+    const auto weeks =
+        starhaven::data::parse_duration_text("decays in 1 week per point of skill");
+    REQUIRE(weeks.per_skill_minutes == 60 * 24 * 7);
+}

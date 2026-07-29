@@ -551,6 +551,7 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
             out.refill_days = stats->refill_days;
             out.treasure_level = stats->treasure_level;
             out.trap_difficulty = stats->trap_difficulty;
+            out.lock_difficulty = stats->lock_difficulty;
             out.map_id = stats->id;
             out.encounters = stats->monsters;  // the summon opcode draws on these
         }
