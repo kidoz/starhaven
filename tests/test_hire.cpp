@@ -117,3 +117,16 @@ TEST_CASE("the scholar's unlimited eye parses", "[hire]") {
                 .identifies);
     REQUIRE_FALSE(parse_benefit("Unlimited weapon repair.").identifies);
 }
+
+TEST_CASE("the trap trades' bonuses parse", "[hire]") {
+    REQUIRE(parse_benefit("Four point bonus to Disarm Traps skill for all characters.")
+                .disarm_bonus == 4);
+    REQUIRE(parse_benefit("Disarm Traps skill is increased by eight points for each character "
+                          "and Reputation is decreased by one full category.")
+                .disarm_bonus == 8);
+    REQUIRE(parse_benefit("Six point bonus to perception skill for all characters.")
+                .perception_bonus == 6);
+    REQUIRE(parse_benefit("Perception skill is increased by five points and Luck statistics "
+                          "are increased by ten points for each character.")
+                .perception_bonus == 5);
+}

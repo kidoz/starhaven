@@ -53,6 +53,7 @@
 #include "game/temple.hpp"
 #include "game/text.hpp"
 #include "game/training.hpp"
+#include "game/traps.hpp"
 #include "game/travel.hpp"
 
 namespace {
@@ -3552,10 +3553,45 @@ int main(int argc, char** argv) {
                     break;
                 }
             }
-            // A chest gives up what the map's treasure level rolls.
+            // A chest gives up what the map's treasure level rolls — after
+            // any trap the map's own difficulty put on it has its say.
             if (outcome.chest >= 0 && !opened_chests.contains(outcome.chest)) {
                 opened_chests.insert(outcome.chest);
                 std::string took;
+                if (game::chest_trapped(session.trap_difficulty, outcome.chest)) {
+                    int disarm = 0, perception = 0;
+                    for (const auto& member : party) {
+                        if (const auto it = member.skills.find("Disarm Traps");
+                            it != member.skills.end()) {
+                            disarm = std::max(disarm, it->second);
+                        }
+                        if (const auto it = member.skills.find("Perception");
+                            it != member.skills.end()) {
+                            perception = std::max(perception, it->second);
+                        }
+                    }
+                    for (const auto& h : hirelings) {
+                        disarm = std::max(disarm, h.benefit.disarm_bonus);
+                        perception = std::max(perception, h.benefit.perception_bonus);
+                    }
+                    if (game::disarmed(session.trap_difficulty, disarm)) {
+                        took = "A trap clicks, disarmed.  ";
+                    } else {
+                        const game::TrapBlast blast = game::spring_trap(
+                            session.trap_difficulty, party, perception, misc_random);
+                        int hurt = 0;
+                        for (std::size_t i = 0; i < party.size(); ++i) {
+                            if (blast.damage[i] <= 0) {
+                                continue;
+                            }
+                            party[i].hit_points =
+                                std::max(0, party[i].hit_points - blast.damage[i]);
+                            ++hurt;
+                        }
+                        took = hurt == 0 ? "A trap fires wide.  "
+                                         : "The chest was trapped!  ";
+                    }
+                }
                 for (const int id : game::chest_contents(
                          static_cast<std::size_t>(session.treasure_level), random_items, item_stats,
                          standard_bonuses, special_bonuses,
@@ -3571,14 +3607,17 @@ int main(int argc, char** argv) {
                     const bool known = arrives_identified(*row);
                     for (auto& pack : packs) {
                         if (pack.add(id, w, h, known)) {
-                            took = data::cp1252_to_utf8(known || row->unidentified_name.empty()
-                                                            ? row->name
-                                                            : row->unidentified_name);
+                            took += (took.empty() || took.back() == ' ' ? "You find "
+                                                                          : ", ") +
+                                    data::cp1252_to_utf8(known ||
+                                                                 row->unidentified_name.empty()
+                                                             ? row->name
+                                                             : row->unidentified_name);
                             break;
                         }
                     }
                 }
-                said_text = took.empty() ? "The chest is empty" : "You find " + took;
+                said_text = took.empty() ? "The chest is empty" : took;
             }
 
             // A fountain's blessing: the walker keeps the seven attributes'

@@ -266,6 +266,12 @@ test('spell_effects',
   workdir : meson.current_build_dir(),
 )
 
+test('traps',
+  executable('test_traps', 'test_traps.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('promotion',
   executable('test_promotion', 'test_promotion.cpp',
     dependencies : [starhaven_dep, catch2_main]),

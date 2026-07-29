@@ -530,6 +530,18 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
+## The trap column, cashed
+
+`MapStats.txt` gives each map lock, trap and treasure difficulties (columns
+headed "0-10", "0-10", "0-6"). The treasure one has long fed the chests;
+the trap one now bites: read as a chance in ten per chest — salted by the
+chest's id so a chest answers the same way twice — it fires the
+difficulty's worth of d6 at everyone standing, unless the party's best
+Disarm Traps reaches the map's number, with Perception avoiding at five
+percent a point. The chance reading, the dice and both scales are the
+engine's own (`inferred`); the difficulty and the two skills' jobs are the
+tables'. The lock column still gates nothing. See src/game/traps.hpp.
+
 ## The promotion join
 
 `Awards.txt` rows 8..31 read "Received Promotion to Crusader" — every

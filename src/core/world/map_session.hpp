@@ -114,6 +114,7 @@ struct MapSession {
     int music_track = 0;       // the N in Sounds/N.mp3; 0 when unlisted
     int refill_days = 0;       // how long this map takes to refill with monsters
     int treasure_level = 0;    // MapStats' "Tres 0-6"; what its chests hold
+    int trap_difficulty = 0;   // MapStats' "Trap 0-10"; how its chests bite
 
     // Outdoor geometry.
     OdmMap odm;

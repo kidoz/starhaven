@@ -49,6 +49,8 @@ struct HireBenefit {
     int spell_skill_bonus = 0;
     int merchant_skill_bonus = 0;
     int armor_skill_bonus = 0;  // the Squire's "Armor and weapon skills"
+    int disarm_bonus = 0;       // the Tinkers' and Locksmiths' trade
+    int perception_bonus = 0;   // the Scout's and the Psychic's eye
 
     [[nodiscard]] bool any() const noexcept {
         return experience_percent != 0 || gold_percent != 0 || coach_days_faster != 0 ||
@@ -57,7 +59,8 @@ struct HireBenefit {
                luck_bonus != 0 || elemental_protection != 0 || food_per_day != 0 ||
                food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0 ||
                weapon_skill_bonus != 0 || spell_skill_bonus != 0 ||
-               merchant_skill_bonus != 0 || armor_skill_bonus != 0;
+               merchant_skill_bonus != 0 || armor_skill_bonus != 0 || disarm_bonus != 0 ||
+               perception_bonus != 0;
     }
 };
 
@@ -237,6 +240,19 @@ namespace hire_detail {
         out.merchant_skill_bonus = number_before(text, "point bonus to merchant skill");
     } else if (text.find("merchant skill is increased by") != std::string::npos) {
         out.merchant_skill_bonus = number_after(text, "merchant skill is increased by");
+    }
+
+    // "Four point bonus to Disarm Traps skill", "Disarm Traps skill is
+    // increased by eight points"; Perception spelled both ways too.
+    if (text.find("point bonus to disarm traps skill") != std::string::npos) {
+        out.disarm_bonus = number_before(text, "point bonus to disarm traps skill");
+    } else if (text.find("disarm traps skill is increased by") != std::string::npos) {
+        out.disarm_bonus = number_after(text, "disarm traps skill is increased by");
+    }
+    if (text.find("point bonus to perception skill") != std::string::npos) {
+        out.perception_bonus = number_before(text, "point bonus to perception skill");
+    } else if (text.find("perception skill is increased by") != std::string::npos) {
+        out.perception_bonus = number_after(text, "perception skill is increased by");
     }
 
     // "Casts the Bless spell (duration 2 hours) at master ranking once per

@@ -222,6 +222,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The chests fight back**: `MapStats.txt`'s "Trap 0-10" column finally
+  gates something — a chest on a trapped map may blast the party for the
+  difficulty's worth of dice, defused outright when the best Disarm Traps
+  reaches the map's own number and dodged at five percent a point of
+  Perception ("increases chance to avoid traps", the table's line). Which
+  chests are trapped, the dice and both scales are the engine's own and say
+  so; the Tinkers, Locksmiths, Scouts and Psychics finally earn their wages.
 - **Loot arrives unknown**: `ITEMS.TXT`'s two unread columns now work —
   found things above their `ID/Rep/St` difficulty show only their own
   "Not identified name" and keep their worth hidden, until the party's
