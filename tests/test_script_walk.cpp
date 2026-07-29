@@ -386,3 +386,18 @@ TEST_CASE("a quest sets an award and a later check wears it", "[walk]") {
     const auto outcome = starhaven::game::walk_event(script, 7, state);
     REQUIRE(outcome.said == std::vector<int>{5});
 }
+
+TEST_CASE("found gold fills the purse and reports itself apart", "[walk]") {
+    // D05's shape: a dig pays type 22, a quest pays type 21.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 3, 0, kOpcodeGive, typed(22, 400));
+    push_step(payload, 3, 1, kOpcodeGive, typed(21, 100));
+    push_step(payload, 3, 2, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 3, state);
+    REQUIRE(state.gold == 500);
+    REQUIRE(outcome.gold_found == 400);
+    REQUIRE(outcome.acted());
+}

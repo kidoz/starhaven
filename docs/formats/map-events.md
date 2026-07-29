@@ -515,8 +515,10 @@ answer earned.
 id resolves through the same lookup order a face's event id takes: an event
 of its own script on **175**, of `GLOBAL.EVT` on another **106**, zero on 7.
 Of the remaining 24, half are the Oracle's, naming events of the Control
-Center next door — its sibling map — and half resolve nowhere, like the 22
-dangling face ids. `observed` Pyramid's event 14 switches its riddle events
+Center next door — its sibling map — and half resolve nowhere: 389..391
+are defined by no script of the 83, checked exhaustively, and 75 by
+eighteen scripts with no principled pick among them, so they stay dangling
+like the 22 face ids. `observed` Pyramid's event 14 switches its riddle events
 33..43 off and back on wholesale, and the Oracle throws its ids in matched
 on/off sets of four beside a door — which is what reads 0 as disable and 1
 as enable. `inferred` for that polarity. Reproduce with `evt_info --asks`.

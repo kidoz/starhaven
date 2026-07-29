@@ -99,6 +99,11 @@ struct WalkOutcome {
     };
     std::optional<Ask> ask;
 
+    // Gold that was found rather than paid: type 22's sums, already added
+    // to the purse, reported apart so a Factor's "bonus on all gold found"
+    // can ride on exactly these.
+    int gold_found = 0;
+
     // A cure's healing, and the permanent gains a barrel or shrine gives:
     // the seven attributes in 32..38 order, the five resistances in 46..50
     // order. Who in the party receives them is the caller's choice.
@@ -112,7 +117,8 @@ struct WalkOutcome {
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
                chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
-               !summons.empty() || !launches.empty() || ask.has_value() || healed_hp != 0 ||
+               !summons.empty() || !launches.empty() || ask.has_value() || gold_found != 0 ||
+               healed_hp != 0 ||
                healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(),
@@ -224,6 +230,13 @@ struct WalkOutcome {
             case world::kVarGold:
                 state.gold += take ? -value : value;
                 state.gold = state.gold < 0 ? 0 : state.gold;
+                break;
+            case world::kVarGoldFound:
+                state.gold += take ? -value : value;
+                state.gold = state.gold < 0 ? 0 : state.gold;
+                if (!take) {
+                    out.gold_found += value;
+                }
                 break;
             case world::kVarAward:
                 if (take) {

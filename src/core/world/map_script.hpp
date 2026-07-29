@@ -160,6 +160,13 @@ inline constexpr std::uint8_t kVarGold = 21;
 // event sets it. The sheet's honors are quest-given bits in an id space of
 // their own. `observed`
 inline constexpr std::uint8_t kVarAward = 12;
+// And found gold: type 22 pays where things are dug up rather than handed
+// over — D05's "Gold vein" digs give 400..800 of it, the sewer's
+// "Something's stashed here!" 1,000..2,000, D13's bone-piles a rising
+// 1,000..3,500 — always round sums, never beside a spoken noun. That it is
+// gold in the purse is `inferred` from the finds' own labels; it is the
+// "gold you find" the Factor's and Banker's rows take their percent of.
+inline constexpr std::uint8_t kVarGoldFound = 22;
 inline constexpr std::uint8_t kVarHitPoints = 3;
 inline constexpr std::uint8_t kVarSpellPoints = 5;
 inline constexpr std::uint8_t kVarExperience = 13;

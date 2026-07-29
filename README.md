@@ -222,6 +222,15 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The last currency named**: variable type 22 is found gold — the mine's
+  "Gold vein" digs, the sewer's stashes, D13's rising piles — `inferred`
+  from the finds' own labels, and it is exactly the "gold you find" the
+  Factor's and Banker's rows take their percent of, which the engine now
+  pays on it. The same sweep retired four other unknowns to the record:
+  opcode 21's byte is neither distance nor ticks, opcode 6's tail reads as
+  an 8.8 fixed-point scalar rather than any id, opcode 32's last dozen
+  dangle for good, and a dice-shaped opcode 9 on the "Cave-in!" branches is
+  logged as the next lead.
 - **Guild doors check their dues**: `Awards.txt` names a membership per
   school — "Joined the Fire Guild" — and no shipped event sets any of them,
   so the counters sell what the original's executable sold: the shelves

@@ -2050,6 +2050,17 @@ int main(int argc, char** argv) {
         const auto add = [&note](const std::string& text) {
             note += (note.empty() ? "" : "  ") + text;
         };
+        if (outcome.gold_found > 0) {
+            // The Factor's and Banker's "bonus on all gold found" rides on
+            // exactly what was found, not what was paid.
+            int bonus = 0;
+            for (const auto& h : hirelings) {
+                bonus = std::max(bonus, h.benefit.gold_percent);
+            }
+            const int extra = outcome.gold_found * bonus / 100;
+            script_state.gold += extra;
+            add("+" + std::to_string(outcome.gold_found + extra) + " gold found");
+        }
         if (script_state.experience > 0) {
             // A hired teacher's percent rides on top; the best one speaks
             // for the party rather than stacking. `inferred`

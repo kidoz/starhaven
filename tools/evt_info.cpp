@@ -229,6 +229,34 @@ int do_transitions(const starhaven::lod::LodArchive& icons,
     std::cout << same_map << " say \"0\" instead of a destination\n";
     std::cout << named << " name a destination; " << known_names
               << " are maps the design table lists, " << destinations.size() << " distinct\n";
+    // The trailing pair 24..25 read as a little-endian u16, against the
+    // sound table: consecutive runs like 665..675 are id-shaped.
+    {
+        world::SoundTable sounds;
+        std::span<const std::byte> raw2;
+        if (icons.payload("DSOUNDS.BIN", raw2) == lod::LodArchive::PayloadError::None &&
+            world::SoundTable::parse(raw2, sounds) == world::SoundTableError::None) {
+            std::map<int, std::size_t> tails;
+            for (const auto& [pattern, count] : middle_patterns) {
+                // The pattern is hex bytes "xx " * 10; the last two are 24, 25.
+                const int b24 = static_cast<int>(std::strtol(pattern.substr(24, 2).c_str(),
+                                                             nullptr, 16));
+                const int b25 = static_cast<int>(std::strtol(pattern.substr(27, 2).c_str(),
+                                                             nullptr, 16));
+                tails[b24 | (b25 << 8)] += count;
+            }
+            std::cout << "bytes 24..25 as u16 vs DSOUNDS:\n";
+            for (const auto& [value, count] : tails) {
+                if (value == 0) {
+                    continue;
+                }
+                const auto* row = sounds.find(static_cast<std::uint32_t>(value));
+                std::cout << "  " << value << " x" << count << " -> "
+                          << (row != nullptr ? row->name : "(no sound)") << "\n";
+            }
+        }
+    }
+
     std::cout << "bytes 16..25 by pattern:\n";
     for (const auto& [pattern, count] : middle_patterns) {
         std::cout << "  " << pattern << " x" << count << "\n";
