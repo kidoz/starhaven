@@ -224,3 +224,24 @@ TEST_CASE("the wizard eye round-trips", "[save]") {
     REQUIRE(after.eye_until == 1200);
     REQUIRE(after.eye_rank == 1);
 }
+
+TEST_CASE("the enchantments ride the save on gear and in packs", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.party[0].equipped[0] = 12;
+    state.party[0].worn_standard[0] = 3;
+    state.party[0].worn_strength[0] = 9;
+    state.party[2].worn_special[4] = 16;
+    PackedItem carried;
+    carried.item_id = 7;
+    carried.standard_bonus = 1;
+    carried.standard_strength = 5;
+    state.packs[1].push_back(carried);
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.party[0].worn_standard[0] == 3);
+    REQUIRE(after.party[0].worn_strength[0] == 9);
+    REQUIRE(after.party[2].worn_special[4] == 16);
+    REQUIRE(after.packs[1][0].standard_bonus == 1);
+    REQUIRE(after.packs[1][0].standard_strength == 5);
+}

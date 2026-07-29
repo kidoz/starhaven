@@ -154,6 +154,16 @@ struct SaveState {
         for (const int id : who.equipped) {
             out << "\t" << id;
         }
+        // The worn enchantments appended in order, so older saves read.
+        for (const int bonus : who.worn_standard) {
+            out << "\t" << bonus;
+        }
+        for (const int strength : who.worn_strength) {
+            out << "\t" << strength;
+        }
+        for (const int special : who.worn_special) {
+            out << "\t" << special;
+        }
         out << "\n";
         if (!who.known_spells.empty()) {
             out << "spells\t" << i;
@@ -185,7 +195,8 @@ struct SaveState {
         for (const auto& item : state.packs[i]) {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
                 << "\t" << item.width << "\t" << item.height << "\t"
-                << (item.identified ? 1 : 0) << "\n";
+                << (item.identified ? 1 : 0) << "\t" << item.standard_bonus << "\t"
+                << item.standard_strength << "\t" << item.special_bonus << "\n";
         }
     }
     return out.str();
@@ -372,6 +383,15 @@ struct SaveState {
                 for (auto& id : who.equipped) {
                     id = next_int();
                 }
+                for (auto& bonus : who.worn_standard) {
+                    bonus = next_int();
+                }
+                for (auto& strength : who.worn_strength) {
+                    strength = next_int();
+                }
+                for (auto& special : who.worn_special) {
+                    special = next_int();
+                }
             }
         } else if (kind == "item") {
             const auto i = static_cast<std::size_t>(next_int());
@@ -389,6 +409,9 @@ struct SaveState {
             std::string flag;
             std::getline(fields, flag, '\t');
             item.identified = flag.empty() || flag != "0";
+            item.standard_bonus = next_int();
+            item.standard_strength = next_int();
+            item.special_bonus = next_int();
             out.packs[i].push_back(item);
         }
     }

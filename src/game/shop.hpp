@@ -40,6 +40,9 @@ inline constexpr float kSellFraction = 0.5f;
 struct StockItem {
     int item_id = 0;
     int price = 0;
+    int standard_bonus = 0;
+    int standard_strength = 0;
+    int special_bonus = 0;
 };
 
 // A stock specification: `"L2 Sword,Dagger"` is treasure level 2, weapons.
@@ -262,7 +265,9 @@ stock_of(const data::BuildingStatsEntry& shop, const data::RandomItemTable& rand
             if (row == nullptr || row->name.empty()) {
                 continue;
             }
-            out.push_back({rolled.item_id, asking_price(*row, shop.price_factor)});
+            out.push_back({rolled.item_id, asking_price(*row, shop.price_factor),
+                           rolled.standard_bonus, rolled.standard_bonus_strength,
+                           rolled.special_bonus});
         }
     }
     return out;
@@ -271,11 +276,11 @@ stock_of(const data::BuildingStatsEntry& shop, const data::RandomItemTable& rand
 // Roll what a chest holds, from the map's own treasure level. The seed is the
 // chest's own index, so a chest holds the same things however often it is
 // looked at, and a different set from the chest beside it.
-[[nodiscard]] inline std::vector<int>
+[[nodiscard]] inline std::vector<data::GeneratedItem>
 chest_contents(std::size_t treasure_level, const data::RandomItemTable& random_items,
                const data::ItemStatsTable& items, const data::StandardBonusTable& standard,
                const data::SpecialBonusTable& special, std::uint32_t seed, int count) {
-    std::vector<int> out;
+    std::vector<data::GeneratedItem> out;
     Mm6Random random{seed};
     data::ArtifactGenerationState artifacts;
     for (int i = 0; i < count; ++i) {
@@ -287,7 +292,7 @@ chest_contents(std::size_t treasure_level, const data::RandomItemTable& random_i
         }
         const auto* row = items.at(static_cast<std::size_t>(rolled.item_id));
         if (row != nullptr && !row->name.empty()) {
-            out.push_back(rolled.item_id);
+            out.push_back(rolled);
         }
     }
     return out;

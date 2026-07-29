@@ -144,8 +144,18 @@ struct Character {
     int armor_class = 0;
     int skill_points = 0;
 
-    // What is worn, as ITEMS.TXT ids; zero means the slot is empty.
+    // What is worn, as ITEMS.TXT ids; zero means the slot is empty. The
+    // parallel arrays carry each piece's rolled enchantment: the standard
+    // bonus row and strength, or the special bonus row.
     std::array<int, kSlotCount> equipped{};
+    std::array<int, kSlotCount> worn_standard{};
+    std::array<int, kSlotCount> worn_strength{};
+    std::array<int, kSlotCount> worn_special{};
+
+    // What the worn enchantments add, recomputed by the shell each frame
+    // from the bonus tables so nothing double-applies.
+    std::array<int, kAttributeCount> gear_attributes{};
+    std::array<int, data::kResistanceCount> gear_resistances{};
 
     // Fire, Electricity, Cold, Poison and Magic, in the order `stats.txt`
     // lists them and `MONSTERS.TXT` carries them. A starting character has
@@ -193,7 +203,8 @@ struct Character {
 
     [[nodiscard]] int attribute(Attribute a) const noexcept {
         return attributes[static_cast<std::size_t>(a)] +
-               temp_attributes[static_cast<std::size_t>(a)];
+               temp_attributes[static_cast<std::size_t>(a)] +
+               gear_attributes[static_cast<std::size_t>(a)];
     }
 
     // The conditions' teeth, by this engine's reading of the tables' words.

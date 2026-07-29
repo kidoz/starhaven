@@ -412,11 +412,14 @@ TEST_CASE("a kill pays out its treasure code", "[combat]") {
     }
     REQUIRE(battle.unclaimed_gold() == 10);
     // The kind lets only the ring, id 2, through.
-    REQUIRE(battle.unclaimed_loot() == std::vector<int>{2});
+    REQUIRE(battle.unclaimed_loot().size() == 1);
+    REQUIRE(battle.unclaimed_loot()[0].item_id == 2);
 
     REQUIRE(battle.take_gold() == 10);
     REQUIRE(battle.take_gold() == 0);
-    REQUIRE(battle.take_loot() == std::vector<int>{2});
+    const auto taken = battle.take_loot();
+    REQUIRE(taken.size() == 1);
+    REQUIRE(taken[0].item_id == 2);
     REQUIRE(battle.unclaimed_loot().empty());
 }
 

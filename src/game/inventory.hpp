@@ -56,6 +56,12 @@ struct PackedItem {
     // difficulty arrives unknown, shown by its table's own unidentified
     // name until the Identify skill, a Scholar or a shop reveals it.
     bool identified = true;
+
+    // The enchantment the generator rolled, carried with the thing: the
+    // standard bonus row and its strength, or the special bonus row.
+    int standard_bonus = 0;
+    int standard_strength = 0;
+    int special_bonus = 0;
 };
 
 // One character's pack.
@@ -64,7 +70,8 @@ public:
     // Put an item in the first place it fits, reading left to right and top to
     // bottom. Returns false when there is no such place, which is the only
     // reason a pick-up fails.
-    bool add(int item_id, int width, int height, bool identified = true) {
+    bool add(int item_id, int width, int height, bool identified = true,
+             int standard_bonus = 0, int standard_strength = 0, int special_bonus = 0) {
         if (item_id <= 0 || width <= 0 || height <= 0 || width > kPackWidth ||
             height > kPackHeight) {
             return false;
@@ -72,7 +79,8 @@ public:
         for (int y = 0; y + height <= kPackHeight; ++y) {
             for (int x = 0; x + width <= kPackWidth; ++x) {
                 if (free_at(x, y, width, height)) {
-                    items_.push_back({item_id, x, y, width, height, identified});
+                    items_.push_back({item_id, x, y, width, height, identified, standard_bonus,
+                                      standard_strength, special_bonus});
                     return true;
                 }
             }
@@ -94,14 +102,25 @@ public:
 
     // Put an item back exactly where it was, which is what a load does.
     // Refuses what would overlap or overflow, like any other placement.
-    bool place(int item_id, int x, int y, int width, int height, bool identified = true) {
-        if (item_id <= 0 || x < 0 || y < 0 || width <= 0 || height <= 0 ||
-            x + width > kPackWidth || y + height > kPackHeight ||
-            !free_at(x, y, width, height)) {
+    bool place(const PackedItem& item) {
+        if (item.item_id <= 0 || item.x < 0 || item.y < 0 || item.width <= 0 ||
+            item.height <= 0 || item.x + item.width > kPackWidth ||
+            item.y + item.height > kPackHeight ||
+            !free_at(item.x, item.y, item.width, item.height)) {
             return false;
         }
-        items_.push_back({item_id, x, y, width, height, identified});
+        items_.push_back(item);
         return true;
+    }
+    bool place(int item_id, int x, int y, int width, int height, bool identified = true) {
+        PackedItem item;
+        item.item_id = item_id;
+        item.x = x;
+        item.y = y;
+        item.width = width;
+        item.height = height;
+        item.identified = identified;
+        return place(item);
     }
 
     [[nodiscard]] const std::vector<PackedItem>& items() const noexcept { return items_; }

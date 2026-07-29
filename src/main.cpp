@@ -35,6 +35,7 @@
 #include "game/combat.hpp"
 #include "game/conversation.hpp"
 #include "game/daylight.hpp"
+#include "game/enchant.hpp"
 #include "game/hire.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
@@ -671,7 +672,8 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
 // One character's pack, on the grid, with the item art the game draws.
 void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                const game::Character& who, const game::Pack& pack,  // NOLINT
-               const data::ItemStatsTable& items, int cursor_x = -1, int cursor_y = -1,
+               const data::ItemStatsTable& items, const data::StandardBonusTable& standard,
+               const data::SpecialBonusTable& special, int cursor_x = -1, int cursor_y = -1,
                int sale_offer = -1) {
     if (font.glyph_count() == 0) {
         return;
@@ -767,7 +769,10 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         // keeps its worth to itself.
         const std::string label =
             carried.identified || row->unidentified_name.empty()
-                ? data::cp1252_to_utf8(row->name) + "  " + std::to_string(row->value) + " gold"
+                ? data::cp1252_to_utf8(game::enchanted_name(
+                      row->name, standard.at(static_cast<std::size_t>(carried.standard_bonus)),
+                      special.at(static_cast<std::size_t>(carried.special_bonus)))) +
+                      "  " + std::to_string(row->value) + " gold"
                 : data::cp1252_to_utf8(row->unidentified_name) + "  (unidentified)";
         game::draw_text(scene.framebuffer(), font, kLeft, y, label, dim, shadow);
         y += font.height() + 1;
@@ -2572,9 +2577,47 @@ int main(int argc, char** argv) {
                             slot = game::Slot::Shield;
                         }
                     }
-                    // What was there comes off and goes back in the pack.
-                    const int worn = who.equipped[static_cast<std::size_t>(slot)];
-                    who.equipped[static_cast<std::size_t>(slot)] = carried.item_id;
+                    // What was there comes off and goes back in the pack,
+                    // its enchantment with it; the new piece's rides on.
+                    const auto si = static_cast<std::size_t>(slot);
+                    const int worn = who.equipped[si];
+                    const int old_standard = who.worn_standard[si];
+                    const int old_strength = who.worn_strength[si];
+                    const int old_special = who.worn_special[si];
+                    const auto power_of = [&](int std_row, int strength, int special) {
+                        game::EnchantPower power;
+                        if (std_row > 0) {
+                            if (const auto* bonus = standard_bonuses.at(
+                                    static_cast<std::size_t>(std_row))) {
+                                power = game::standard_power(*bonus, strength);
+                            }
+                        } else if (special > 0) {
+                            if (const auto* bonus =
+                                    special_bonuses.at(static_cast<std::size_t>(special))) {
+                                power = game::special_power(*bonus);
+                            }
+                        }
+                        return power;
+                    };
+                    // Hit and spell point grants move the maxima at the
+                    // moment of dressing, so they survive saves untouched.
+                    const game::EnchantPower off =
+                        power_of(old_standard, old_strength, old_special);
+                    who.max_hit_points -= off.hit_points;
+                    who.hit_points = std::min(who.hit_points, who.max_hit_points);
+                    who.max_spell_points -= off.spell_points;
+                    who.spell_points = std::min(who.spell_points, who.max_spell_points);
+                    who.equipped[si] = carried.item_id;
+                    who.worn_standard[si] = carried.standard_bonus;
+                    who.worn_strength[si] = carried.standard_strength;
+                    who.worn_special[si] = carried.special_bonus;
+                    const game::EnchantPower on =
+                        power_of(carried.standard_bonus, carried.standard_strength,
+                                 carried.special_bonus);
+                    who.max_hit_points += on.hit_points;
+                    who.hit_points += on.hit_points;
+                    who.max_spell_points += on.spell_points;
+                    who.spell_points += on.spell_points;
                     pack.remove(carried.x, carried.y);
                     if (worn > 0) {
                         const auto* old = item_stats.at(static_cast<std::size_t>(worn));
@@ -2582,7 +2625,8 @@ int main(int argc, char** argv) {
                             old == nullptr ? cache.icon("") : cache.icon(old->picture);
                         (void)pack.add(
                             worn, std::max(1, game::cells_across(static_cast<int>(icon.width()))),
-                            std::max(1, game::cells_across(static_cast<int>(icon.height()))));
+                            std::max(1, game::cells_across(static_cast<int>(icon.height()))),
+                            true, old_standard, old_strength, old_special);
                     }
                     pick_up_message = who.name + " wears the " + data::cp1252_to_utf8(row->name);
                     pick_up_shown = SDL_GetTicks();
@@ -2695,8 +2739,7 @@ int main(int argc, char** argv) {
                     for (std::size_t i = 0; i < packs.size(); ++i) {
                         packs[i].clear();
                         for (const auto& item : state.packs[i]) {
-                            (void)packs[i].place(item.item_id, item.x, item.y, item.width,
-                                                 item.height, item.identified);
+                            (void)packs[i].place(item);
                         }
                     }
                     opened_chests =
@@ -3259,7 +3302,10 @@ int main(int argc, char** argv) {
                             const int h =
                                 std::max(1, game::cells_across(static_cast<int>(icon.height())));
                             for (auto& pack : packs) {
-                                if (pack.add(offered.item_id, w, h)) {
+                                if (pack.add(offered.item_id, w, h, true,
+                                             offered.standard_bonus,
+                                             offered.standard_strength,
+                                             offered.special_bonus)) {
                                     carried = true;
                                     break;
                                 }
@@ -3905,7 +3951,8 @@ int main(int argc, char** argv) {
             gold += found;
             found_text = std::to_string(found) + " gold";
         }
-        for (const int id : battle.take_loot()) {
+        for (const auto& rolled : battle.take_loot()) {
+            const int id = rolled.item_id;
             const auto* row = item_stats.at(static_cast<std::size_t>(id));
             if (row == nullptr) {
                 continue;
@@ -3915,11 +3962,19 @@ int main(int argc, char** argv) {
             const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
             const bool known = arrives_identified(*row);
             for (auto& pack : packs) {
-                if (pack.add(id, w, h, known)) {
-                    found_text += (found_text.empty() ? "" : " and ") +
-                                  data::cp1252_to_utf8(known || row->unidentified_name.empty()
-                                                           ? row->name
-                                                           : row->unidentified_name);
+                if (pack.add(id, w, h, known, rolled.standard_bonus,
+                             rolled.standard_bonus_strength, rolled.special_bonus)) {
+                    found_text +=
+                        (found_text.empty() ? "" : " and ") +
+                        data::cp1252_to_utf8(
+                            known || row->unidentified_name.empty()
+                                ? game::enchanted_name(
+                                      row->name,
+                                      standard_bonuses.at(static_cast<std::size_t>(
+                                          rolled.standard_bonus)),
+                                      special_bonuses.at(static_cast<std::size_t>(
+                                          rolled.special_bonus)))
+                                : std::string(row->unidentified_name));
                     break;
                 }
             }
@@ -4066,6 +4121,36 @@ int main(int argc, char** argv) {
 
         // Armour class is what the party is wearing plus its own footwork.
         for (std::size_t i = 0; i < party.size(); ++i) {
+            // The worn enchantments, recomputed fresh: the standard rows'
+            // own stats at their rolled strengths, the specials' parsed
+            // prose.
+            party[i].gear_attributes.fill(0);
+            party[i].gear_resistances.fill(0);
+            int gear_armor = 0;
+            for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
+                if (party[i].equipped[slot] <= 0 || party[i].equipped_broken[slot]) {
+                    continue;
+                }
+                game::EnchantPower power;
+                if (party[i].worn_standard[slot] > 0) {
+                    if (const auto* bonus = standard_bonuses.at(
+                            static_cast<std::size_t>(party[i].worn_standard[slot]))) {
+                        power = game::standard_power(*bonus, party[i].worn_strength[slot]);
+                    }
+                } else if (party[i].worn_special[slot] > 0) {
+                    if (const auto* bonus = special_bonuses.at(
+                            static_cast<std::size_t>(party[i].worn_special[slot]))) {
+                        power = game::special_power(*bonus);
+                    }
+                }
+                for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+                    party[i].gear_attributes[a] += power.attributes[a];
+                }
+                for (std::size_t r = 0; r < data::kResistanceCount; ++r) {
+                    party[i].gear_resistances[r] += power.resistances[r];
+                }
+                gear_armor += power.armor_class;
+            }
             // Worn skill on top of worn steel: each equipped piece whose
             // Skill Group's own line grants Armor Class adds the wearer's
             // points in it, the Squire's bonus included.
@@ -4096,7 +4181,8 @@ int main(int argc, char** argv) {
             }
             party[i].armor_class =
                 game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
-                game::armour_of(party[i], item_stats) + party[i].temp_armor + skilled_armor;
+                game::armour_of(party[i], item_stats) + party[i].temp_armor + skilled_armor +
+                gear_armor;
         }
 
         if (want_rest) {
@@ -4345,11 +4431,12 @@ int main(int argc, char** argv) {
                                          : "The chest was trapped!  ";
                     }
                 }
-                for (const int id : game::chest_contents(
+                for (const auto& rolled : game::chest_contents(
                          static_cast<std::size_t>(session.treasure_level), random_items, item_stats,
                          standard_bonuses, special_bonuses,
                          static_cast<std::uint32_t>(outcome.chest + 1) * 40503U,
                          game::kChestItems)) {
+                    const int id = rolled.item_id;
                     const auto* row = item_stats.at(static_cast<std::size_t>(id));
                     if (row == nullptr) {
                         continue;
@@ -4359,7 +4446,8 @@ int main(int argc, char** argv) {
                     const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
                     const bool known = arrives_identified(*row);
                     for (auto& pack : packs) {
-                        if (pack.add(id, w, h, known)) {
+                        if (pack.add(id, w, h, known, rolled.standard_bonus,
+                                     rolled.standard_bonus_strength, rolled.special_bonus)) {
                             took += (took.empty() || took.back() == ' ' ? "You find "
                                                                           : ", ") +
                                     data::cp1252_to_utf8(known ||
@@ -4455,10 +4543,21 @@ int main(int argc, char** argv) {
                         reach_of(party[who]) < away) {
                         continue;
                     }
+                    // The held weapon's special rider, if its prose rolls.
+                    game::EnchantPower rider;
+                    if (const int sp = party[who].worn_special[static_cast<std::size_t>(
+                            game::Slot::Weapon)];
+                        sp > 0) {
+                        if (const auto* bonus =
+                                special_bonuses.at(static_cast<std::size_t>(sp))) {
+                            rider = game::special_power(*bonus);
+                        }
+                    }
                     std::string blow =
                         battle.strike(target, party[who], packs[who], session, monster_stats,
                                       item_stats, random_items, standard_bonuses, special_bonuses,
-                                      weapon_skill_of(party[who]));
+                                      weapon_skill_of(party[who]), rider.extra_damage,
+                                      rider.damage_element);
                     if (!blow.empty()) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
@@ -4591,8 +4690,8 @@ int main(int argc, char** argv) {
                     }
                 }
             }
-            draw_pack(scene, font, cache, party[who], packs[who], item_stats, pack_cursor_x,
-                      pack_cursor_y, sale_offer);
+            draw_pack(scene, font, cache, party[who], packs[who], item_stats, standard_bonuses,
+                      special_bonuses, pack_cursor_x, pack_cursor_y, sale_offer);
         }
         // A thing behind a wall is not being looked at, whatever the aim says.
         auto visible = [&](const render::Vec3& at) {

@@ -143,7 +143,8 @@ enum class MonsterCondition : std::uint8_t { Fear, Slow, Paralyze, Charm };
     const int which = resistance_index(type);
     return which < 0 ? 0
                      : who.resistances[static_cast<std::size_t>(which)] +
-                           who.temp_resistances[static_cast<std::size_t>(which)];
+                           who.temp_resistances[static_cast<std::size_t>(which)] +
+                           who.gear_resistances[static_cast<std::size_t>(which)];
 }
 
 // What a resistance does to a blow: none of it gets through if the target is
@@ -350,9 +351,11 @@ public:
     }
 
     // The items kills have left and nobody has picked up yet.
-    [[nodiscard]] const std::vector<int>& unclaimed_loot() const noexcept { return loot_; }
-    std::vector<int> take_loot() {
-        std::vector<int> taken = std::move(loot_);
+    [[nodiscard]] const std::vector<data::GeneratedItem>& unclaimed_loot() const noexcept {
+        return loot_;
+    }
+    std::vector<data::GeneratedItem> take_loot() {
+        std::vector<data::GeneratedItem> taken = std::move(loot_);
         loot_.clear();
         return taken;
     }
@@ -392,7 +395,8 @@ public:
                        const data::RandomItemTable& random_items,
                        const data::StandardBonusTable& standard_bonuses,
                        const data::SpecialBonusTable& special_bonuses,
-                       const SkillPower& skill = {}) {
+                       const SkillPower& skill = {}, const data::Dice& rider = {},
+                       std::string_view rider_element = {}) {
         if (!alive(actor) || who.hit_points <= 0) {
             return {};
         }
@@ -440,6 +444,12 @@ public:
         }
         damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, "Phys"));
         damage = damage < 1 ? 1 : damage;
+        // A weapon's elemental rider — "Adds 6-8 points of Cold damage" —
+        // rolls apart and is answered by its own element.
+        if (!rider.empty()) {
+            damage += after_resistance(data::roll(rider, random_),
+                                       resistance_to(monster, rider_element));
+        }
 
         // "Chance to stun equal to skill": the stunned lose their next
         // moment — a second on their recovery is the engine's own length.
@@ -592,7 +602,7 @@ private:
                                                artifacts_,
                                                rolled) == data::ItemGenerationError::None &&
                     rolled.item_id > 0) {  // a kind nothing matches rolls the blank row
-                    loot_.push_back(rolled.item_id);
+                    loot_.push_back(rolled);
                 }
             }
             what += " and kills it";
@@ -758,7 +768,7 @@ private:
     std::vector<std::size_t> shots_;
     int experience_ = 0;
     int gold_ = 0;
-    std::vector<int> loot_;
+    std::vector<data::GeneratedItem> loot_;
     int stolen_ = 0;
     data::ArtifactGenerationState artifacts_;
     Mm6Random random_{1};

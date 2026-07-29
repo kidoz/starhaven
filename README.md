@@ -222,6 +222,15 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Magic items finally bite**: the generator's rolls ride the items now —
+  through packs, purchases, saves and onto the body — and wearing them
+  grants what the tables say: a standard bonus's own stat column at its
+  rolled strength (the seven attributes, resistances, AC, hit and spell
+  points), and the special bonuses' parsed prose — "+10 to all
+  Resistances", "Adds 6-8 points of Cold damage" rolling apart on every
+  swing and answered by its own element. Names follow their affixes' own
+  shapes: "Longsword of Might", "Vampiric Dagger". What the prose doesn't
+  phrase in numbers stays prose, honestly.
 - **The drawer, emptied**: Lloyd's Beacon now honors its expert and master
   cells — "3 Beacons", "5 Beacons", decaying in their written days and weeks
   per point — through a place-or-recall list; the shops' opens/closes
