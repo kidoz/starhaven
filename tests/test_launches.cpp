@@ -33,3 +33,24 @@ TEST_CASE("an aimless launch flies at the party", "[launches]") {
     // blank billboard.
     REQUIRE(none.empty());
 }
+
+TEST_CASE("a spell's projectile group is its school's word and number", "[launches]") {
+    // The frame table's own naming: fire04 is Fire Bolt, air07 Lightning
+    // Bolt, and the Water school's prefix is "cold". The X variant is the
+    // burst. Lookup ignores case, so the shape is all that matters here.
+    CHECK(game::spell_sprite_group(data::SpellSchool::Fire, 4) == "fire04");
+    CHECK(game::spell_sprite_group(data::SpellSchool::Air, 7) == "air07");
+    CHECK(game::spell_sprite_group(data::SpellSchool::Water, 4) == "cold04");
+    CHECK(game::spell_sprite_group(data::SpellSchool::Dark, 11) == "dark11");
+    CHECK(game::spell_sprite_group(data::SpellSchool::Earth, 4, true) == "earthX04");
+}
+
+TEST_CASE("a launch advances one frame at a time and reports arrival", "[launches]") {
+    game::ActiveLaunch bolt;
+    bolt.position = {0.0f, 0.0f, 0.0f};
+    bolt.target = {game::kLaunchSpeed * 0.5f, 0.0f, 0.0f};
+    CHECK_FALSE(game::advance_launch(bolt, 0.25f));
+    CHECK(bolt.position.x > 0.0f);
+    CHECK(game::advance_launch(bolt, 0.5f));
+    CHECK(bolt.arrived);
+}

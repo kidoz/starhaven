@@ -13,16 +13,36 @@
 // nothing more. See docs/formats/map-events.md.
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 #include <vector>
 
+#include "core/data/spell_stats.hpp"
 #include "core/render/math3d.hpp"
 #include "core/world/map_script.hpp"
 #include "core/world/map_session.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
 namespace starhaven::game {
+
+// The frame table names a school's projectiles by the school's word and the
+// spell's number within it — fire04 is Fire Bolt, air07 Lightning Bolt,
+// cold04 Ice Bolt (the Water school's prefix is "cold") — with an X variant
+// for the burst on arrival. `observed` in DSFT.BIN's group list; a spell
+// with no such group simply has no projectile art.
+[[nodiscard]] inline std::string spell_sprite_group(data::SpellSchool school, int number,
+                                                    bool burst = false) {
+    constexpr std::array<std::string_view, data::kSpellSchoolCount> kPrefix{
+        "fire", "air", "cold", "earth", "spirit", "mind", "body", "light", "dark"};
+    std::string name(kPrefix[static_cast<std::size_t>(school)]);
+    if (burst) {
+        name += 'X';
+    }
+    name += number < 10 ? "0" : "";
+    name += std::to_string(number);
+    return name;
+}
 
 // How fast a launched sprite flies, in MM6 units per second. Engine-own: a
 // hall of Castle Darkmoor is a few thousand units, and this crosses it in a
@@ -61,20 +81,26 @@ struct ActiveLaunch {
     return out;
 }
 
+// Fly one sprite one frame further; true once it reaches its target.
+[[nodiscard]] inline bool advance_launch(ActiveLaunch& l, float dt) {
+    const render::Vec3 gap{l.target.x - l.position.x, l.target.y - l.position.y,
+                           l.target.z - l.position.z};
+    const float distance = std::sqrt(gap.x * gap.x + gap.y * gap.y + gap.z * gap.z);
+    const float step = kLaunchSpeed * dt;
+    if (distance <= step || distance * distance <= kLaunchArrive * kLaunchArrive) {
+        l.arrived = true;
+        return true;
+    }
+    l.position.x += gap.x / distance * step;
+    l.position.y += gap.y / distance * step;
+    l.position.z += gap.z / distance * step;
+    return false;
+}
+
 // Fly everything one frame further; what reaches its target is removed.
 inline void advance_launches(std::vector<ActiveLaunch>& launches, float dt) {
     for (auto& l : launches) {
-        const render::Vec3 gap{l.target.x - l.position.x, l.target.y - l.position.y,
-                               l.target.z - l.position.z};
-        const float distance = std::sqrt(gap.x * gap.x + gap.y * gap.y + gap.z * gap.z);
-        const float step = kLaunchSpeed * dt;
-        if (distance <= step || distance * distance <= kLaunchArrive * kLaunchArrive) {
-            l.arrived = true;
-            continue;
-        }
-        l.position.x += gap.x / distance * step;
-        l.position.y += gap.y / distance * step;
-        l.position.z += gap.z / distance * step;
+        (void)advance_launch(l, dt);
     }
     std::erase_if(launches, [](const ActiveLaunch& l) { return l.arrived; });
 }

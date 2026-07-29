@@ -2047,6 +2047,27 @@ int main(int argc, char** argv) {
     std::vector<std::string> shown_animation(session.actors.size());
     std::vector<game::ActiveLaunch> launches;  // sprites a script put in the air
 
+    // A spell the party fired, mid-flight: the bolt carries its blow to the
+    // monster it was aimed at and lands it on arrival, the way the script
+    // launches fly. The X-variant burst then lingers a moment where it hit.
+    struct SpellShot {
+        game::ActiveLaunch flight;
+        std::size_t target = 0;
+        data::SpellRange flat;
+        data::SpellRange per_skill;
+        int skill = 0;
+        std::string element;
+        std::string caster;
+        std::string burst;  // the X group, empty when the table has none
+    };
+    std::vector<SpellShot> spell_shots;
+    struct SpellBurst {
+        std::string animation;
+        render::Vec3 position;
+        std::uint64_t until = 0;  // SDL ticks
+    };
+    std::vector<SpellBurst> spell_bursts;
+
     // The map's own lights, baked per face once per load: the sum of each
     // light's reach at the face's centre. The linear falloff and the floor
     // are this engine's; the positions, radii and brightness are the
@@ -2618,6 +2639,8 @@ int main(int argc, char** argv) {
         shown_kind.assign(session.actors.size(), world::MonsterAnimation::Stand);
         shown_animation.assign(session.actors.size(), {});
         launches.clear();
+        spell_shots.clear();
+        spell_bursts.clear();
         fall_speed = 0.0f;
         SDL_SetWindowTitle(window,
                            ("StarHaven - " + session.title() + " (" + session.file_name + ")")
@@ -4125,8 +4148,10 @@ int main(int argc, char** argv) {
                         wounded = true;
                     }
                 }
+                // A spell reaches the missile band, the same range the
+                // monsters' own shots use.
                 const std::size_t target = game::aimed_actor(
-                    session, battle, camera.position, camera.forward(), game::kPartyReach);
+                    session, battle, camera.position, camera.forward(), game::kMissileRange);
                 for (auto& caster : party) {
                     if (!caster.can_act() || cast) {
                         continue;
@@ -4161,11 +4186,12 @@ int main(int argc, char** argv) {
                         if (spell == nullptr || caster.spell_points < spell->cost_normal) {
                             continue;
                         }
-                        const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
+                        const int points = spell_skill_of(caster, *spell);
+                        const data::SpellEffect effect =
+                            data::parse_spell_effect(*spell, game::rank_of(points));
                         const int amount = wounded ? effect.heal.high
                                                    : effect.damage.high +
-                                                         effect.damage_per_skill.high *
-                                                             caster.level;
+                                                         effect.damage_per_skill.high * points;
                         if (amount > best_amount &&
                             (wounded ? !effect.heal.empty()
                                      : !effect.damage.empty() ||
@@ -4190,11 +4216,29 @@ int main(int argc, char** argv) {
                     } else if (target != game::kNoActor) {
                         caster.spell_points -= best->cost_normal;
                         ambient.play_spell(best->id);
-                        pick_up_message = battle.smite(
-                            target, best_effect.damage, best_effect.damage_per_skill,
-                            spell_skill_of(caster, *best), best->element, caster.name, session,
-                            monster_stats, item_stats, random_items, standard_bonuses,
-                            special_bonuses);
+                        // The bolt carries the blow; it lands on arrival.
+                        SpellShot shot;
+                        shot.target = target;
+                        shot.flat = best_effect.damage;
+                        shot.per_skill = best_effect.damage_per_skill;
+                        shot.skill = spell_skill_of(caster, *best);
+                        shot.element = best->element;
+                        shot.caster = caster.name;
+                        // A school with no projectile group flies unseen
+                        // rather than borrowing another school's art.
+                        shot.flight.animation =
+                            game::spell_sprite_group(best->school, best->number);
+                        const std::string burst =
+                            game::spell_sprite_group(best->school, best->number, true);
+                        if (!session.sprite_frames.group(burst).empty()) {
+                            shot.burst = burst;
+                        }
+                        shot.flight.position = camera.position;
+                        shot.flight.target = session.actors[target].position;
+                        shot.flight.target.y += 32.0f;
+                        pick_up_message = caster.name + " casts " +
+                                          data::cp1252_to_utf8(best->name);
+                        spell_shots.push_back(std::move(shot));
                     } else {
                         pick_up_message = "Nothing in reach to cast at";
                     }
@@ -4360,6 +4404,34 @@ int main(int argc, char** argv) {
             party_recovery = std::max(0.0f, party_recovery - sim_dt);
             clock.advance_seconds(sim_dt);
             game::advance_launches(launches, sim_dt);
+            for (auto& shot : spell_shots) {
+                // The bolt tracks its monster the way the fight does; on
+                // arrival the blow lands with the spell's own numbers.
+                if (shot.target < session.actors.size() && battle.alive(shot.target)) {
+                    shot.flight.target = session.actors[shot.target].position;
+                    shot.flight.target.y += 32.0f;
+                }
+                if (!game::advance_launch(shot.flight, sim_dt)) {
+                    continue;
+                }
+                if (!shot.burst.empty()) {
+                    spell_bursts.push_back(
+                        {shot.burst, shot.flight.target, SDL_GetTicks() + 400});
+                }
+                if (std::string blow = battle.smite(
+                        shot.target, shot.flat, shot.per_skill, shot.skill, shot.element,
+                        shot.caster, session, monster_stats, item_stats, random_items,
+                        standard_bonuses, special_bonuses);
+                    !blow.empty()) {
+                    pick_up_message = std::move(blow);
+                    pick_up_shown = SDL_GetTicks();
+                }
+            }
+            std::erase_if(spell_shots,
+                          [](const SpellShot& s) { return s.flight.arrived; });
+            std::erase_if(spell_bursts, [](const SpellBurst& b) {
+                return SDL_GetTicks() >= b.until;
+            });
         }
         {
             int xp_bonus = 0;
@@ -5063,8 +5135,18 @@ int main(int argc, char** argv) {
             pick_up_message = taken;
             pick_up_shown = SDL_GetTicks();
         }
+        std::vector<game::ActiveLaunch> in_flight = launches;
+        for (const auto& shot : spell_shots) {
+            in_flight.push_back(shot.flight);
+        }
+        for (const auto& burst : spell_bursts) {
+            game::ActiveLaunch flash;
+            flash.animation = burst.animation;
+            flash.position = burst.position;
+            in_flight.push_back(std::move(flash));
+        }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
-                        camera.position, shown_animation, launches);
+                        camera.position, shown_animation, in_flight);
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }

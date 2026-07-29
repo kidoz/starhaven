@@ -182,6 +182,20 @@ animations. The 81 `DDECLIST` names with no group are drawable as plain sprite
 names, and overlap the decoration art this install is missing (see
 [`odm-decorations.md`](odm-decorations.md)). `observed`
 
+## The spell projectiles name themselves by school and number
+
+The table carries a run of groups named by a school's word and a two-digit
+spell number within that school — `fire02`..`fire11`, `air02`..`air11`,
+`cold02`..`cold10`, `earth01`..`earth11`, `mind03`..`mind10`, `body04`,
+`body10`, `light03`..`light10`, `dark01`..`dark11` — with an `X` variant
+(`fireX04`, `coldx04`; the case wanders) alongside most. `observed` The
+numbers land on the spells with something to show: `fire04` on Fire Bolt,
+`air07` on Lightning Bolt, `cold04` on Ice Bolt. The **Water school's prefix
+is `cold`**, and the Spirit school has no run at all. That the plain group
+is the flight and the `X` group the burst on arrival is `inferred` from the
+pairs' shapes — the engine flies the one and flashes the other. Reproduce
+the census with `sft_info --list`.
+
 ## Invalid-input behavior
 
 The parser rejects, deterministically and without reading out of bounds:

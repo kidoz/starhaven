@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The party fires back**: the best damage spell somebody knows flies at
+  what the party aims at, out to the same missile band the monsters shoot
+  across — a bolt in the school's own art (`fire04` is Fire Bolt, and the
+  Water school's prefix is `cold`), the blow landing on arrival at the
+  prose's numbers scaled by the caster's rank, with the `X`-variant burst
+  flashing where it hit.
 - **Nine save slots**: F5 and F9 speak to the current slot, F6 turns to
   the next and says what it holds — the map's name and the day, read off
   the save itself — with slot 1 keeping the old single file's name so
