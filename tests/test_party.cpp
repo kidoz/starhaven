@@ -173,3 +173,40 @@ TEST_CASE("rest wakes the unconscious but not the dead", "[party]") {
     REQUIRE(party[2].hit_points == 0);     // the night does nothing for them
     REQUIRE(party[2].dead());
 }
+
+TEST_CASE("reshaping a character re-derives what the class decides", "[party]") {
+    Character who;
+    who.class_name = "Knight";
+    Mm6Random random{7};
+    roll_attributes(who, random);
+    for (std::size_t a = 0; a < kAttributeCount; ++a) {
+        REQUIRE(who.attributes[a] >= 11);
+        REQUIRE(who.attributes[a] <= 20);
+    }
+    derive_start(who);
+    REQUIRE(who.max_hit_points > 0);
+    REQUIRE(who.max_spell_points == 0);
+    REQUIRE(who.known_spells.empty());
+
+    // The same character turned Cleric learns to cast; turned back, forgets.
+    who.class_name = "Cleric";
+    derive_start(who);
+    REQUIRE(who.max_spell_points > 0);
+    REQUIRE(who.known_spells.contains(68));
+    who.class_name = "Knight";
+    derive_start(who);
+    REQUIRE(who.max_spell_points == 0);
+    REQUIRE(who.known_spells.empty());
+}
+
+TEST_CASE("the base classes are six and every one is a Class.txt heading shape", "[party]") {
+    REQUIRE(kBaseClasses.size() == 6);
+    for (const auto name : kBaseClasses) {
+        REQUIRE_FALSE(name.empty());
+    }
+    // Every starting-party class is one of them.
+    for (const auto name : kStartingClasses) {
+        REQUIRE(std::find(kBaseClasses.begin(), kBaseClasses.end(), name) !=
+                kBaseClasses.end());
+    }
+}

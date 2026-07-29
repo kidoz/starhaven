@@ -107,6 +107,7 @@ void print_usage(const char* argv0) {
               << "  --sheet N           open character N's sheet (1-4)\n"
               << "  --pack N            open character N's inventory (1-4)\n"
               << "  --time HOUR         start at this hour of day (0-23)\n"
+              << "  --create            shape the party before the world starts\n"
               << "  --shop N            open the Nth establishment's counter\n"
               << "  --fly               disable gravity and collision\n"
               << "  --walk N            use map event N on startup (research)\n"
@@ -453,6 +454,88 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
                         render::Color{190, 190, 215, 255}, render::Color{0, 0, 0, 255});
         y += line;
     }
+}
+
+// Shaping the party before the world starts: the twelve portraits, the six
+// base classes and the names are the game's own; the numbers are rolled by
+// this engine and say so on the sheet.
+void draw_creation(render::SceneRenderer& scene, const image::Font& font,
+                   assets::AssetCache& cache, const std::array<game::Character, 4>& party,
+                   int slot, const data::DescriptionTable& stats,
+                   const data::DescriptionTable& classes) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 5);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 5);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 5);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{170, 170, 170, 255};
+    const render::Color mark{235, 225, 170, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+
+    game::draw_text(scene.framebuffer(), font, 24, 8, "Who goes to Enroth?", white, shadow);
+    for (int i = 0; i < 4; ++i) {
+        const auto& who = party[static_cast<std::size_t>(i)];
+        const int x = 40 + i * 150;
+        blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face)), x, 32);
+        game::draw_text(scene.framebuffer(), font, x, 116,
+                        std::to_string(i + 1) + " " + who.name, i == slot ? mark : white,
+                        shadow);
+        game::draw_text(scene.framebuffer(), font, x, 116 + line, who.class_name,
+                        i == slot ? mark : dim, shadow);
+    }
+
+    const auto& who = party[static_cast<std::size_t>(slot)];
+    int y = 160;
+    for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+        game::draw_text(scene.framebuffer(), font, 40, y,
+                        std::string(game::stat_label(stats, a)) + "  " +
+                            std::to_string(who.attribute(static_cast<game::Attribute>(a))),
+                        white, shadow);
+        y += line;
+    }
+    game::draw_text(scene.framebuffer(), font, 240, 160,
+                    "Hit Points  " + std::to_string(who.max_hit_points), white, shadow);
+    game::draw_text(scene.framebuffer(), font, 240, 160 + line,
+                    "Spell Points  " + std::to_string(who.max_spell_points), white, shadow);
+    game::draw_text(scene.framebuffer(), font, 240, 160 + line * 3,
+                    "the rolls are this engine's own", dim, shadow);
+
+    // The class's own description, wrapped.
+    if (const auto* described = classes.find(who.class_name);
+        described != nullptr && !described->text.empty()) {
+        const std::string text = data::cp1252_to_utf8(described->text.front());
+        std::string word;
+        int x = 40;
+        y = 160 + line * 9;
+        for (std::size_t i = 0; i <= text.size(); ++i) {
+            const char ch = i < text.size() ? text[i] : ' ';
+            if (ch != ' ') {
+                word += ch;
+                continue;
+            }
+            const int width = font.text_width(word + " ");
+            if (x + width > kWidth - 40) {
+                x = 40;
+                y += line;
+            }
+            if (y < kHeight - line * 3 - 8) {
+                game::draw_text(scene.framebuffer(), font, x, y, word, dim, shadow);
+            }
+            x += width;
+            word.clear();
+        }
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "1-4 choose, C class, F face, N name, R reroll, Enter begins", dim, shadow);
 }
 
 // One character's pack, on the grid, with the item art the game draws.
@@ -1200,6 +1283,7 @@ int main(int argc, char** argv) {
     int start_hour = -1;  // --time, for looking at the world at a given hour
     int start_shop = 0;   // --shop, to open a counter straight away
     int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
+    bool force_create = false;  // --create: the party door, even under --screenshot
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
     game::WalkOutcome::Ask ask_pending;
@@ -1230,6 +1314,8 @@ int main(int argc, char** argv) {
             start_shop = std::atoi(argv[++i]);
         } else if (a == "--walk" && i + 1 < argc) {
             walk_on_start = std::atoi(argv[++i]);
+        } else if (a == "--create") {
+            force_create = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -1469,6 +1555,15 @@ int main(int argc, char** argv) {
     (void)data::load_descriptions(data_dir, "stats.txt", stat_descriptions);
     (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
+    // The party is the player's to shape before the world starts: class,
+    // face and name from the game's own tables and portraits, the numbers
+    // rerolled at will. Every tooling flag means "get to the world", so any
+    // of them skips the door.
+    bool creating = force_create || (screenshot.empty() && bench_frames == 0 &&
+                                     walk_on_start < 0 && start_shop == 0 && open_sheet == 0 &&
+                                     open_pack == 0);
+    int create_slot = 0;
+    Mm6Random create_random{0x51C7E3A9u};
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
     int shown_pack = open_pack >= 1 && open_pack <= 4 ? open_pack - 1 : -1;
@@ -1839,6 +1934,34 @@ int main(int argc, char** argv) {
                     ask_event = -1;  // the question can simply be walked away from
                 } else {
                     running = false;
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && creating) {
+                // Shaping the party: a slot, then its class, face, name and
+                // numbers. Enter opens the world.
+                auto& who = party[static_cast<std::size_t>(create_slot)];
+                if (event.key.key >= SDLK_1 && event.key.key <= SDLK_4) {
+                    create_slot = static_cast<int>(event.key.key - SDLK_1);
+                } else if (event.key.key == SDLK_C) {
+                    const auto at = std::find(game::kBaseClasses.begin(),
+                                              game::kBaseClasses.end(), who.class_name);
+                    const auto next = at == game::kBaseClasses.end() ||
+                                              at + 1 == game::kBaseClasses.end()
+                                          ? game::kBaseClasses.begin()
+                                          : at + 1;
+                    who.class_name = std::string(*next);
+                    game::derive_start(who);
+                } else if (event.key.key == SDLK_F) {
+                    who.face = (who.face + 1) % game::kFaceCount;
+                    who.name = std::string(
+                        given_names.name(game::face_is_female(who.face), create_random.next()));
+                } else if (event.key.key == SDLK_N) {
+                    who.name = std::string(
+                        given_names.name(game::face_is_female(who.face), create_random.next()));
+                } else if (event.key.key == SDLK_R) {
+                    game::roll_attributes(who, create_random);
+                    game::derive_start(who);
+                } else if (event.key.key == SDLK_RETURN) {
+                    creating = false;
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && ask_event >= 0) {
                 // A question holds the keys: letters and digits spell the
@@ -2679,7 +2802,7 @@ int main(int argc, char** argv) {
 
         const auto* keys = SDL_GetKeyboardState(nullptr);
         game::MoveInput in;
-        in.forward = keys[SDL_SCANCODE_W];
+        in.forward = !creating && keys[SDL_SCANCODE_W];
         in.back = keys[SDL_SCANCODE_S];
         in.left = keys[SDL_SCANCODE_A];
         in.right = keys[SDL_SCANCODE_D];
@@ -3197,7 +3320,7 @@ int main(int argc, char** argv) {
         if (show_directory) {
             draw_directory(scene, font, session, clock, trade_talk);
         }
-        if (shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+        if (shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating) {
             draw_party_strip(scene, font, party, hirelings);
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
@@ -3289,8 +3412,13 @@ int main(int argc, char** argv) {
                    game::inspect(session, monster_stats, item_stats, spell_stats, camera.position,
                                  camera.forward(), visible));
 
+        if (creating) {
+            draw_creation(scene, font, cache, party, create_slot, stat_descriptions,
+                          class_descriptions);
+        }
+
         // The map's name, drawn with the game's own font.
-        if (font.glyph_count() > 0) {
+        if (font.glyph_count() > 0 && !creating) {
             game::draw_text(scene.framebuffer(), font, 8, 6, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }

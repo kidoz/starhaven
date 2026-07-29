@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **A party of your own**: starting the walker now opens on the creation
+  screen — the twelve portrait families, the six base classes of `Class.txt`
+  (its every third heading; the other twelve read as promotions), names from
+  `npcnames.txt`, and each class described in its own prose while you choose.
+  The attribute rolls are this engine's and the screen says so. Every tooling
+  flag skips the door; `--create` forces it open.
 - **The fight finds its voice**: each monster's DMONLIST record names its
   four-sound `DSOUNDS.BIN` set at +0x08 — equal to the named set's base on 31
   of 31 monsters whose sound names carry their own table id, a block id on

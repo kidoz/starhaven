@@ -239,9 +239,42 @@ struct Character {
 inline constexpr std::array<std::string_view, 4> kStartingClasses{"Knight", "Paladin", "Archer",
                                                                   "Cleric"};
 
+// The six a new character may be: `Class.txt`'s every third heading, the
+// rows the promotion prose names as starting points. `observed` for the
+// headings, `inferred` for reading the other twelve as promotions only.
+inline constexpr std::array<std::string_view, 6> kBaseClasses{"Knight", "Cleric", "Sorcerer",
+                                                              "Paladin", "Archer", "Druid"};
+
 // Which of those learn spells, and so start with spell points. `inferred`
 [[nodiscard]] inline bool casts_spells(std::string_view class_name) noexcept {
     return class_name != "Knight";
+}
+
+// Derive what the class and the rolled attributes decide: hit points, spell
+// points, armour and the starting spell. Rerolling a character at creation
+// runs this again; every number is this engine's. `inferred`
+inline void derive_start(Character& c) {
+    c.max_hit_points = 20 + attribute_bonus(c.attribute(Attribute::Endurance)) * 2;
+    c.hit_points = c.max_hit_points;
+    c.known_spells.clear();
+    c.max_spell_points = 0;
+    if (casts_spells(c.class_name)) {
+        c.max_spell_points = 10 + attribute_bonus(c.attribute(Attribute::Intellect)) * 2;
+        // Every caster starts knowing First Aid; the choice of that one
+        // spell is this engine's. `inferred`
+        c.known_spells.insert(68);
+    }
+    c.spell_points = c.max_spell_points;
+    c.armor_class = attribute_bonus(c.attribute(Attribute::Speed));
+    c.skill_points = 0;
+}
+
+// Roll the seven attributes: 11 to 20, which is the range the original's own
+// descriptions treat as ordinary for a starting character. `inferred`
+inline void roll_attributes(Character& c, Mm6Random& random) {
+    for (std::size_t a = 0; a < kAttributeCount; ++a) {
+        c.attributes[a] = 11 + static_cast<int>(random.next() % 10);
+    }
 }
 
 // Build a starting party.
@@ -258,23 +291,8 @@ inline constexpr std::array<std::string_view, 4> kStartingClasses{"Knight", "Pal
         c.class_name = std::string(kStartingClasses[i]);
         c.face = static_cast<int>(random.next() % kFaceCount);
         c.name = std::string(names.name(face_is_female(c.face), random.next()));
-
-        for (std::size_t a = 0; a < kAttributeCount; ++a) {
-            // 11 to 20, which is the range the original's own descriptions
-            // treat as ordinary for a starting character. `inferred`
-            c.attributes[a] = 11 + static_cast<int>(random.next() % 10);
-        }
-        c.max_hit_points = 20 + attribute_bonus(c.attribute(Attribute::Endurance)) * 2;
-        c.hit_points = c.max_hit_points;
-        if (casts_spells(c.class_name)) {
-            c.max_spell_points = 10 + attribute_bonus(c.attribute(Attribute::Intellect)) * 2;
-            // Every caster starts knowing First Aid; the choice of that one
-            // spell is this engine's. `inferred`
-            c.known_spells.insert(68);
-        }
-        c.spell_points = c.max_spell_points;
-        c.armor_class = attribute_bonus(c.attribute(Attribute::Speed));
-        c.skill_points = 0;
+        roll_attributes(c, random);
+        derive_start(c);
     }
     return party;
 }
