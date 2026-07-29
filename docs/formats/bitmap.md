@@ -15,7 +15,9 @@ cover:
 - The `.LOD` container itself — see [`lod.md`](lod.md).
 - Sprites (`SPRITES.LOD`), which use a separate `LodSpriteHeader_MM6` layout
   with per-line offsets. Deferred to a later slice.
-- Fonts, PCX images in `Games.lod`, and 16-bit images. Out of scope here.
+- Fonts and 16-bit images. Out of scope here. PCX entries in the same
+  container are read by `src/core/image/pcx.cpp` — see
+  [`interface-panels.md`](interface-panels.md).
 
 ## Source provenance (non-expressive)
 

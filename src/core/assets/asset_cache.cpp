@@ -1,6 +1,7 @@
 #include "core/assets/asset_cache.hpp"
 
 #include "core/image/bitmap.hpp"
+#include "core/image/pcx.hpp"
 #include "core/image/sprite.hpp"
 
 #include <algorithm>
@@ -59,7 +60,10 @@ const render::Texture& AssetCache::icon(const std::string& name) {
     if (icons_open_ && !name.empty() &&
         icon_archive_.payload(name, raw) == lod::LodArchive::PayloadError::None) {
         image::Bitmap bmp;
-        if (image::decode_bitmap(raw, bmp) == image::BitmapError::None) {
+        // A few interface panels ship as PCX in the same container; the
+        // bitmap reader rejects them by their zeroed dimensions.
+        if (image::decode_bitmap(raw, bmp) == image::BitmapError::None ||
+            image::decode_pcx_entry(raw, bmp) == image::BitmapError::None) {
             (void)render::Texture::create(bmp.width, bmp.height, std::move(bmp.rgba), texture);
         }
     }

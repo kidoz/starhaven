@@ -83,6 +83,14 @@ public:
     }
 
     // "Day 3, 09:15, Tuesday" — for the corner of the screen.
+    // The hour and minute alone, for a narrow spot.
+    [[nodiscard]] std::string hhmm() const {
+        const int h = hour();
+        const int m = minute();
+        return (h < 10 ? "0" : "") + std::to_string(h) + ":" +
+               (m < 10 ? "0" : "") + std::to_string(m);
+    }
+
     [[nodiscard]] std::string text() const {
         const int h = hour();
         const int m = minute();

@@ -325,6 +325,68 @@ void blit(render::Framebuffer& fb, const render::Texture& texture, int left, int
     }
 }
 
+// The bottom `frac` of a vertical gauge, bottom-anchored the way a
+// draining column reads.
+void blit_gauge(render::Framebuffer& fb, const render::Texture& texture, int left, int top,
+                float frac) {
+    if (texture.empty() || frac <= 0.0f) {
+        return;
+    }
+    const int height = static_cast<int>(texture.height());
+    const int skip = height - std::min(height, static_cast<int>(frac * static_cast<float>(height)));
+    auto pixels = fb.color();
+    const auto source = texture.pixels();
+    for (int y = skip; y < height; ++y) {
+        const int dy = top + y;
+        if (dy < 0 || dy >= fb.height()) {
+            continue;
+        }
+        for (int x = 0; x < static_cast<int>(texture.width()); ++x) {
+            const int dx = left + x;
+            if (dx < 0 || dx >= fb.width()) {
+                continue;
+            }
+            const auto si =
+                (static_cast<std::size_t>(y) * texture.width() + static_cast<std::size_t>(x)) * 4;
+            const auto di =
+                (static_cast<std::size_t>(dy) * fb.width() + static_cast<std::size_t>(dx)) * 4;
+            pixels[di] = source[si];
+            pixels[di + 1] = source[si + 1];
+            pixels[di + 2] = source[si + 2];
+        }
+    }
+}
+
+// The game's own screen furniture, placed by the pieces' own sizes: BORDER3
+// (468x8) tops the view and BORDER4 (8x344) flanks it, which pins the 3D
+// viewport at (8,8) 460x344 — the game's own; Border1.pcx (172x339) is the
+// right column, Border2.pcx (469x109) the portrait bar and FOOTER (483x24)
+// the message strip, each abutting the last exactly. The corner right of
+// the portraits no shipped piece claims; it is filled dark and the engine's
+// own readouts live there. `inferred` for the fit, the pieces' sizes are
+// `observed`.
+void draw_frame(render::SceneRenderer& scene, assets::AssetCache& cache) {
+    blit(scene.framebuffer(), cache.icon("BORDER3"), 0, 0);
+    blit(scene.framebuffer(), cache.icon("BORDER4"), 0, 8);
+    blit(scene.framebuffer(), cache.icon("Border1.pcx"), 468, 0);
+    blit(scene.framebuffer(), cache.icon("Border2.pcx"), 0, 352);
+    blit(scene.framebuffer(), cache.icon("FOOTER"), 0, kHeight - 24);
+    auto pixels = scene.framebuffer().color();
+    const auto fill = [&](int x0, int y0, int x1, int y1) {
+        for (int y = y0; y < y1; ++y) {
+            for (int x = x0; x < x1; ++x) {
+                const auto i =
+                    (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+                pixels[i] = 24;
+                pixels[i + 1] = 22;
+                pixels[i + 2] = 20;
+            }
+        }
+    };
+    fill(468, 339, kWidth, kHeight - 24);
+    fill(483, kHeight - 24, kWidth, kHeight);
+}
+
 // The character sheet: one member at a time, with the fields named the way the
 // design tables name them.
 void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
@@ -482,54 +544,32 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
                     "1-4 choose a character, 5-9 raise a skill, C closes", dim, shadow);
 }
 
-// Who is in the party, along the bottom-left: enough to know they exist and
-// that the sheet keys mean something. The inspect panel sits bottom-right.
-void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
-                      assets::AssetCache& cache, const std::array<game::Character, 4>& party,
-                      const std::vector<game::Hireling>& hirelings,
+// Who is in the party, seated in the portrait bar's own ovals: Border2's
+// dark seats sit 113 pixels apart starting at x=22, with a narrow gauge
+// groove either side of each — both measured from the art itself. The face
+// wears the frame its condition picks from the portrait sheet's own 53.
+// Hits fill the left groove and mana the right; which is which the art
+// does not say. `inferred`
+void draw_party_strip(render::SceneRenderer& scene, assets::AssetCache& cache,
+                      const std::array<game::Character, 4>& party,
                       const std::array<bool, 4>& wincing) {
-    // The four faces above the text, each in the frame its condition picks
-    // from the portrait sheet's own 53.
-    for (std::size_t i = 0; i < party.size(); ++i) {
-        const int frame = game::portrait_frame_of(party[i], wincing[i]);
-        blit(scene.framebuffer(), cache.icon(game::portrait_entry(party[i].face, frame)),
-             8 + static_cast<int>(i) * 62,
-             kHeight - (font.height() + 2) * static_cast<int>(party.size() + hirelings.size()) -
-                 8 - 79);
-    }
-    if (font.glyph_count() == 0) {
-        return;
-    }
-    const int line = font.height() + 2;
-    int y = kHeight - line * static_cast<int>(party.size() + hirelings.size()) - 8;
     for (std::size_t i = 0; i < party.size(); ++i) {
         const auto& who = party[i];
-        std::string text = std::to_string(i + 1) + " " + who.name + "  " +
-                           std::to_string(who.hit_points) + "/" +
-                           std::to_string(who.max_hit_points);
-        if (who.dead()) {
-            text += "  dead";
-        } else if (who.hit_points <= 0) {
-            text += "  down";
-        } else if (who.poisoned > 0) {
-            text += "  poisoned";
-        } else if (who.diseased > 0) {
-            text += "  diseased";
-        } else if (!who.affliction.empty()) {
-            text += "  " + who.affliction;
-        } else if (who.max_spell_points > 0) {
-            text += "  sp " + std::to_string(who.spell_points) + "/" +
-                    std::to_string(who.max_spell_points);
+        const int left = 22 + static_cast<int>(i) * 113;
+        const int frame = game::portrait_frame_of(who, wincing[i]);
+        blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face, frame)), left, 361);
+        if (who.max_hit_points > 0) {
+            const float hits = std::clamp(
+                static_cast<float>(who.hit_points) / static_cast<float>(who.max_hit_points),
+                0.0f, 1.0f);
+            blit_gauge(scene.framebuffer(), cache.icon("HITSFULL"), left - 8, 361, hits);
         }
-        const render::Color colour = who.hit_points <= 0 ? render::Color{170, 110, 110, 255}
-                                                         : render::Color{215, 215, 215, 255};
-        game::draw_text(scene.framebuffer(), font, 8, y, text, colour, render::Color{0, 0, 0, 255});
-        y += line;
-    }
-    for (const auto& h : hirelings) {
-        game::draw_text(scene.framebuffer(), font, 8, y, "+ " + h.name + ", " + h.profession,
-                        render::Color{190, 190, 215, 255}, render::Color{0, 0, 0, 255});
-        y += line;
+        if (who.max_spell_points > 0) {
+            const float mana = std::clamp(
+                static_cast<float>(who.spell_points) / static_cast<float>(who.max_spell_points),
+                0.0f, 1.0f);
+            blit_gauge(scene.framebuffer(), cache.icon("MANAFULL"), left + 65, 361, mana);
+        }
     }
 }
 
@@ -1361,8 +1401,8 @@ void draw_panel(render::SceneRenderer& scene, const image::Font& font,
     const int rows = 1 + static_cast<int>(what.lines.size());
     const int box_w = widest + kPad * 2;
     const int box_h = rows * line_height + kPad * 2;
-    const int x0 = kWidth - box_w - 8;
-    const int y0 = kHeight - box_h - 8;
+    const int x0 = kWidth - box_w - 4;
+    const int y0 = kHeight - box_h - 26;
 
     auto pixels = scene.framebuffer().color();
     for (int y = y0; y < y0 + box_h; ++y) {
@@ -5168,16 +5208,33 @@ int main(int argc, char** argv) {
             for (std::size_t i = 0; i < party.size(); ++i) {
                 wincing[i] = SDL_GetTicks() < wince_until[i];
             }
-            draw_party_strip(scene, font, cache, party, hirelings, wincing);
-            game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
-                            8, clock.text(), render::Color{210, 205, 185, 255},
-                            render::Color{0, 0, 0, 255});
+            draw_frame(scene, cache);
+            draw_party_strip(scene, cache, party, wincing);
+            // The engine's own readouts keep to the corner no shipped
+            // piece claims.
+            int corner_y = 344;
+            const int corner_line = font.height() + 2;
+            // The weekday gets its own line; the corner is 172 wide.
+            game::draw_text(scene.framebuffer(), font, 474, corner_y,
+                            "day " + std::to_string(clock.day() + 1) + ", " +
+                                std::string(clock.weekday()),
+                            render::Color{210, 205, 185, 255}, render::Color{0, 0, 0, 255});
+            corner_y += corner_line;
+            game::draw_text(scene.framebuffer(), font, 474, corner_y, clock.hhmm(),
+                            render::Color{210, 205, 185, 255}, render::Color{0, 0, 0, 255});
+            corner_y += corner_line;
             const std::string purse =
                 std::to_string(gold) + " gold, " + std::to_string(party_food) + " food" +
                 (turn_based ? "  \x95 turn-based" : "");
-            game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(purse) - 8,
-                            8 + font.height() + 2, purse, render::Color{180, 175, 155, 255},
-                            render::Color{0, 0, 0, 255});
+            game::draw_text(scene.framebuffer(), font, 474, corner_y, purse,
+                            render::Color{180, 175, 155, 255}, render::Color{0, 0, 0, 255});
+            corner_y += corner_line;
+            for (const auto& h : hirelings) {
+                game::draw_text(scene.framebuffer(), font, 474, corner_y,
+                                "+ " + h.name + ", " + h.profession,
+                                render::Color{190, 190, 215, 255}, render::Color{0, 0, 0, 255});
+                corner_y += corner_line;
+            }
             if (ask_event >= 0) {
                 const int prompt = ask_pending.prompt;
                 std::string line =
@@ -5191,7 +5248,9 @@ int main(int argc, char** argv) {
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
             }
             if (!pick_up_message.empty() && SDL_GetTicks() - pick_up_shown < 3000) {
-                game::draw_text(scene.framebuffer(), font, 8, 8, pick_up_message,
+                // The footer is the game's message strip; the line lives
+                // there now.
+                game::draw_text(scene.framebuffer(), font, 12, kHeight - 17, pick_up_message,
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
             }
         }
@@ -5442,9 +5501,10 @@ int main(int argc, char** argv) {
                           class_descriptions);
         }
 
-        // The map's name, drawn with the game's own font.
+        // The map's name, drawn with the game's own font, inside the
+        // viewport's frame rather than across it.
         if (font.glyph_count() > 0 && !creating && !show_journal) {
-            game::draw_text(scene.framebuffer(), font, 8, 6, session.title(),
+            game::draw_text(scene.framebuffer(), font, 12, 12, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }
 

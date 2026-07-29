@@ -32,6 +32,7 @@ starhaven_core_sources = files(
   'src/core/lod/lod_archive.cpp',
   'src/core/lod/game_lod_archive.cpp',
   'src/core/image/bitmap.cpp',
+  'src/core/image/pcx.cpp',
   'src/core/image/palette.cpp',
   'src/core/image/sprite.cpp',
   'src/core/image/font.cpp',
