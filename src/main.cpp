@@ -46,6 +46,7 @@
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/sprites.hpp"
+#include "game/temple.hpp"
 #include "game/text.hpp"
 #include "game/training.hpp"
 #include "game/travel.hpp"
@@ -583,6 +584,81 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
                     "1-4 choose a character, E wear, U drink, M mix, I closes", dim, shadow);
+}
+
+// A temple's counter: the two verbs its margin notes name, at its own Val.
+void draw_temple(render::SceneRenderer& scene, const image::Font& font,
+                 const data::BuildingStatsEntry& shop,
+                 const std::array<game::Character, 4>& party, int gold,
+                 const std::string& said) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{165, 165, 165, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 24;
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
+                        data::cp1252_to_utf8(shop.proprietor),
+                    white, shadow);
+    y += line;
+    const game::TempleService service = game::temple_service(shop);
+    std::string terms = "you have " + std::to_string(gold) + " gold; healing costs " +
+                        std::to_string(game::heal_price(shop));
+    if (!service.heals_eradicated || !service.heals_dead || !service.heals_stone) {
+        terms += "; this house cannot mend";
+        if (!service.heals_dead) {
+            terms += " the dead,";
+        }
+        if (!service.heals_stone) {
+            terms += " the stoned,";
+        }
+        if (!service.heals_eradicated) {
+            terms += " the eradicated";
+        }
+        if (terms.back() == ',') {
+            terms.pop_back();
+        }
+    }
+    game::draw_text(scene.framebuffer(), font, 24, y, terms, dim, shadow);
+    y += line * 2;
+    for (std::size_t i = 0; i < party.size(); ++i) {
+        const auto& who = party[i];
+        std::string text = std::to_string(i + 1) + "  " + who.name + "  " +
+                           std::to_string(who.hit_points) + "/" +
+                           std::to_string(who.max_hit_points);
+        const bool needs = who.hit_points < who.max_hit_points ||
+                           who.spell_points < who.max_spell_points || who.poisoned > 0;
+        if (who.poisoned > 0) {
+            text += "  poisoned";
+        }
+        if (who.hit_points <= 0) {
+            text += "  down";
+        }
+        if (!needs) {
+            text += "  whole";
+        }
+        game::draw_text(scene.framebuffer(), font, 24, y, text, needs ? white : dim, shadow);
+        y += line;
+    }
+    if (!said.empty()) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+                        shadow);
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                    "1-4 heal a character, 5 donate, T talk, B closes", dim, shadow);
 }
 
 // A bank's counter: the balance, and the sheet's own two verbs.
@@ -1976,6 +2052,42 @@ int main(int argc, char** argv) {
                         }
                     }
                 } else if (open_shop >= 0 &&
+                           game::is_temple(*shops_here[static_cast<std::size_t>(open_shop)]) &&
+                           chosen < 5) {
+                    // The two verbs the temple's own row names. What a heal
+                    // restores — everything this engine tracks — and what a
+                    // donation earns — an hour of Bless — are this engine's.
+                    const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+                    const int price = game::heal_price(shop);
+                    if (chosen == 4) {
+                        if (gold >= price) {
+                            gold -= price;
+                            for (auto& member : party) {
+                                member.bless_until =
+                                    std::max(member.bless_until, clock.minutes() + 60);
+                            }
+                            shop_said = "The healer blesses your generosity.";
+                        } else {
+                            shop_said = "Even a donation takes gold.";
+                        }
+                    } else {
+                        auto& who = party[static_cast<std::size_t>(chosen)];
+                        const bool needs = who.hit_points < who.max_hit_points ||
+                                           who.spell_points < who.max_spell_points ||
+                                           who.poisoned > 0;
+                        if (!needs) {
+                            shop_said = who.name + " needs no healing.";
+                        } else if (gold < price) {
+                            shop_said = "You cannot afford the healing.";
+                        } else {
+                            gold -= price;
+                            who.hit_points = who.max_hit_points;
+                            who.spell_points = who.max_spell_points;
+                            who.poisoned = 0;
+                            shop_said = who.name + " is made whole.";
+                        }
+                    }
+                } else if (open_shop >= 0 &&
                            game::is_bank(*shops_here[static_cast<std::size_t>(open_shop)]) &&
                            chosen < 4) {
                     // The sheet's own two verbs, in two sizes each.
@@ -2677,7 +2789,9 @@ int main(int argc, char** argv) {
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
-            if (game::is_bank(shop)) {
+            if (game::is_temple(shop)) {
+                draw_temple(scene, font, shop, party, gold, shop_said);
+            } else if (game::is_bank(shop)) {
                 draw_bank(scene, font, shop, gold, bank_gold, shop_said);
             } else if (game::is_training(shop)) {
                 draw_training(scene, font, shop, party, gold, shop_said);

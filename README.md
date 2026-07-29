@@ -280,6 +280,13 @@ interoperability and compatibility with a legally purchased copy.
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+- **Temples that mend for money**: the ten `Temple` rows write their own
+  terms — margin notes naming Heal and Donate, `Val` as the price, and a
+  service ceiling in the stock cell, from Temple Stone's "All OK" down to
+  Temple Baa's "No Dead,Stone,Errad". The counter heals a character whole —
+  hit points, spell points, poison — for the row's own price, and shows what
+  each house cannot mend, ready for the conditions those words await. What a
+  donation earns is this engine's hour of Bless, marked.
 - **Poison, and being knocked out**: the first conditions. The monster
   table's on-hit column names them — `Poison1x5`, `Uncon` — and the herbs
   and potions write both ends: Poppysnaps "Set Poison1 condition", Cure
