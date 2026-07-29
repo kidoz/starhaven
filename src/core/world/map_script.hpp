@@ -59,7 +59,13 @@ inline constexpr std::uint8_t kOpcodeTravel = 6;
 // uses. Give, take and set are `[type u8][value u32]`. The end opcode closes
 // every event; the goto's byte is a step on 368 of 368 uses.
 // An event's opening step, present on 2,182 of 3,332 events, always first.
-// What it declares is still unread.
+// Its argument is what the thing calls itself: an index into the map's own
+// `.STR`, naming a non-empty string on 1,523 of 1,542 events that do not
+// enter an establishment — and the strings are the interactable nouns,
+// "Door" 419 times, "Chest" 244, "Lever", "Switch", "Drink from Fountain".
+// On the events that do enter one, the header is the `2DEvents.txt` row
+// instead, equal to the enter opcode's argument on 620 of 633. Reproduce
+// with `evt_info --headers`.
 inline constexpr std::uint8_t kOpcodeHeader = 4;
 
 // Re-texture a face: `[face u32][texture name, NUL-terminated]`. All 215
@@ -91,6 +97,17 @@ inline constexpr std::uint8_t kOpcodeSummon = 19;
 
 inline constexpr std::uint8_t kOpcodeSetTopic = 39;
 inline constexpr std::uint8_t kOpcodeMoveNpc = 40;
+
+// Launch a sprite: `[animation u16][u8][from i32 x3][to i32 x3]`. The u16 is
+// the Nth animation group of the sprite frame table, in the order `DSFT.BIN`
+// stores them, on 154 of 154 uses — and the names are the traps their maps
+// play: `fire04` bolts down Castle Darkmoor's halls, `dark08` in the sewer,
+// thrown pillows, coins and stalactites in the haunted spiral, `null` and
+// `Pending` on the placeholder maps. That it flies from the first point
+// toward the second is `inferred` — the pairs are axis-aligned runs when the
+// second is set, and it is zero on 83 uses. The u8 between is `unknown`
+// (a speed?). Reproduce with `evt_info --launches`.
+inline constexpr std::uint8_t kOpcodeLaunch = 21;
 
 // The variable types whose meaning is established. A quest bit's value is
 // the bit's number in `Quests.txt` (1..376 of 512 used); an item's is an
@@ -132,6 +149,39 @@ struct MapTravel {
     if (out.destination == "0") {
         out.destination.clear();
     }
+    return out;
+}
+
+// A launched sprite: which animation, and the flight's two ends.
+struct MapLaunch {
+    int animation = 0;  // the Nth group of the sprite frame table
+    int from_x = 0, from_y = 0, from_z = 0;
+    int to_x = 0, to_y = 0, to_z = 0;
+
+    // A launch with no second point; what it flies at is not stated.
+    [[nodiscard]] bool aimless() const noexcept { return to_x == 0 && to_y == 0 && to_z == 0; }
+};
+
+[[nodiscard]] inline std::optional<MapLaunch> parse_launch(const ScriptStep& step) {
+    if (step.opcode != kOpcodeLaunch || step.arguments.size() < 27) {
+        return std::nullopt;
+    }
+    const auto& a = step.arguments;
+    const auto read = [&a](std::size_t at) {
+        std::int32_t value = 0;
+        for (std::size_t i = 4; i > 0; --i) {
+            value = (value << 8) | a[at + i - 1];
+        }
+        return value;
+    };
+    MapLaunch out;
+    out.animation = a[0] | (a[1] << 8);
+    out.from_x = read(3);
+    out.from_y = read(7);
+    out.from_z = read(11);
+    out.to_x = read(15);
+    out.to_y = read(19);
+    out.to_z = read(23);
     return out;
 }
 
@@ -199,6 +249,18 @@ public:
     [[nodiscard]] int chest_of(std::uint16_t id) const noexcept {
         for (const auto& step : event(id)) {
             if (step.opcode == kOpcodeChest && !step.arguments.empty()) {
+                return step.arguments.front();
+            }
+        }
+        return -1;
+    }
+
+    // What the thing calls itself: the header's string index, or -1. Not
+    // meaningful on an event that enters an establishment, whose header is
+    // the `2DEvents.txt` row instead — ask `building_of` first.
+    [[nodiscard]] int label_of(std::uint16_t id) const noexcept {
+        for (const auto& step : event(id)) {
+            if (step.opcode == kOpcodeHeader && !step.arguments.empty()) {
                 return step.arguments.front();
             }
         }

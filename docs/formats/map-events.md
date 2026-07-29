@@ -1,6 +1,6 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; eighteen
+Status: **verified** for the container and the record structure; nineteen
 opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
@@ -104,17 +104,30 @@ one of those begins with it** — 2,182 of 2,182. It appears anywhere else only
 ten times. `observed` So it is the event's opening step rather than an action:
 whatever it declares applies to the event as a whole.
 
-Correlating its byte against what each event's body does splits it partway
-open: on events whose body enters an establishment, the header equals the
-enter step's `2DEvents.txt` row id on **620 of 633** — and both are compared
-by low byte, which is what the 13 misses look like, ids past 255 truncated.
-On chest, door, fountain and message events the header equals nothing tested
-(39 of 346 against the chest id, 38 of 645 against the door, chance level).
-`observed` Reproduce with `evt_info --headers`. So a third of its uses carry
-the establishment id; what it declares on the rest is still `unknown`.
+Correlating its byte against what each event's body does splits it in two:
+on events whose body enters an establishment, the header equals the enter
+step's `2DEvents.txt` row id on **620 of 633** — and both are compared by
+low byte, which is what the 13 misses look like, ids past 255 truncated.
+On chest, door, fountain and message events the header equals nothing about
+the body (39 of 346 against the chest id, 38 of 645 against the door, chance
+level) because it is not about the body at all: read as an index into the
+map's own `.STR`, it names a non-empty string on **1,523 of 1,542** such
+events, and the strings are the interactable nouns — "Door" 419 times,
+"Chest" 244, "Lever" 51, "Switch" 50, "Exit" 44, "Drink from Fountain" 33,
+"Burial niche", "Suspicious Floor". GoblinWatch's five levers head their
+events with 9..13, and its strings 9..13 read "B", "C", "D", "E", "F".
+`observed` Reproduce with `evt_info --headers`.
 
-Four readings were tested earlier and fail, and are recorded so they are not
-tried again:
+So the header is **what the thing calls itself** — the label the original
+shows when the cursor rests on it. An establishment's door is the one case
+that stores an id in another table instead, and there the original has a name
+to show anyway: the establishment's own, from `2DEvents.txt`. On the 19
+misses the index lands on an empty string or past the table.
+
+One reading was tested against `Trans.txt` and fails, recorded so it is not
+tried again: its filled prose rows are ids 1, 2 and 153..233, and every
+header that "hits" one is a header of value 1 or 2 — base rate, not a join.
+Excluding those two ids resolves 0 of 1,542.
 
 ### Events without a header are a different kind
 
@@ -407,15 +420,36 @@ points draw on it, shifted to the named variant, and the group spreads
 around the point like any spawn group. The new arrivals join the fight at
 full health without resetting anyone's wounds.
 
+### Opcode 21 launches a sprite
+
+`[animation u16][u8][from point][to point]`, 154 uses. The u16 is the **Nth
+animation group of the sprite frame table**, in the order `DSFT.BIN` stores
+them: all 154 land inside the table's 1,656 groups, and the names are the
+traps their maps play. Castle Darkmoor's halls fire `fire04` 36 times and
+`air11` down axis-aligned runs; the sewer fires `dark08`; the haunted spiral
+`LWSPIRAL` throws `pillow`, `3coinMid`, `cauld00`, `tite4` — a stalactite —
+each three times; the temple `T7` fires the archer's own attack sprite
+`arc3fia` 17 times; and the placeholder maps `DBM1..DBM5` carry the literal
+groups `null` and `Pending`. `observed` The other reading — the u16 as a raw
+frame index — lands on a group's first frame only 18 of 154 times and names
+the wrong things where it does. Refuted alongside the earlier `DOBJLIST.BIN`
+object-id reading, which resolved 110 of 154 but to inventory nouns —
+*long dagger*, *bell*, *war hammer* — a coincidence of dense small ids.
+
+That the sprite flies from the first point toward the second is `inferred`:
+the pairs are axis-aligned segments where the second is set, and it is all
+zeros on 83 of 154 — a launch whose target the record does not state. The
+u8 between is `unknown` — a speed or a cadence; the spiral's three throws
+of each object carry 1, 5 and 9. Reproduce with `evt_info --launches`.
+
 ### Shapes on the shelf
 
-Four more opcodes gave up their argument shapes without giving up their
+Three more opcodes gave up their argument shapes without giving up their
 names; recorded so the next pass starts from here. Reproduce with
 `evt_info --catalog <opcode>`.
 
 | Opcode | Uses | Shape | What shows |
 | ---: | ---: | --- | --- |
-| 21 | 154 | `[u16][u8][point][point]` | the second point is **optional** — all zeros on 83 of 154 — and shares two axes with the first on 37 of the rest: an axis-aligned segment, or a point alone. Trap- or beam-shaped. One reading tested and failed: the u16 as a `DOBJLIST.BIN` object id resolves on 110 of 154 but to inventory nouns — *long dagger*, *bell*, *war hammer* — a coincidence of dense small ids, and the frequent large values (527, 518) resolve to nothing |
 | 25 | 100 | six small u8s | one constant tuple repeated across a map's events |
 | 26 | 39 | `[u32 a][u32 b][u32 c][u8]` | three **consecutive** ids — (14,15,16), (21,22,23) — and a byte |
 | 32 | 312 | `[u32 id][u8 0/1]` | overwhelmingly the Oracle's: its events switch local ids on and off in matched sets of four |
@@ -425,8 +459,10 @@ tables' ends, and the uses concentrate in `ORACLE.EVT` rather than where
 notes are earned. `observed` for the shapes; every reading above is at most
 a lean.
 
-The other **67 opcodes are `unknown`.** Opcode 4, the commonest, is not a
-string index: its argument leaves the range 522 times.
+The other **66 opcodes are `unknown`.** An early test read opcode 4 as a
+string index over *all* its uses and saw the argument leave the range 522
+times — those were the establishment events, whose headers are `2DEvents.txt`
+rows; split by kind, the reading holds (see "Opcode 4 opens an event").
 
 ## A face names an event
 
@@ -503,5 +539,7 @@ names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 - Opcode 11's outdoor uses: whether the u32 indexes model facets or terrain
   tiles there. `unknown`
 - Opcode 1's byte, always 0..2. `unknown`
+- Opcode 21's middle byte, and what an aimless launch — the 83 with no
+  second point — flies at; the party is the natural guess. `unknown`
 - The variable types beyond the named ones — 12, 13, 22, 205 and the rest of
   the vocabulary. `unknown`

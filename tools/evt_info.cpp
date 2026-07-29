@@ -20,6 +20,7 @@
 #include "core/lod/game_lod_archive.hpp"
 #include "core/world/blv_map.hpp"
 #include "core/world/object_table.hpp"
+#include "core/world/sprite_frame_table.hpp"
 #include "core/world/sound_table.hpp"
 
 namespace {
@@ -697,6 +698,11 @@ int do_headers(const starhaven::lod::LodArchive& icons) {
     };
     std::map<int, Match> by_body;   // body opcode -> header arg equality
     std::map<int, std::size_t> header_values;
+    // The other candidate: the header as an index into the map's own .STR —
+    // the thing's mouseover name. Measured separately for events that open an
+    // establishment (whose header is the 2DEvents row) and the rest.
+    std::size_t plain_events = 0, plain_named = 0, enter_events = 0, enter_named = 0;
+    std::map<std::string, std::size_t> plain_names;
     for (const auto& entry : icons.entries()) {
         if (!is_script(entry.name)) {
             continue;
@@ -705,6 +711,11 @@ int do_headers(const starhaven::lod::LodArchive& icons) {
         if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
             world::MapScript::parse(raw, script) != world::MapScriptError::None) {
             continue;
+        }
+        world::MapStrings strings;
+        const std::string stem = entry.name.substr(0, entry.name.size() - 4);
+        if (icons.payload(stem + ".STR", raw) == lod::LodArchive::PayloadError::None) {
+            (void)world::MapStrings::parse(raw, strings);
         }
         std::uint16_t last = 0xFFFF;
         for (std::size_t i = 0; i < script.steps().size(); ++i) {
@@ -718,6 +729,23 @@ int do_headers(const starhaven::lod::LodArchive& icons) {
             }
             const int header = head.arguments.front();
             ++header_values[header];
+            bool has_enter = false;
+            for (std::size_t k = i + 1;
+                 k < script.steps().size() && script.steps()[k].event_id == head.event_id; ++k) {
+                has_enter = has_enter || script.steps()[k].opcode == world::kOpcodeEnter;
+            }
+            const std::string_view named =
+                static_cast<std::size_t>(header) < strings.size() ? strings.at(header) : "";
+            if (has_enter) {
+                ++enter_events;
+                enter_named += named.empty() ? 0 : 1;
+            } else {
+                ++plain_events;
+                if (!named.empty()) {
+                    ++plain_named;
+                    ++plain_names[std::string(named)];
+                }
+            }
             // The body's working steps, each kind counted once per event.
             std::set<int> seen;
             for (std::size_t k = i + 1;
@@ -738,6 +766,24 @@ int do_headers(const starhaven::lod::LodArchive& icons) {
             continue;
         }
         std::cout << "  op" << opcode << ": " << match.agree << "/" << match.events << "\n";
+    }
+    std::cout << "header as .STR index: names " << plain_named << "/" << plain_events
+              << " non-establishment events, " << enter_named << "/" << enter_events
+              << " establishment events; the names:\n";
+    {
+        std::vector<std::pair<std::size_t, std::string>> ranked;
+        for (const auto& [name, count] : plain_names) {
+            ranked.emplace_back(count, name);
+        }
+        std::sort(ranked.rbegin(), ranked.rend());
+        std::size_t listed = 0;
+        for (const auto& [count, name] : ranked) {
+            if (++listed > 20) {
+                std::cout << "  ...\n";
+                break;
+            }
+            std::cout << "  \"" << name << "\" x" << count << "\n";
+        }
     }
     std::cout << "header values:";
     std::size_t shown = 0;
@@ -932,6 +978,73 @@ int do_projectiles(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: opcode 21's u16 against the sprite frame table. Two candidate
+// readings — the Nth group in file order, or a raw frame index — printed side
+// by side with the two points, so the names and the maps can judge.
+int do_launches(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    world::SpriteFrameTable table;
+    std::span<const std::byte> raw;
+    if (icons.payload("DSFT.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::SpriteFrameTable::parse(raw, table) != world::SpriteFrameError::None) {
+        std::cerr << "error: could not read DSFT.BIN\n";
+        return 1;
+    }
+    // The Nth group's name, in the order the file stores its frames.
+    std::vector<std::string> group_names;
+    for (const auto& frame : table.frames()) {
+        if (!frame.group_name.empty()) {
+            group_names.push_back(frame.group_name);
+        }
+    }
+
+    std::size_t uses = 0, group_hits = 0, frame_start_hits = 0;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            const auto& a = step.arguments;
+            if (step.opcode != 21 || a.size() < 27) {
+                continue;
+            }
+            ++uses;
+            const auto id = static_cast<std::uint16_t>(a[0] | (a[1] << 8));
+            const auto i32_at = [&a](std::size_t at) {
+                std::uint32_t v = 0;
+                for (int i = 3; i >= 0; --i) {
+                    v = (v << 8) | a[at + static_cast<std::size_t>(i)];
+                }
+                return static_cast<std::int32_t>(v);
+            };
+            const bool as_group = id < group_names.size();
+            const bool as_frame_start =
+                id < table.size() && table.frames()[id].starts_group();
+            group_hits += as_group ? 1 : 0;
+            frame_start_hits += as_frame_start ? 1 : 0;
+            std::cout << entry.name.substr(0, entry.name.size() - 4) << " " << step.event_id
+                      << ": group " << id << " = "
+                      << (as_group ? group_names[id] : std::string("<out of range>"))
+                      << (as_frame_start
+                              ? " (as frame: " + table.frames()[id].group_name + ")"
+                              : " (as frame: not a group start)")
+                      << " speed? " << static_cast<int>(a[2]) << " from " << i32_at(3) << ","
+                      << i32_at(7) << "," << i32_at(11) << " to " << i32_at(15) << ","
+                      << i32_at(19) << "," << i32_at(23) << "\n";
+        }
+    }
+    std::cout << uses << " uses; u16 in group range on " << group_hits
+              << ", starts a group as a frame index on " << frame_start_hits << "\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -959,6 +1072,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--launches") {
+        return do_launches(icons);
     }
     if (stem == "--projectiles") {
         return do_projectiles(icons);

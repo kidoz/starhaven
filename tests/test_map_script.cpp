@@ -221,3 +221,48 @@ TEST_CASE("a travel event that names no map stays on this one", "[script]") {
     REQUIRE(travel->destination.empty());
     REQUIRE_FALSE(script.travel_of(4));
 }
+
+TEST_CASE("a header names the thing the event belongs to", "[script]") {
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 1, 0, kOpcodeHeader, {7});
+    push_step(payload, 1, 0, kOpcodeDoor, {2, 1});
+    push_step(payload, 2, 0, kOpcodeDoor, {3, 1});
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+
+    REQUIRE(script.label_of(1) == 7);
+    // An event with no header has no label; -1, because 0 is a string.
+    REQUIRE(script.label_of(2) == -1);
+}
+
+TEST_CASE("a launch step carries an animation and two points", "[script]") {
+    // Animation 6, a byte between, from (-2904, 16512, 100) to the origin.
+    std::vector<std::uint8_t> args{6, 0, 1};
+    const auto push_i32 = [&args](std::int32_t v) {
+        for (int i = 0; i < 4; ++i) {
+            args.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF));
+        }
+    };
+    push_i32(-2904);
+    push_i32(16512);
+    push_i32(100);
+    push_i32(0);
+    push_i32(0);
+    push_i32(0);
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 5, 0, kOpcodeLaunch, args);
+    MapScript script;
+    REQUIRE(MapScript::parse(wrap(payload), script) == MapScriptError::None);
+
+    const auto launch = parse_launch(script.event(5)[0]);
+    REQUIRE(launch);
+    REQUIRE(launch->animation == 6);
+    REQUIRE(launch->from_x == -2904);
+    REQUIRE(launch->from_y == 16512);
+    REQUIRE(launch->from_z == 100);
+    REQUIRE(launch->aimless());
+    // Too short to hold both points: not a launch.
+    REQUIRE_FALSE(parse_launch(script.steps()[0].opcode == kOpcodeLaunch
+                                   ? ScriptStep{5, 0, kOpcodeLaunch, {6, 0, 1}}
+                                   : ScriptStep{}));
+}
