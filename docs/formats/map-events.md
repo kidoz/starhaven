@@ -1,6 +1,6 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; twenty-two
+Status: **verified** for the container and the record structure; twenty-four
 opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
@@ -380,12 +380,16 @@ the given value, the word after it names the type. Reproduce with
   53, reads "Solved the Goblinwatch Combination", the very quest whose
   reward event sets it. The engine wears them: the sheet lists the honors
   in the table's own words.
-- **Type 22 stays unknown**: 62 gives of 200..3,500 and not one spoken
-  number beside them. Fame and reputation were tried against `NPCdata.txt`'s
-  own columns and are not confirmed: the shipped fame column tops out at
-  1,600 and reputation at ±1,000, both short of the gives' 3,500 — though a
-  party's tally could outrun a person's, so the readings are unproven rather
-  than dead.
+- **type 22 is found gold**: its gives sit where things are dug up rather
+  than handed over — D05's dig events, headed by the map's own "Gold vein"
+  string, pay 400..800 on the mine's random branches; the sewer's
+  "Something's stashed here!" pays 1,000..2,000; D13's piles a rising
+  1,000..3,500 — always round sums, never beside a spoken noun, in events
+  that pay type 21 elsewhere. That it is gold in the purse is `inferred`
+  from the finds' labels; it is the "gold you find" the Factor's and
+  Banker's profession rows take their percent of, and the engine pays that
+  percent on exactly these. Fame and reputation were tried first and are
+  recorded refuted-in-range: both columns top out short of 3,500.
 
 Whole events confirm the readings. D01's switches all read: check my
 variable, jump to the end if it is set, set it, throw four doors — two open,
@@ -451,6 +455,20 @@ The engine summons: the monster comes from the encounter slot the way spawn
 points draw on it, shifted to the named variant, and the group spreads
 around the point like any spawn group. The new arrivals join the fight at
 full health without resetting anyone's wounds.
+
+### Opcode 9 hurts the party
+
+`[target u8][element u8][amount u32]`, 128 full uses. The element indexes
+the resistance columns' own order — 0 physical, 1 fire, 2 electricity,
+3 cold, 4 poison, 5 magic — and the maps vouch for it: the Pyramid's trap
+rooms sweep all six at amount 5, poison rides the sewer's "Ouch!" and
+Sweet Water's wells, electricity the Control Center's panels, and the
+haunted spiral lands a physical 1,000. Targets 0..3 are the four
+characters — the Hall of the Fire Lord's event 27 addresses 0, 1, 2 and 3
+in four consecutive steps — and 4, 5 and 6 read as the user, the whole
+party and one at random, `inferred` from 5 riding every "Cave-in!". The
+engine deals it, answered by each victim's own resistance the way the
+fight's blows are. Reproduce with `evt_info --catalog 9`.
 
 ### Opcode 21 launches a sprite
 
@@ -527,7 +545,7 @@ The earlier Autonote and Award readings are out: the ids run past both
 tables' ends, and the uses concentrate in `ORACLE.EVT` rather than where
 notes are earned.
 
-The other **63 opcodes are `unknown`.** An early test read opcode 4 as a
+The other **62 opcodes are `unknown`.** An early test read opcode 4 as a
 string index over *all* its uses and saw the argument leave the range 522
 times — those were the establishment events, whose headers are `2DEvents.txt`
 rows; split by kind, the reading holds (see "Opcode 4 opens an event").
@@ -588,10 +606,13 @@ names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 
 - Most opcodes. `unknown`
 - Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
-  on the rest, including consecutive runs within one script. Two readings are
-  tested and fail: `2DEvents.txt` row ids (the values run past the table's
-  557), and sound ids (19 of 89 nonzero values resolve, to monster attack
-  noises — the dense id region, not a meaning). `unknown`
+  on the rest, including consecutive runs within one script. Three readings
+  are tested and fail: `2DEvents.txt` row ids (the values run past the
+  table's 557), sound ids (19 of 89 resolve, to peasant and rat noises —
+  the dense id region, not a meaning), and plain ids at all: read as 8.8
+  fixed point the common values are exactly 5.0 ×4, 6.0 ×43 and 8.0 ×2,
+  with the odd runs as fine fractional steps — a scalar of some kind, not
+  an index. Which scalar is `unknown`.
 - What `OUT.EVT`'s 87 stub events are for, and what points at them. `unknown`
 - Which of the shared scripts beyond `OUT.EVT` use the headerless framing,
   and what the misframed remainder of the unheaded class parses to under it.
@@ -608,7 +629,9 @@ names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
   tiles there. `unknown`
 - Opcode 1's byte, always 0..2. `unknown`
 - Opcode 21's middle byte, and what an aimless launch — the 83 with no
-  second point — flies at; the party is the natural guess. `unknown`
-- The variable types beyond the named ones — 22 (62 gives of 200..3,500,
-  spoken nowhere, past both fame and reputation's shipped ranges) and the
-  rest of the vocabulary. `unknown`
+  second point — flies at; the party is the natural guess. Two readings
+  tested and failed: flight distance (byte 1 spans 512..5,345 units, and
+  byte 0 exists on flying uses) and the animation's tick length. `unknown`
+- The variable types beyond the named ones. `unknown`
+- Opcode 9's targets 4 and 6: read as the user and a random member; no
+  shipped flow distinguishes them from the party reading. `inferred`
