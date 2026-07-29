@@ -114,3 +114,16 @@ TEST_CASE("the body's lines grant points and lift the armor's drag", "[skills]")
     REQUIRE(armor_penalty("Chain") > armor_penalty("Leather"));
     REQUIRE(armor_penalty("Sword") == 0.0f);
 }
+
+TEST_CASE("the left hand opens at the line's own rank", "[skills]") {
+    const std::vector<std::string> dagger{"Skill added to Attack Bonus",
+                                          "Permits use of dagger in left hand",
+                                          "Chance to cause triple damage equal to skill"};
+    REQUIRE_FALSE(skill_power(dagger, 3).left_hand);
+    REQUIRE(skill_power(dagger, 4).left_hand);  // the expert line
+    const std::vector<std::string> sword{"Skill added to Attack Bonus",
+                                         "Skill reduces recovery time",
+                                         "Permits use of sword in left hand"};
+    REQUIRE_FALSE(skill_power(sword, 6).left_hand);
+    REQUIRE(skill_power(sword, 7).left_hand);  // the master line
+}

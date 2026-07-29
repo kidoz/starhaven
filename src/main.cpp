@@ -2384,9 +2384,29 @@ int main(int argc, char** argv) {
                     if (row == nullptr) {
                         continue;
                     }
-                    const game::Slot slot = game::slot_for(row->equip_type);
+                    game::Slot slot = game::slot_for(row->equip_type);
                     if (slot == game::Slot::Count) {
                         continue;
+                    }
+                    // A one-handed blade may take the left hand — the
+                    // Shield slot — when the weapon skill's own line
+                    // permits it at the wearer's rank, and the right hand
+                    // is already full.
+                    if (slot == game::Slot::Weapon &&
+                        row->equip_type == data::ItemEquipType::Weapon &&
+                        who.equipped[static_cast<std::size_t>(game::Slot::Weapon)] > 0 &&
+                        who.equipped[static_cast<std::size_t>(game::Slot::Shield)] == 0 &&
+                        !row->skill_group.empty()) {
+                        int points = 0;
+                        if (const auto it = who.skills.find(row->skill_group);
+                            it != who.skills.end()) {
+                            points = it->second;
+                        }
+                        if (const auto* skill = skill_table.find(row->skill_group);
+                            skill != nullptr && points > 0 &&
+                            game::skill_power(skill->text, points).left_hand) {
+                            slot = game::Slot::Shield;
+                        }
                     }
                     // What was there comes off and goes back in the pack.
                     const int worn = who.equipped[static_cast<std::size_t>(slot)];

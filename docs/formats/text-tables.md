@@ -597,7 +597,10 @@ their "adds to Hit Points"/"Spell Points" into the maxima when the point is
 bought, rank doublings included; the armor skills' "Recovery penalty
 reduced"/"eliminated" lift a worn-armor drag the engine sizes itself — a
 tenth in leather, a fifth in chain, three tenths in plate, all `inferred`.
-Dual wielding still awaits an off-hand to hang from.
+Dual wielding hangs from the Shield slot now: the Dagger's expert and the
+Sword's master "in left hand" lines let a one-handed blade take the left
+hand when the right is full, its own dice joining the strike and the
+shield's armour forfeited for it.
 What a point is numerically worth where the line names no number, the
 raising staircase (the next point costs its own number), five points a
 level, and each class's one starting skill are the engine's own and say so.

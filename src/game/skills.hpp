@@ -84,6 +84,9 @@ struct SkillPower {
     // The armor skills' higher lines: 0 the full penalty, 1 "Recovery
     // penalty reduced", 2 "Recovery penalty eliminated".
     int armor_penalty_lift = 0;
+    // "Permits use of dagger in left hand" (expert), "...sword in left
+    // hand" (master): the off hand opens at the line's own rank.
+    bool left_hand = false;
 };
 
 // Read what `points` in a skill grant at their rank, from the skill's own
@@ -118,6 +121,7 @@ struct SkillPower {
             low.find("triple damage equal to skill") != std::string::npos ? points
                                                                           : out.triple_percent;
         out.second_arrow = out.second_arrow || low.find("fires two arrows") != std::string::npos;
+        out.left_hand = out.left_hand || low.find("in left hand") != std::string::npos;
         cuts_recovery = cuts_recovery || low.find("reduces recovery time") != std::string::npos;
         adds_hp = adds_hp || low.find("adds to hit points") != std::string::npos;
         adds_sp = adds_sp || low.find("adds to spell points") != std::string::npos;

@@ -383,6 +383,17 @@ public:
         int damage = data::roll(weapon_of(who, items), random_) +
                      attribute_bonus(who.attribute(Attribute::Might)) + skill.damage;
         std::string flourish;
+        // A blade in the left hand — the Shield slot, opened by its skill's
+        // own "in left hand" line — swings its own dice alongside.
+        if (const int off = who.equipped[static_cast<std::size_t>(Slot::Shield)];
+            off > 0 && !who.equipped_broken[static_cast<std::size_t>(Slot::Shield)]) {
+            if (const auto* row = items.at(static_cast<std::size_t>(off)); row != nullptr) {
+                if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
+                    damage += data::roll(dice, random_);
+                    flourish = ", both hands";
+                }
+            }
+        }
         // "Bow fires two arrows on every attack": a second roll of the
         // same weapon joins the blow.
         if (skill.second_arrow) {
