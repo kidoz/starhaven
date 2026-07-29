@@ -2628,6 +2628,28 @@ int main(int argc, char** argv) {
                         game::merchant_line(merchant_words, data::MerchantAction::Repair, true));
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       event.key.key == SDLK_J) {
+                // Join the guild whose counter this is, gaining its own
+                // "Joined the ... Guild" award — worn on the sheet like any
+                // honor, and the key the shelves ask for.
+                const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+                const game::GuildStock guild = game::parse_guild_stock(shop.stock_a);
+                const int dues_award =
+                    guild.empty() ? 0 : game::guild_award_of(guild.school, award_texts);
+                if (dues_award == 0) {
+                    shop_said = "This counter has no rolls to sign.";
+                } else if (script_state.awards.contains(dues_award)) {
+                    shop_said = "The party already belongs.";
+                } else if (gold < game::guild_dues(shop)) {
+                    shop_said = "Joining costs " + std::to_string(game::guild_dues(shop)) +
+                                " gold.";
+                } else {
+                    gold -= game::guild_dues(shop);
+                    script_state.awards.insert(dues_award);
+                    promoted_awards.insert(dues_award);
+                    shop_said = "Welcome to the guild.";
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_Y) {
                 // Have the counter name what the party could not: every
                 // unknown thing in the packs, a tenth of its value each —
@@ -2864,6 +2886,21 @@ int main(int argc, char** argv) {
                         const auto& offered = shop_stock[static_cast<std::size_t>(chosen)];
                         const auto* row = item_stats.at(static_cast<std::size_t>(offered.item_id));
                         const int price = haggled(offered.price);
+                        // A guild's shelves serve members: the school's own
+                        // "Joined the ... Guild" award, or no sale.
+                        const game::GuildStock guild = game::parse_guild_stock(
+                            shops_here[static_cast<std::size_t>(open_shop)]->stock_a);
+                        if (!guild.empty()) {
+                            const int dues_award =
+                                game::guild_award_of(guild.school, award_texts);
+                            if (dues_award > 0 && !script_state.awards.contains(dues_award)) {
+                                shop_said = "Members only. J joins the guild for " +
+                                            std::to_string(game::guild_dues(*shops_here
+                                                [static_cast<std::size_t>(open_shop)])) +
+                                            " gold.";
+                                break;
+                            }
+                        }
                         const bool affordable = row != nullptr && price <= gold;
                         bool carried = false;
                         if (affordable) {

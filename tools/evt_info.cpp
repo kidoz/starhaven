@@ -890,7 +890,7 @@ int do_catalog(const starhaven::lod::LodArchive& icons, int wanted) {
             continue;
         }
         for (const auto& step : script.steps()) {
-            if (static_cast<int>(step.opcode) != wanted || shown >= 400) {
+            if (static_cast<int>(step.opcode) != wanted || shown >= 2200) {
                 continue;
             }
             ++shown;

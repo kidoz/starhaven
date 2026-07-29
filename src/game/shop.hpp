@@ -21,6 +21,7 @@
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/merchant_text.hpp"
+#include "core/data/journal.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/use_items.hpp"
 #include "core/random.hpp"
@@ -115,6 +116,30 @@ struct GuildStock {
         return school == data::SpellSchool::Count || low <= 0 || high < low;
     }
 };
+
+// The award a guild's shelves ask for: `Awards.txt` rows 72..80 read
+// "Joined the Fire Guild" through "Joined the Dark Guild", one per school —
+// the same names the guilds' own `Type =` cells write. No shipped event
+// sets them, so joining is the counter's sale; only the price is the
+// engine's. `observed` for the rows, `inferred` for the sale.
+[[nodiscard]] inline int guild_award_of(data::SpellSchool school,
+                                        const data::JournalTable& awards) {
+    const std::string wanted =
+        "Joined the " + std::string(data::school_name(school)) + " Guild";
+    for (const auto& row : awards.entries()) {
+        if (row.text == wanted) {
+            return row.bit;
+        }
+    }
+    return 0;
+}
+
+// What joining costs: a hundred gold at the guild's own Val multiplier —
+// the number is this engine's, the multiplier the row's. `inferred`
+[[nodiscard]] inline int guild_dues(const data::BuildingStatsEntry& shop) noexcept {
+    const int factor = shop.price_factor >= 1.0f ? static_cast<int>(shop.price_factor) : 1;
+    return 100 * factor;
+}
 
 [[nodiscard]] inline GuildStock parse_guild_stock(std::string_view cell) noexcept {
     GuildStock out;

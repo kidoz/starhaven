@@ -120,3 +120,20 @@ TEST_CASE("a guild's shelf is its own row's spell range", "[shop]") {
     REQUIRE(parse_guild_stock("L1 Weap").empty());
     REQUIRE(parse_guild_stock("").empty());
 }
+
+TEST_CASE("a guild's school names its own membership award", "[shop]") {
+    std::string body = "\r\n#\tAward\r\n";
+    body += "74\tJoined the Fire Guild\r\n";
+    body += "80\tJoined the Dark Guild\r\n";
+    body += "53\tSolved the Goblinwatch Combination\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::JournalTable awards;
+    REQUIRE(data::JournalTable::parse(table, 1, data::JournalTable::kNoColumn,
+                                      data::JournalTable::kNoColumn,
+                                      data::JournalTable::kNoColumn,
+                                      awards) == data::JournalError::None);
+    REQUIRE(game::guild_award_of(data::SpellSchool::Fire, awards) == 74);
+    REQUIRE(game::guild_award_of(data::SpellSchool::Dark, awards) == 80);
+    REQUIRE(game::guild_award_of(data::SpellSchool::Water, awards) == 0);
+}

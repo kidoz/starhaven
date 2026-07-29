@@ -696,6 +696,15 @@ order, 50 and 169 on the Oracle — join to nothing tested yet. `unknown`
 
 ## The guilds' shelves, written outright
 
+`Awards.txt` rows 72..80 read "Joined the Fire Guild" through "Joined the
+Dark Guild" — one per school, in the same names the guilds' `Type =` cells
+write — with 64..71 covering the Elemental, Self and the named non-magic
+guilds. **No shipped event sets any of them**: membership is sold at the
+counter by the original's executable, so this engine sells it too — the
+shelves refuse non-members, J signs the roll, and the price (a hundred gold
+at the guild's own Val multiplier) is the engine's and says so. `observed`
+for the rows and the absence; `inferred` for the sale.
+
 The eighteen magic-guild rows put their stock in plain words: `"Type = Fire,
 Spells 1-7"` — the school, and the within-school spell numbers `Spells.txt`
 already carries — with 1..7 at every Initiate guild, 1..11 at every Adept,

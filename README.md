@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Guild doors check their dues**: `Awards.txt` names a membership per
+  school — "Joined the Fire Guild" — and no shipped event sets any of them,
+  so the counters sell what the original's executable sold: the shelves
+  refuse non-members, J signs the roll at an engine-own hundred gold times
+  the guild's own Val, and the membership is worn on the sheet like any
+  honor, saved with the rest.
 - **The cures close the loop**: Cure Poison, Cure Disease, Remove Fear,
   Awaken, Remove Curse, Cure Weakness, Cure Paralysis and Cure Insanity lift
   exactly the conditions their first sentences name — in the monster
