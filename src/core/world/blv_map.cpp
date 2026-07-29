@@ -579,4 +579,37 @@ std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
     return out;
 }
 
+
+std::vector<BlvLight> extract_lights(const BlvMap& map) {
+    std::vector<BlvLight> out;
+    const BlvDecorationBlock block = find_decoration_block(map);
+    if (!block.found()) {
+        return out;
+    }
+    const std::size_t at = block.end();
+    const auto& payload = map.payload;
+    if (at + 4 > payload.size()) {
+        return out;
+    }
+    std::uint32_t count = 0;
+    std::memcpy(&count, payload.data() + at, sizeof(count));
+    constexpr std::size_t kLightRecordSize = 12;
+    if (count == 0 || count > 10000 ||
+        at + 4 + static_cast<std::size_t>(count) * kLightRecordSize > payload.size()) {
+        return out;
+    }
+    out.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        const std::size_t r = at + 4 + static_cast<std::size_t>(i) * kLightRecordSize;
+        BlvLight light;
+        std::memcpy(&light.x, payload.data() + r, sizeof(light.x));
+        std::memcpy(&light.y, payload.data() + r + 2, sizeof(light.y));
+        std::memcpy(&light.z, payload.data() + r + 4, sizeof(light.z));
+        std::memcpy(&light.brightness, payload.data() + r + 8, sizeof(light.brightness));
+        std::memcpy(&light.radius, payload.data() + r + 10, sizeof(light.radius));
+        out.push_back(light);
+    }
+    return out;
+}
+
 }  // namespace starhaven::world

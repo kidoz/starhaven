@@ -184,6 +184,24 @@ struct BlvDecorationBlock {
 // the undecoded region begins one.
 [[nodiscard]] BlvDecorationBlock find_decoration_block(const BlvMap& map);
 
+// One static light, from the section right after the decoration block: a
+// point in the map's own axes, a brightness (31 on every shipped record but
+// one), and the radius it reaches. The record is 12 bytes — three i16
+// coordinates and three u16s — landing in the map's own bounds on 48 of the
+// 52 maps' every record; the other four have two or fewer lights, too few
+// to discriminate the stride. `observed` Reproduce with `blv_info --after`.
+struct BlvLight {
+    std::int16_t x = 0;
+    std::int16_t y = 0;
+    std::int16_t z = 0;
+    std::uint16_t brightness = 0;
+    std::uint16_t radius = 0;
+};
+
+// Read the lights. Empty when the decoration block is missing or the
+// section's count is implausible.
+[[nodiscard]] std::vector<BlvLight> extract_lights(const BlvMap& map);
+
 // Locate a map's decoration array.
 //
 // This is a **scan, not a decode**: the sections between the face texture

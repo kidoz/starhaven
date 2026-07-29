@@ -8,8 +8,9 @@ claim is tagged `observed`, `inferred`, or `unknown`.
 
 Covers the zlib wrapper, the fixed header, the vertex array, the face array,
 the per-face index arrays (vertex ids and texture coordinates), the face
-texture names and the face-extra array — everything needed to draw the level. Does **not** cover the rooms/sectors, BSP tree,
-lights, doors or sprites that follow, which are 19–38% of each payload.
+texture names and the face-extra array — everything needed to draw the level —
+plus the sector table (partly) and the lights. Does **not** cover the BSP
+tree, doors or sprites that follow.
 
 ## Source provenance (non-expressive)
 
@@ -461,6 +462,29 @@ candidates for the face lists, since those are the ones every sector has.
 What is still missing is the rest of the 116 bytes — the bounding box and
 whatever else sits between the pairs — and therefore which faces belong to
 which room. Reproduce the measurements with `blv_info <map> --sectors`.
+
+## The lights, right after the decorations
+
+The section following the decoration names is the level's static lights: a
+`u32` count, then 12-byte records.
+
+| Offset | Size | Type | Field | Status |
+| --- | --- | --- | --- | --- |
+| +0x00 | 6 | i16 x3 | position, map axes | observed |
+| +0x06 | 2 | u16 | zero (one shipped 8) | unknown |
+| +0x08 | 2 | u16 | brightness — 31 on every record | observed |
+| +0x0A | 2 | u16 | radius, 8..640 | observed |
+
+Every record's point lands inside the map's own vertex bounds on 48 of the
+52 maps — the other four hold two or fewer lights, too few to discriminate
+the stride — and the counts run from CD2's 3 to CD1's and the Pyramid's 400.
+`observed` The engine bakes them per face at load: a linear falloff over
+twice the written radius, over a dim floor, is this engine's own curve and
+says so. Reproduce with `blv_info <map> --after`.
+
+The section after the lights opens with a count of 8-byte records whose
+inner fields climb by one and drop to -1 — tree-shaped, the likely BSP —
+recorded here as the next lead. `unknown`
 
 ## Open questions (next slice)
 

@@ -222,6 +222,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The dungeons found their lights**: the section after the BLV decoration
+  block is the level's static lights — 12-byte records of position,
+  brightness (31 on every shipped record) and radius, every point inside
+  its map's own bounds on 48 of 52 maps — and the walker bakes them per
+  face, so Goblinwatch's sconces light their own corners over a dim floor.
+  The falloff curve is the engine's; the lights are the file's. The
+  tree-shaped section after them is logged as the likely BSP, the next lead.
 - **Magic items finally bite**: the generator's rolls ride the items now —
   through packs, purchases, saves and onto the body — and wearing them
   grants what the tables say: a standard bonus's own stat column at its
@@ -932,7 +939,7 @@ docs/
 15. ~~Read the `.vid` container and decode Smacker video to RGBA.~~ ✓ (this slice)
 16. ~~Decode `.blv` indoor map geometry (vertices, faces, textures).~~ ✓ (this slice)
 17. ~~Render indoor levels (`starhaven`), with per-face texture coordinates.~~ ✓ (this slice)
-18. Decode the rest of the `.blv` payload (rooms, BSP, lights, doors) so decorations can be located by offset rather than by scanning.
+18. ~~Decode the `.blv` lights and light the dungeons with them.~~ ✓ (this slice; the BSP and exact section offsets remain)
 19. ~~Decode `.odm` decorations and render them as sprite billboards.~~ ✓ (this slice)
 20. ~~Collision, gravity and mouse-look in both walkers.~~ ✓ (this slice)
 21. Decode event-record bodies.

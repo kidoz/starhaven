@@ -48,6 +48,10 @@ int main(int argc, char** argv) {
     // Research mode: dump each face-extra record as raw hex, since most of the
     // 36 bytes are still unidentified.
     const bool dump_extras = argc == 3 && std::string(argv[2]) == "--extras";
+    // Research mode: the region after the decoration block — where the
+    // lights should live. Sweeps count-and-stride readings and scores each
+    // by how many records open with a point inside the map's own bounds.
+    const bool dump_after = argc == 3 && std::string(argv[2]) == "--after";
     // Research mode: report and dump the region that is still unknown.
     const bool dump_region = argc >= 3 && std::string(argv[2]) == "--region";
     const bool dump_sectors = argc >= 3 && std::string(argv[2]) == "--sectors";
@@ -257,6 +261,108 @@ int main(int argc, char** argv) {
             const auto [min_v, max_v] = std::minmax_element(f.v.begin(), f.v.end());
             std::cout << i << "\t" << *min_u << "\t" << *max_u << "\t" << *min_v << "\t" << *max_v
                       << "\n";
+        }
+        return 0;
+    }
+
+    if (dump_after) {
+        const world::BlvDecorationBlock block = world::find_decoration_block(map);
+        if (!block.found()) {
+            std::cerr << "error: no decoration block to anchor on\n";
+            return 1;
+        }
+        std::int32_t min_x = 1 << 30, max_x = -(1 << 30);
+        std::int32_t min_y = 1 << 30, max_y = -(1 << 30);
+        std::int32_t min_z = 1 << 30, max_z = -(1 << 30);
+        for (const auto& v : map.vertices) {
+            min_x = std::min<std::int32_t>(min_x, v.x);
+            max_x = std::max<std::int32_t>(max_x, v.x);
+            min_y = std::min<std::int32_t>(min_y, v.y);
+            max_y = std::max<std::int32_t>(max_y, v.y);
+            min_z = std::min<std::int32_t>(min_z, v.z);
+            max_z = std::max<std::int32_t>(max_z, v.z);
+        }
+        const auto& payload = map.payload;
+        std::size_t at = block.end();
+        std::cout << "decorations end at " << at << " of " << payload.size() << " ("
+                  << payload.size() - at << " bytes remain)\n";
+        const auto u32_at = [&payload](std::size_t offset) {
+            std::uint32_t v = 0;
+            std::memcpy(&v, payload.data() + offset, sizeof(v));
+            return v;
+        };
+        const auto i16_at = [&payload](std::size_t offset) {
+            std::int16_t v = 0;
+            std::memcpy(&v, payload.data() + offset, sizeof(v));
+            return static_cast<std::int32_t>(v);
+        };
+        // At each section head: read a u32 count, then try strides.
+        for (int section = 0; section < 4 && at + 4 <= payload.size(); ++section) {
+            const std::uint32_t count = u32_at(at);
+            std::cout << "section at " << at << ": count " << count << "\n";
+            if (count == 0 || count > 10000) {
+                at += 4;
+                continue;
+            }
+            std::size_t best_stride = 0;
+            std::size_t best_hits = 0;
+            for (const std::size_t stride : {8U, 10U, 12U, 14U, 16U, 18U, 20U, 24U, 28U, 32U}) {
+                if (at + 4 + count * stride > payload.size()) {
+                    continue;
+                }
+                std::size_t hits = 0;
+                for (std::uint32_t i = 0; i < count; ++i) {
+                    const std::size_t r = at + 4 + i * stride;
+                    const std::int32_t x = i16_at(r);
+                    const std::int32_t y = i16_at(r + 2);
+                    const std::int32_t z = i16_at(r + 4);
+                    hits += (x >= min_x && x <= max_x && y >= min_y && y <= max_y &&
+                             z >= min_z && z <= max_z)
+                                ? 1
+                                : 0;
+                }
+                if (hits > best_hits) {
+                    best_hits = hits;
+                    best_stride = stride;
+                }
+            }
+            std::cout << "  best stride " << best_stride << ": " << best_hits << "/" << count
+                      << " records open with an in-bounds point\n";
+            if (section == 0 && best_stride == 12) {
+                // Field stats for the record doc: the u16s at +6, +8, +10.
+                std::map<int, int> f6, f8;
+                int min_r = 1 << 30, max_r = 0;
+                for (std::uint32_t i = 0; i < count; ++i) {
+                    const std::size_t r = at + 4 + i * 12;
+                    ++f6[i16_at(r + 6)];
+                    ++f8[i16_at(r + 8)];
+                    min_r = std::min(min_r, i16_at(r + 10));
+                    max_r = std::max(max_r, i16_at(r + 10));
+                }
+                std::cout << "  +6:";
+                for (const auto& [v, n] : f6) {
+                    std::cout << " " << v << "x" << n;
+                }
+                std::cout << "  +8:";
+                for (const auto& [v, n] : f8) {
+                    std::cout << " " << v << "x" << n;
+                }
+                std::cout << "  radius " << min_r << ".." << max_r << "\n";
+            }
+            if (best_stride > 0 && best_hits == count) {
+                // Show the trailing fields of the first records.
+                for (std::uint32_t i = 0; i < std::min<std::uint32_t>(count, 4); ++i) {
+                    const std::size_t r = at + 4 + i * best_stride;
+                    std::cout << "  [" << i << "]";
+                    for (std::size_t b = 0; b + 1 < best_stride; b += 2) {
+                        std::cout << " " << i16_at(r + b);
+                    }
+                    std::cout << "\n";
+                }
+                at += 4 + count * best_stride;
+            } else {
+                at += 4;
+            }
         }
         return 0;
     }

@@ -194,15 +194,22 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
 }
 
 void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
-                 assets::AssetCache& cache, const render::Vec3& lamp, float glow = 1.0f) {
-    for (const auto& f : session.blv.faces) {
+                 assets::AssetCache& cache, const render::Vec3& lamp, float glow = 1.0f,
+                 const std::vector<float>* baked = nullptr) {
+    for (std::size_t index = 0; index < session.blv.faces.size(); ++index) {
+        const auto& f = session.blv.faces[index];
         if (f.invisible() || f.vertex_count < 3) {
             continue;
         }
         const render::Vec3 n = render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
-        const float lambert = std::clamp(
-            (std::clamp(std::abs(render::dot(n, lamp)), 0.0f, 1.0f) * 0.7f + 0.3f) * glow, 0.0f,
-            1.0f);
+        // With the map's own lights baked, a face is lit by them over a dim
+        // floor; without, the old uniform lamp carries the whole level.
+        float level = std::clamp(std::abs(render::dot(n, lamp)), 0.0f, 1.0f) * 0.7f + 0.3f;
+        if (baked != nullptr && index < baked->size()) {
+            level = (std::clamp(std::abs(render::dot(n, lamp)), 0.0f, 1.0f) * 0.25f + 0.3f) +
+                    (*baked)[index] * 0.65f;
+        }
+        const float lambert = std::clamp(level * glow, 0.0f, 1.0f);
 
         const render::Texture& tex = cache.bitmap(f.texture_name);
         const float inv_w = tex.width() > 0 ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
@@ -1952,6 +1959,52 @@ int main(int argc, char** argv) {
     std::vector<std::string> shown_animation(session.actors.size());
     std::vector<game::ActiveLaunch> launches;  // sprites a script put in the air
 
+    // The map's own lights, baked per face once per load: the sum of each
+    // light's reach at the face's centre. The linear falloff and the floor
+    // are this engine's; the positions, radii and brightness are the
+    // file's. `inferred` for the curve.
+    std::vector<float> face_light;
+    const auto bake_lights = [&] {
+        face_light.assign(session.blv.faces.size(), 0.0f);
+        if (!session.indoor()) {
+            return;
+        }
+        const auto lights = world::extract_lights(session.blv);
+        for (std::size_t i = 0; i < session.blv.faces.size(); ++i) {
+            const auto& face = session.blv.faces[i];
+            if (face.vertex_ids.empty()) {
+                continue;
+            }
+            float cx = 0, cy = 0, cz = 0;
+            for (const std::uint16_t v : face.vertex_ids) {
+                if (v >= session.blv.vertices.size()) {
+                    continue;
+                }
+                cx += session.blv.vertices[v].x;
+                cy += session.blv.vertices[v].y;
+                cz += session.blv.vertices[v].z;
+            }
+            const auto n = static_cast<float>(face.vertex_ids.size());
+            cx /= n;
+            cy /= n;
+            cz /= n;
+            float glow = 0.0f;
+            for (const auto& light : lights) {
+                const float dx = cx - static_cast<float>(light.x);
+                const float dy = cy - static_cast<float>(light.y);
+                const float dz = cz - static_cast<float>(light.z);
+                const float distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+                const float radius = static_cast<float>(light.radius) * 2.0f;
+                if (distance < radius) {
+                    glow += (1.0f - distance / radius) *
+                            (static_cast<float>(light.brightness) / 31.0f);
+                }
+            }
+            face_light[i] = glow > 1.0f ? 1.0f : glow;
+        }
+    };
+    bake_lights();
+
     render::SceneRenderer scene(kWidth, kHeight);
 
     float fall_speed = 0.0f;
@@ -2390,6 +2443,7 @@ int main(int argc, char** argv) {
         }
         shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
         note_town();
+        bake_lights();
         open_shop = -1;
         talking_to = -1;
         shop_stock.clear();
@@ -3918,7 +3972,7 @@ int main(int argc, char** argv) {
             // "Increases the radius of light": this renderer has no radius,
             // so the lamp itself brightens for the written hours. `inferred`
             draw_indoor(scene, session, cache, lamp,
-                        clock.minutes() < torch_until ? 1.45f : 1.0f);
+                        clock.minutes() < torch_until ? 1.45f : 1.0f, &face_light);
         }
         mob.update(in.dt, session, camera.position, [&](std::size_t actor) {
             return battle.alive(actor) && battle.can_move(actor);
