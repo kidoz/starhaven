@@ -303,10 +303,15 @@ interoperability and compatibility with a legally purchased copy.
   years on, `Disease1..3` runs poison's scaffold at half pace, and the three
   `Brk` words break the slot they name: a broken sword swings as a fist, a
   broken hauberk counts for nothing, and **F** at any counter mends it all
-  for half value in the merchant table's own Repair words. Asleep, Afraid,
-  Curse and their kin are carried by name and shown, their mechanics still
-  ahead. Triggers and levels are the table's; magnitudes and the one-in-five
-  are this engine's.
+  for half value in the merchant table's own Repair words. And the named
+  conditions now bite: the asleep and the paralyzed act for nobody until
+  struck awake, cured or rested; the afraid keep their feet but lose their
+  swing; a character at zero hit points is down, a blow that lands on the
+  downed kills them, and a night's rest wakes the knocked-out at a single
+  hit point while the dead wait for a temple whose row does not say "No
+  Dead". Triggers, levels and the temples' ceilings are the tables';
+  magnitudes, the one-in-five, and the conditions' rules are this engine's,
+  marked `inferred`.
 - **Temples that mend for money**: the ten `Temple` rows write their own
   terms — margin notes naming Heal and Donate, `Val` as the price, and a
   service ceiling in the stock cell, from Temple Stone's "All OK" down to

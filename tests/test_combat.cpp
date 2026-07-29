@@ -530,3 +530,61 @@ TEST_CASE("a caster monster throws its table's own spell", "[combat]") {
         REQUIRE(who.hit_points == who.max_hit_points);
     }
 }
+
+TEST_CASE("a blow that lands on the unconscious kills them", "[combat]") {
+    auto session = with_monster({0, 0, 100});
+    const auto table = monsters("20", "0", "2d6");
+    Battle battle;
+    battle.reset(session, table, 9);
+
+    // Three already dead, one down: the down one is the only target left,
+    // and the first blow that lands finishes them.
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    for (std::size_t i = 1; i < 4; ++i) {
+        party[i].hit_points = 0;
+        party[i].affliction = "Dead";
+    }
+    party[0].hit_points = 0;
+    for (int i = 0; i < 200 && !party[0].dead(); ++i) {
+        (void)battle.update(0.5f, session, table, {}, party, {0, 0, 0});
+    }
+    REQUIRE(party[0].dead());
+    REQUIRE_FALSE(party[0].can_act());
+}
+
+TEST_CASE("a sleeper is struck awake", "[combat]") {
+    auto session = with_monster({0, 0, 100});
+    const auto table = monsters("20", "0", "1d2");
+    Battle battle;
+    battle.reset(session, table, 9);
+
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    for (std::size_t i = 1; i < 4; ++i) {
+        party[i].hit_points = 0;
+        party[i].affliction = "Dead";
+    }
+    party[0].affliction = "Asleep";
+    REQUIRE_FALSE(party[0].can_act());
+    for (int i = 0; i < 200 && party[0].hit_points == party[0].max_hit_points; ++i) {
+        (void)battle.update(0.5f, session, table, {}, party, {0, 0, 0});
+    }
+    REQUIRE(party[0].hit_points < party[0].max_hit_points);
+    REQUIRE(party[0].affliction.empty());
+    REQUIRE(party[0].can_act());
+}
+
+TEST_CASE("a party of corpses is not swung at", "[combat]") {
+    auto session = with_monster({0, 0, 100});
+    const auto table = monsters("20", "0", "2d6");
+    Battle battle;
+    battle.reset(session, table, 9);
+
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    for (auto& who : party) {
+        who.hit_points = 0;
+        who.affliction = "Dead";
+    }
+    for (int i = 0; i < 50; ++i) {
+        REQUIRE(battle.update(0.5f, session, table, {}, party, {0, 0, 0}).empty());
+    }
+}

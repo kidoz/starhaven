@@ -185,11 +185,31 @@ struct Character {
                temp_attributes[static_cast<std::size_t>(a)];
     }
 
-    // Drop everything that lasts only until a rest.
+    // The conditions' teeth, by this engine's reading of the tables' words.
+    // Dead is past unconscious: a blow that lands on a character already at
+    // zero kills them, and only a temple that treats the dead brings them
+    // back. Asleep and Paralyze act on nobody's behalf; the afflicted stand
+    // there until struck awake, cured, or rested. All `inferred` — the
+    // column names the conditions, not their rules.
+    [[nodiscard]] bool dead() const noexcept { return affliction == "Dead"; }
+    [[nodiscard]] bool can_act() const noexcept {
+        return hit_points > 0 && affliction != "Asleep" && affliction != "Paralyze" && !dead();
+    }
+    // Afraid keeps their feet but not their nerve: they will not swing.
+    // "Affraid" is the table's own spelling.
+    [[nodiscard]] bool afraid() const noexcept { return affliction == "Affraid"; }
+
+    // Drop everything that lasts only until a rest, and let the night clear
+    // what a night plausibly clears: sleep, fear, drink and weakness. Curse,
+    // madness, paralysis and death outlast it. `inferred`
     void rest_expires() noexcept {
         temp_attributes.fill(0);
         temp_resistances.fill(0);
         temp_armor = 0;
+        if (affliction == "Asleep" || affliction == "Affraid" || affliction == "Drunk" ||
+            affliction == "Weak") {
+            affliction.clear();
+        }
     }
 };
 

@@ -427,7 +427,9 @@ void draw_party_strip(render::SceneRenderer& scene, const image::Font& font,
         std::string text = std::to_string(i + 1) + " " + who.name + "  " +
                            std::to_string(who.hit_points) + "/" +
                            std::to_string(who.max_hit_points);
-        if (who.hit_points <= 0) {
+        if (who.dead()) {
+            text += "  dead";
+        } else if (who.hit_points <= 0) {
             text += "  down";
         } else if (who.poisoned > 0) {
             text += "  poisoned";
@@ -2133,8 +2135,13 @@ int main(int argc, char** argv) {
                                            who.spell_points < who.max_spell_points ||
                                            who.poisoned > 0 || who.diseased > 0 ||
                                            !who.affliction.empty();
+                        // The stock cell's own ceiling: a temple that lists
+                        // "No Dead" sends the corpse elsewhere.
+                        const game::TempleService service = game::temple_service(shop);
                         if (!needs) {
                             shop_said = who.name + " needs no healing.";
+                        } else if (who.dead() && !service.heals_dead) {
+                            shop_said = "This temple cannot raise the dead.";
                         } else if (gold < price) {
                             shop_said = "You cannot afford the healing.";
                         } else {
@@ -2270,7 +2277,7 @@ int main(int argc, char** argv) {
                 // engine's. `inferred`
                 bool read = false;
                 for (std::size_t who = 0; who < packs.size() && !read; ++who) {
-                    if (party[who].hit_points <= 0) {
+                    if (!party[who].can_act()) {
                         continue;
                     }
                     for (const auto& carried : packs[who].items()) {
@@ -2359,7 +2366,7 @@ int main(int argc, char** argv) {
                 const std::size_t target = game::aimed_actor(
                     session, battle, camera.position, camera.forward(), game::kPartyReach);
                 for (auto& caster : party) {
-                    if (caster.hit_points <= 0 || cast) {
+                    if (!caster.can_act() || cast) {
                         continue;
                     }
                     const data::SpellStatsEntry* best = nullptr;
@@ -2809,7 +2816,9 @@ int main(int argc, char** argv) {
                 for (int tries = 0; tries < 4; ++tries) {
                     const auto who = static_cast<std::size_t>(striker);
                     striker = (striker + 1) % static_cast<int>(party.size());
-                    if (party[who].hit_points <= 0) {
+                    // The unconscious and the held-under act for nobody, and
+                    // the afraid keep their feet but lose their swing.
+                    if (!party[who].can_act() || party[who].afraid()) {
                         continue;
                     }
                     std::string blow =

@@ -7,6 +7,7 @@
 #include <string>
 
 #include "game/party.hpp"
+#include "game/rest.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
@@ -126,4 +127,49 @@ TEST_CASE("the sheet's field names come from the table, not from here", "[party]
     REQUIRE(stat_label(stats, static_cast<std::size_t>(Attribute::Luck)) == "Luck");
     REQUIRE(stat_label(stats, kAttributeCount) == "Hit Points");
     REQUIRE(stat_label(stats, 99).empty());
+}
+
+TEST_CASE("the conditions hold a character back by name", "[party]") {
+    Character who;
+    who.hit_points = 10;
+    REQUIRE(who.can_act());
+    who.affliction = "Asleep";
+    REQUIRE_FALSE(who.can_act());
+    who.affliction = "Affraid";  // the table's own spelling
+    REQUIRE(who.can_act());
+    REQUIRE(who.afraid());
+    who.affliction = "Dead";
+    REQUIRE(who.dead());
+    REQUIRE_FALSE(who.can_act());
+    who.affliction.clear();
+    who.hit_points = 0;
+    REQUIRE_FALSE(who.can_act());
+    REQUIRE_FALSE(who.dead());
+}
+
+TEST_CASE("a night clears what a night can", "[party]") {
+    Character who;
+    who.affliction = "Affraid";
+    who.rest_expires();
+    REQUIRE(who.affliction.empty());
+    who.affliction = "Curse";
+    who.rest_expires();
+    REQUIRE(who.affliction == "Curse");
+}
+
+TEST_CASE("rest wakes the unconscious but not the dead", "[party]") {
+    std::array<Character, 4> party{};
+    for (auto& who : party) {
+        who.max_hit_points = 20;
+        who.hit_points = 15;
+    }
+    party[1].hit_points = 0;               // knocked out
+    party[2].hit_points = 0;
+    party[2].affliction = "Dead";
+    game::GameClock clock;
+    REQUIRE(game::rest(party, clock, false) == game::RestResult::Rested);
+    REQUIRE(party[0].hit_points == 20);
+    REQUIRE(party[1].hit_points == 1);     // comes to, barely
+    REQUIRE(party[2].hit_points == 0);     // the night does nothing for them
+    REQUIRE(party[2].dead());
 }

@@ -41,7 +41,13 @@ inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool d
 
     clock.advance_hours(kRestHours);
     for (auto& who : party) {
+        // The dead do not rest; the merely unconscious come to at a single
+        // hit point rather than a full night's worth. `inferred`
+        if (who.dead()) {
+            continue;
+        }
         if (who.hit_points <= 0) {
+            who.hit_points = 1;
             continue;
         }
         who.hit_points = who.max_hit_points;

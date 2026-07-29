@@ -448,12 +448,14 @@ private:
         return what;
     }
 
-    // One monster's blow at whoever in the party is still standing.
+    // One monster's blow at whoever in the party is not yet dead — the
+    // unconscious can still be hit, and a blow that lands on one kills them.
+    // `inferred`
     std::string swing(const data::MonsterStatsEntry& monster, const data::SpellStatsTable& spells,
                       std::array<Character, 4>& party) {
         std::vector<std::size_t> standing;
         for (std::size_t i = 0; i < party.size(); ++i) {
-            if (party[i].hit_points > 0) {
+            if (!party[i].dead()) {
                 standing.push_back(i);
             }
         }
@@ -461,6 +463,7 @@ private:
             return {};
         }
         Character& target = party[standing[random_.next() % standing.size()]];
+        const bool was_down = target.hit_points <= 0;
 
         // The table's own spell first: cast as often as the row's percent
         // says, at its written mastery and skill — the number the prose's
@@ -483,10 +486,7 @@ private:
                     target.hit_points -= damage;
                     std::string what = monster.name + " casts " + spell->name + " at " +
                                        target.name + " for " + std::to_string(damage);
-                    if (target.hit_points <= 0) {
-                        target.hit_points = 0;
-                        what += " and drops them";
-                    }
+                    what += fell(target, was_down, damage);
                     return what;
                 }
             }
@@ -536,8 +536,8 @@ private:
                         what += ", infecting them";
                     }
                 } else if (bonus == "Uncon") {
+                    // Knocked to zero; `fell` below says what that means.
                     target.hit_points = 0;
-                    what += ", knocking them out";
                 } else if (bonus.substr(0, 7) == "DrainSP") {
                     const int drained = std::min(target.spell_points, monster.level * repeat);
                     if (drained > 0) {
@@ -571,13 +571,31 @@ private:
                     }
                 }
             }
-            if (target.hit_points <= 0) {
-                target.hit_points = 0;
-                what += " and drops them";
-            }
+            what += fell(target, was_down, damage);
             return what;
         }
         return {};
+    }
+
+    // What becomes of whoever a blow just landed on: a sleeper is struck
+    // awake, a standing character at zero drops, and one already down is
+    // killed. `inferred`
+    static std::string fell(Character& target, bool was_down, int damage) {
+        std::string what;
+        if (damage > 0 && target.affliction == "Asleep") {
+            target.affliction.clear();
+            what += ", waking them";
+        }
+        if (target.hit_points <= 0) {
+            target.hit_points = 0;
+            if (was_down && damage > 0) {
+                target.affliction = "Dead";
+                what += " and kills them";
+            } else if (!was_down) {
+                what += " and drops them";
+            }
+        }
+        return what;
     }
 
     std::vector<Combatant> combatants_;

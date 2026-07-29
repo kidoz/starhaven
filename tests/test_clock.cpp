@@ -81,13 +81,16 @@ TEST_CASE("resting heals everyone standing and moves the clock", "[clock]") {
     }
 }
 
-TEST_CASE("a night's sleep does not stand the fallen back up", "[clock]") {
-    // Being down is not the same as being hurt.
-    std::array<Character, 4> party{fighter(0), fighter(10), fighter(10), fighter(10)};
+TEST_CASE("a night's sleep wakes the fallen but does not heal them", "[clock]") {
+    // Being down is not the same as being hurt — the knocked-out come to at
+    // a single hit point, and the dead not at all.
+    std::array<Character, 4> party{fighter(0), fighter(10), fighter(0), fighter(10)};
+    party[2].affliction = "Dead";
     GameClock clock;
     REQUIRE(rest(party, clock, false) == RestResult::Rested);
-    REQUIRE(party[0].hit_points == 0);
+    REQUIRE(party[0].hit_points == 1);
     REQUIRE(party[1].hit_points == party[1].max_hit_points);
+    REQUIRE(party[2].hit_points == 0);
 }
 
 TEST_CASE("monsters nearby stop a rest, and stop the clock too", "[clock]") {
