@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Promotions, a three-table join**: quest events set "Received Promotion
+  to Crusader" awards, `Class.txt` holds the six ladders in row-order triples,
+  and each promoted class's own prose prices itself — "an extra two hit
+  points and spell points per level". Earning the award steps the matching
+  characters up, pays the difference for the levels held, and keeps paying at
+  the training halls; Honorary awards stay titles, worn on the sheet.
 - **Skills, read off their own table**: `SKILLDES.TXT` writes what each of
   its 31 skills does in effect lines — "Skill added to Attack Bonus",
   "...to Attack Damage", "...to Armor Class", "Skill adjusts shop prices in

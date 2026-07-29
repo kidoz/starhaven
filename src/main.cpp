@@ -42,6 +42,7 @@
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/party.hpp"
+#include "game/promotion.hpp"
 #include "game/player.hpp"
 #include "game/rest.hpp"
 #include "game/save.hpp"
@@ -1682,6 +1683,7 @@ int main(int argc, char** argv) {
     // The help the party pays for: at most two, the follower panel's own
     // seat count. Wages fall due weekly, the cost column's own unit.
     std::vector<game::Hireling> hirelings;
+    std::set<int> promoted_awards;  // promotion awards already stepped up
     std::int64_t next_wage_day = 7;
     std::string talk_answer;
 
@@ -1997,6 +1999,29 @@ int main(int argc, char** argv) {
                     " resistance for " + who.name);
             }
         }
+        // A promotion award steps the matching ladder: the award names the
+        // class, the class's own prose names the per-level gains.
+        for (const int award : script_state.awards) {
+            if (!promoted_awards.insert(award).second) {
+                continue;
+            }
+            std::string target;
+            for (const auto& row : award_texts.entries()) {
+                if (row.bit == award) {
+                    target = game::promotion_of(row.text);
+                    break;
+                }
+            }
+            if (target.empty()) {
+                continue;
+            }
+            for (auto& member : party) {
+                if (game::promotes_to(class_descriptions, member.class_name, target)) {
+                    game::promote(member, class_descriptions, target);
+                    add(member.name + " is promoted to " + member.class_name);
+                }
+            }
+        }
         return note;
     };
 
@@ -2252,6 +2277,7 @@ int main(int argc, char** argv) {
                     next_wage_day = state.wage_day > 0 ? state.wage_day : clock.day() + 7;
                     last_hire_day = clock.day();
                     script_state.awards = std::set<int>(state.awards.begin(), state.awards.end());
+                    promoted_awards = script_state.awards;
                     script_state.bits = state.bits;
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
@@ -2654,6 +2680,19 @@ int main(int argc, char** argv) {
                     } else {
                         gold -= offer.cost;
                         game::train(who);
+                        // A promoted class's own "extra ... per level", on
+                        // this level too.
+                        if (const auto* row = class_descriptions.find(who.class_name);
+                            row != nullptr && !row->text.empty()) {
+                            const game::ClassGains gains =
+                                game::parse_class_gains(row->text.front());
+                            who.max_hit_points += gains.hp_per_level;
+                            who.hit_points = who.max_hit_points;
+                            if (who.max_spell_points > 0) {
+                                who.max_spell_points += gains.sp_per_level;
+                                who.spell_points = who.max_spell_points;
+                            }
+                        }
                         shop_said = who.name + " reaches level " + std::to_string(who.level) + ".";
                     }
                 } else if (open_shop >= 0 &&

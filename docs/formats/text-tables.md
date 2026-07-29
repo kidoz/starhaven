@@ -530,6 +530,22 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
+## The promotion join
+
+`Awards.txt` rows 8..31 read "Received Promotion to Crusader" — every
+promotion of the six `Class.txt` ladders, each with an "Honorary" twin — and
+quest events set them through the award variable (type 12). The eighteen
+classes sit in the table in six ladders of three, in row order, and **each
+promoted class's own prose states its worth**: "Cavaliers enjoy the benefit
+of an extra two hit points per level", "High Priests ... an extra two hit
+points and spell points per level". The engine joins the three: a plain
+promotion award steps every party member whose ladder it names, pays the
+prose's per-level difference retroactively, and keeps paying it at the
+training halls; an Honorary award stays a title on the sheet. `observed`
+for the phrasings and the ladder order; `inferred` for Honorary changing
+nothing. The award spells "Archmage" where the class table writes "Arch
+Mage", so the match ignores case and spaces. See src/game/promotion.hpp.
+
 ## The skills' own effect lines
 
 `SKILLDES.TXT` lists 31 skills, and beside each skill's prose its columns
