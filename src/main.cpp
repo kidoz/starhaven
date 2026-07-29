@@ -1805,6 +1805,12 @@ int main(int argc, char** argv) {
     data::DescriptionTable skill_table;
     (void)data::load_descriptions(data_dir, "SkillDes.txt", skill_table);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
+    // The opening quest's own seed: bit 81's designers' note reads "Set
+    // when the party starts", and its journal line is "Show Sulman's letter
+    // to Andover Potbello" — so a fresh party begins holding The Letter
+    // (item 505) with the bit lit. `observed` for the note; the seeding
+    // site is the engine's.
+    bool seed_start = true;
     // The party is the player's to shape before the world starts: class,
     // face and name from the game's own tables and portraits, the numbers
     // rerolled at will. Every tooling flag means "get to the world", so any
@@ -1857,6 +1863,10 @@ int main(int argc, char** argv) {
     // The event walker's memory: quest bits and event variables, which are
     // the party's rather than any map's, so they survive travelling.
     game::WalkState script_state;
+    if (seed_start) {
+        script_state.bits.insert(81);
+        (void)packs[0].add(505, 2, 2);  // The Letter, at its scroll art's size
+    }
 
     // The shared quest script: 66 of the 88 face event ids that no map's own
     // script defines are GLOBAL.EVT events, and 170 of the 298 NPC topic ids

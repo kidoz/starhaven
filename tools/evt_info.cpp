@@ -14,6 +14,10 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
+#include "core/data/building_stats.hpp"
+#include "game/script_walk.hpp"
+#include "game/shop.hpp"
+#include "game/travel.hpp"
 #include <set>
 
 #include "core/image/zlib_util.hpp"
@@ -1385,6 +1389,145 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
     return 0;
 }
 
+// Verification mode: the New Sorpigal opening arc, walked end to end
+// through the same code the game runs. Exits nonzero on the first beat
+// that fails, so it can stand as a regression against a real install.
+int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace data = starhaven::data;
+    namespace game = starhaven::game;
+
+    std::span<const std::byte> raw;
+    world::MapScript global;
+    if (icons.payload("GLOBAL.EVT", raw) != lod::LodArchive::PayloadError::None ||
+        world::MapScript::parse(raw, global) != world::MapScriptError::None) {
+        std::cerr << "arc: no GLOBAL.EVT\n";
+        return 1;
+    }
+    std::size_t passed = 0;
+    const auto beat = [&passed](bool ok, const char* what) {
+        std::cout << (ok ? "  ok  " : "  FAIL") << "  " << what << "\n";
+        if (ok) {
+            ++passed;
+        }
+        return ok;
+    };
+
+    // 1. The letter refused without the letter.
+    {
+        game::WalkState state;
+        state.bits.insert(81);
+        const auto outcome = game::walk_event(global, 1, state);
+        if (!beat(outcome.ran && state.gold == 0 && outcome.taken.empty(),
+                  "Andover only talks about the letter until it is held")) {
+            return 1;
+        }
+    }
+    // 2. The delivery pays, rotates the topic and moves the bits.
+    {
+        game::WalkState state;
+        state.bits.insert(81);
+        state.items.push_back(505);
+        const auto outcome = game::walk_event(global, 1, state);
+        // The event never takes the letter — its steps hold no item-take —
+        // so the scroll stays a keepsake; only the bits and the topic move.
+        const bool ok = outcome.ran && state.gold == 1000 &&
+                        state.npc_topics.at({1, 0}) == 2 && !state.bits.contains(81) &&
+                        state.bits.contains(82) &&
+                        std::find(state.items.begin(), state.items.end(), 505) !=
+                            state.items.end();
+        if (!beat(ok, "the letter pays 1000, rotates Andover and moves bit 81 to 82")) {
+            return 1;
+        }
+    }
+    // 3. Goblinwatch's reward: the combination scroll earns the award, the
+    //    gold and the experience.
+    {
+        game::WalkState state;
+        state.items.push_back(543);
+        const auto outcome = game::walk_event(global, 4, state);
+        // This reward, too, checks its item without taking it.
+        const bool ok = outcome.ran && state.awards.contains(53) && state.gold == 2000 &&
+                        state.experience == 2000;
+        if (!beat(ok, "the combination scroll earns award 53, 2000 gold and 2000 experience")) {
+            return 1;
+        }
+    }
+    // 4. Goblinwatch's levers throw doors once, and hold after.
+    {
+        world::MapScript d01;
+        if (icons.payload("D01.EVT", raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, d01) != world::MapScriptError::None) {
+            std::cerr << "arc: no D01.EVT\n";
+            return 1;
+        }
+        // A plain door opens every use; a lever is the event that checks
+        // its own variable before throwing — the first with both steps.
+        std::uint16_t lever = 0;
+        for (const auto& step : d01.steps()) {
+            if (step.opcode != world::kOpcodeDoor) {
+                continue;
+            }
+            bool gated = false;
+            for (const auto& other : d01.event(step.event_id)) {
+                gated = gated || other.opcode == world::kOpcodeCheck;
+            }
+            if (gated) {
+                lever = step.event_id;
+                break;
+            }
+        }
+        game::WalkState state;
+        const auto first = game::walk_event(d01, lever, state);
+        const auto second = game::walk_event(d01, lever, state);
+        const bool ok = lever != 0 && !first.doors.empty() && second.doors.empty();
+        if (!beat(ok, "a Goblinwatch lever throws its doors once and holds")) {
+            return 1;
+        }
+    }
+    // 5. The coach at New Sorpigal reaches Castle Ironfist for a fare.
+    {
+        data::BuildingStatsTable buildings;
+        data::MapStatsTable maps;
+        if (data::load_building_stats(data_dir, buildings) != data::GameDataError::None ||
+            data::load_map_stats(data_dir, maps) != data::GameDataError::None) {
+            std::cerr << "arc: no tables\n";
+            return 1;
+        }
+        bool reaches = false;
+        int fare = 0;
+        for (const auto* shop : buildings.on_map("E3")) {
+            if (!game::is_travel(*shop)) {
+                continue;
+            }
+            for (const auto& route : game::routes_of(*shop, maps)) {
+                if (route.map_file == "OutD3.Odm") {
+                    reaches = true;
+                    fare = game::fare_of(*shop);
+                }
+            }
+        }
+        if (!beat(reaches && fare > 0, "a New Sorpigal coach is priced through to Ironfist")) {
+            return 1;
+        }
+    }
+    // 6. The Fire guild's shelves and roll both resolve.
+    {
+        data::JournalTable awards;
+        if (data::load_awards(data_dir, awards) != data::GameDataError::None) {
+            std::cerr << "arc: no Awards.txt\n";
+            return 1;
+        }
+        const bool ok = game::guild_award_of(data::SpellSchool::Fire, awards) == 74;
+        if (!beat(ok, "the Fire guild's membership is award 74, Joined the Fire Guild")) {
+            return 1;
+        }
+    }
+    std::cout << passed << " beats of the opening arc hold\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1418,6 +1561,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--currencies") {
         return do_currencies(icons, *install / "data");
+    }
+    if (stem == "--arc") {
+        return do_arc(icons, *install / "data");
     }
     if (stem == "--launches") {
         return do_launches(icons);

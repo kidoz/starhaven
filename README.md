@@ -222,6 +222,16 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The opening arc, proven**: `evt_info --arc` walks New Sorpigal's first
+  hours through the same code the game runs — the letter refused until
+  held, the delivery's 1000 gold and topic rotation, the Goblinwatch
+  combination's award and experience, a lever throwing its doors once and
+  holding, the coach priced through to Ironfist, the Fire guild's roll —
+  six beats, exit-nonzero on any break. The audit found the one snag no
+  unit test saw: bit 81's own note reads "Set when the party starts", so a
+  fresh party now begins holding Sulman's letter, as the journal always
+  claimed. It also recorded that neither the letter nor the combination
+  scroll is ever taken — their events check for them and leave keepsakes.
 - **The Quest column, closed**: the monster table's last unread column is
   zero on all 173 rows — vestigial. The quest items travel through the
   event scripts' gives, as the walker already delivers them.
