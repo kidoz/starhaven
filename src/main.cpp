@@ -63,7 +63,13 @@ using namespace starhaven;
 
 // Where a save lands: beside where the engine was run, in this
 // engine's own text format.
-constexpr const char* kSaveFile = "starhaven.save";
+constexpr const char* kSaveFile = "starhaven.save";  // slot 1's old name, still read
+
+// Nine numbered slots; slot 1 keeps the old single file's name so existing
+// saves survive the change.
+[[nodiscard]] std::string save_slot_path(int slot) {
+    return slot <= 1 ? kSaveFile : "starhaven-" + std::to_string(slot) + ".save";
+}
 
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
@@ -97,7 +103,7 @@ void print_usage(const char* argv0) {
               << "  H          cast a known spell: heal the wounded, or smite the aimed\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
-              << "  F5/F9      save the game / load it back\n"
+              << "  F5/F9      save / load the current slot; F6 turns to the next\n"
               << "  Tab then 1-9  trade with an establishment on this map\n"
               << "  ESC/close  quit\n"
               << "\n"
@@ -2019,6 +2025,7 @@ int main(int argc, char** argv) {
     // party action spends. The round's one second is the engine's own
     // quantum; everything inside it runs on the tables' numbers as ever.
     bool turn_based = false;
+    int save_slot = 1;  // which of the nine files F5 and F9 speak to
     bool pending_round = false;
     constexpr float kRoundSeconds = 1.0f;
     int striker = 0;  // whose turn it is to swing
@@ -2888,14 +2895,42 @@ int main(int argc, char** argv) {
                         state.open_doors.push_back(door.id);
                     }
                 }
-                std::ofstream file(kSaveFile);
+                std::ofstream file(save_slot_path(save_slot));
                 file << game::save_text(state);
-                pick_up_message = file.good() ? "Saved" : "Could not write the save";
+                pick_up_message = file.good()
+                                      ? "Saved to slot " + std::to_string(save_slot)
+                                      : "Could not write the save";
+                pick_up_shown = SDL_GetTicks();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F6) {
+                // The next slot, with what it holds: same format, numbered
+                // files, the map and the day read off the save itself.
+                save_slot = save_slot % 9 + 1;
+                std::ifstream file(save_slot_path(save_slot));
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                game::SaveState peek;
+                if (file.good() && game::parse_save(buffer.str(), peek)) {
+                    std::string title = peek.map_file;
+                    for (const auto& m : map_stats.entries()) {
+                        if (m.file_name == peek.map_file && !m.name.empty()) {
+                            title = m.name;
+                            break;
+                        }
+                    }
+                    pick_up_message = "Slot " + std::to_string(save_slot) + ": " +
+                                      data::cp1252_to_utf8(title) + ", day " +
+                                      std::to_string(peek.minutes /
+                                                     (game::kMinutesPerHour *
+                                                      game::kHoursPerDay) +
+                                                     1);
+                } else {
+                    pick_up_message = "Slot " + std::to_string(save_slot) + ": empty";
+                }
                 pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F9) {
                 // Load: back to the saved map, standing where the party stood.
                 game::SaveState state;
-                std::ifstream file(kSaveFile);
+                std::ifstream file(save_slot_path(save_slot));
                 std::stringstream buffer;
                 buffer << file.rdbuf();
                 if (!file.good() || !game::parse_save(buffer.str(), state) ||

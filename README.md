@@ -222,6 +222,10 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Nine save slots**: F5 and F9 speak to the current slot, F6 turns to
+  the next and says what it holds — the map's name and the day, read off
+  the save itself — with slot 1 keeping the old single file's name so
+  existing saves survive.
 - **The pack obeys its cursor**: wearing, drinking and mixing all start
   from the chosen cell when the pack is open — the sell key already did —
   falling back to the old first-found walk otherwise. Reading scrolls stays
