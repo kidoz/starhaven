@@ -2730,11 +2730,15 @@ int main(int argc, char** argv) {
             const int mid = session.actors[noise.actor].monster_id;
             const auto* row = mid > 0 ? session.monsters.at(static_cast<std::size_t>(mid) - 1)
                                       : nullptr;
-            if (row == nullptr || row->sound_base == 0) {
+            if (row == nullptr || noise.action < 0 ||
+                noise.action >= static_cast<int>(row->sounds.size()) ||
+                row->sounds[static_cast<std::size_t>(noise.action)] == 0) {
                 continue;
             }
-            if (const auto* sound = session.sounds.find(
-                    static_cast<std::uint32_t>(row->sound_base + noise.action))) {
+            // The record states each of the four ids outright; the Guards'
+            // fidget skips one, so arithmetic from the base would miss it.
+            if (const auto* sound = session.sounds.find(static_cast<std::uint32_t>(
+                    row->sounds[static_cast<std::size_t>(noise.action)]))) {
                 ambient.play_once(sound->name);
             }
         }

@@ -29,7 +29,8 @@ void print_usage(const char* argv0) {
               << "installation's icons.lod.\n"
               << "\n"
               << "  --list          list the animation groups\n"
-              << "  --check         verify the table against itself, SPRITES.LOD\n"
+              << "  --body          the DMONLIST record's height, radius and sound ids\n"
+                 "  --check         verify the table against itself, SPRITES.LOD\n"
               << "                  and DMONLIST.BIN\n"
               << "  <group>         list one animation's frames\n"
               << "  --rows N        limit a listing to N rows\n"
@@ -312,6 +313,61 @@ int do_sounds(const lod::LodArchive& icons) {
     return 0;
 }
 
+// Verification mode: the rest of the 148-byte record, now read. The front
+// u16 pair is the monster's body — height then radius, bats and rats at
+// the bottom of both ranges and dragons at the top — the four u16s from
+// +0x08 are the stated sound ids (the Guards' fidget skips one, refuting
+// base+offset), +0x04 holds 140 on every record, and +0x06 and the 20
+// bytes at +0x80 are zero throughout.
+int do_body(const lod::LodArchive& icons) {
+    world::MonsterList monsters;
+    std::span<const std::byte> raw;
+    if (icons.payload("DMONLIST.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::MonsterList::parse(raw, monsters) != world::MonsterListError::None) {
+        std::cerr << "error: could not read DMONLIST.BIN\n";
+        return 1;
+    }
+    std::vector<std::uint8_t> plain;
+    if (!starhaven::image::detail::inflate_all(raw.subspan(48), plain)) {
+        std::cerr << "error: could not inflate DMONLIST.BIN\n";
+        return 1;
+    }
+    const auto u16_at = [&plain](std::size_t record, std::size_t offset) {
+        const std::size_t at = 4 + record * world::kMonsterRecordSize + offset;
+        return static_cast<int>(plain[at]) | static_cast<int>(plain[at + 1]) << 8;
+    };
+    int height_low = 1 << 16, height_high = 0, radius_low = 1 << 16, radius_high = 0;
+    std::size_t const140 = 0, zero6 = 0, zero_tail = 0, consecutive = 0;
+    for (std::size_t r = 0; r < monsters.size(); ++r) {
+        const auto& m = monsters.entries()[r];
+        height_low = std::min(height_low, static_cast<int>(m.height));
+        height_high = std::max(height_high, static_cast<int>(m.height));
+        radius_low = std::min(radius_low, static_cast<int>(m.radius));
+        radius_high = std::max(radius_high, static_cast<int>(m.radius));
+        const140 += u16_at(r, 0x04) == 140 ? 1 : 0;
+        zero6 += u16_at(r, 0x06) == 0 ? 1 : 0;
+        bool tail = true;
+        for (std::size_t k = 0; k < 20; ++k) {
+            tail = tail && plain[4 + r * world::kMonsterRecordSize + 0x80 + k] == 0;
+        }
+        zero_tail += tail ? 1 : 0;
+        const bool steps = m.sounds[1] == m.sounds[0] + 1 && m.sounds[2] == m.sounds[0] + 2 &&
+                           m.sounds[3] == m.sounds[0] + 3;
+        if (steps) {
+            ++consecutive;
+        } else {
+            std::cout << "  stated, not base+3: " << m.name << "  " << m.sounds[0] << " "
+                      << m.sounds[1] << " " << m.sounds[2] << " " << m.sounds[3] << "\n";
+        }
+    }
+    std::cout << "heights " << height_low << ".." << height_high << ", radii " << radius_low
+              << ".." << radius_high << " across " << monsters.size() << "\n";
+    std::cout << "+0x04 is 140 on " << const140 << ", +0x06 zero on " << zero6
+              << ", tail zero on " << zero_tail << "\n";
+    std::cout << consecutive << " sound quads are consecutive; the rest are printed above\n";
+    return 0;
+}
+
 int do_views(const std::filesystem::path& data_dir, const world::SpriteFrameTable& table) {
     lod::LodArchive sprites;
     if (lod::LodArchive::open(data_dir / "SPRITES.LOD", sprites) != lod::LodError::None) {
@@ -421,6 +477,8 @@ int main(int argc, char** argv) {
         return do_views(data_dir, table);
     if (command == "--sounds")
         return do_sounds(icons);
+    if (command == "--body")
+        return do_body(icons);
     if (command.rfind("--", 0) == 0) {
         print_usage(argv[0]);
         return 2;

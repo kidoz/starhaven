@@ -29,9 +29,16 @@ constexpr std::size_t kMonsterAnimationCount = static_cast<std::size_t>(MonsterA
 struct MonsterListEntry {
     std::string name;  // e.g. "ArcherA", "PeasantF1B"
 
-    // The base id of this monster's four-sound set in `DSOUNDS.BIN`:
-    // attack, die, charge and fidget at base+0..3. Variants share A's set.
-    std::uint16_t sound_base = 0;
+    // The monster's body, in world units: bats and rats at the bottom of
+    // both ranges, dragons at the top, spiders wider than they are tall.
+    std::uint16_t height = 0;  // 56..487 across the table
+    std::uint16_t radius = 0;  // 40..238
+
+    // This monster's four `DSOUNDS.BIN` ids: attack, die, charge and
+    // fidget. Consecutive from a set's base on 170 of 173 records, but the
+    // three Guards skip an id for their fidget — the file states each of
+    // the four outright, so the engine reads them that way.
+    std::array<std::uint16_t, 4> sounds{};
 
     // Sprite base names, one per animation. A base name is completed with a
     // view-direction digit: "PFEMSTA" plus 0..4 selects the SPRITES.LOD entry.
@@ -70,9 +77,11 @@ private:
 
 // Layout constants (see docs/formats/dmonlist.md).
 constexpr std::size_t kMonsterRecordSize = 148;
-// The monster's sound-set base id in `DSOUNDS.BIN`: equal to the named set's
-// base on 31 of 31 monsters whose set carries their table id in its name,
-// and a monster-block id (1000..1569) on all 173. Reproduce with
+constexpr std::size_t kMonsterHeightOffset = 0x00;
+constexpr std::size_t kMonsterRadiusOffset = 0x02;
+// The four `DSOUNDS.BIN` ids: the first equals the named set's base on 31
+// of 31 monsters whose set carries their table id in its name, and all
+// four are monster-block ids (1000..1569) on all 173. Reproduce with
 // `sft_info --sounds`.
 constexpr std::size_t kMonsterSoundOffset = 0x08;
 constexpr std::size_t kMonsterNameOffset = 0x10;

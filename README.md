@@ -227,6 +227,14 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The monster record, read to the last field**: the 34 silent bytes of
+  `DMONLIST.BIN` gave up their meaning — a height and radius in world
+  units at the front (bats at 56, Dragons at 487, spiders wider than
+  tall), four sound ids stated outright (the Guards' fidget skips an id,
+  refuting the old base-plus-offset reading the engine now no longer
+  uses), a constant 140 whose meaning stays honestly `unknown`, and
+  twenty zeroed bytes of runtime scratch. Reproduce with
+  `sft_info --body`.
 - **The game's own screen furniture**: the main view now sits in the
   original frame — the border strips, the right column with its windows,
   book buttons and medallions, the portrait bar whose measured oval seats

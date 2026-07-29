@@ -46,10 +46,17 @@ MonsterListError MonsterList::parse(std::span<const std::byte> entry, MonsterLis
     for (std::uint32_t i = 0; i < count; ++i) {
         const std::size_t base = 4 + static_cast<std::size_t>(i) * kMonsterRecordSize;
         MonsterListEntry e;
+        if (!r.seek(base + kMonsterHeightOffset)) {
+            return MonsterListError::BadCount;
+        }
+        e.height = r.read_u16_le();
+        e.radius = r.read_u16_le();
         if (!r.seek(base + kMonsterSoundOffset)) {
             return MonsterListError::BadCount;
         }
-        e.sound_base = r.read_u16_le();
+        for (auto& sound : e.sounds) {
+            sound = r.read_u16_le();
+        }
         if (!r.seek(base + kMonsterNameOffset) || !r.read_fixed_string(kMonsterNameSize, e.name)) {
             return MonsterListError::BadCount;
         }

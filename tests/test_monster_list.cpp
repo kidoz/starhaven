@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <array>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -20,7 +21,9 @@ namespace {
 struct MonsterSpec {
     std::string name;
     std::vector<std::string> animations;
-    std::uint16_t sound_base = 0;
+    std::array<std::uint16_t, 4> sounds{};
+    std::uint16_t height = 0;
+    std::uint16_t radius = 0;
 };
 
 // Build the stored entry: a 48-byte header then a zlib stream holding a u32
@@ -36,8 +39,15 @@ std::vector<std::byte> make_entry(const std::vector<MonsterSpec>& monsters,
     for (std::size_t i = 0; i < monsters.size(); ++i) {
         const std::size_t base = 4 + i * kMonsterRecordSize;
         const auto& m = monsters[i];
-        raw[base + kMonsterSoundOffset] = static_cast<std::uint8_t>(m.sound_base & 0xFF);
-        raw[base + kMonsterSoundOffset + 1] = static_cast<std::uint8_t>(m.sound_base >> 8);
+        const auto put_u16 = [&raw](std::size_t at, std::uint16_t value) {
+            raw[at] = static_cast<std::uint8_t>(value & 0xFF);
+            raw[at + 1] = static_cast<std::uint8_t>(value >> 8);
+        };
+        put_u16(base + kMonsterHeightOffset, m.height);
+        put_u16(base + kMonsterRadiusOffset, m.radius);
+        for (std::size_t k = 0; k < m.sounds.size(); ++k) {
+            put_u16(base + kMonsterSoundOffset + k * 2, m.sounds[k]);
+        }
         for (std::size_t k = 0; k < m.name.size() && k < kMonsterNameSize - 1; ++k) {
             raw[base + kMonsterNameOffset + k] = static_cast<std::uint8_t>(m.name[k]);
         }
@@ -66,7 +76,7 @@ std::vector<std::byte> make_entry(const std::vector<MonsterSpec>& monsters,
 
 TEST_CASE("monster records decode names and animation sprites", "[monster_list]") {
     auto entry = make_entry({
-        {"ArcherA", {"arc1sta", "arc1wka", "arc1atk"}, 1010},
+        {"ArcherA", {"arc1sta", "arc1wka", "arc1atk"}, {1010, 1011, 1012, 1014}, 161, 40},
         {"PeasantF1A", {"pfemsta", "pfemwaa"}},
     });
     MonsterList list;
@@ -79,9 +89,13 @@ TEST_CASE("monster records decode names and animation sprites", "[monster_list]"
     REQUIRE(list.entries()[1].animation(MonsterAnimation::Stand) == "pfemsta");
     // Unset animation slots come back empty rather than as garbage.
     REQUIRE(list.entries()[1].animation(MonsterAnimation::Fidget).empty());
-    // The sound-set base rides at +0x08; a record without one reads zero.
-    REQUIRE(list.entries()[0].sound_base == 1010);
-    REQUIRE(list.entries()[1].sound_base == 0);
+    // The four sound ids are stated outright — the Guards' fidget skips
+    // one, so a base+offset reading would be wrong — and the body sizes
+    // ride at the record's front. A record without them reads zero.
+    REQUIRE(list.entries()[0].sounds == std::array<std::uint16_t, 4>{1010, 1011, 1012, 1014});
+    REQUIRE(list.entries()[0].height == 161);
+    REQUIRE(list.entries()[0].radius == 40);
+    REQUIRE(list.entries()[1].sounds == std::array<std::uint16_t, 4>{0, 0, 0, 0});
 }
 
 TEST_CASE("an id past the end resolves to nullptr, not garbage", "[monster_list]") {

@@ -1,13 +1,13 @@
 # Monster table (`DMONLIST.BIN`, Might and Magic VI)
 
-Status: **verified for names, animations and the sound-set base.** The table an actor's monster id
+Status: **verified; one constant unread.** The table an actor's monster id
 indexes, giving each monster its name and its animation sprite base names.
 Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
 Covers the container, the record's name field, the eight animation sprite
-names, and the sound-set base at +0x08. The remaining 34 bytes per record are
+names, the body sizes and the four sound ids. The one field still unread is
 `unknown`, as is how the game draws the B and C variants whose sprites are
 absent.
 
@@ -37,14 +37,16 @@ which is what pins the record size. `observed`
 
 | Offset | Size | Type | Field | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| +0x00 | 8 | — | unknown | unknown | |
-| +0x08 | 2 | u16 | sound-set base id | observed | see below |
-| +0x0A | 6 | — | unknown | unknown | |
+| +0x00 | 2 | u16 | height | observed | 56..487; see below |
+| +0x02 | 2 | u16 | radius | observed | 40..238 |
+| +0x04 | 2 | u16 | constant | observed | 140 on all 173 records; meaning `unknown` |
+| +0x06 | 2 | — | zero | observed | zero on all 173 |
+| +0x08 | 8 | u16[4] | sound ids | observed | attack, die, charge, fidget; see below |
 | +0x10 | 32 | char[32] | name | observed | e.g. `"ArcherA"`, `"PeasantF1B"` |
 | +0x30 | 80 | char[10][8] | animation sprites | observed | eight base names |
-| +0x80 | 20 | — | unknown | unknown | stats, presumably |
+| +0x80 | 20 | — | zero | observed | zero on all 173; runtime scratch, like the frame table's |
 
-### The sound-set base
+### The four sound ids
 
 `DSOUNDS.BIN`'s monster block runs `1000 + 10k` with the action as the
 offset — attack, die, charge, fidget (see [`dsounds.md`](dsounds.md)) — and
@@ -56,6 +58,25 @@ another's, the way B and C variants share A's palette-swapped art. No other
 offset in the record matches even once. `observed` Reproduce with
 `sft_info --sounds`. The engine plays them: a monster's swing is its attack
 sound, its death its dying one.
+
+The field was first read as one base id with the action as arithmetic, and
+the record refutes that: it states **four u16 ids outright** at +0x08, and
+the three Guards' quads run `1260 1261 1262 1264` — their fidget skips an
+id no base could reach. 170 of 173 quads are consecutive, which is why the
+arithmetic reading held as long as it did. `observed` Reproduce with
+`sft_info --body`.
+
+### The body at the record's front
+
+The two u16s at +0x00 are the monster's **height and radius in world
+units**: bats (56) and rats (59) at the bottom of the height range, Titans
+(474) and Dragons (487) at the top, and spiders wider than they are tall
+(64 by 109). `observed` for the values; that the units are the world's is
+`inferred` from their magnitudes against the maps' own geometry. The u16 at
++0x04 is **140 on every record** — a constant whose meaning is `unknown` —
+and +0x06 and the 20 bytes at +0x80 are zero throughout, which is what the
+frame table's zeroed runtime fields look like. Reproduce with
+`sft_info --body`.
 
 ### Animation slots
 
@@ -120,12 +141,10 @@ The parser rejects, deterministically and without reading out of bounds:
 
 ## Open questions
 
-- The unknown bytes at +0x00 and +0x80. Statistics were the obvious guess, but
-  the statistics turned out to live in `MONSTERS.TXT`, so this is more likely
-  animation or rendering data. `unknown`
-- Whether the record's unknown bytes carry animation or rendering data; the
-  statistics live in `MONSTERS.TXT` and the palettes in `DSFT.BIN`, so neither
-  is what they hold. `unknown`
+- The constant 140 at +0x04 — the one field of the record still unread. A
+  velocity would be the natural guess for its seat between the body and
+  the sounds, but a table with one value for a bat and a dragon is not
+  stating one. `unknown`
 
 ## The eight animations are used, not just listed
 
