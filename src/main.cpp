@@ -585,6 +585,89 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
                     "1-4 choose, C class, F face, N name, R reroll, Enter begins", dim, shadow);
 }
 
+// The journal: what the held quest bits say, in Quests.txt's own words,
+// and the honors under them. The walker has kept this state all along;
+// this is the first page it is written on.
+void draw_journal(render::SceneRenderer& scene, const image::Font& font,
+                  const data::JournalTable& quests, const data::JournalTable& awards,
+                  const std::set<int>& bits, const std::set<int>& earned) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
+        }
+    }
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{170, 170, 170, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    int y = 10;
+    game::draw_text(scene.framebuffer(), font, 24, y, "Journal", white, shadow);
+    y += line * 2;
+
+    const auto wrap = [&](const std::string& text, const render::Color& colour) {
+        std::string word;
+        int x = 24;
+        for (std::size_t i = 0; i <= text.size(); ++i) {
+            const char ch = i < text.size() ? text[i] : ' ';
+            if (ch != ' ' && ch != '\n') {
+                word += ch;
+                continue;
+            }
+            const int width = font.text_width(word + " ");
+            if (x + width > kWidth - 24) {
+                x = 24;
+                y += line;
+            }
+            if (y < kHeight - line * 2 - 8) {
+                game::draw_text(scene.framebuffer(), font, x, y, word, colour, shadow);
+            }
+            x += width;
+            word.clear();
+        }
+        y += line;
+    };
+
+    std::size_t noted = 0;
+    for (const auto& row : quests.entries()) {
+        if (!bits.contains(row.bit) || !row.has_text()) {
+            continue;
+        }
+        ++noted;
+        wrap("\x95 " + data::cp1252_to_utf8(row.text), white);
+        y += 2;
+        if (y >= kHeight - line * 3) {
+            game::draw_text(scene.framebuffer(), font, 24, y, "...", dim, shadow);
+            break;
+        }
+    }
+    if (noted == 0) {
+        game::draw_text(scene.framebuffer(), font, 24, y, "Nothing is asked of the party yet.",
+                        dim, shadow);
+        y += line * 2;
+    }
+    if (!earned.empty() && y < kHeight - line * 4) {
+        y += line;
+        game::draw_text(scene.framebuffer(), font, 24, y, "Honors", white, shadow);
+        y += line;
+        for (const auto& row : awards.entries()) {
+            if (!earned.contains(row.bit) || !row.has_text() || y >= kHeight - line * 2 - 8) {
+                continue;
+            }
+            game::draw_text(scene.framebuffer(), font, 32, y, data::cp1252_to_utf8(row.text),
+                            dim, shadow);
+            y += line;
+        }
+    }
+    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8, "J closes", dim, shadow);
+}
+
 // One character's pack, on the grid, with the item art the game draws.
 void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                const game::Character& who, const game::Pack& pack,  // NOLINT
@@ -1369,6 +1452,7 @@ int main(int argc, char** argv) {
     int start_shop = 0;   // --shop, to open a counter straight away
     int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
     bool force_create = false;  // --create: the party door, even under --screenshot
+    bool start_journal = false;  // --journal: open the journal at once
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
     game::WalkOutcome::Ask ask_pending;
@@ -1401,6 +1485,8 @@ int main(int argc, char** argv) {
             walk_on_start = std::atoi(argv[++i]);
         } else if (a == "--create") {
             force_create = true;
+        } else if (a == "--journal") {
+            start_journal = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
             screenshot = argv[++i];
         } else if (a == "--boxes") {
@@ -1643,6 +1729,8 @@ int main(int argc, char** argv) {
     (void)data::load_descriptions(data_dir, "Class.txt", class_descriptions);
     data::JournalTable award_texts;
     (void)data::load_awards(data_dir, award_texts);
+    data::JournalTable quest_texts;
+    (void)data::load_quests(data_dir, quest_texts);
     data::DescriptionTable skill_table;
     (void)data::load_descriptions(data_dir, "SkillDes.txt", skill_table);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
@@ -1744,6 +1832,7 @@ int main(int argc, char** argv) {
     std::string talk_answer;
     std::set<int> approaches_used;  // per conversation: 0 beg, 1 bribe, 2 threat
     int pack_cursor_x = 0, pack_cursor_y = 0;  // the pack screen's chosen cell
+    bool show_journal = start_journal;
     // How the world sees the party: reputation moved by deeds, fame worn
     // from experience. The derivation and the deed prices are the engine's
     // own and say so where they act.
@@ -2840,6 +2929,9 @@ int main(int argc, char** argv) {
                     shop_said = std::string(
                         game::merchant_line(merchant_words, data::MerchantAction::Repair, true));
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop < 0 &&
+                       event.key.key == SDLK_J && !creating) {
+                show_journal = !show_journal;
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_J) {
                 // Join the guild whose counter this is, gaining its own
@@ -4341,7 +4433,7 @@ int main(int argc, char** argv) {
         if (show_directory) {
             draw_directory(scene, font, session, clock, trade_talk);
         }
-        if (shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating) {
+        if (shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating && !show_journal) {
             draw_party_strip(scene, font, party, hirelings);
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
@@ -4477,13 +4569,17 @@ int main(int argc, char** argv) {
                 y += line;
             }
         }
+        if (show_journal && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+            draw_journal(scene, font, quest_texts, award_texts, script_state.bits,
+                         script_state.awards);
+        }
         if (creating) {
             draw_creation(scene, font, cache, party, create_slot, stat_descriptions,
                           class_descriptions);
         }
 
         // The map's name, drawn with the game's own font.
-        if (font.glyph_count() > 0 && !creating) {
+        if (font.glyph_count() > 0 && !creating && !show_journal) {
             game::draw_text(scene.framebuffer(), font, 8, 6, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }

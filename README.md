@@ -222,6 +222,10 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **A journal at last**: J opens the page the walker has been keeping all
+  along — every held quest bit's note in `Quests.txt`'s own words, the
+  honors beneath — and `--journal` opens it from the command line for
+  reproducing.
 - **The fight found its range**: a monster whose Miss column names a
   missile — Arrow, Fire, Elec, Cold, Pois, Ener, Magic — now attacks from
   afar, its shot flying as a frame-table sprite (the arrow's own "ARRA", the
