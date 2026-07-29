@@ -2310,6 +2310,35 @@ int main(int argc, char** argv) {
         ambient.update(camera.position, ambient_sources, session.sounds);
         // The fight's own vocabulary: each monster's attack and death play
         // the `DSOUNDS.BIN` set its DMONLIST record names at +0x08.
+        // A shot from range flies the Miss column's kind at the party: the
+        // sprite for each kind is this engine's pick from the frame table
+        // ("ARRA" for an arrow, the spell bolts for the elements).
+        for (const std::size_t shooter : battle.take_shots()) {
+            if (shooter >= session.actors.size()) {
+                continue;
+            }
+            const int mid = session.actors[shooter].monster_id;
+            const auto* row = mid > 0 && static_cast<std::size_t>(mid) <=
+                                             monster_stats.entries().size()
+                                  ? &monster_stats.entries()[static_cast<std::size_t>(mid) - 1]
+                                  : nullptr;
+            if (row == nullptr) {
+                continue;
+            }
+            const std::string_view kind = game::missile_kind(*row);
+            const std::string_view sprite = kind == "Arrow"  ? "ARRA"
+                                            : kind == "Fire" ? "fire04"
+                                            : kind == "Elec" ? "air04"
+                                            : kind == "Cold" ? "cold04"
+                                            : kind == "Pois" ? "earth04"
+                                                             : "dark08";
+            game::ActiveLaunch bolt;
+            bolt.animation = std::string(sprite);
+            bolt.position = session.actors[shooter].position;
+            bolt.position.y += 32.0f;
+            bolt.target = camera.position;
+            launches.push_back(std::move(bolt));
+        }
         for (const auto& noise : battle.take_noises()) {
             if (noise.actor >= session.actors.size()) {
                 continue;
@@ -4221,17 +4250,36 @@ int main(int argc, char** argv) {
         }
 
         // A blow lands on whatever the party is aiming at, in reach, alive.
+        // A drawn bow — the Missile equip type, the item table's own word —
+        // reaches to missile range; everyone else needs arm's length.
+        const auto reach_of = [&](const game::Character& who) {
+            const int held = who.equipped[static_cast<std::size_t>(game::Slot::Weapon)];
+            const auto* row = held > 0 ? item_stats.at(static_cast<std::size_t>(held)) : nullptr;
+            return row != nullptr && row->equip_type == data::ItemEquipType::Missile
+                       ? game::kMissileRange
+                       : game::kPartyReach;
+        };
         if (want_strike && party_recovery <= 0.0f) {
             const render::Vec3 forward = camera.forward();
+            float longest = game::kPartyReach;
+            for (const auto& member : party) {
+                if (member.can_act() && !member.afraid()) {
+                    longest = std::max(longest, reach_of(member));
+                }
+            }
             if (const std::size_t target =
-                    game::aimed_actor(session, battle, camera.position, forward, game::kPartyReach);
+                    game::aimed_actor(session, battle, camera.position, forward, longest);
                 target != game::kNoActor) {
+                const float dx = session.actors[target].position.x - camera.position.x;
+                const float dz = session.actors[target].position.z - camera.position.z;
+                const float away = std::sqrt(dx * dx + dz * dz);
                 for (int tries = 0; tries < 4; ++tries) {
                     const auto who = static_cast<std::size_t>(striker);
                     striker = (striker + 1) % static_cast<int>(party.size());
                     // The unconscious and the held-under act for nobody, and
                     // the afraid keep their feet but lose their swing.
-                    if (!party[who].can_act() || party[who].afraid()) {
+                    if (!party[who].can_act() || party[who].afraid() ||
+                        reach_of(party[who]) < away) {
                         continue;
                     }
                     std::string blow =

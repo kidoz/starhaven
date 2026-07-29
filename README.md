@@ -222,6 +222,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The fight found its range**: a monster whose Miss column names a
+  missile — Arrow, Fire, Elec, Cold, Pois, Ener, Magic — now attacks from
+  afar, its shot flying as a frame-table sprite (the arrow's own "ARRA", the
+  elements' bolt families; the sprite picks and the shared range are the
+  engine's). A drawn bow — the Missile equip type, the item table's word —
+  answers over the same ground while everyone else needs arm's length.
 - **Torch Light and Lloyd's Beacon**: the torch brightens the indoor lamp
   for its cell's own hour per point of skill (this renderer has no light
   radius, so the whole lamp glows — marked as our reading); Lloyd's places

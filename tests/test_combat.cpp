@@ -631,3 +631,39 @@ TEST_CASE("fear, slow, paralysis and charm do what their spells say", "[combat]"
     }
     REQUIRE(hostile);
 }
+
+TEST_CASE("only a missile-armed monster attacks from range", "[combat]") {
+    // An archer with an Arrow in its Miss column, standing far away.
+    std::string body =
+        "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
+        "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
+        "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
+    body += "1\tArcherA\tArcher\t2\t20\t0\t24\t0\t0\tN\tMed\tAggress\t4\t200\t100\t0\t0\tPhys"
+            "\t1d4\tArrow\t100\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::MonsterStatsTable archers;
+    REQUIRE(data::MonsterStatsTable::parse(table, archers) == data::MonsterStatsError::None);
+    REQUIRE(has_missile(archers.entries()[0]));
+    REQUIRE(missile_kind(archers.entries()[0]) == "Arrow");
+
+    const auto far_session = with_monster({1200, 0, 0});
+    std::array<Character, 4> party{fighter(), fighter(), fighter(), fighter()};
+    Battle battle;
+    battle.reset(far_session, archers, 5);
+    bool shot = false;
+    for (int i = 0; i < 10 && !shot; ++i) {
+        shot = !battle.update(0.5f, far_session, archers, {}, party, {0, 0, 0}).empty();
+    }
+    REQUIRE(shot);
+    REQUIRE_FALSE(battle.take_shots().empty());
+
+    // The same monster with no missile stays quiet at that distance.
+    const auto melee_only = monsters("20", "0", "1d4");
+    REQUIRE_FALSE(has_missile(melee_only.entries()[0]));
+    Battle idle;
+    idle.reset(far_session, melee_only, 5);
+    for (int i = 0; i < 10; ++i) {
+        REQUIRE(idle.update(0.5f, far_session, melee_only, {}, party, {0, 0, 0}).empty());
+    }
+}

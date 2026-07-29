@@ -42,6 +42,34 @@ inline constexpr float kMeleeRange = 400.0f;
 // closes the distance can be answered.
 inline constexpr float kPartyReach = kMeleeRange;
 
+// How far a missile carries, both ways: a monster whose attack column names
+// one ("Arrow", "Fire", "Elec"...) shoots from here, and a bow answers over
+// the same ground. The table names the missiles, not their range; this
+// distance is the engine's own. `inferred`
+inline constexpr float kMissileRange = 2048.0f;
+
+// Whether any of a monster's two attacks is a missile: the Miss column's
+// "0" means none.
+[[nodiscard]] inline bool has_missile(const data::MonsterStatsEntry& monster) noexcept {
+    for (const auto& attack : monster.attacks) {
+        if (!attack.missile.empty() && attack.missile != "0") {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The Miss column's kind, for the caller that flies a sprite for it.
+[[nodiscard]] inline std::string_view missile_kind(
+    const data::MonsterStatsEntry& monster) noexcept {
+    for (const auto& attack : monster.attacks) {
+        if (!attack.missile.empty() && attack.missile != "0") {
+            return attack.missile;
+        }
+    }
+    return {};
+}
+
 // A character with no weapon. `inferred`
 inline constexpr int kBareHandSides = 3;
 
@@ -302,6 +330,10 @@ public:
     };
     [[nodiscard]] std::vector<Noise> take_noises() { return std::exchange(noises_, {}); }
 
+    // The shots fired since last asked: which actor loosed one, for the
+    // caller to fly its Miss column's kind at the party.
+    [[nodiscard]] std::vector<std::size_t> take_shots() { return std::exchange(shots_, {}); }
+
     // And the gold, which is the party's rather than any one character's.
     [[nodiscard]] int unclaimed_gold() const noexcept { return gold_; }
     int take_gold() noexcept {
@@ -483,20 +515,29 @@ public:
             const auto& actor = session.actors[i];
             const float dx = actor.position.x - eye.x;
             const float dz = actor.position.z - eye.z;
-            if (dx * dx + dz * dz > kMeleeRange * kMeleeRange) {
-                continue;
-            }
+            const float range2 = dx * dx + dz * dz;
             const auto id = static_cast<std::size_t>(actor.monster_id);
             if (id == 0 || id > monsters.entries().size()) {
                 continue;
             }
             const auto& monster = monsters.entries()[id - 1];
+            // Past arm's reach, only a monster whose Miss column names a
+            // missile attacks — and its shot is reported for the caller to
+            // fly.
+            const bool in_melee = range2 <= kMeleeRange * kMeleeRange;
+            if (!in_melee &&
+                (range2 > kMissileRange * kMissileRange || !has_missile(monster))) {
+                continue;
+            }
             // Slow "doubles the recovery rate of a single monster".
             c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale *
                          (c.slowed > 0.0f ? 2.0f : 1.0f);
 
             if (std::string what = swing(monster, spells, party, now); !what.empty()) {
                 noises_.push_back({i, 0});
+                if (!in_melee) {
+                    shots_.push_back(i);
+                }
                 last = std::move(what);
             }
         }
@@ -714,6 +755,7 @@ private:
 
     std::vector<Combatant> combatants_;
     std::vector<Noise> noises_;
+    std::vector<std::size_t> shots_;
     int experience_ = 0;
     int gold_ = 0;
     std::vector<int> loot_;
