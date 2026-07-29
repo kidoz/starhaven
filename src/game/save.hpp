@@ -158,6 +158,8 @@ struct SaveState {
         for (const bool broken : who.equipped_broken) {
             out << "\t" << (broken ? 1 : 0);
         }
+        out << "\t" << who.poisoned_minute << "\t" << who.diseased_minute << "\t"
+            << who.affliction_minute;
         out << "\n";
         for (const auto& item : state.packs[i]) {
             out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
@@ -313,6 +315,9 @@ struct SaveState {
             for (auto&& broken : who.equipped_broken) {
                 broken = next_int() != 0;
             }
+            who.poisoned_minute = next_int();
+            who.diseased_minute = next_int();
+            who.affliction_minute = next_int();
         } else if (kind == "attributes" || kind == "resistances" || kind == "equipped") {
             const auto i = static_cast<std::size_t>(next_int());
             if (i >= out.party.size()) {

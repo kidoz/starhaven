@@ -180,3 +180,20 @@ TEST_CASE("the party's name round-trips", "[save]") {
     REQUIRE(parse_save(save_text(state), after));
     REQUIRE(after.reputation == -12);
 }
+
+TEST_CASE("the conditions' minutes round-trip with them", "[save]") {
+    SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.party[1].poisoned = 2;
+    state.party[1].poisoned_minute = 480;
+    state.party[1].affliction = "Weak";
+    state.party[1].affliction_minute = 520;
+    SaveState after;
+    REQUIRE(parse_save(save_text(state), after));
+    REQUIRE(after.party[1].poisoned_minute == 480);
+    REQUIRE(after.party[1].affliction_minute == 520);
+    // An old save's missing stamps read as minute zero, not garbage.
+    SaveState old;
+    REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\n", old));
+    REQUIRE(old.party[0].poisoned_minute == 0);
+}

@@ -1933,12 +1933,20 @@ int main(int argc, char** argv) {
     // Stone and Eradicated stay a temple's business, the cures' own prose
     // sending them there. Returns the message, or nothing when nobody
     // suffers what this spell lifts.
-    const auto cure_with = [&](const data::SpellStatsEntry& spell) -> std::string {
+    const auto cure_with = [&](const data::SpellStatsEntry& spell,
+                               int school_points) -> std::string {
         const data::SpellCure cure = data::parse_spell_cure(spell);
         if (cure.empty()) {
             return {};
         }
+        // "If you cast this spell in time": the window grows with skill.
+        // An hour of grace per point of the school is the engine's own
+        // scale; past it, the prose sends you to a temple, and so does this.
+        const std::int64_t window =
+            static_cast<std::int64_t>(std::max(1, school_points)) * game::kMinutesPerHour;
+        const std::int64_t now = clock.minutes();
         std::string cured;
+        bool too_late = false;
         for (auto& member : party) {
             if (member.dead() || member.affliction == "Stone" ||
                 member.affliction == "Eradicated") {
@@ -1946,17 +1954,29 @@ int main(int argc, char** argv) {
             }
             bool lifted = false;
             if (cure.poison && member.poisoned > 0) {
-                member.poisoned = 0;
-                lifted = true;
+                if (now - member.poisoned_minute <= window) {
+                    member.poisoned = 0;
+                    lifted = true;
+                } else {
+                    too_late = true;
+                }
             }
             if (cure.disease && member.diseased > 0) {
-                member.diseased = 0;
-                lifted = true;
+                if (now - member.diseased_minute <= window) {
+                    member.diseased = 0;
+                    lifted = true;
+                } else {
+                    too_late = true;
+                }
             }
             if (!cure.affliction.empty() &&
                 member.affliction.substr(0, cure.affliction.size()) == cure.affliction) {
-                member.affliction.clear();
-                lifted = true;
+                if (now - member.affliction_minute <= window) {
+                    member.affliction.clear();
+                    lifted = true;
+                } else {
+                    too_late = true;
+                }
             }
             if (lifted) {
                 cured = member.name;
@@ -1967,8 +1987,14 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        return cured.empty() ? std::string{}
-                             : data::cp1252_to_utf8(spell.name) + " lifts " + cured + "'s burden";
+        if (!cured.empty()) {
+            return data::cp1252_to_utf8(spell.name) + " lifts " + cured + "'s burden";
+        }
+        if (too_late) {
+            return data::cp1252_to_utf8(spell.name) +
+                   " comes too late; only a temple can help now";
+        }
+        return {};
     };
 
     // The condition a spell lays on a monster, by its Spells.txt row —
@@ -3202,7 +3228,9 @@ int main(int argc, char** argv) {
                                                 spell->element, party[who].name, session,
                                                 monster_stats, item_stats, random_items,
                                                 standard_bonuses, special_bonuses);
-                        } else if (std::string lifted = cure_with(*spell); !lifted.empty()) {
+                        } else if (std::string lifted =
+                                       cure_with(*spell, spell_skill_of(party[who], *spell));
+                                   !lifted.empty()) {
                             what = party[who].name + " reads " +
                                    data::cp1252_to_utf8(row->name) + ": " + lifted;
                         } else if (spell_id == 21) {
@@ -3444,7 +3472,9 @@ int main(int argc, char** argv) {
                         if (spell == nullptr || caster.spell_points < spell->cost_normal) {
                             continue;
                         }
-                        if (std::string lifted = cure_with(*spell); !lifted.empty()) {
+                        if (std::string lifted =
+                                cure_with(*spell, spell_skill_of(caster, *spell));
+                            !lifted.empty()) {
                             caster.spell_points -= spell->cost_normal;
                             pick_up_message = caster.name + " casts: " + lifted;
                             pick_up_shown = SDL_GetTicks();
@@ -3614,7 +3644,7 @@ int main(int argc, char** argv) {
             return battle.alive(actor) && battle.can_move(actor);
         });
         if (std::string blow = battle.update(in.dt, session, monster_stats, spell_stats, party,
-                                             camera.position);
+                                             camera.position, clock.minutes());
             !blow.empty()) {
             pick_up_message = std::move(blow);
             pick_up_shown = SDL_GetTicks();

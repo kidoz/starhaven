@@ -63,6 +63,7 @@ inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool d
         if (!fed) {
             if (who.hit_points > 0 && who.affliction.empty()) {
                 who.affliction = "Weak";
+                who.affliction_minute = clock.minutes();
             }
             continue;
         }

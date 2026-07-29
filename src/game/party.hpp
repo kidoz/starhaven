@@ -173,6 +173,12 @@ struct Character {
     int diseased = 0;
     std::string affliction;
 
+    // When each landed, in clock minutes: the cures all warn of a "point of
+    // no return", so a condition's age is what they check against.
+    std::int64_t poisoned_minute = 0;
+    std::int64_t diseased_minute = 0;
+    std::int64_t affliction_minute = 0;
+
     // What has been broken on the body, slot by slot: a broken weapon
     // swings as a fist and broken armour counts for nothing.
     std::array<bool, kSlotCount> equipped_broken{};

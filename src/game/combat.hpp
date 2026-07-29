@@ -453,7 +453,7 @@ public:
     std::string update(float dt, const world::MapSession& session,
                        const data::MonsterStatsTable& monsters,
                        const data::SpellStatsTable& spells, std::array<Character, 4>& party,
-                       const render::Vec3& eye) {
+                       const render::Vec3& eye, std::int64_t now = 0) {
         std::string last;
         if (combatants_.size() != session.actors.size()) {
             return last;
@@ -495,7 +495,7 @@ public:
             c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale *
                          (c.slowed > 0.0f ? 2.0f : 1.0f);
 
-            if (std::string what = swing(monster, spells, party); !what.empty()) {
+            if (std::string what = swing(monster, spells, party, now); !what.empty()) {
                 noises_.push_back({i, 0});
                 last = std::move(what);
             }
@@ -562,8 +562,8 @@ private:
     // One monster's blow at whoever in the party is not yet dead — the
     // unconscious can still be hit, and a blow that lands on one kills them.
     // `inferred`
-    std::string swing(const data::MonsterStatsEntry& monster, const data::SpellStatsTable& spells,
-                      std::array<Character, 4>& party) {
+    std::string swing(const data::MonsterStatsEntry& monster, const data::SpellStatsTable& spells,  // NOLINT
+                      std::array<Character, 4>& party, std::int64_t now = 0) {
         std::vector<std::size_t> standing;
         for (std::size_t i = 0; i < party.size(); ++i) {
             if (!party[i].dead()) {
@@ -639,11 +639,13 @@ private:
                 if (bonus.substr(0, 6) == "Poison" || bonus.substr(0, 4) == "Pois") {
                     if (level > target.poisoned) {
                         target.poisoned = level;
+                        target.poisoned_minute = now;
                         what += ", poisoning them";
                     }
                 } else if (bonus.substr(0, 7) == "Disease") {
                     if (level > target.diseased) {
                         target.diseased = level;
+                        target.diseased_minute = now;
                         what += ", infecting them";
                     }
                 } else if (bonus == "Uncon") {
@@ -678,6 +680,7 @@ private:
                            bonus.substr(0, 5) == "Curse") {
                     if (target.affliction.empty()) {
                         target.affliction = std::string(bonus.substr(0, bonus.find('x')));
+                        target.affliction_minute = now;
                         what += ", leaving them " + target.affliction;
                     }
                 }

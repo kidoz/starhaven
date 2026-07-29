@@ -633,7 +633,10 @@ their targets plainly — "Cures poison", "Removes the afraid condition",
 vocabulary the monster column writes, misspellings included, so the engine
 lifts exactly what each says: from the first sufferer, or from the whole
 party where the prose says "all". The "point of no return" the cures all
-warn of — a condition too old to lift — is not modelled yet and noted here.
+warn of is modelled now: conditions carry the clock minute they landed, and
+a cure reaches back an hour per point of its school's skill — the scale is
+the engine's own, the prose naming growth but no number — past which "the
+only way ... is to visit a temple", exactly as each cure writes.
 
 Four of the unnumbered 74 are conditions, and their prose is exact enough to
 act on: **Charm** (61) "removes any hostile feelings ... If this creature
