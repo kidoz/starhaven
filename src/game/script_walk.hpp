@@ -40,6 +40,10 @@ struct WalkState {
     // moved, zero meaning away.
     std::map<std::pair<int, int>, int> npc_topics;
     std::map<int, int> npc_places;
+
+    // What the random-jump opcode rolls with: a small xorshift state the
+    // walker advances on each roll, so a test can pin the dice.
+    std::uint32_t luck = 0x9E3779B9u;
 };
 
 // What one use of one event did.
@@ -72,19 +76,34 @@ struct WalkOutcome {
     // the session's.
     std::vector<world::MapLaunch> launches;
 
+    // A question the event stopped at: string indices for the prompt and
+    // the two spellings of the accepted answer, the step a match jumps to,
+    // and the one a miss falls through to. The caller collects the typing
+    // and walks the event again from whichever step the answer earns.
+    struct Ask {
+        int prompt = 0;
+        int answer_a = 0;
+        int answer_b = 0;
+        std::uint8_t step_on_match = 0;
+        std::uint8_t step_on_miss = 0;
+    };
+    std::optional<Ask> ask;
+
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
                chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
-               !summons.empty() || !launches.empty();
+               !summons.empty() || !launches.empty() || ask.has_value();
     }
 };
 
 // Run one event against the party's state. Opcodes that are not yet decoded
 // are skipped, which errs toward a door that works over one that jams.
+// `resume_at` walks from a named sequence instead of the top — how an
+// answered question continues at the step its answer earned.
 [[nodiscard]] inline WalkOutcome walk_event(const world::MapScript& script, std::uint16_t id,
-                                            WalkState& state) {
+                                            WalkState& state, int resume_at = -1) {
     WalkOutcome out;
     const auto steps = script.event(id);
     if (steps.empty()) {
@@ -111,6 +130,9 @@ struct WalkOutcome {
     };
 
     std::size_t at = 0;
+    if (resume_at >= 0) {
+        at = step_at(static_cast<std::uint8_t>(resume_at));
+    }
     for (int budget = kWalkBudget; at < steps.size() && budget > 0; --budget) {
         const auto& step = steps[at];
         const auto& a = step.arguments;
@@ -260,6 +282,36 @@ struct WalkOutcome {
                 out.launches.push_back(*launch);
             }
             break;
+        case world::kOpcodeRandomJump: {
+            if (a.size() < 6) {
+                break;
+            }
+            // One of the six slots, rolled by the state's own dice; a zero
+            // slot falls through to the next step.
+            state.luck ^= state.luck << 13;
+            state.luck ^= state.luck >> 17;
+            state.luck ^= state.luck << 5;
+            const std::uint8_t slot = a[state.luck % 6];
+            if (slot != 0) {
+                at = step_at(slot);
+            }
+            break;
+        }
+        case world::kOpcodeAsk: {
+            if (a.size() < 13) {
+                break;
+            }
+            // The walk stops at a question; the caller returns with the
+            // typed answer's verdict via `resume_at`.
+            WalkOutcome::Ask ask;
+            ask.prompt = static_cast<int>(a[0]) | (a[1] << 8);
+            ask.answer_a = static_cast<int>(a[4]) | (a[5] << 8);
+            ask.answer_b = static_cast<int>(a[8]) | (a[9] << 8);
+            ask.step_on_match = a[12];
+            ask.step_on_miss = at < steps.size() ? steps[at].sequence : step.sequence;
+            out.ask = ask;
+            return out;
+        }
         case world::kOpcodeSetTopic:
             if (a.size() >= 9 && a[4] < 3) {
                 std::uint32_t npc = 0, topic = 0;

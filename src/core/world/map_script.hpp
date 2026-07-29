@@ -82,6 +82,33 @@ inline constexpr std::uint8_t kOpcodeTake = 17;
 inline constexpr std::uint8_t kOpcodeSet = 18;
 inline constexpr std::uint8_t kOpcodeGoto = 36;
 
+// Jump to one of up to six steps at random, zero-padded: every one of the
+// 452 nonzero entries across 88 full uses is a step of its own event. The
+// mine at D05 rolls between three payouts and two cave-ins — a step listed
+// twice is favoured, which uniform choice over the slots reproduces — and
+// D16's teleporter pads roll between four destinations. A zero entry falls
+// through. Reproduce with `evt_info --asks`.
+inline constexpr std::uint8_t kOpcodeRandomJump = 25;
+
+// Ask for a typed answer: `[prompt u32][answer u32][answer u32][step u8]`.
+// All three u32s are the map's own string indices and the byte is a step of
+// its own event on 19 of 19 full uses — "What's the password?" answered by
+// "JBARD" or "jbard", the Pyramid's "Answer?" by "kcopS", a Yes/No by "Yes"
+// or "Y". A match jumps to the step; a miss falls through to what follows,
+// which is where every one of these events keeps its "Wrong!". Matching
+// ignoring case is `inferred` from the pairs being case variants.
+inline constexpr std::uint8_t kOpcodeAsk = 26;
+
+// Turn an event on or off: `[event u32][on/off u8]`. The byte is 0 or 1 on
+// all 312 uses, and the id is an event of its own script on 175, of
+// `GLOBAL.EVT` on another 106 — the fallback the engine's event lookup
+// already takes — zero on 7, and on 12 the Oracle's uses name events of the
+// Control Center next door, its sibling map. The remaining 12 resolve
+// nowhere, like the 22 dangling face ids. That 0 disables and 1 enables is
+// `inferred` from the Oracle's matched on/off sets. Reproduce with
+// `evt_info --asks`.
+inline constexpr std::uint8_t kOpcodeSwitch = 32;
+
 // The quest chain's NPC rewrites. Setting a topic is `[npc u32][slot u8]
 // [topic u32]` — 132 of 132 uses name an NPC row, the slot is 0..2 like the
 // NPC table's three topic columns, and the topic resolves or is zero, which

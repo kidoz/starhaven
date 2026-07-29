@@ -268,3 +268,53 @@ TEST_CASE("a trap's event puts a sprite in the air", "[walk]") {
     REQUIRE(outcome.launches[0].aimless());
     REQUIRE(outcome.acted());
 }
+
+TEST_CASE("a question stops the walk and an answer resumes it", "[walk]") {
+    // Opcode 26, the shipped shape: message, ask, the miss branch, then the
+    // match branch at the step the record names.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 9, 0, kOpcodeLongMessage, {5, 0, 0, 0});
+    push_step(payload, 9, 1, kOpcodeAsk, {6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 4});
+    push_step(payload, 9, 2, kOpcodeMessage, {9, 0, 0, 0});  // "Wrong!"
+    push_step(payload, 9, 3, kOpcodeEnd, {0});
+    push_step(payload, 9, 4, kOpcodeMessage, {10, 0, 0, 0});  // "You may pass"
+    const MapScript script = parse(payload);
+
+    WalkState state;
+    const WalkOutcome asked = walk_event(script, 9, state);
+    REQUIRE(asked.ask.has_value());
+    REQUIRE(asked.ask->prompt == 6);
+    REQUIRE(asked.ask->answer_a == 7);
+    REQUIRE(asked.ask->answer_b == 8);
+    REQUIRE(asked.ask->step_on_match == 4);
+    REQUIRE(asked.ask->step_on_miss == 2);
+    REQUIRE(asked.said == std::vector<int>{5});
+    REQUIRE(asked.acted());
+
+    const WalkOutcome matched = walk_event(script, 9, state, asked.ask->step_on_match);
+    REQUIRE(matched.said == std::vector<int>{10});
+    const WalkOutcome missed = walk_event(script, 9, state, asked.ask->step_on_miss);
+    REQUIRE(missed.said == std::vector<int>{9});
+}
+
+TEST_CASE("a random jump rolls one of its listed steps", "[walk]") {
+    // Opcode 25: six slots, zero-padded. Whatever the dice say, the walk
+    // must land on a listed step's message or, through a zero, fall through.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 3, 0, kOpcodeRandomJump, {2, 4, 0, 0, 0, 0});
+    push_step(payload, 3, 1, kOpcodeMessage, {1, 0, 0, 0});  // fall-through
+    push_step(payload, 3, 2, kOpcodeMessage, {2, 0, 0, 0});
+    push_step(payload, 3, 3, kOpcodeEnd, {0});
+    push_step(payload, 3, 4, kOpcodeMessage, {4, 0, 0, 0});
+    const MapScript script = parse(payload);
+
+    std::set<int> seen;
+    WalkState state;
+    for (int roll = 0; roll < 64; ++roll) {
+        const WalkOutcome outcome = walk_event(script, 3, state);
+        REQUIRE(outcome.said.size() >= 1);
+        seen.insert(outcome.said.front());
+    }
+    // All three doors of this little roulette get walked through eventually.
+    REQUIRE(seen == std::set<int>{1, 2, 4});
+}

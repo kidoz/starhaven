@@ -1045,6 +1045,120 @@ int do_launches(const starhaven::lod::LodArchive& icons) {
     return 0;
 }
 
+// Research mode: the three shelf opcodes, each against its candidate reading.
+// 26 as a typed-answer ask: three string indices and a success step. 25 as a
+// random jump: up to six step numbers, zero-padded. 32 as an event switch:
+// an event id of this same script, and on or off.
+int do_asks(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+
+    std::span<const std::byte> raw;
+    std::size_t ask_uses = 0, ask_strings = 0, ask_steps = 0, ask_echo = 0;
+    std::size_t jump_uses = 0, jump_values = 0, jump_steps = 0;
+    std::size_t switch_uses = 0, switch_events = 0, switch_flags = 0, switch_global = 0,
+                switch_zero = 0;
+    world::MapScript global_script;
+    if (icons.payload("GLOBAL.EVT", raw) == lod::LodArchive::PayloadError::None) {
+        (void)world::MapScript::parse(raw, global_script);
+    }
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        world::MapStrings strings;
+        const std::string stem = entry.name.substr(0, entry.name.size() - 4);
+        if (icons.payload(stem + ".STR", raw) == lod::LodArchive::PayloadError::None) {
+            (void)world::MapStrings::parse(raw, strings);
+        }
+        const auto step_of = [&script](std::uint16_t event, std::uint8_t sequence) {
+            for (const auto& s : script.event(event)) {
+                if (s.sequence == sequence && s.opcode != world::kOpcodeHeader) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        const auto u32_at = [](const std::vector<std::uint8_t>& a, std::size_t at) {
+            std::uint32_t value = 0;
+            for (int i = 3; i >= 0; --i) {
+                value = (value << 8) | a[at + static_cast<std::size_t>(i)];
+            }
+            return value;
+        };
+        for (const auto& step : script.steps()) {
+            const auto& a = step.arguments;
+            if (step.opcode == 26 && a.size() >= 13) {
+                ++ask_uses;
+                const std::uint32_t prompt = u32_at(a, 0);
+                const std::uint32_t first = u32_at(a, 4);
+                const std::uint32_t second = u32_at(a, 8);
+                const bool resolve = prompt < strings.size() && first < strings.size() &&
+                                     second < strings.size();
+                ask_strings += resolve ? 1 : 0;
+                ask_steps += step_of(step.event_id, a[12]) ? 1 : 0;
+                if (resolve) {
+                    // The two answers as one word: equal, or apart only by
+                    // case or an article.
+                    std::string low1, low2;
+                    for (const char c : strings.at(first)) {
+                        low1 += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    }
+                    for (const char c : strings.at(second)) {
+                        low2 += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    }
+                    ask_echo += low1 == low2 || low2.find(low1) != std::string::npos ||
+                                        low1.find(low2) != std::string::npos
+                                    ? 1
+                                    : 0;
+                    std::cout << stem << " " << step.event_id << ": \""
+                              << strings.at(prompt) << "\" -> \"" << strings.at(first)
+                              << "\" / \"" << strings.at(second) << "\"\n";
+                }
+            } else if (step.opcode == 25 && a.size() >= 6) {
+                ++jump_uses;
+                for (std::size_t i = 0; i < 6; ++i) {
+                    if (a[i] == 0) {
+                        continue;
+                    }
+                    ++jump_values;
+                    jump_steps += step_of(step.event_id, a[i]) ? 1 : 0;
+                }
+            } else if (step.opcode == 32 && a.size() >= 5) {
+                ++switch_uses;
+                const auto id = static_cast<std::uint16_t>(u32_at(a, 0));
+                const bool defined = script.defines(id);
+                switch_events += defined ? 1 : 0;
+                switch_zero += id == 0 ? 1 : 0;
+                if (!defined && id != 0) {
+                    switch_global += global_script.defines(id) ? 1 : 0;
+                    if (!global_script.defines(id)) {
+                        std::cout << "op32 miss: " << stem << " " << step.event_id << " -> "
+                                  << id << "\n";
+                    }
+                }
+                switch_flags += a[4] <= 1 ? 1 : 0;
+            }
+        }
+    }
+    std::cout << "op26 [prompt u32][answer u32][answer u32][step u8]: " << ask_uses
+              << " full uses; all three strings resolve on " << ask_strings
+              << ", the step exists on " << ask_steps << ", the answers echo on " << ask_echo
+              << "\n";
+    std::cout << "op25 [step u8 x6, zero-padded]: " << jump_uses << " uses, " << jump_values
+              << " nonzero entries, " << jump_steps << " are steps of their own event\n";
+    std::cout << "op32 [event u32][on/off u8]: " << switch_uses
+              << " uses; the id is an event of this script on " << switch_events
+              << ", of GLOBAL.EVT on another " << switch_global << ", zero on " << switch_zero
+              << "; the byte is 0/1 on " << switch_flags << "\n";
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1072,6 +1186,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--asks") {
+        return do_asks(icons);
     }
     if (stem == "--launches") {
         return do_launches(icons);
@@ -1155,7 +1272,7 @@ int main(int argc, char** argv) {
     }
     std::cout << stem << ": " << script.size() << " steps in " << events << " events, "
               << strings.size() << " strings\n";
-    for (std::size_t i = 0; i < strings.size() && i < 12; ++i) {
+    for (std::size_t i = 0; i < strings.size(); ++i) {
         if (!strings.at(i).empty()) {
             std::cout << "  [" << i << "] " << strings.at(i) << "\n";
         }

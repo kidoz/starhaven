@@ -194,7 +194,15 @@ interoperability and compatibility with a legally purchased copy.
   engine flies them from the recorded point toward the recorded target, or at
   the party when the record states none, at an engine-own speed. They fly and
   land; whether they hurt is not in the record. Reproduce a trap with
-  `starhaven CD2.Blv --walk 25`.
+  `starhaven CD2.Blv --walk 25`. Opcode 26 asks for a typed answer — its
+  three u32s are the prompt and two spellings of the accepted word ("JBARD" /
+  "jbard", the Pyramid's "kcopS") and its byte the step a match jumps to, 19
+  of 19 on all three counts — and the engine plays it: the question stops at
+  the message line, the party types, and Enter resumes the event at whichever
+  step the answer earned, the shipped miss branch being every event's own
+  "Wrong!". Opcode 25 rolls one of up to six steps — 452 of 452 nonzero
+  entries are steps of their own event — which is D05's mine paying 400, 600
+  or 800 gold against two chances of "Cave-in!", weights written as repeats.
 - **Opcode 6 is the door out, and the world is connected**: its argument is a
   spawn point — X, Y, Z and a facing — and a NUL-terminated destination, either
   `"0"` for a teleport within the map or a map file name. Of the 99 named

@@ -1193,6 +1193,10 @@ int main(int argc, char** argv) {
     int start_hour = -1;  // --time, for looking at the world at a given hour
     int start_shop = 0;   // --shop, to open a counter straight away
     int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
+    int walk_from = -1;      // walk the next event from this sequence, not the top
+    int ask_event = -1;      // the event whose question awaits an answer
+    game::WalkOutcome::Ask ask_pending;
+    std::string ask_typed;
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -1730,7 +1734,48 @@ int main(int argc, char** argv) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
-                running = false;
+                if (ask_event >= 0) {
+                    ask_event = -1;  // the question can simply be walked away from
+                } else {
+                    running = false;
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && ask_event >= 0) {
+                // A question holds the keys: letters and digits spell the
+                // answer, Enter gives it, and the event resumes at the step
+                // the answer earns — its own "Wrong!" on a miss.
+                const auto key = event.key.key;
+                if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+                    const auto lower = [](std::string_view text) {
+                        std::string out;
+                        for (const char c : text) {
+                            out += static_cast<char>(
+                                std::tolower(static_cast<unsigned char>(c)));
+                        }
+                        return out;
+                    };
+                    const auto answer_at = [&](int index) {
+                        return index >= 0 && static_cast<std::size_t>(index) <
+                                                 session.script_strings.size()
+                                   ? lower(session.script_strings.at(
+                                         static_cast<std::size_t>(index)))
+                                   : std::string();
+                    };
+                    const std::string given = lower(ask_typed);
+                    const bool match = !given.empty() &&
+                                       (given == answer_at(ask_pending.answer_a) ||
+                                        given == answer_at(ask_pending.answer_b));
+                    walk_on_start = ask_event;
+                    walk_from = match ? ask_pending.step_on_match : ask_pending.step_on_miss;
+                    ask_event = -1;
+                } else if (key == SDLK_BACKSPACE && !ask_typed.empty()) {
+                    ask_typed.pop_back();
+                } else if (key == SDLK_SPACE && ask_typed.size() < 40) {
+                    ask_typed += ' ';
+                } else if (key >= SDLK_A && key <= SDLK_Z && ask_typed.size() < 40) {
+                    ask_typed += static_cast<char>('a' + (key - SDLK_A));
+                } else if (key >= SDLK_0 && key <= SDLK_9 && ask_typed.size() < 40) {
+                    ask_typed += static_cast<char>('0' + (key - SDLK_0));
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB) {
                 show_directory = !show_directory;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C) {
@@ -2616,7 +2661,8 @@ int main(int argc, char** argv) {
             }
             const bool local = session.script.defines(aimed.event_id);
             const game::WalkOutcome outcome = game::walk_event(
-                local ? session.script : global_script, aimed.event_id, script_state);
+                local ? session.script : global_script, aimed.event_id, script_state, walk_from);
+            walk_from = -1;
             gold = script_state.gold;
 
             // What it said, resolved before any travel drops these strings.
@@ -2713,6 +2759,12 @@ int main(int argc, char** argv) {
                 auto started = game::start_launches(outcome.launches, session.sprite_frames,
                                                     camera.position);
                 launches.insert(launches.end(), started.begin(), started.end());
+            }
+            // A question stops the walk and waits at the message line.
+            if (outcome.ask && local) {
+                ask_event = aimed.event_id;
+                ask_pending = *outcome.ask;
+                ask_typed.clear();
             }
 
             if (doors_moved) {
@@ -2856,6 +2908,18 @@ int main(int argc, char** argv) {
             game::draw_text(scene.framebuffer(), font, kWidth - font.text_width(clock.text()) - 8,
                             8, clock.text(), render::Color{210, 205, 185, 255},
                             render::Color{0, 0, 0, 255});
+            if (ask_event >= 0) {
+                const int prompt = ask_pending.prompt;
+                std::string line =
+                    prompt >= 0 &&
+                            static_cast<std::size_t>(prompt) < session.script_strings.size()
+                        ? data::cp1252_to_utf8(std::string(session.script_strings.at(
+                              static_cast<std::size_t>(prompt))))
+                        : std::string("Answer?");
+                line += " " + ask_typed + "_";
+                game::draw_text(scene.framebuffer(), font, 8, 24, line,
+                                render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
+            }
             if (!pick_up_message.empty() && SDL_GetTicks() - pick_up_shown < 3000) {
                 game::draw_text(scene.framebuffer(), font, 8, 8, pick_up_message,
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});

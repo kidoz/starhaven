@@ -1,6 +1,6 @@
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; nineteen
+Status: **verified** for the container and the record structure; twenty-two
 opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
@@ -442,24 +442,58 @@ zeros on 83 of 154 — a launch whose target the record does not state. The
 u8 between is `unknown` — a speed or a cadence; the spiral's three throws
 of each object carry 1, 5 and 9. Reproduce with `evt_info --launches`.
 
-### Shapes on the shelf
+### Opcode 25 rolls a step
 
-Three more opcodes gave up their argument shapes without giving up their
-names; recorded so the next pass starts from here. Reproduce with
-`evt_info --catalog <opcode>`.
+`[step u8 x6, zero-padded]`, 100 uses of which 88 parse full. Every one of
+the **452 nonzero entries is a step of its own event**. `observed` The mine
+at D05 rolls the same six-slot tuple on nine dig sites — 400, 600 or 800
+gold, or one of two "Cave-in!" steps, with a favoured step listed twice —
+and D16's teleporter pads each roll among four exit teleports. Uniform
+choice over the six slots reproduces the repeats-as-weights reading; a zero
+slot falls through. That the choice is uniform is `inferred`; the slots and
+their targets are the file's. Reproduce with `evt_info --asks`.
 
-| Opcode | Uses | Shape | What shows |
-| ---: | ---: | --- | --- |
-| 25 | 100 | six small u8s | one constant tuple repeated across a map's events |
-| 26 | 39 | `[u32 a][u32 b][u32 c][u8]` | three **consecutive** ids — (14,15,16), (21,22,23) — and a byte |
-| 32 | 312 | `[u32 id][u8 0/1]` | overwhelmingly the Oracle's: its events switch local ids on and off in matched sets of four |
+### Opcode 26 asks for a typed answer
 
-Opcode 32's Autonote and Award readings are out: the ids run past both
+`[prompt u32][answer u32][answer u32][step u8]`, 39 uses of which 19 parse
+full (the rest sit in the misframed shared scripts). On all 19: the three
+u32s are the map's own string indices, the two answers are one word in two
+spellings, and the byte is a step of its own event. `observed` The strings
+say what it is outright:
+
+| Map | Prompt | Answers |
+| --- | --- | --- |
+| CD1 | "What's the password?" | "JBARD" / "jbard" |
+| CD2 | "Steal (Yes/No)?" | "Yes" / "Y" |
+| D08 | "Answer?" | "dark" / "darkness", "arrow" / "an arrow", "time", "fish" / "a fish" |
+| Pyramid | "Answer?" | "kriK", "kcopS", "uluS", "aruhU", "yttocS", "yoccM" |
+
+The Pyramid's answers are Star Trek's bridge crew reversed, and its plaque
+event's long message carries the riddle. A match jumps to the named step —
+"Ok!", ""Who told you!  Alright, you may pass!"" — and a miss falls through
+to what follows, which in every shipped event is the "Wrong!"/"Incorrect."
+branch. Matching ignoring case is `inferred` from the pairs being case
+variants. The engine walks it: the question stops the walk, the message
+line collects the typing, and Enter resumes the event at whichever step the
+answer earned.
+
+### Opcode 32 turns an event on or off
+
+`[event u32][on/off u8]`, 312 uses. The byte is 0 or 1 on all 312, and the
+id resolves through the same lookup order a face's event id takes: an event
+of its own script on **175**, of `GLOBAL.EVT` on another **106**, zero on 7.
+Of the remaining 24, half are the Oracle's, naming events of the Control
+Center next door — its sibling map — and half resolve nowhere, like the 22
+dangling face ids. `observed` Pyramid's event 14 switches its riddle events
+33..43 off and back on wholesale, and the Oracle throws its ids in matched
+on/off sets of four beside a door — which is what reads 0 as disable and 1
+as enable. `inferred` for that polarity. Reproduce with `evt_info --asks`.
+
+The earlier Autonote and Award readings are out: the ids run past both
 tables' ends, and the uses concentrate in `ORACLE.EVT` rather than where
-notes are earned. `observed` for the shapes; every reading above is at most
-a lean.
+notes are earned.
 
-The other **66 opcodes are `unknown`.** An early test read opcode 4 as a
+The other **63 opcodes are `unknown`.** An early test read opcode 4 as a
 string index over *all* its uses and saw the argument leave the range 522
 times — those were the establishment events, whose headers are `2DEvents.txt`
 rows; split by kind, the reading holds (see "Opcode 4 opens an event").
