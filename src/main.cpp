@@ -2323,6 +2323,12 @@ int main(int argc, char** argv) {
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
     int sheet_page = 0;  // which of the sheet's four framed pages shows
     int journal_page = 0;  // 0 the quests, 1 the chronicle
+    // The arena's tournament, rebuilt engine-side: the original kept its
+    // waves and purses in the executable, so every number here — the four
+    // ranks' level bands, counts and prizes — is this engine's own and
+    // says so. The counter awards 84..87 are the table's.
+    int arena_rank = -1;   // -1 no challenge; 0..3 Page..Lord
+    Mm6Random arena_random{20260730};
     // The spell book: whose is open, which school tab shows, which spell is
     // under the finger, and what each member keeps readied for the cast key.
     int book_member = -1;
@@ -3413,6 +3419,40 @@ int main(int argc, char** argv) {
                     title_credits = !title_credits;
                 } else if (chosen == 3) {
                     running = false;
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && arena_rank < 0 &&
+                       session.file_name == "zarena.blv" && event.key.key >= SDLK_1 &&
+                       event.key.key <= SDLK_4 && shown_member < 0 && shown_pack < 0 &&
+                       open_shop < 0 && !battle.anything_alive()) {
+                // The challenge taken at the gate: the rank picks a level
+                // band and a crowd, both the engine's numbers.
+                arena_rank = static_cast<int>(event.key.key - SDLK_1);
+                const int low = 3 + arena_rank * 12;
+                const int high = 15 + arena_rank * 20;
+                std::vector<int> pool;
+                for (const auto& row : monster_stats.entries()) {
+                    if (row.level >= low && row.level <= high && row.hostility > 0) {
+                        pool.push_back(row.id);
+                    }
+                }
+                const int crowd = 3 + arena_rank * 2;
+                bool any = false;
+                for (int i = 0; i < crowd && !pool.empty(); ++i) {
+                    const int id = pool[arena_random.next() % pool.size()];
+                    const auto [dx, dy] = world::spawn_offset(i, crowd);
+                    const render::Vec3 at{camera.position.x + dx * 4.0f, camera.position.y,
+                                          camera.position.z + dy * 4.0f};
+                    any = world::summon_actor(monster_stats, cache, id, at, session) || any;
+                }
+                if (any) {
+                    battle.recruit(session, monster_stats);
+                    mob.recruit(session, monster_stats);
+                    shown_kind.resize(session.actors.size(), world::MonsterAnimation::Stand);
+                    shown_animation.resize(session.actors.size());
+                    pick_up_message = "The crowd roars";
+                    pick_up_shown = SDL_GetTicks();
+                } else {
+                    arena_rank = -1;
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && chest_art >= 0) {
                 chest_art = -1;
@@ -6340,6 +6380,27 @@ int main(int argc, char** argv) {
                     blit(scene.framebuffer(), cache.icon("MHP_CAPL"), left - 5, top);
                     blit(scene.framebuffer(), cache.icon("MHP_CAPR"), left + 200, top);
                 }
+            }
+            // The arena's judge: the sand cleared with a challenge open
+            // pays the purse and ticks the rank's own counter award. The
+            // purse is the engine's number.
+            if (arena_rank >= 0 && session.file_name == "zarena.blv" &&
+                !battle.anything_alive()) {
+                const int purse = 250 << arena_rank;
+                gold += purse;
+                script_state.awards.insert(84 + arena_rank);
+                script_state.variables[240 + arena_rank] += 1;
+                pick_up_message = "Victory!  The purse is " + std::to_string(purse) +
+                                  " gold; the heralds record it";
+                pick_up_shown = SDL_GetTicks();
+                arena_rank = -1;
+            }
+            if (arena_rank < 0 && session.file_name == "zarena.blv" &&
+                !battle.anything_alive()) {
+                game::draw_text(scene.framebuffer(), font, 24, 40,
+                                "The Arena: 1 Page, 2 Squire, 3 Knight, 4 Lord",
+                                render::Color{235, 225, 170, 255},
+                                render::Color{0, 0, 0, 255});
             }
             // The engine's own readouts keep to the corner no shipped
             // piece claims.

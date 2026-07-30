@@ -1044,6 +1044,13 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The arena fights back**: the standing level got its tournament —
+  1 through 4 at the gate take the Page, Squire, Knight or Lord
+  challenge, a crowd drawn from the monster table's own level bands
+  storms the sand, and clearing it pays the purse and ticks the rank's
+  counter award 84..87 that no script could. The bands, counts and
+  purses are the engine's numbers, marked; the original kept its own in
+  the executable.
 - **The arena found**: awards 84-87 count victories no script grants —
   because the tournament is executable code around a real level:
   `zarena.blv` ships in `Games.lod`, names itself "The Arena", stands

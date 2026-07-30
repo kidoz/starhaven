@@ -279,6 +279,16 @@ public:
     }
 
     // Whether anything on the map is still standing near a point.
+    // Whether any monster still stands, for the arena's judge.
+    [[nodiscard]] bool anything_alive() const noexcept {
+        for (const auto& c : combatants_) {
+            if (c.alive) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     [[nodiscard]] bool anything_near(const world::MapSession& session, const render::Vec3& at,
                                      float range) const noexcept {
         if (combatants_.size() != session.actors.size()) {
