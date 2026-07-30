@@ -108,7 +108,7 @@ void print_usage(const char* argv0) {
               << "             portraits answer clicks; M again returns to the view\n"
               << "  H          cast the readied spell, else the best heal or smite\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
-              << "  R          rest, if nothing is close enough to object\n"
+              << "  R          make camp: rest and heal, sleep to dawn, or wait\n"
               << "  F5/F9      save / load the current slot; F6 turns to the next\n"
               << "  Tab then 1-9  trade with an establishment on this map\n"
               << "  ESC/close  quit\n"
@@ -1864,6 +1864,7 @@ int main(int argc, char** argv) {
     bool start_book = false;     // --book: open the spell book at once
     bool start_map = false;      // --map: open the maps page at once
     bool start_title = false;    // --title: hold the title screen for a capture
+    bool start_rest = false;     // --rest: open the campfire for a capture
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
@@ -1905,6 +1906,8 @@ int main(int argc, char** argv) {
             start_map = true;
         } else if (a == "--title") {
             start_title = true;
+        } else if (a == "--rest") {
+            start_rest = true;
         } else if (a == "--eye") {
             start_eye = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
@@ -2520,6 +2523,9 @@ int main(int argc, char** argv) {
         bool ready = false;
     };
     RoomPlayer room;
+
+    // The campfire screen: R opens it, its buttons choose how long.
+    bool rest_screen = start_rest;
 
     // The opened chest's screen: which CHEST art shows and what was found.
     int chest_art = -1;
@@ -5058,8 +5064,59 @@ int main(int argc, char** argv) {
                 pack_cursor_x = std::clamp(pack_cursor_x, 0, game::kPackWidth - 1);
                 pack_cursor_y = std::clamp(pack_cursor_y, 0, game::kPackHeight - 1);
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R &&
-                       shown_member < 0 && shown_pack < 0) {
-                want_rest = true;
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+                rest_screen = true;
+            } else if (rest_screen &&
+                       (event.type == SDL_EVENT_KEY_DOWN ||
+                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+                // The camp's own buttons: rest and heal, sleep to dawn, or
+                // sit an hour out; the exit plate folds the blanket.
+                int chosen = -1;
+                if (event.type == SDL_EVENT_KEY_DOWN) {
+                    const auto key = event.key.key;
+                    chosen = key >= SDLK_1 && key <= SDLK_3 ? static_cast<int>(key - SDLK_1)
+                             : key == SDLK_ESCAPE           ? 3
+                                                            : -1;
+                } else if (event.button.button == SDL_BUTTON_LEFT) {
+                    const int mx = static_cast<int>(event.button.x);
+                    const int my = static_cast<int>(event.button.y);
+                    if (mx >= 65 && mx < 219) {
+                        if (my >= 241 && my < 268) {
+                            chosen = 0;
+                        } else if (my >= 271 && my < 298) {
+                            chosen = 1;
+                        } else if (my >= 301 && my < 328) {
+                            chosen = 2;
+                        }
+                    }
+                    if (mx >= 285 && mx < 439 && my >= 308 && my < 345) {
+                        chosen = 3;
+                    }
+                }
+                if (chosen == 0) {
+                    want_rest = true;
+                    rest_screen = false;
+                } else if (chosen == 1) {
+                    // Sleep so the eight hours of rest end at five in the
+                    // morning: wait out the difference first.
+                    const int now_minute =
+                        static_cast<int>(clock.minutes() % game::kMinutesPerDay);
+                    const int dawn = 5 * game::kMinutesPerHour;
+                    const int wait =
+                        ((dawn - now_minute - 8 * game::kMinutesPerHour) %
+                             game::kMinutesPerDay +
+                         game::kMinutesPerDay) %
+                        game::kMinutesPerDay;
+                    clock.advance_seconds(static_cast<float>(wait) * 60.0f);
+                    want_rest = true;
+                    rest_screen = false;
+                } else if (chosen == 2) {
+                    clock.advance_seconds(60.0f * 60.0f);
+                    pick_up_message = "An hour passes at the fire";
+                    pick_up_shown = SDL_GetTicks();
+                } else if (chosen == 3) {
+                    rest_screen = false;
+                }
             } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look && !cursor_free) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
@@ -6070,6 +6127,37 @@ int main(int argc, char** argv) {
         if (show_map) {
             draw_map_page(scene, session, camera.position, camera.forward(), map_tile_colors,
                           map_colors_ready);
+        }
+        if (rest_screen && font.glyph_count() > 0) {
+            // The camp: restmain's own panel, its three button slots worn
+            // by restb1..restb3 and the exit plate, the food by the apple
+            // and the hour on the green slab.
+            blit(scene.framebuffer(), cache.icon("restmain"), 8, 8);
+            blit(scene.framebuffer(), cache.icon("restb1"), 65, 241);
+            blit(scene.framebuffer(), cache.icon("restb2"), 65, 271);
+            blit(scene.framebuffer(), cache.icon("restb3"), 65, 301);
+            blit(scene.framebuffer(), cache.icon("restexit"), 285, 308);
+            game::draw_text(scene.framebuffer(), font, 34, 172,
+                            std::to_string(party_food) + " food",
+                            render::Color{50, 35, 20, 255}, {0, 0, 0, 0});
+            game::draw_text(scene.framebuffer(), font, 280, 170, clock.hhmm(),
+                            render::Color{215, 210, 190, 255}, render::Color{0, 0, 0, 255});
+            game::draw_text(scene.framebuffer(), font, 280, 184,
+                            "day " + std::to_string(clock.day() + 1) + ", " +
+                                std::string(clock.weekday()),
+                            render::Color{190, 185, 170, 255}, render::Color{0, 0, 0, 255});
+            // The plates ship blank; the game writes their words, so we do.
+            const render::Color plate_word{55, 38, 22, 255};
+            game::draw_text(scene.framebuffer(), font, 78, 249, "1 Rest and Heal 8 Hours",
+                            plate_word, {0, 0, 0, 0});
+            game::draw_text(scene.framebuffer(), font, 78, 279, "2 Rest until Dawn", plate_word,
+                            {0, 0, 0, 0});
+            game::draw_text(scene.framebuffer(), font, 78, 309, "3 Wait 1 Hour", plate_word,
+                            {0, 0, 0, 0});
+            game::draw_text(scene.framebuffer(), font, 322, 318, "Get Up (Esc)", plate_word,
+                            {0, 0, 0, 0});
+            game::draw_text(scene.framebuffer(), font, 52, 210, "the fire is lit",
+                            render::Color{200, 195, 180, 255}, render::Color{0, 0, 0, 255});
         }
         if (chest_art >= 0 && font.glyph_count() > 0) {
             blit(scene.framebuffer(), cache.icon("CHEST0" + std::to_string(chest_art + 1)), 8, 8);

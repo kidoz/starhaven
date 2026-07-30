@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Rest at the campfire**: R raises `restmain`'s own camp panel — the
+  three plates offering the eight-hour rest, sleep timed to end at dawn,
+  or an hour by the fire, the food counted beside the apple and the hour
+  on the marble slab — clicked or keyed, with the exit plate folding the
+  blanket.
 - **The people move with the story**: the quest chain's opcode-40 moves
   now show — whoever it sends somewhere arrives off the full roster even
   from another map or from no establishment at all, and whoever it
