@@ -202,8 +202,16 @@ mis-attribute later models' facets.
 ## Open questions (next slice)
 
 - The unknown spans at +0x10, +0x98 and +0x12F. The three 20-entry i16 arrays
-  in the +0x98 span carry small signed values (0, ±1, ±2, ±3) and are
-  plausibly per-vertex intercept displacements. `unknown`
+  in the `+0x98` span carry small signed values (0, ±1, ±2, ±3). They are now
+  tied to the **perspective texture mapper**: the function guarding the
+  `"Overflow dividing facet->d by facet->nz"` assertion (`fcn.004603e0`,
+  anchored on the error string at `0x4c0fac`) computes affine mapping
+  gradients (`imul` chains over the facet's reference data) — the `+0x98`
+  arrays are the per-vertex reference values that feed that gradient setup,
+  not plain intercept displacements. The exact field-to-gradient mapping is
+  pinned to a trace of the runtime facet struct. `inferred` `+0x10` is
+  confirmed unused by the render path (see u/v note); `+0x12F` stays
+  `unknown`.
 - The meaning of the facet ordering array (array 3). Its values are not a
   permutation of the facet indices and are all zero in some models. `unknown`
 - The BSP node layout (8 bytes), unexercised by any shipped map. `unknown`
