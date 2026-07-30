@@ -182,6 +182,12 @@ test('portrait_frame_table',
   workdir : meson.current_build_dir(),
 )
 
+test('decoration_frame_table',
+  executable('test_decoration_frame_table', 'test_decoration_frame_table.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('map_session',
   executable('test_map_session', 'test_map_session.cpp',
     dependencies : [starhaven_dep, catch2_main]),
