@@ -56,12 +56,21 @@ public:
         }
         samples_ = std::move(music.samples);
         queue();
+        SDL_SetAudioStreamGain(stream_, gain_);
         SDL_ResumeAudioStreamDevice(stream_);
         return true;
     }
 
     // Re-queue the track when it runs out. Call once a frame; cheap enough to
     // do unconditionally.
+    // The install's own LoudMusic switch: 1 is full, 0 the quieter mix.
+    void set_loud(bool loud) {
+        gain_ = loud ? 1.0f : 0.5f;
+        if (stream_ != nullptr) {
+            SDL_SetAudioStreamGain(stream_, gain_);
+        }
+    }
+
     void update() {
         if (stream_ != nullptr && SDL_GetAudioStreamAvailable(stream_) == 0) {
             queue();
@@ -87,6 +96,7 @@ private:
     }
 
     SDL_AudioStream* stream_ = nullptr;
+    float gain_ = 1.0f;
     std::vector<std::int16_t> samples_;
 };
 

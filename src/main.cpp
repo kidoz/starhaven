@@ -2103,6 +2103,23 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    // The install's own MM6.ini, honored where its keys map: AlwaysRun
+    // swaps the shift key's meaning, LoudMusic picks the music gain.
+    // FlipOnExit has nothing here to flip and is left alone, noted.
+    bool ini_always_run = false;
+    bool ini_loud_music = true;
+    {
+        std::ifstream ini(data_dir.parent_path() / "MM6.ini");
+        std::string ini_line;
+        while (std::getline(ini, ini_line)) {
+            if (ini_line.rfind("AlwaysRun=", 0) == 0) {
+                ini_always_run = ini_line.back() == '1';
+            } else if (ini_line.rfind("LoudMusic=", 0) == 0) {
+                ini_loud_music = ini_line.back() == '1';
+            }
+        }
+    }
+
     assets::AssetCache cache;
     cache.open(data_dir);
 
@@ -2293,6 +2310,7 @@ int main(int argc, char** argv) {
     // A one-frame capture ends before a note sounds, so do not open audio
     // devices for it at all.
     game::MusicPlayer music;
+    music.set_loud(ini_loud_music);
     game::AmbientMixer ambient;
     if (screenshot.empty()) {
         if (const auto install = platform::install_from_env()) {
@@ -5503,7 +5521,10 @@ int main(int argc, char** argv) {
         in.right = keys[SDL_SCANCODE_D];
         in.down = keys[SDL_SCANCODE_Q];
         in.up = keys[SDL_SCANCODE_E];
-        in.speed = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1200.0f : 400.0f;
+        // AlwaysRun from the install's own ini: shift walks instead.
+        const bool shifted = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+        const bool running_now = ini_always_run ? !shifted : shifted;
+        in.speed = running_now ? 1200.0f : 400.0f;
 
         // Footfalls: the ground's own Walk/Run sound at a walking cadence
         // while the party moves in the world. The cadence is the engine's.
@@ -5512,7 +5533,7 @@ int main(int argc, char** argv) {
             (in.forward || in.back || in.left || in.right)) {
             step_timer -= in.dt > 0.0f ? in.dt : 0.0f;
             if (step_timer <= 0.0f) {
-                const bool running = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+                const bool running = running_now;
                 ambient.play_step(std::string(running ? "Run" : "Walk") +
                                   std::string(session.ground_at(camera.position.x,
                                                                 camera.position.z)));

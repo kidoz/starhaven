@@ -1046,6 +1046,10 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **MM6.ini honored**: the install's own three-line config follows the
+  player in — `AlwaysRun=1` makes shift walk instead of run (footsteps
+  agreeing), `LoudMusic` picks the music gain, and `FlipOnExit`, which
+  has nothing here to flip, is left alone on the record.
 - **The dark turn-ins walked**: the census of rival item branches found
   the one that matters — Slicker Silvertongue's own topic takes the
   Zenofex letter shown to the wrong man, swaps bit 200 for 201 (the
