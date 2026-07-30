@@ -1660,6 +1660,46 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 17. Act two: the letter that names Slicker Silvertongue.
+    {
+        game::WalkState state;
+        state.items.push_back(502);
+        const auto outcome = game::walk_event(global, 380, state);
+        const bool ok = outcome.ran && state.awards.contains(32) && state.bits.contains(168) &&
+                        std::find(state.items.begin(), state.items.end(), 502) ==
+                            state.items.end() &&
+                        state.npc_topics.at({4, 0}) == 103;
+        if (!beat(ok, "the proof unseats the traitor: award 32, and bit 168 remembers")) {
+            return 1;
+        }
+    }
+    // 18. The Oracle wakes, and the four memory crystals are spent.
+    {
+        game::WalkState state;
+        for (const int crystal : {162, 163, 164, 165}) {
+            state.bits.insert(crystal);
+        }
+        const auto outcome = game::walk_event(global, 76, state);
+        const bool ok = outcome.ran && state.awards.contains(33) && state.bits.contains(166) &&
+                        !state.bits.contains(162) && !state.bits.contains(165);
+        if (!beat(ok, "the Oracle wakes on award 33 and takes the crystals' bits")) {
+            return 1;
+        }
+    }
+    // 19. The Control Cube opens the Control Center.
+    {
+        game::WalkState state;
+        state.bits.insert(166);
+        state.items.push_back(456);
+        const auto outcome = game::walk_event(global, 76, state);
+        const bool ok = outcome.ran && state.experience == 500000 && state.awards.contains(34) &&
+                        std::find(state.items.begin(), state.items.end(), 456) ==
+                            state.items.end() &&
+                        state.npc_topics.at({8, 0}) == 77;
+        if (!beat(ok, "the Cube pays 500000 experience and grants award 34, the Center's key")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }

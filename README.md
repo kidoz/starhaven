@@ -332,7 +332,11 @@ interoperability and compatibility with a legally purchased copy.
   row 17 is the Prince himself — "this person follows" is the reading),
   Loretta Fleise's stable prices, Erik Von Stromgard's winter, and the
   final ladder that sets bit 167 once every seal and the exposed traitor
-  are in — sixteen beats, exit-nonzero on any break. Walking the global
+  are in — then into act two: the letter that unseats Slicker
+  Silvertongue (award 32, bit 168), the Oracle waking on award 33 and
+  spending the four memory-crystal bits, and the Control Cube's 500000
+  experience opening the Control Center with award 34 — nineteen beats,
+  exit-nonzero on any break. Walking the global
   bank exposed that message indices were being read one byte wide, fine
   for every map's own strings and wrong past 255; the walk now reads the
   whole index. The audit found the one snag no
