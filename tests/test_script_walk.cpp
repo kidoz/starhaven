@@ -423,3 +423,41 @@ TEST_CASE("a harm step surfaces who, what and how much", "[walk]") {
     REQUIRE(outcome.harms[1].amount == 30);
     REQUIRE(outcome.acted());
 }
+
+TEST_CASE("a title step names the place and the noun step the object", "[walk]") {
+    std::vector<std::uint8_t> payload;
+    // Opcode 5 with a one-byte string index (the place), opcode 35 likewise
+    // (the interactable noun), then end.
+    push_step(payload, 7, 0, kOpcodeTitle, {210});
+    push_step(payload, 7, 1, kOpcodeName, {14});
+    push_step(payload, 7, 2, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 7, state);
+    REQUIRE(outcome.title == 210);
+    REQUIRE(outcome.name == 14);
+    REQUIRE(outcome.said.empty());  // heads the dialogue, not part of the body
+    REQUIRE(outcome.acted());
+}
+
+TEST_CASE("a switch disables and re-enables another event", "[walk]") {
+    // Opcode 32: [event u32 LE][on/off u8]. Disable event 33, then re-enable it.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 14, 0, kOpcodeSwitch, {33, 0, 0, 0, 0});  // disable 33
+    push_step(payload, 14, 1, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+
+    starhaven::game::WalkState state;
+    auto outcome = starhaven::game::walk_event(script, 14, state);
+    REQUIRE(state.disabled_events.contains(33));
+    REQUIRE(!outcome.acted());  // a switch is not observable dialogue
+
+    // A second event re-enables 33.
+    std::vector<std::uint8_t> payload2;
+    push_step(payload2, 15, 0, kOpcodeSwitch, {33, 0, 0, 0, 1});  // enable 33
+    push_step(payload2, 15, 1, kOpcodeEnd, {0});
+    const MapScript script2 = parse(payload2);
+    starhaven::game::walk_event(script2, 15, state);
+    REQUIRE(!state.disabled_events.contains(33));
+}

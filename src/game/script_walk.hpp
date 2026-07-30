@@ -36,6 +36,11 @@ struct WalkState {
     std::vector<int> items;
     int gold = 0;
 
+    // Events disabled by opcode 32 (the riddle gates and the Oracle's matched
+    // on/off pairs). An id absent from the set is on; an id present is off.
+    // Persistent like the bits, so a switch thrown in one walk stays thrown.
+    std::set<int> disabled_events;
+
     // The other party-level currencies the prose join named: experience and
     // food rations, moved by give and take the way gold is.
     int experience = 0;
@@ -61,6 +66,11 @@ struct WalkState {
 struct WalkOutcome {
     bool ran = false;             // the map defines the event
     std::vector<int> said;        // message string indices, in walk order
+    // A location title (opcode 5) and the interactable noun (opcode 35):
+    // each a string index like `said`, but singled out because they head the
+    // dialogue rather than running through it. At most one of each per event.
+    int title = -1;
+    int name = -1;
     std::vector<int> given;       // item ids that entered the packs
     std::vector<int> taken;       // item ids that left them
     std::uint32_t building = 0;   // a counter to open, or 0
@@ -126,7 +136,8 @@ struct WalkOutcome {
     // Whether anything observable happened, which is what decides if the
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
-        return !said.empty() || !given.empty() || !taken.empty() || building != 0 ||
+        return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
+               building != 0 ||
                chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
                !summons.empty() || !launches.empty() || ask.has_value() || !harms.empty() ||
                gold_found != 0 ||
@@ -318,6 +329,43 @@ struct WalkOutcome {
                 out.said.push_back(index);
             }
             break;
+        case world::kOpcodeTitle:
+        case world::kOpcodeName: {
+            // A single string index, read the same way as a message: opcode 5
+            // names the place ("Castle Darkmoor"), opcode 35 the interactable
+            // noun ("Door", "Chest", "Lever"). Each heads the dialogue, so it
+            // is kept apart from `said` rather than appended.
+            if (a.empty()) {
+                break;
+            }
+            int index = 0;
+            for (std::size_t i = std::min<std::size_t>(a.size(), 4); i-- > 0;) {
+                index = index << 8 | a[i];
+            }
+            if (step.opcode == world::kOpcodeTitle) {
+                out.title = index;
+            } else {
+                out.name = index;
+            }
+            break;
+        }
+        case world::kOpcodeSwitch: {
+            // `[event u32][on/off u8]`: enable or disable another event. The
+            // byte is 0 (disable) or 1 (enable) on all shipped uses. Disabled
+            // ids stay disabled until a later switch re-enables them.
+            if (a.size() >= 5) {
+                std::uint32_t event_id = 0;
+                for (int i = 3; i >= 0; --i) {
+                    event_id = (event_id << 8) | a[static_cast<std::size_t>(i)];
+                }
+                if (a[4] == 0) {
+                    state.disabled_events.insert(static_cast<int>(event_id));
+                } else {
+                    state.disabled_events.erase(static_cast<int>(event_id));
+                }
+            }
+            break;
+        }
         case world::kOpcodeEnter:
             if (a.size() >= 4) {
                 std::uint32_t value = 0;
