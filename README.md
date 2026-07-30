@@ -227,6 +227,9 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The hourglass turns**: turn-based mode retired its text tag for the
+  game's own `HGLAS` hourglass, standing in the corner readout and
+  stepping through its 80 frames as rounds resolve.
 - **The services take the marble too**: temple, bank, training hall,
   travel desk and shop all stand `BACKEVT`'s panel on the left with the
   establishment's name, trade and proprietor written down it, their

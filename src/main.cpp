@@ -2335,6 +2335,7 @@ int main(int argc, char** argv) {
     bool turn_based = false;
     int save_slot = 1;  // which of the nine files F5 and F9 speak to
     bool pending_round = false;
+    int hourglass_turn = 0;  // rounds resolved, for the HGLAS frames
     constexpr float kRoundSeconds = 1.0f;
     int striker = 0;  // whose turn it is to swing
 
@@ -4914,6 +4915,9 @@ int main(int argc, char** argv) {
         // Real time flows every frame; turn-based time flows only when a
         // round is owed, one quantum at a time.
         const float sim_dt = turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt;
+        if (turn_based && pending_round) {
+            ++hourglass_turn;
+        }
         pending_round = false;
         if (sim_dt > 0.0f) {
             mob.update(sim_dt, session, camera.position, [&](std::size_t actor) {
@@ -5708,8 +5712,7 @@ int main(int argc, char** argv) {
                             render::Color{210, 205, 185, 255}, render::Color{0, 0, 0, 255});
             corner_y += corner_line;
             const std::string purse =
-                std::to_string(gold) + " gold, " + std::to_string(party_food) + " food" +
-                (turn_based ? "  \x95 turn-based" : "");
+                std::to_string(gold) + " gold, " + std::to_string(party_food) + " food";
             game::draw_text(scene.framebuffer(), font, 474, corner_y, purse,
                             render::Color{180, 175, 155, 255}, render::Color{0, 0, 0, 255});
             corner_y += corner_line;
@@ -5718,6 +5721,14 @@ int main(int argc, char** argv) {
                                 "+ " + h.name + ", " + h.profession,
                                 render::Color{190, 190, 215, 255}, render::Color{0, 0, 0, 255});
                 corner_y += corner_line;
+            }
+            if (turn_based) {
+                // The game's own hourglass says the world is waiting: its 80
+                // frames step forward as rounds resolve. The frames per round
+                // are the engine's own pace.
+                char sand[9];
+                std::snprintf(sand, sizeof(sand), "HGLAS%03d", hourglass_turn * 8 % 80);
+                blit(scene.framebuffer(), cache.icon(sand), 552, 339);
             }
             if (ask_event >= 0) {
                 const int prompt = ask_pending.prompt;
