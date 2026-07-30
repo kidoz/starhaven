@@ -756,9 +756,16 @@ private:
                         target.equipped_broken[at] = true;
                         what += ", breaking their " + std::string(slot_name(slot));
                     }
+                } else if (bonus == "Dead" || bonus.substr(0, 5) == "Errad") {
+                    // The two words that end a character outright; a temple
+                    // is the only way back.
+                    target.affliction = bonus == "Dead" ? "Dead" : "Eradicated";
+                    target.affliction_minute = now;
+                    target.hit_points = std::min(target.hit_points, 0);
+                    what += bonus == "Dead" ? ", killing them" : ", eradicating them";
                 } else if (bonus == "Asleep" || bonus == "Affraid" || bonus == "Weak" ||
                            bonus == "Drunk" || bonus == "Insane" || bonus == "Paralyze" ||
-                           bonus.substr(0, 5) == "Curse") {
+                           bonus.substr(0, 5) == "Stone" || bonus.substr(0, 5) == "Curse") {
                     if (target.affliction.empty()) {
                         target.affliction = std::string(bonus.substr(0, bonus.find('x')));
                         target.affliction_minute = now;

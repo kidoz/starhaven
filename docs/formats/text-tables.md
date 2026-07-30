@@ -911,9 +911,16 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   Tested against the shipped placed actors: only 17 of 340 match a slot at
   all, too few to read — see [`event-actors.md`](event-actors.md). Still
   `unknown`.
-- The semantics of the monster columns still unread — `Bonus`, `Hst`,
-  `Rec` — and of the `Misc Special` column; `Pref`'s digit values (2, 3,
-  4), where its letters now read as class initials. `unknown`
+- The `Misc Special` column, and `Pref`'s digit values (2, 3, 4), where
+  its letters read as class initials. `unknown` The other three once
+  listed here are read: **Hst** is 0 on exactly the nine Wimp peasants
+  and 4 on everyone else — hostility; **Rec** runs 40..100 and the engine
+  reads it as hundredths of a second between blows (`inferred` for the
+  unit); **Bonus** names the attack's on-hit rider — poisons and diseases
+  with their digit levels, `xN` multipliers, item breakers, the purse
+  cut, `DrainSP`, the afflictions, and the three that end a character:
+  `Stone`, `Dead` and `Errad`. All 39 distinct words land on an engine
+  rider; reproduce with `data_info --riders`.
 - The `%01` codes other than 1, 2, 5 and 6. `unknown`
 - What indexes `GLOBAL.TXT` by id. `unknown`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,

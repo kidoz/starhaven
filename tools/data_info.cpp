@@ -710,6 +710,60 @@ int do_journal(const std::string& label, const data::JournalTable& table, const 
     return 0;
 }
 
+// Verification mode: the monster table's last three columns, measured.
+// Hst is 0 on exactly the nine Wimp peasants and 4 on the other 164; Rec
+// runs 40..100 and is read as hundredths of a second between blows; and
+// every distinct Bonus word is listed with whether the engine's on-hit
+// rider knows it.
+int do_riders(const std::filesystem::path& data_dir) {
+    data::TextTable table;
+    data::MonsterStatsTable monsters;
+    if (data::load_text_table(data_dir, "MONSTERS.TXT", table) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(table, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: could not read MONSTERS.TXT\n";
+        return 1;
+    }
+    int hostile = 0, meek = 0, meek_wimps = 0;
+    int rec_low = 1 << 20, rec_high = 0;
+    std::map<std::string, int> words;
+    for (const auto& m : monsters.entries()) {
+        if (m.hostility == 0) {
+            ++meek;
+            meek_wimps += m.ai_type == "Wimp" ? 1 : 0;
+        } else {
+            ++hostile;
+        }
+        rec_low = std::min(rec_low, m.recovery);
+        rec_high = std::max(rec_high, m.recovery);
+        if (!m.bonus.empty() && m.bonus != "0") {
+            ++words[m.bonus];
+        }
+    }
+    std::cout << "Hst: " << meek << " at zero (" << meek_wimps << " of them Wimps), " << hostile
+              << " at four\n";
+    std::cout << "Rec: " << rec_low << ".." << rec_high << ", read as hundredths of a second\n";
+    std::cout << "Bonus words and their riders:\n";
+    const auto known = [](std::string_view bonus) {
+        for (const std::string_view prefix :
+             {"Poison", "Pois", "Disease", "DrainSP", "Steal", "Age", "BrkItem", "BrkArm",
+              "Brkweapon", "Curse", "Stone", "Errad"}) {
+            if (bonus.substr(0, prefix.size()) == prefix) {
+                return true;
+            }
+        }
+        return bonus == "Uncon" || bonus == "Asleep" || bonus == "Affraid" || bonus == "Weak" ||
+               bonus == "Drunk" || bonus == "Insane" || bonus == "Paralyze" || bonus == "Dead";
+    };
+    int carried = 0;
+    for (const auto& [word, count] : words) {
+        const bool ok = known(word);
+        carried += ok ? count : 0;
+        std::cout << "  " << word << " x" << count << (ok ? "" : "  (no rider yet)") << "\n";
+    }
+    std::cout << carried << " of the rows with a word land on a rider\n";
+    return 0;
+}
+
 // Research mode: does every damage cell in either table parse?
 int do_treasure(const std::filesystem::path& data_dir) {
     data::TextTable text;
@@ -1210,6 +1264,8 @@ int main(int argc, char** argv) {
     }
     if (command == "--treasure")
         return do_treasure(data_dir);
+    if (command == "--riders")
+        return do_riders(data_dir);
     if (command == "--dice")
         return do_dice(data_dir);
     if (command == "--encounters")

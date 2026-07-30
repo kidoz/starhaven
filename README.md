@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The last monster columns, measured**: `Hst` is hostility — zero on
+  exactly the nine Wimp peasants, four on the other 164; `Rec` is the
+  blow-to-blow recovery, 40..100 read as hundredths of a second; and
+  every one of `Bonus`'s 39 distinct on-hit words now lands on an engine
+  rider — the census found three that used to fall through, so monsters
+  whose word is `Stone`, `Dead` or `Errad` now petrify, kill and
+  eradicate as written. Reproduce with `data_info --riders`.
 - **Party creation in the game's own hall**: `Makeme.pcx` is the whole
   screen — four marble columns whose oval seats (at the art's own x 17,
   176, 334, 493) hold the creation portraits, names on their plates, each
