@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The chronicle writes itself**: variable type 205 turned out to be
+  the autonotes — its values are `Autonotes.txt` rows, the Seer writing
+  the very stage its line speaks — so the walker now keeps the
+  collected notes, the save carries them, and the journal grew a second
+  page where the story's chronicle assembles itself as the events run.
 - **The skies half-seated themselves**: the exe's outdoor loader
   carries `sky%02d` with `sky01` beside it — the fourteen panoramas are
   the outdoor sky set with `sky01` its stated floor, now the engine's

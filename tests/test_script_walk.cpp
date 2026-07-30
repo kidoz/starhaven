@@ -93,12 +93,14 @@ TEST_CASE("a fountain says one thing the first time and another after", "[walk]"
     const WalkOutcome first = walk_event(script, 150, state);
     REQUIRE(first.said == std::vector<int>{16});
     REQUIRE(state.variables[25] == 10);
-    REQUIRE(state.variables[205] == 3);
+    // Type 205 is the autonote chronicle now; the give lands in its set.
+    REQUIRE(state.autonotes.contains(3));
 
     const WalkOutcome second = walk_event(script, 150, state);
     REQUIRE(second.said == std::vector<int>{8});
     REQUIRE(state.variables[25] == 10);
-    REQUIRE(state.variables[205] == 6);  // the give repeats; the set does not
+    REQUIRE(state.autonotes.contains(3));
+    REQUIRE(state.autonotes.contains(3));  // the give repeats; the set does not
 }
 
 TEST_CASE("a gated exit opens only with its quest bit", "[walk]") {

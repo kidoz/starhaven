@@ -172,6 +172,12 @@ inline constexpr std::uint8_t kVarGold = 21;
 // event sets it. The sheet's honors are quest-given bits in an id space of
 // their own. `observed`
 inline constexpr std::uint8_t kVarAward = 12;
+// And the chronicle: type 205's values are `Autonotes.txt` rows — the
+// Seer's stage ladder writes 116 ("show the sixth letter to Andover
+// Potbello") beside bit 81's line and 115 (the Ironfist letter) beside
+// bit 82's, the notes chronicling exactly the stages their events speak.
+// `observed` for those; extending the name to every 205 is `inferred`.
+inline constexpr std::uint8_t kVarAutonote = 205;
 // And found gold: type 22 pays where things are dug up rather than handed
 // over — D05's "Gold vein" digs give 400..800 of it, the sewer's
 // "Something's stashed here!" 1,000..2,000, D13's bone-piles a rising

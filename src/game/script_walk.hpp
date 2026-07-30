@@ -44,6 +44,7 @@ struct WalkState {
     // The honors earned: `Awards.txt` rows, set by quest events and worn on
     // the sheet. Persistent like the bits.
     std::set<int> awards;
+    std::set<int> autonotes;  // Autonotes.txt rows the chronicle holds
 
     // The quest chain's NPC rewrites, persistent like the bits: topic slots
     // overridden per (npc, slot) — zero clears — and where an NPC has been
@@ -254,6 +255,13 @@ struct WalkOutcome {
                     state.awards.erase(value);
                 } else {
                     state.awards.insert(value);
+                }
+                break;
+            case world::kVarAutonote:
+                if (take) {
+                    state.autonotes.erase(value);
+                } else {
+                    state.autonotes.insert(value);
                 }
                 break;
             case world::kVarExperience:

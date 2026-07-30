@@ -984,7 +984,8 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
 // this is the first page it is written on.
 void draw_journal(render::SceneRenderer& scene, const image::Font& font,
                   const data::JournalTable& quests, const data::JournalTable& awards,
-                  const std::set<int>& bits, const std::set<int>& earned) {
+                  const std::set<int>& bits, const std::set<int>& earned,
+                  const data::JournalTable& notes, const std::set<int>& collected, int page) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1002,7 +1003,10 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
     int y = 10;
-    game::draw_text(scene.framebuffer(), font, 24, y, "Journal", white, shadow);
+    game::draw_text(scene.framebuffer(), font, 24, y,
+                    page == 0 ? "Journal  (left/right: the chronicle)"
+                              : "Chronicle  (left/right: the journal)",
+                    white, shadow);
     y += line * 2;
 
     const auto wrap = [&](const std::string& text, const render::Color& colour) {
@@ -1028,6 +1032,27 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
         y += line;
     };
 
+    if (page == 1) {
+        // The chronicle: what the events wrote as the story advanced,
+        // worded by Autonotes.txt itself, newest stages last.
+        std::size_t written = 0;
+        for (const auto& row : notes.entries()) {
+            if (!collected.contains(row.bit) || !row.has_text()) {
+                continue;
+            }
+            ++written;
+            wrap("\x95 " + data::cp1252_to_utf8(row.text), white);
+            y += 2;
+            if (y >= kHeight - line * 3) {
+                game::draw_text(scene.framebuffer(), font, 24, y, "...", dim, shadow);
+                break;
+            }
+        }
+        if (written == 0) {
+            wrap("Nothing written yet.", dim);
+        }
+        return;
+    }
     std::size_t noted = 0;
     for (const auto& row : quests.entries()) {
         if (!bits.contains(row.bit) || !row.has_text()) {
@@ -2263,6 +2288,8 @@ int main(int argc, char** argv) {
     (void)data::load_awards(data_dir, award_texts);
     data::JournalTable quest_texts;
     (void)data::load_quests(data_dir, quest_texts);
+    data::JournalTable autonote_texts;
+    (void)data::load_autonotes(data_dir, autonote_texts);
     data::DescriptionTable skill_table;
     (void)data::load_descriptions(data_dir, "SkillDes.txt", skill_table);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
@@ -2295,6 +2322,7 @@ int main(int argc, char** argv) {
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
     int sheet_page = 0;  // which of the sheet's four framed pages shows
+    int journal_page = 0;  // 0 the quests, 1 the chronicle
     // The spell book: whose is open, which school tab shows, which spell is
     // under the finger, and what each member keeps readied for the cast key.
     int book_member = -1;
@@ -3656,6 +3684,7 @@ int main(int argc, char** argv) {
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
                 state.npc_places = script_state.npc_places;
+                state.autonotes = script_state.autonotes;
                 state.party = party;
                 for (std::size_t i = 0; i < packs.size(); ++i) {
                     state.packs[i] = packs[i].items();
@@ -3758,6 +3787,7 @@ int main(int argc, char** argv) {
                     script_state.variables = state.variables;
                     script_state.npc_topics = state.npc_topics;
                     script_state.npc_places = state.npc_places;
+                    script_state.autonotes = state.autonotes;
                     party = state.party;
                     for (std::size_t i = 0; i < packs.size(); ++i) {
                         packs[i].clear();
@@ -4151,6 +4181,9 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && show_journal &&
+                       (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
+                journal_page = 1 - journal_page;
             } else if (event.type == SDL_EVENT_KEY_DOWN && shown_member >= 0 &&
                        shown_pack < 0 && open_shop < 0 &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
@@ -6712,7 +6745,8 @@ int main(int argc, char** argv) {
         }
         if (show_journal && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
             draw_journal(scene, font, quest_texts, award_texts, script_state.bits,
-                         script_state.awards);
+                         script_state.awards, autonote_texts, script_state.autonotes,
+                         journal_page);
         }
         if (creating) {
             draw_creation(scene, font, cache, party, create_slot, stat_descriptions,

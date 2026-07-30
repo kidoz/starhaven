@@ -48,6 +48,7 @@ SaveState full_state() {
     who.equipped_broken[0] = true;
     state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
     state.readied = {6, 0, 22, 0};
+    state.autonotes = {115, 116};
     state.turn_based = true;
     state.hourglass_turn = 9;
     return state;
@@ -75,6 +76,7 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(after.readied == before.readied);
     REQUIRE(after.turn_based == before.turn_based);
     REQUIRE(after.hourglass_turn == before.hourglass_turn);
+    REQUIRE(after.autonotes == before.autonotes);
 
     const Character& who = after.party[0];
     // The name keeps its own hyphen and the class survives beside it.

@@ -370,6 +370,12 @@ the given value, the word after it names the type. Reproduce with
   for the 58 unspoken uses.
 - **type 23 is food**, 1..10 a give. **Type 3 is a cure's hit points and
   type 5 its spell points** — "restores 15 hit points" beside a give of 15.
+- **Type 205 is the autonote chronicle**: its values are `Autonotes.txt`
+  rows — the Seer writes 116 ("show the sixth letter to Andover
+  Potbello") beside bit 81's stage and 115 (the Ironfist letter) beside
+  bit 82's, the notes wording exactly the stages their events speak.
+  `observed` for the Seer's ladder, `inferred` for the rest; verified in
+  `evt_info --arc`.
 - **Type 2 is the character's class id**: the promotion events check it
   against the qualifying class and set it to the next rung — the Crusader
   event turns 9 into 10 beside award 8, the Wizard 6 into 7 beside award

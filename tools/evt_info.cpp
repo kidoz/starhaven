@@ -1593,9 +1593,12 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         // Potbello", then "give The Letter to Regent Wilbur Humphrey in
         // Ironfist Castle" — the ids are one past the row, the bank's own
         // 1-based habit.
+        // And the chronicle writes itself: type 205's values are the
+        // Autonotes rows wording those same stages.
         const bool ok =
             std::find(before.said.begin(), before.said.end(), 435) != before.said.end() &&
-            std::find(after.said.begin(), after.said.end(), 427) != after.said.end();
+            std::find(after.said.begin(), after.said.end(), 427) != after.said.end() &&
+            before.ran && state.autonotes.contains(116) && later.autonotes.contains(115);
         if (!beat(ok, "the Seer names Andover first and then Regent Humphrey")) {
             return 1;
         }

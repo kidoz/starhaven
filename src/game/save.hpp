@@ -77,6 +77,7 @@ struct SaveState {
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
     std::map<int, int> npc_places;
+    std::set<int> autonotes;
     std::array<Character, 4> party{};
     std::array<std::vector<PackedItem>, 4> packs{};
     std::vector<int> opened_chests;
@@ -133,6 +134,9 @@ struct SaveState {
     }
     for (const int bit : state.bits) {
         out << "bit\t" << bit << "\n";
+    }
+    for (const int note : state.autonotes) {
+        out << "note\t" << note << "\n";
     }
     for (const auto& [key, value] : state.variables) {
         out << "var\t" << key << "\t" << value << "\n";
@@ -313,6 +317,8 @@ struct SaveState {
             out.hired.push_back(std::move(h));
         } else if (kind == "wageday") {
             out.wage_day = next_int();
+        } else if (kind == "note") {
+            out.autonotes.insert(next_int());
         } else if (kind == "bit") {
             out.bits.insert(next_int());
         } else if (kind == "var") {
