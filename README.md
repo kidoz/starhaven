@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The spell book, in its own art**: B opens the `Book` page over the
+  viewport with the game's school tabs down its edge and every known
+  spell wearing its `FIRE004`-style icon — the same school-and-number
+  naming the projectiles fly by. Arrows browse, Enter readies, and the
+  cast key then throws the player's own choice instead of the "best
+  damage wins" heuristic. This install ships no Water icons and only
+  Light's emblem, so those spells stand as their names, honestly.
 - **The monster record, read to the last field**: the 34 silent bytes of
   `DMONLIST.BIN` gave up their meaning — a height and radius in world
   units at the front (bats at 56, Dragons at 487, spiders wider than

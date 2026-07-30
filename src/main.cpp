@@ -100,7 +100,8 @@ void print_usage(const char* argv0) {
               << "  U          in a pack: drink a potion, or learn from a book\n"
               << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
-              << "  H          cast a known spell: heal the wounded, or smite the aimed\n"
+              << "  B          open the spell book: tabs by school, Enter readies a spell\n"
+              << "  H          cast the readied spell, else the best heal or smite\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
               << "  F5/F9      save / load the current slot; F6 turns to the next\n"
@@ -385,6 +386,116 @@ void draw_frame(render::SceneRenderer& scene, assets::AssetCache& cache) {
     };
     fill(468, 339, kWidth, kHeight - 24);
     fill(483, kHeight - 24, kWidth, kHeight);
+}
+
+// The schools a member has spells in, in the table's own order.
+std::vector<starhaven::data::SpellSchool> schools_known(const game::Character& who) {
+    std::vector<starhaven::data::SpellSchool> out;
+    for (const int id : who.known_spells) {
+        const auto school = static_cast<starhaven::data::SpellSchool>((id - 1) / 11);
+        if (std::find(out.begin(), out.end(), school) == out.end()) {
+            out.push_back(school);
+        }
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+// The spell book, in the game's own art: the `Book` page fills the
+// viewport, the `TAB` school tabs stand on its right edge, and each spell
+// wears its `FIRE004`-style icon — the same school-and-number naming the
+// projectiles fly by. This install ships no Water icons and only Light's
+// emblem, so those spells stand as their names; the grid's spacing is the
+// engine's own. `observed` for the names, `inferred` for the layout.
+void draw_book(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+               const game::Character& who, const data::SpellStatsTable& spells, int school_index,
+               int pick, int readied_id, int school_points) {
+    blit(scene.framebuffer(), cache.icon("Book"), 8, 8);
+    const auto schools = schools_known(who);
+    if (schools.empty()) {
+        game::draw_text(scene.framebuffer(), font, 40, 40, who.name + " knows no spells",
+                        render::Color{60, 40, 20, 255}, render::Color{0, 0, 0, 0});
+        return;
+    }
+    school_index = std::clamp(school_index, 0, static_cast<int>(schools.size()) - 1);
+    const auto school = schools[static_cast<std::size_t>(school_index)];
+    constexpr std::array<std::string_view, data::kSpellSchoolCount> kIconPrefix{
+        "FIRE", "AIR", "WATER", "EARTH", "SPRT", "MIND", "BODY", "LIGHT", "DARK"};
+
+    // The tabs: one per school with anything written under it.
+    for (std::size_t i = 0; i < schools.size(); ++i) {
+        const int number = static_cast<int>(schools[i]) + 1;
+        const std::string tab =
+            "TAB" + std::to_string(number) + (static_cast<int>(i) == school_index ? "B" : "A");
+        blit(scene.framebuffer(), cache.icon(tab), 8 + 460 - 42, 24 + static_cast<int>(i) * 38);
+    }
+
+    // The page: the school's emblem, then its spells in a grid.
+    const auto prefix = std::string(kIconPrefix[static_cast<std::size_t>(school)]);
+    blit(scene.framebuffer(), cache.icon(prefix + "000"), 30, 16);
+    game::draw_text(scene.framebuffer(), font, 166, 40,
+                    std::string(data::school_name(school)) + ", skill " +
+                        std::to_string(school_points),
+                    render::Color{70, 45, 20, 255}, render::Color{0, 0, 0, 0});
+
+    std::vector<const data::SpellStatsEntry*> page;
+    for (const int id : who.known_spells) {
+        const auto* spell = spells.at(id);
+        if (spell != nullptr && spell->school == school) {
+            page.push_back(spell);
+        }
+    }
+    pick = page.empty() ? 0 : std::clamp(pick, 0, static_cast<int>(page.size()) - 1);
+    auto pixels = scene.framebuffer().color();
+    const auto box = [&](int x0, int y0, int w, int h, render::Color c) {
+        for (int y = y0; y < y0 + h; ++y) {
+            for (int x = x0; x < x0 + w; ++x) {
+                if (y > y0 + 1 && y < y0 + h - 2 && x > x0 + 1 && x < x0 + w - 2) {
+                    continue;
+                }
+                const auto i =
+                    (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+                pixels[i] = c.r;
+                pixels[i + 1] = c.g;
+                pixels[i + 2] = c.b;
+            }
+        }
+    };
+    for (std::size_t i = 0; i < page.size(); ++i) {
+        const int col = static_cast<int>(i) % 4;
+        const int row = static_cast<int>(i) / 4;
+        const int x = 32 + col * 106;
+        const int y = 104 + row * 68;
+        const auto& icon = cache.icon(prefix + (page[i]->number < 10 ? "00" : "0") +
+                                      std::to_string(page[i]->number));
+        if (!icon.empty()) {
+            blit(scene.framebuffer(), icon, x, y);
+        } else {
+            game::draw_text(scene.framebuffer(), font, x + 4, y + 18,
+                            data::cp1252_to_utf8(page[i]->short_name),
+                            render::Color{70, 45, 20, 255}, render::Color{0, 0, 0, 0});
+        }
+        game::draw_text(scene.framebuffer(), font, x, y + 54,
+                        data::cp1252_to_utf8(page[i]->short_name),
+                        render::Color{80, 55, 25, 255}, render::Color{0, 0, 0, 0});
+        if (static_cast<int>(i) == pick) {
+            box(x - 3, y - 3, 100, 60, render::Color{170, 120, 30, 255});
+        }
+        if (page[i]->id == readied_id) {
+            box(x - 6, y - 6, 106, 66, render::Color{60, 90, 160, 255});
+        }
+    }
+    if (!page.empty()) {
+        const auto* chosen = page[static_cast<std::size_t>(pick)];
+        const int rank = game::rank_of(school_points);
+        const int cost = rank >= 2   ? chosen->cost_master
+                         : rank == 1 ? chosen->cost_expert
+                                     : chosen->cost_normal;
+        game::draw_text(scene.framebuffer(), font, 34, 326,
+                        data::cp1252_to_utf8(chosen->name) + "  (" + std::to_string(cost) +
+                            " sp)  Enter readies, B closes, 1-4 turn to a packmate",
+                        render::Color{70, 45, 20, 255}, render::Color{0, 0, 0, 0});
+    }
 }
 
 // The character sheet: one member at a time, with the fields named the way the
@@ -1527,6 +1638,7 @@ int main(int argc, char** argv) {
     int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
     bool force_create = false;  // --create: the party door, even under --screenshot
     bool start_journal = false;  // --journal: open the journal at once
+    bool start_book = false;     // --book: open the spell book at once
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
@@ -1562,6 +1674,8 @@ int main(int argc, char** argv) {
             force_create = true;
         } else if (a == "--journal") {
             start_journal = true;
+        } else if (a == "--book") {
+            start_book = true;
         } else if (a == "--eye") {
             start_eye = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
@@ -1868,6 +1982,20 @@ int main(int argc, char** argv) {
     Mm6Random create_random{0x51C7E3A9u};
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
+    // The spell book: whose is open, which school tab shows, which spell is
+    // under the finger, and what each member keeps readied for the cast key.
+    int book_member = -1;
+    if (start_book) {
+        for (std::size_t i = 0; i < party.size(); ++i) {
+            if (!party[i].known_spells.empty()) {
+                book_member = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+    int book_school = 0;
+    int book_pick = 0;
+    std::array<int, 4> readied{};
     int shown_pack = open_pack >= 1 && open_pack <= 4 ? open_pack - 1 : -1;
     std::string pick_up_message;
     std::uint64_t pick_up_shown = 0;
@@ -2749,6 +2877,59 @@ int main(int argc, char** argv) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && book_member >= 0) {
+                // The book holds the keys while it is open.
+                const auto key = event.key.key;
+                auto& who = party[static_cast<std::size_t>(book_member)];
+                const auto schools = schools_known(who);
+                if (key == SDLK_ESCAPE || key == SDLK_B) {
+                    book_member = -1;
+                } else if (key >= SDLK_1 && key <= SDLK_4) {
+                    book_member = static_cast<int>(key - SDLK_1);
+                    book_school = 0;
+                    book_pick = 0;
+                } else if (key == SDLK_LEFT || key == SDLK_RIGHT) {
+                    const int count = static_cast<int>(schools.size());
+                    if (count > 0) {
+                        book_school = (book_school + (key == SDLK_LEFT ? count - 1 : 1)) % count;
+                        book_pick = 0;
+                    }
+                } else if (key == SDLK_UP || key == SDLK_DOWN) {
+                    int count = 0;
+                    if (!schools.empty()) {
+                        const auto school = schools[static_cast<std::size_t>(
+                            std::clamp(book_school, 0, static_cast<int>(schools.size()) - 1))];
+                        for (const int id : who.known_spells) {
+                            const auto* spell = spell_stats.at(static_cast<std::size_t>(id));
+                            count += spell != nullptr && spell->school == school ? 1 : 0;
+                        }
+                    }
+                    if (count > 0) {
+                        book_pick = (book_pick + (key == SDLK_UP ? count - 1 : 1)) % count;
+                    }
+                } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+                    if (!schools.empty()) {
+                        const auto school = schools[static_cast<std::size_t>(
+                            std::clamp(book_school, 0, static_cast<int>(schools.size()) - 1))];
+                        std::vector<int> page;
+                        for (const int id : who.known_spells) {
+                            const auto* spell = spell_stats.at(static_cast<std::size_t>(id));
+                            if (spell != nullptr && spell->school == school) {
+                                page.push_back(id);
+                            }
+                        }
+                        if (!page.empty()) {
+                            const auto at = static_cast<std::size_t>(
+                                std::clamp(book_pick, 0, static_cast<int>(page.size()) - 1));
+                            readied[static_cast<std::size_t>(book_member)] = page[at];
+                            const auto* spell = spell_stats.at(static_cast<std::size_t>(page[at]));
+                            pick_up_message = who.name + " readies " +
+                                              data::cp1252_to_utf8(spell->name);
+                            pick_up_shown = SDL_GetTicks();
+                            book_member = -1;
+                        }
+                    }
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 if (ask_event >= 0) {
                     ask_event = -1;  // the question can simply be walked away from
@@ -4173,6 +4354,22 @@ int main(int argc, char** argv) {
                                           : data::cp1252_to_utf8(row->join_text);
                     }
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating &&
+                       !show_journal) {
+                // Open the book of the first member with anything in it.
+                for (std::size_t i = 0; i < party.size(); ++i) {
+                    if (!party[i].known_spells.empty()) {
+                        book_member = static_cast<int>(i);
+                        book_school = 0;
+                        book_pick = 0;
+                        break;
+                    }
+                }
+                if (book_member < 0) {
+                    pick_up_message = "Nobody has a spell to their name";
+                    pick_up_shown = SDL_GetTicks();
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_H &&
                        shown_member < 0 && shown_pack < 0 && open_shop < 0) {
                 // Cast what somebody knows, at the table's cost and the
@@ -4196,6 +4393,78 @@ int main(int argc, char** argv) {
                 // monsters' own shots use.
                 const std::size_t target = game::aimed_actor(
                     session, battle, camera.position, camera.forward(), game::kMissileRange);
+                // A readied spell outranks the heuristic: the first member
+                // holding one casts exactly it, the player's own choice.
+                for (std::size_t i = 0; i < party.size() && !cast; ++i) {
+                    const int id = readied[i];
+                    auto& caster = party[i];
+                    const auto* spell =
+                        id > 0 ? spell_stats.at(static_cast<std::size_t>(id)) : nullptr;
+                    if (spell == nullptr || !caster.can_act()) {
+                        continue;
+                    }
+                    const int points = spell_skill_of(caster, *spell);
+                    const int rank = game::rank_of(points);
+                    const int cost = rank >= 2   ? spell->cost_master
+                                     : rank == 1 ? spell->cost_expert
+                                                 : spell->cost_normal;
+                    if (caster.spell_points < cost) {
+                        pick_up_message = caster.name + " lacks the spell points for " +
+                                          data::cp1252_to_utf8(spell->name);
+                        pick_up_shown = SDL_GetTicks();
+                        cast = true;
+                        break;
+                    }
+                    const data::SpellEffect effect = data::parse_spell_effect(*spell, rank);
+                    if (!effect.heal.empty()) {
+                        caster.spell_points -= cost;
+                        ambient.play_spell(spell->id);
+                        party[worst].hit_points =
+                            std::min(party[worst].max_hit_points,
+                                     party[worst].hit_points + std::max(1, effect.heal.low));
+                        pick_up_message = caster.name + " casts " +
+                                          data::cp1252_to_utf8(spell->name) + " on " +
+                                          party[worst].name;
+                    } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
+                        if (target == game::kNoActor) {
+                            pick_up_message = "Nothing in reach to cast at";
+                            pick_up_shown = SDL_GetTicks();
+                            cast = true;
+                            break;
+                        }
+                        caster.spell_points -= cost;
+                        ambient.play_spell(spell->id);
+                        SpellShot shot;
+                        shot.target = target;
+                        shot.flat = effect.damage;
+                        shot.per_skill = effect.damage_per_skill;
+                        shot.skill = points;
+                        shot.element = spell->element;
+                        shot.caster = caster.name;
+                        shot.flight.animation =
+                            game::spell_sprite_group(spell->school, spell->number);
+                        const std::string burst =
+                            game::spell_sprite_group(spell->school, spell->number, true);
+                        if (!session.sprite_frames.group(burst).empty()) {
+                            shot.burst = burst;
+                        }
+                        shot.flight.position = camera.position;
+                        shot.flight.target = session.actors[target].position;
+                        shot.flight.target.y += 32.0f;
+                        pick_up_message =
+                            caster.name + " casts " + data::cp1252_to_utf8(spell->name);
+                        spell_shots.push_back(std::move(shot));
+                    } else if (std::string lifted = cure_with(*spell, points); !lifted.empty()) {
+                        caster.spell_points -= cost;
+                        ambient.play_spell(spell->id);
+                        pick_up_message = caster.name + " casts: " + lifted;
+                    } else {
+                        pick_up_message = data::cp1252_to_utf8(spell->name) +
+                                          " has nothing to do here";
+                    }
+                    pick_up_shown = SDL_GetTicks();
+                    cast = true;
+                }
                 for (auto& caster : party) {
                     if (!caster.can_act() || cast) {
                         continue;
@@ -5258,6 +5527,24 @@ int main(int argc, char** argv) {
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
             }
         }
+        if (book_member >= 0) {
+            const auto& reader = party[static_cast<std::size_t>(book_member)];
+            const auto schools = schools_known(reader);
+            int points = 0;
+            if (!schools.empty()) {
+                const auto school = schools[static_cast<std::size_t>(
+                    std::clamp(book_school, 0, static_cast<int>(schools.size()) - 1))];
+                for (const int id : reader.known_spells) {
+                    const auto* spell = spell_stats.at(static_cast<std::size_t>(id));
+                    if (spell != nullptr && spell->school == school) {
+                        points = spell_skill_of(reader, *spell);
+                        break;
+                    }
+                }
+            }
+            draw_book(scene, font, cache, reader, spell_stats, book_school, book_pick,
+                      readied[static_cast<std::size_t>(book_member)], points);
+        }
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
                        stat_descriptions, class_descriptions, clock.minutes(), award_texts,
@@ -5507,7 +5794,7 @@ int main(int argc, char** argv) {
 
         // The map's name, drawn with the game's own font, inside the
         // viewport's frame rather than across it.
-        if (font.glyph_count() > 0 && !creating && !show_journal) {
+        if (font.glyph_count() > 0 && !creating && !show_journal && book_member < 0) {
             game::draw_text(scene.framebuffer(), font, 12, 12, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }
