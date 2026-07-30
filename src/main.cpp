@@ -101,6 +101,7 @@ void print_usage(const char* argv0) {
               << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
               << "  B          open the spell book: tabs by school, Enter readies a spell\n"
+              << "             (--map opens the globe's maps page for a capture)\n"
               << "  M          free the cursor: the frame's books, medallions and\n"
               << "             portraits answer clicks; M again returns to the view\n"
               << "  H          cast the readied spell, else the best heal or smite\n"
@@ -498,6 +499,155 @@ void draw_book(render::SceneRenderer& scene, const image::Font& font, assets::As
                             " sp)  Enter readies, B closes, 1-4 turn to a packmate",
                         render::Color{70, 45, 20, 255}, render::Color{0, 0, 0, 0});
     }
+}
+
+// The maps page the globe book opens: outdoors the 128x128 tilemap, each
+// cell wearing its own ground art's average colour, indoors the floor
+// plan traced from the BLV's upward faces — the cells and floors are the
+// maps' own; the projection, the flat-colour reading and the party's
+// arrow are the engine's. North is up, the way the wizard's eye draws.
+void draw_map_page(render::SceneRenderer& scene, const world::MapSession& session,
+                   const render::Vec3& party, const render::Vec3& forward,
+                   std::array<render::Color, 256>& tile_colors, bool& colors_ready) {
+    auto pixels = scene.framebuffer().color();
+    const auto put = [&](int x, int y, render::Color c) {
+        if (x < 8 || x >= 468 || y < 8 || y >= 352) {
+            return;
+        }
+        const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+        pixels[i] = c.r;
+        pixels[i + 1] = c.g;
+        pixels[i + 2] = c.b;
+    };
+    for (int y = 8; y < 352; ++y) {
+        for (int x = 8; x < 468; ++x) {
+            put(x, y, {26, 22, 18, 255});
+        }
+    }
+    const auto line = [&](int x0, int y0, int x1, int y1, render::Color c) {
+        const int dx = std::abs(x1 - x0);
+        const int dy = -std::abs(y1 - y0);
+        const int sx = x0 < x1 ? 1 : -1;
+        const int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (true) {
+            put(x0, y0, c);
+            if (x0 == x1 && y0 == y1) {
+                break;
+            }
+            const int e2 = 2 * err;
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    };
+
+    float px = 0.0f;
+    float py = 0.0f;
+    float heading_x = forward.x;
+    float heading_z = forward.z;
+    if (session.outdoor()) {
+        if (!colors_ready) {
+            for (int t = 0; t < 256; ++t) {
+                const auto& tex = session.tiles.texture_for(static_cast<std::uint8_t>(t));
+                unsigned r = 0, g = 0, b = 0, n = 0;
+                const auto source = tex.pixels();
+                for (std::size_t i = 0; i + 3 < source.size(); i += 16) {
+                    r += source[i];
+                    g += source[i + 1];
+                    b += source[i + 2];
+                    ++n;
+                }
+                tile_colors[static_cast<std::size_t>(t)] =
+                    n > 0 ? render::Color{static_cast<std::uint8_t>(r / n),
+                                          static_cast<std::uint8_t>(g / n),
+                                          static_cast<std::uint8_t>(b / n), 255}
+                          : render::Color{40, 40, 40, 255};
+            }
+            colors_ready = true;
+        }
+        constexpr int dim = world::OdmTerrain::kGridDim;
+        constexpr int kCell = 2;
+        const int left = 8 + (460 - dim * kCell) / 2;
+        const int top = 8 + (344 - dim * kCell) / 2;
+        for (int gz = 0; gz < dim; ++gz) {
+            for (int gx = 0; gx < dim; ++gx) {
+                const auto tile =
+                    session.terrain.tilemap[static_cast<std::size_t>(gz) * dim + gx];
+                const render::Color c = tile_colors[tile];
+                const int x = left + gx * kCell;
+                const int y = top + (dim - 1 - gz) * kCell;
+                for (int oy = 0; oy < kCell; ++oy) {
+                    for (int ox = 0; ox < kCell; ++ox) {
+                        put(x + ox, y + oy, c);
+                    }
+                }
+            }
+        }
+        const render::TerrainScale scale{};
+        const float half = (dim - 1) * scale.cell_size * 0.5f;
+        px = static_cast<float>(left) + (party.x + half) / scale.cell_size * kCell;
+        py = static_cast<float>(top) +
+             (static_cast<float>(dim) - 1.0f - (party.z + half) / scale.cell_size) * kCell;
+    } else {
+        // The floor plan: every face that looks up, drawn edge by edge.
+        float low_x = 1e9f, low_z = 1e9f, high_x = -1e9f, high_z = -1e9f;
+        for (const auto& v : session.blv.vertices) {
+            const render::Vec3 at = world::to_render_space(v.x, v.y, v.z);
+            low_x = std::min(low_x, at.x);
+            high_x = std::max(high_x, at.x);
+            low_z = std::min(low_z, at.z);
+            high_z = std::max(high_z, at.z);
+        }
+        const float span = std::max({high_x - low_x, high_z - low_z, 1.0f});
+        const float fit = 320.0f / span;
+        const int left = 8 + 230;
+        const int top = 8 + 172;
+        const auto place = [&](const render::Vec3& at, int& x, int& y) {
+            x = left + static_cast<int>((at.x - (low_x + high_x) * 0.5f) * fit);
+            y = top - static_cast<int>((at.z - (low_z + high_z) * 0.5f) * fit);
+        };
+        for (const auto& f : session.blv.faces) {
+            // Up in the file is z: the collision build passes the normal
+            // as (nx, nz, ny), so a floor is a face whose nz looks up.
+            if (f.invisible() || f.vertex_count < 3 || f.nz() < 0.7f) {
+                continue;
+            }
+            for (std::size_t k = 0; k < f.vertex_count; ++k) {
+                const auto& a = session.blv.vertices[f.vertex_ids[k]];
+                const auto& b = session.blv.vertices[f.vertex_ids[(k + 1) % f.vertex_count]];
+                int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+                place(world::to_render_space(a.x, a.y, a.z), x0, y0);
+                place(world::to_render_space(b.x, b.y, b.z), x1, y1);
+                line(x0, y0, x1, y1, {150, 140, 110, 255});
+            }
+        }
+        int ix = 0, iy = 0;
+        place(party, ix, iy);
+        px = static_cast<float>(ix);
+        py = static_cast<float>(iy);
+    }
+
+    // The party's arrow: a dot and the way it faces.
+    const float norm = std::sqrt(heading_x * heading_x + heading_z * heading_z);
+    if (norm > 0.001f) {
+        heading_x /= norm;
+        heading_z /= norm;
+    }
+    const int ax = static_cast<int>(px);
+    const int ay = static_cast<int>(py);
+    for (int oy = -1; oy <= 1; ++oy) {
+        for (int ox = -1; ox <= 1; ++ox) {
+            put(ax + ox, ay + oy, {235, 60, 40, 255});
+        }
+    }
+    line(ax, ay, ax + static_cast<int>(heading_x * 9.0f),
+         ay - static_cast<int>(heading_z * 9.0f), {235, 60, 40, 255});
 }
 
 // The character sheet: one member at a time, with the fields named the way the
@@ -1641,6 +1791,7 @@ int main(int argc, char** argv) {
     bool force_create = false;  // --create: the party door, even under --screenshot
     bool start_journal = false;  // --journal: open the journal at once
     bool start_book = false;     // --book: open the spell book at once
+    bool start_map = false;      // --map: open the maps page at once
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
@@ -1678,6 +1829,8 @@ int main(int argc, char** argv) {
             start_journal = true;
         } else if (a == "--book") {
             start_book = true;
+        } else if (a == "--map") {
+            start_map = true;
         } else if (a == "--eye") {
             start_eye = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
@@ -1915,6 +2068,9 @@ int main(int argc, char** argv) {
     // it to the view.
     bool cursor_free = false;
     bool show_calendar = false;
+    bool show_map = start_map;
+    std::array<render::Color, 256> map_tile_colors{};
+    bool map_colors_ready = false;
 
     // A one-frame capture ends before a note sounds, so do not open audio
     // devices for it at all.
@@ -2815,6 +2971,8 @@ int main(int argc, char** argv) {
         launches.clear();
         spell_shots.clear();
         spell_bursts.clear();
+        map_colors_ready = false;
+        show_map = false;
         fall_speed = 0.0f;
         SDL_SetWindowTitle(window,
                            ("StarHaven - " + session.title() + " (" + session.file_name + ")")
@@ -4677,8 +4835,7 @@ int main(int argc, char** argv) {
                     } else if (book == 1) {
                         push_key(SDLK_TAB);
                     } else if (book == 2) {
-                        pick_up_message = "The maps page is beyond this engine yet";
-                        pick_up_shown = SDL_GetTicks();
+                        show_map = !show_map;
                     } else {
                         show_calendar = !show_calendar;
                     }
@@ -5604,6 +5761,10 @@ int main(int argc, char** argv) {
             }
             draw_book(scene, font, cache, reader, spell_stats, book_school, book_pick,
                       readied[static_cast<std::size_t>(book_member)], points);
+        }
+        if (show_map) {
+            draw_map_page(scene, session, camera.position, camera.forward(), map_tile_colors,
+                          map_colors_ready);
         }
         if (show_calendar) {
             // The calendar page: TIME_BG's own 360x300, centred in the

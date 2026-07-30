@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The maps page, for real**: the globe book no longer apologizes.
+  Outdoors it draws the 128x128 tilemap with every cell in its own ground
+  art's average colour — Sweet Water's roads, lake and mountains read at
+  a glance — and indoors it traces the floor plan from the BLV's own
+  upward faces, with the party's red arrow on both. The cells and floors
+  are the maps' own; the flat-colour reading and the projection are the
+  engine's.
 - **The gamble split down the middle**: whether `Dif 1-5` picks a spawn's
   A/B/C letter could not be read from the shipped placements — only 17 of
   the 340 placed actors match an encounter slot at all, noise over five
