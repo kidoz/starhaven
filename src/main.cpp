@@ -2503,6 +2503,24 @@ int main(int argc, char** argv) {
         }
         return out;
     };
+    // A door in the world: the entrance establishments — Dungeon Ent,
+    // Castle Ent and their kin — join their maps by name: 34 of the 39
+    // entrance rows match a MapStats display name exactly; the five
+    // regional lords' castles match none and are video-only thrones in
+    // the original, left as they are. `observed`
+    const auto entrance_map_of = [&](const data::BuildingStatsEntry& shop) -> std::string {
+        if (shop.type.find("Ent") == std::string::npos) {
+            return {};
+        }
+        const std::string want = data::cp1252_to_utf8(shop.name);
+        for (const auto& m : map_stats.entries()) {
+            if (data::cp1252_to_utf8(m.name) == want) {
+                return m.file_name;
+            }
+        }
+        return {};
+    };
+
     // The King's Library wears its three faces by the story: the statue
     // until award 35, the freed loop until Archibald hands over the
     // Ritual (bit 177), and the empty room after. The three pictures are
@@ -4136,6 +4154,21 @@ int main(int argc, char** argv) {
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
                 sheet_page =
                     (sheet_page + (event.key.key == SDLK_LEFT ? 3 : 1)) % 4;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       talking_to < 0 && shown_pack < 0 &&
+                       (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) &&
+                       !entrance_map_of(*shops_here[static_cast<std::size_t>(open_shop)])
+                            .empty()) {
+                // Through the mouth of the dungeon.
+                const std::string inside =
+                    entrance_map_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                open_shop = -1;
+                shop_said.clear();
+                ambient.stop_room();
+                if (open_map(inside)) {
+                    pick_up_message = "The party descends";
+                    pick_up_shown = SDL_GetTicks();
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        talking_to < 0 && shown_pack < 0 &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT ||
@@ -6398,7 +6431,17 @@ int main(int argc, char** argv) {
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             data::BuildingStatsEntry shop = *shops_here[static_cast<std::size_t>(open_shop)];
             shop.picture = face_of(shop);
-            if (game::is_temple(shop)) {
+            if (const std::string inside = entrance_map_of(shop); !inside.empty()) {
+                // The mouth of the dungeon, playing its own video, with one
+                // choice to make.
+                dress_service(scene, font, cache, shop);
+                game::draw_text(scene.framebuffer(), font, 190, 300,
+                                "Enter descends into " + data::cp1252_to_utf8(shop.name),
+                                render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
+                game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
+                                "Enter descends, B turns away",
+                                render::Color{170, 170, 170, 255}, render::Color{0, 0, 0, 255});
+            } else if (game::is_temple(shop)) {
                 draw_temple(scene, font, cache, shop, party, gold, shop_said);
             } else if (game::is_bank(shop)) {
                 draw_bank(scene, font, cache, shop, gold, bank_gold, shop_said);

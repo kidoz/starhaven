@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The dungeon doors invite you in**: the entrance establishments join
+  their maps by name — 34 of the 39 rows match a MapStats display name
+  exactly, the five lords' castle doors matching none because the
+  original gave them no maps — and walking up to one now shows the
+  mouth's own video with a single choice: Enter descends.
 - **Three strangers came home**: the gamble on `GLOBAL.TXT` paid for
   %09, %10 and %16 — his/her, Lord/Lady and son/daughter sit at rows
   383-393, right where sir and morning already lived — and they now

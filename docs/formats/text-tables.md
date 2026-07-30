@@ -318,6 +318,17 @@ library's row as the story advances and grants the award itself; the
 rows, screens and plates; the freeing's true precondition is `unknown` —
 StarHaven grants award 35 on walking in, its own choice, and says so.
 
+### The entrance rows name their maps
+
+The 39 establishments whose type ends in "Ent"/"Entrance" join `MapStats`
+by display name: **34 of 39 match exactly** — every dungeon, temple
+mouth, castle dungeon, the Pyramid and the Hive. The five that match
+nothing are the regional lords' castle doors (Newton, Temper, Stone,
+Fleise, Stromgard), which have no maps — video-only throne rooms in the
+original. `observed` StarHaven opens the matched ones: the entrance
+screen plays the mouth's own interior and Enter carries the party
+through.
+
 ### The NPC plates join by row
 
 The `NPC###` portraits in `icons.lod` are named by `NPCdata.txt` row id:
