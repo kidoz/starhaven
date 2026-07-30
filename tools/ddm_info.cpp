@@ -246,7 +246,8 @@ int main(int argc, char** argv) {
         std::size_t array_bytes = 0;
         const auto doors = world::extract_doors(ev);
         for (const auto& door : doors) {
-            std::cout << "  door " << door.id << ": dir " << door.dx << "," << door.dy << ","
+            std::cout << "  door " << door.id << ": attr 0x" << std::hex << door.attributes
+                      << std::dec << " dir " << door.dx << "," << door.dy << ","
                       << door.dz << " distance " << door.distance << " speeds "
                       << door.open_speed << "/" << door.close_speed << " vertices "
                       << door.vertex_ids.size() << " faces " << door.face_ids.size() << "\n";

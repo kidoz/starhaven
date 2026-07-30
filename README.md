@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The loose-ends drawer, emptied and inventoried**: the door block's
+  second count word's high half is closed — it duplicates the vertex
+  count on 795 of 795 doors — while two measurements stay honestly open
+  with their refutations filed: the door attribute word is 1 on exactly
+  41 of 795 doors (no pattern tested fits), and the chest's last u16
+  splits 149/1191 along neither appearance nor contents.
 - **The walls that move, move**: `DTFT.BIN` decoded — DSFT's small
   sibling, nineteen records in four loops verified against the same
   shape — and the engine steps them, so the moss-and-wood wall breathes

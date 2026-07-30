@@ -213,5 +213,12 @@ The decoder rejects an outdoor layout when:
   the nonzero count. Only the u16 beside the appearance (0 or 1
   throughout) stays unread.
 - The indoor prefix's 883 bytes, and why the count lands unaligned.
-- What door attribute bits mean, and what the second count word's high half
-  duplicates.
+- The door attribute word is measured across all 795 doors of the 52
+  indoor maps: **zero on 754, one on 41**. What bit 0 marks is `unknown` —
+  it correlates with no map, speed or size pattern tested. The second
+  count word's high half is closed: it **duplicates the vertex count**,
+  the low half of the word before it, on 795 of 795 doors. `observed`
+  (`ddm_info <map> --doors` prints each door's attribute word.)
+- The chest's remaining u16 is measured and stays open: 0 on 149 records
+  and 1 on 1,191, splitting along neither the appearance row nor whether
+  the chest holds items. `unknown`
