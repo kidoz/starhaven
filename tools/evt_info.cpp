@@ -1811,6 +1811,36 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 23. A promotion, walked: the Crusader event checks each member's
+    //     class (variable type 2) against the qualifying id and either
+    //     promotes — award 8 and the class set to the next rung — or
+    //     grants the honorary award 9.
+    {
+        game::WalkState knight;
+        knight.variables[214] = 11;  // the deed's own gate
+        knight.variables[2] = 9;
+        const auto promoted = game::walk_event(global, 14, knight);
+        game::WalkState other;
+        other.variables[214] = 11;
+        const auto honored = game::walk_event(global, 14, other);
+        const bool ok = promoted.ran && knight.awards.contains(8) && knight.variables[2] == 10 &&
+                        honored.ran && other.awards.contains(9);
+        if (!beat(ok, "the Crusader event promotes class 9 to 10 for award 8, honors the rest")) {
+            return 1;
+        }
+    }
+    // 24. And the Wizard's, the same shape on the mage's rungs.
+    {
+        game::WalkState mage;
+        mage.variables[2] = 6;
+        const auto promoted = game::walk_event(global, 58, mage);
+        const bool ok = promoted.ran && mage.awards.contains(12) && mage.variables[2] == 7 &&
+                        mage.experience == 15000;
+        if (!beat(ok, "the Wizard event promotes class 6 to 7 for award 12 and 15000 "
+                      "experience")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }

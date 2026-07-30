@@ -370,6 +370,12 @@ the given value, the word after it names the type. Reproduce with
   for the 58 unspoken uses.
 - **type 23 is food**, 1..10 a give. **Type 3 is a cure's hit points and
   type 5 its spell points** — "restores 15 hit points" beside a give of 15.
+- **Type 2 is the character's class id**: the promotion events check it
+  against the qualifying class and set it to the next rung — the Crusader
+  event turns 9 into 10 beside award 8, the Wizard 6 into 7 beside award
+  12 — and **type 214 reads as "this person follows"**, checked against
+  NPCdata row ids (the Prince of Thieves at 17, the Crusader's charge at
+  11). `inferred`, verified by `evt_info --arc`.
 - **types 32..38 are the seven attributes, given permanently** — "+2 Luck
   permanent" is a barrel's own string — in the same Speed-before-Accuracy
   order as the temporaries.
