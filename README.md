@@ -1517,8 +1517,10 @@ docs/
 
 Measured with `--bench 120` at 640x480 on the heaviest maps, release build
 (`meson setup buildRel --buildtype=release`): Castle Alamos (`CD1.Blv`,
-4,000-odd faces) renders at ~80 fps median, Free Haven (`OutC2.Odm`) at
-~125. A debug build is roughly eight times slower and is what `buildDir`
+4,000-odd faces) renders at ~81 fps median, Free Haven (`OutC2.Odm`) at
+~118 — re-measured after the sky cylinder, the water's palette re-bake,
+the health bar and the room players landed; the outdoor sky's full-screen
+pass costs Free Haven about 6% of its former ~125 and is left as is. A debug build is roughly eight times slower and is what `buildDir`
 holds by default — bench release before believing a number. Faces the
 camera provably cannot see are skipped by a conservative sphere test baked
 per face at load, and the per-frame equipped sync reads parsed skill and
