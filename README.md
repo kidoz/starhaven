@@ -1044,6 +1044,13 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The arena found**: awards 84-87 count victories no script grants —
+  because the tournament is executable code around a real level:
+  `zarena.blv` ships in `Games.lod`, names itself "The Arena", stands
+  191 polygons tall and renders under this engine today
+  (`starhaven zarena.blv`). The wave machinery is a lead for the engine
+  to build the way the guild counters were built.
+
 - **The loose-ends drawer, emptied and inventoried**: the door block's
   second count word's high half is closed — it duplicates the vertex
   count on 795 of 795 doors — while two measurements stay honestly open

@@ -624,7 +624,10 @@ The orphans fall into four families that explain themselves: the
 seventeen guild memberships (joined at the guild counter, a service the
 executable — and this engine — performs outside the scripts), the seven
 `%u` counters (bounties, deaths, prison terms, arena ranks — running
-tallies no script could keep), Freed Archibald (see the King's Library
+tallies no script could keep; the arena itself *ships*: `zarena.blv` in
+`Games.lod` names itself "The Arena", renders under this engine, and the
+executable references it beside `Hive.blv` — the tournament that fills
+those counters is executable code around a real level), Freed Archibald (see the King's Library
 in [`text-tables.md`](text-tables.md)), and three story honors —
 Returned the Prince, the Bat Guano, the Obelisk Puzzle — whose granting
 mechanism is `unknown`. `observed`
