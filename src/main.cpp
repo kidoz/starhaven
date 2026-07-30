@@ -103,7 +103,7 @@ void print_usage(const char* argv0) {
               << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
               << "  B          open the spell book: tabs by school, Enter readies a spell\n"
-              << "             (--map opens the globe's maps page for a capture)\n"
+              << "             (--map opens the maps page, --title the title screen)\n"
               << "  M          free the cursor: the frame's books, medallions and\n"
               << "             portraits answer clicks; M again returns to the view\n"
               << "  H          cast the readied spell, else the best heal or smite\n"
@@ -1863,6 +1863,7 @@ int main(int argc, char** argv) {
     bool start_journal = false;  // --journal: open the journal at once
     bool start_book = false;     // --book: open the spell book at once
     bool start_map = false;      // --map: open the maps page at once
+    bool start_title = false;    // --title: hold the title screen for a capture
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
@@ -1902,6 +1903,8 @@ int main(int argc, char** argv) {
             start_book = true;
         } else if (a == "--map") {
             start_map = true;
+        } else if (a == "--title") {
+            start_title = true;
         } else if (a == "--eye") {
             start_eye = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
@@ -2211,6 +2214,17 @@ int main(int argc, char** argv) {
     bool creating = force_create || (screenshot.empty() && bench_frames == 0 &&
                                      walk_on_start < 0 && start_shop == 0 && open_sheet == 0 &&
                                      open_pack == 0);
+    // The game opens like the game: the title painting and its four
+    // plates. New Game walks into the creation hall, Load into the saved
+    // slot, Exit out — and the world holds its breath underneath.
+    bool at_title = start_title || (creating && !force_create);
+    bool title_credits = false;
+    if (at_title) {
+        creating = false;
+        if (mouse_look) {
+            SDL_SetWindowRelativeMouseMode(window, false);
+        }
+    }
     int create_slot = 0;
     Mm6Random create_random{0x51C7E3A9u};
     std::array<game::Pack, 4> packs;
@@ -3190,6 +3204,45 @@ int main(int argc, char** argv) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+            } else if (at_title &&
+                       (event.type == SDL_EVENT_KEY_DOWN ||
+                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+                // The four plates in a row along the painting's foot.
+                int chosen = -1;
+                if (event.type == SDL_EVENT_KEY_DOWN) {
+                    const auto key = event.key.key;
+                    chosen = key == SDLK_N        ? 0
+                             : key == SDLK_L      ? 1
+                             : key == SDLK_C      ? 2
+                             : key == SDLK_ESCAPE ? 3
+                                                  : -1;
+                } else if (event.button.button == SDL_BUTTON_LEFT) {
+                    const int mx = static_cast<int>(event.button.x);
+                    const int my = static_cast<int>(event.button.y);
+                    if (my >= 424 && my < 469 && mx >= 20 && (mx - 20) % 152 < 135) {
+                        chosen = (mx - 20) / 152;
+                    }
+                }
+                const auto leave_title = [&] {
+                    at_title = false;
+                    if (mouse_look && !cursor_free) {
+                        SDL_SetWindowRelativeMouseMode(window, true);
+                    }
+                };
+                if (chosen == 0) {
+                    leave_title();
+                    creating = true;
+                } else if (chosen == 1) {
+                    leave_title();
+                    SDL_Event synthetic{};
+                    synthetic.type = SDL_EVENT_KEY_DOWN;
+                    synthetic.key.key = SDLK_F9;
+                    SDL_PushEvent(&synthetic);
+                } else if (chosen == 2) {
+                    title_credits = !title_credits;
+                } else if (chosen == 3) {
+                    running = false;
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && chest_art >= 0) {
                 chest_art = -1;
             } else if (event.type == SDL_EVENT_KEY_DOWN && book_member >= 0) {
@@ -5093,7 +5146,8 @@ int main(int argc, char** argv) {
         }
         // Real time flows every frame; turn-based time flows only when a
         // round is owed, one quantum at a time.
-        const float sim_dt = turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt;
+        const float sim_dt =
+            at_title ? 0.0f : (turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt);
         if (turn_based && pending_round) {
             ++hourglass_turn;
         }
@@ -6290,9 +6344,26 @@ int main(int argc, char** argv) {
                           class_descriptions);
         }
 
+        if (at_title) {
+            blit(scene.framebuffer(), cache.icon("MM6TITLE.PCX"), 0, 0);
+            const std::array<const char*, 4> kPlates{"MMNEW1", "MMLOA1", "MMCRE1", "MMESC1"};
+            for (int i = 0; i < 4; ++i) {
+                blit(scene.framebuffer(), cache.icon(kPlates[static_cast<std::size_t>(i)]),
+                     20 + i * 152, 424);
+            }
+            if (title_credits && font.glyph_count() > 0) {
+                game::draw_text(scene.framebuffer(), font, 24, 24,
+                                "StarHaven, an open engine for your own copy of the game.",
+                                render::Color{235, 225, 180, 255}, render::Color{0, 0, 0, 255});
+                game::draw_text(scene.framebuffer(), font, 24, 24 + font.height() + 2,
+                                "The art, the words and the world belong to their rights holders.",
+                                render::Color{235, 225, 180, 255}, render::Color{0, 0, 0, 255});
+            }
+        }
         // The map's name, drawn with the game's own font, inside the
         // viewport's frame rather than across it.
-        if (font.glyph_count() > 0 && !creating && !show_journal && book_member < 0) {
+        if (font.glyph_count() > 0 && !creating && !show_journal && book_member < 0 &&
+            !at_title) {
             game::draw_text(scene.framebuffer(), font, 12, 12, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }

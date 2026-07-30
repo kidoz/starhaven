@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The game opens like the game**: `MM6TITLE.PCX` and its four plates
+  stand in front now — New Game walks into the creation hall, Load pulls
+  the saved slot, Credits says whose art this is, Exit leaves — clicked
+  or keyed, with the world holding its breath underneath until a choice
+  is made.
 - **The third grid gamble closed at zero**: the 128x128 grid at 0x80B0
   — the outdoor format's oldest unknown — ships as all zeroes on every
   one of the fifteen maps, with the model array starting right behind
