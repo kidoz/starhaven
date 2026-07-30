@@ -66,5 +66,8 @@ The decoder rejects, deterministically and without reading out of bounds:
 ## Open questions
 
 - The remaining fields within actor and chest records.
-- The contents of the indoor payload's 883-byte prefix and of the saved
-  runtime state that follows its chest array.
+- The indoor payload's 883-byte prefix is **all zero on every shipped map**
+  — a fixed runtime scratch buffer shipped empty (883 is prime, so it is an
+  allocation constant, not a record array; see [`event-tables.md`](event-tables.md)).
+  The saved runtime state that follows the chest array is the same: zeroed
+  on-disk state the engine fills at runtime.

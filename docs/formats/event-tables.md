@@ -240,7 +240,11 @@ The decoder rejects an outdoor layout when:
   the outdoor third grid. Reproduce with `ddm_info <map>`, which prints
   the nonzero count. Only the u16 beside the appearance (0 or 1
   throughout) stays unread.
-- The indoor prefix's 883 bytes, and why the count lands unaligned.
+- The indoor prefix's 883 bytes are **entirely zero on every shipped map**
+  (verified across D01, D07, D11, zddb01, CD1) — a fixed runtime scratch
+  buffer shipped empty, like the outdoor 968-byte blocks. The "unaligned"
+  oddity is simply that **883 is prime**: it is an allocation constant, not a
+  `count × stride` array, so no record stride divides it. `observed`
 - The door attribute word is measured across all 795 doors of the 52
   indoor maps: **zero on 754, one on 41**. What bit 0 marks is `unknown`,
   and it now carries three refutations: not the door's timbre (the bit-1
