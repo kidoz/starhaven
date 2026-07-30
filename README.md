@@ -227,6 +227,15 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The backdrop gamble paid in full**: the 2DEvents Picture column's
+  target was recovered from the game's own executable — `MM6.exe`'s
+  EVENTS.CPP string block lists the interior-video names, and read in
+  descending address order from `blcksrch` they number exactly 1..118.
+  Every anchor checks: smithies under the weapon shops, each guild on
+  its school's screen, the P/M/R houses on their own rooms, the Seer in
+  the poor oracle's hut, all twenty dungeon entrances in order. The
+  mapping ships in `data_info --backdrops`; playing the interiors on the
+  service screens is now one join away.
 - **The hourglass turns**: turn-based mode retired its text tag for the
   game's own `HGLAS` hourglass, standing in the corner readout and
   stepping through its 80 frames as rounds resolve.

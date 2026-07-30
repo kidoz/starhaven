@@ -777,6 +777,166 @@ int do_riders(const std::filesystem::path& data_dir) {
     return 0;
 }
 
+// Verification mode: 2DEvents' Picture column against the interior-video
+// table recovered from the game's own executable. The exe's EVENTS.CPP
+// string block lists the Anims video names contiguously; read in
+// descending address order from "blcksrch" they number 1..118, and every
+// anchor agrees: Weapon Shops (pictures 1-3) land on the smithies, Magic
+// Shops (4-9) on the apothecaries and mage shops, the P/M/R houses on
+// roompor/roommid/roomrch, the Seer on oracpoor, the castle dungeons on
+// cd1..cd3 and the libraries on the Archibald screens. `observed` for the
+// strings, `inferred` for the descending order the anchors pin.
+int do_backdrops(const std::filesystem::path& data_dir) {
+    static constexpr std::array<std::string_view, 118> kInteriors{
+        "blcksrch",
+        "Blcksmid",
+        "blcksPor",
+        "Apthcrch",
+        "Apthcmid",
+        "Apthcwch",
+        "magrch",
+        "magmid",
+        "magicpor",
+        "genstrch",
+        "genstmid",
+        "genstpor",
+        "Cityrich",
+        "Citymid",
+        "CityPoor",
+        "CitySpec",
+        "Citytrtr",
+        "throne06",
+        "throne03",
+        "throne02",
+        "throne01",
+        "throne05",
+        "throne04",
+        "tavpoor1",
+        "tavrich",
+        "tavpoor2",
+        "TavMid",
+        "tavpirat",
+        "tavgob",
+        "temppoor",
+        "tempmid",
+        "temprich",
+        "tempevil",
+        "tempruin",
+        "t7",
+        "t6",
+        "t1",
+        "t4",
+        "t5",
+        "t8",
+        "oracrich",
+        "oracpoor",
+        "circus1",
+        "Bank",
+        "stables",
+        "ship",
+        "jail",
+        "thfrich",
+        "thfpoor",
+        "thfpirat",
+        "mercrich",
+        "mercmid",
+        "mercpoor",
+        "elemFire",
+        "elemerth",
+        "elemair",
+        "elemwatr",
+        "elemall",
+        "mirpthl",
+        "mirpthd",
+        "mirpthdl",
+        "selfspir",
+        "selfmind",
+        "selfbody",
+        "selfall",
+        "roompor1",
+        "roompor2",
+        "roompor3",
+        "roompor4",
+        "roommid1",
+        "roommid2",
+        "roommid3",
+        "roommid4",
+        "roomrch1",
+        "roomrch2",
+        "roomrch3",
+        "roomrch4",
+        "ArmRich",
+        "Armmid",
+        "Armpoor",
+        "train1",
+        "train2",
+        "train3",
+        "train4",
+        "train5",
+        "train6",
+        "Pyramid",
+        "hive",
+        "d14",
+        "d06",
+        "d16",
+        "d05",
+        "d15",
+        "d13",
+        "d17",
+        "d03",
+        "d09",
+        "d12",
+        "t2",
+        "t3",
+        "d10",
+        "d11",
+        "d02",
+        "d04",
+        "d18",
+        "d19",
+        "d07",
+        "d20",
+        "d08",
+        "CstlGood",
+        "d01",
+        "cd1",
+        "cd2",
+        "cd3",
+        "circus2",
+        "statue",
+        "archloop",
+        "noarchie"};
+    data::TextTable table;
+    if (data::load_text_table(data_dir, "2DEvents.txt", table) != data::GameDataError::None) {
+        std::cerr << "error: could not load 2DEvents.txt\n";
+        return 1;
+    }
+    std::map<std::string, std::set<std::string>> by_type;
+    std::size_t mapped = 0, out_of_range = 0;
+    for (std::size_t r = 0; r < table.row_count(); ++r) {
+        if (table.cell_int(r, 0) <= 0) {
+            continue;
+        }
+        const int picture = table.cell_int(r, 4);
+        const std::string type(table.cell(r, 2));
+        if (picture >= 1 && picture <= static_cast<int>(kInteriors.size())) {
+            by_type[type].insert(std::string(kInteriors[static_cast<std::size_t>(picture) - 1]));
+            ++mapped;
+        } else {
+            ++out_of_range;
+        }
+    }
+    for (const auto& [type, interiors] : by_type) {
+        std::cout << "  " << type << ":";
+        for (const auto& name : interiors) {
+            std::cout << " " << name;
+        }
+        std::cout << "\n";
+    }
+    std::cout << mapped << " establishments mapped, " << out_of_range << " out of range\n";
+    return 0;
+}
+
 // Research mode: does every damage cell in either table parse?
 int do_treasure(const std::filesystem::path& data_dir) {
     data::TextTable text;
@@ -1279,6 +1439,8 @@ int main(int argc, char** argv) {
         return do_treasure(data_dir);
     if (command == "--riders")
         return do_riders(data_dir);
+    if (command == "--backdrops")
+        return do_backdrops(data_dir);
     if (command == "--dice")
         return do_dice(data_dir);
     if (command == "--encounters")

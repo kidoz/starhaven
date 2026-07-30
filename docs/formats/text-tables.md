@@ -278,16 +278,25 @@ and opening and closing hours. `observed`
 | 16 | notes | observed |
 | 18–19 | hour it opens and closes | observed |
 
-### The Picture column does not name the shipped panels
+### The Picture column names the interior videos, in the exe's own order
 
-Column 4 runs 1..118 across the 526 typed rows. Two candidate targets were
-measured and neither closes: the `EVPAN###` side panels in `icons.lod` ship
-as 39 entries numbered 1..53 with gaps — 78 of the used values point past
-them — and the `Anims*.vid` shop interiors ship as 129 *named* videos with
-no stated order to index by (the alphabetical order puts an apothecary
-where a weapon shop's 2 points). The column surely picks the talk screen's
-backdrop; by which table it does so is `unknown`. StarHaven's talk screen
-uses `BACKEVT`, the generic marble panel, for everyone meanwhile.
+Column 4 runs 1..118 across the 526 typed rows, and the executable that
+reads it carries the answer: the `EVENTS.CPP` string block in `MM6.exe`
+lists the `Anims*.vid` video names contiguously, and **read in descending
+address order from `blcksrch` they number exactly 1..118**. Every anchor
+agrees — Weapon Shops (pictures 1-3) land on the three smithies, Magic
+Shops (4-9) on the apothecaries and mage shops, Town Halls on the city
+halls with the City Council on `CitySpec` and the unused 17 on
+`Citytrtr`, each school's guild on its own screen (`elemFire`,
+`mirpthd`, `selfmind`...), the P/M/R houses on `roompor`/`roommid`/
+`roomrch` 1-4, the Seer on `oracpoor`, all twenty Dungeon Entrances on
+`d01`..`d20`, the castle dungeons on `cd1`..`cd3` and the libraries on
+the Archibald screens. `observed` for the strings and the anchors,
+`inferred` for the descending read they pin. Reproduce with
+`data_info --backdrops`. The earlier reading that the column might name
+the `EVPAN###` side panels was wrong — though the same string block's
+`evpan%03d` format shows those, too, are picked by a computed number
+still `unknown`.
 
 ### The NPC plates join by row
 
