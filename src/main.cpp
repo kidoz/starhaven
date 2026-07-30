@@ -653,12 +653,17 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
          ay - static_cast<int>(heading_z * 9.0f), {235, 60, 40, 255});
 }
 
-// The character sheet: one member at a time, with the fields named the way the
-// design tables name them.
+void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
+               const data::ItemStatsTable& items, const game::Character& who);
+
+// The character sheet, on the game's own four pages: fr_stats, fr_skill,
+// fr_inven and fr_award each frame what their name says, and the arrows
+// turn between them. The fields keep the design tables' own names.
 void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                 const game::Character& who, const data::DescriptionTable& stats,
                 const data::DescriptionTable& classes, std::int64_t minute,
-                const data::JournalTable& awards, const std::set<int>& earned) {
+                const data::JournalTable& awards, const std::set<int>& earned, int page,
+                const data::ItemStatsTable& items) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -677,36 +682,42 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
 
-    // The sheet's own gilded frame: `fr_stats` is a transparent overlay of
-    // box borders that sections the page — the numbers keep their places
-    // inside its boxes.
-    blit(scene.framebuffer(), cache.icon("fr_stats"), 8, 100);
+    constexpr std::array<const char*, 4> kPages{"fr_stats", "fr_skill", "fr_inven", "fr_award"};
+    constexpr std::array<const char*, 4> kTitles{"statistics", "skills", "inventory", "honors"};
+    page = std::clamp(page, 0, 3);
+    if (page != 2) {
+        blit(scene.framebuffer(), cache.icon(kPages[static_cast<std::size_t>(page)]), 8, 100);
+    }
     blit(scene.framebuffer(), cache.icon(game::portrait_entry(
                                   who.face, game::portrait_frame_of(who, false))),
          24, 28);
     game::draw_text(scene.framebuffer(), font, 100, 30, who.name, white, shadow);
     game::draw_text(scene.framebuffer(), font, 100, 30 + line,
                     who.class_name + ", level " + std::to_string(who.level), dim, shadow);
+    game::draw_text(scene.framebuffer(), font, 300, 30,
+                    std::string(kTitles[static_cast<std::size_t>(page)]) +
+                        "  (left/right turn the page)",
+                    dim, shadow);
 
-    // The seven attributes, named and ordered by stats.txt itself.
-    int y = 134;
-    for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
-        const std::string_view label = game::stat_label(stats, a);
-        const int value = who.attribute(static_cast<game::Attribute>(a));
-        const int bonus = game::attribute_bonus(value);
-        std::string text = std::string(label) + "  " + std::to_string(value);
-        if (who.temp_attributes[a] > 0) {
-            text += " (of it +" + std::to_string(who.temp_attributes[a]) + " temporary)";
+    if (page == 0) {
+        // The seven attributes, named and ordered by stats.txt itself.
+        int y = 134;
+        for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+            const std::string_view label = game::stat_label(stats, a);
+            const int value = who.attribute(static_cast<game::Attribute>(a));
+            const int bonus = game::attribute_bonus(value);
+            std::string text = std::string(label) + "  " + std::to_string(value);
+            if (who.temp_attributes[a] > 0) {
+                text += " (of it +" + std::to_string(who.temp_attributes[a]) + " temporary)";
+            }
+            text += bonus == 0 ? ""
+                               : (bonus > 0 ? "  +" + std::to_string(bonus)
+                                            : "  " + std::to_string(bonus));
+            game::draw_text(scene.framebuffer(), font, 24, y, text, white, shadow);
+            y += line;
         }
-        text += bonus == 0
-                    ? ""
-                    : (bonus > 0 ? "  +" + std::to_string(bonus) : "  " + std::to_string(bonus));
-        game::draw_text(scene.framebuffer(), font, 24, y, text, white, shadow);
-        y += line;
-    }
 
-    // The named conditions the potions set, with the sheet's own hours.
-    {
+        // The named conditions the potions set, with the sheet's own hours.
         std::string active;
         const auto note = [&](const char* name, std::int64_t until) {
             if (until > minute) {
@@ -726,92 +737,95 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
             game::draw_text(scene.framebuffer(), font, 24, y + line, active,
                             render::Color{170, 215, 170, 255}, shadow);
         }
-    }
 
-    // The skills held, each with what raising it would cost. The staircase
-    // is the engine's own; the effects are the table's lines.
-    y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y,
-                    "Skills  (" + std::to_string(who.skill_points) + " to spend)", white,
-                    shadow);
-    y += line;
-    int numbered = 5;
-    for (const auto& [skill, points] : who.skills) {
-        std::string label = std::to_string(numbered) + "  " + skill + "  " +
-                            std::to_string(points) + "  (raise for " +
-                            std::to_string(game::raise_cost(points)) + ")";
-        game::draw_text(scene.framebuffer(), font, 24, y, label,
-                        who.skill_points >= game::raise_cost(points) ? white : dim, shadow);
-        y += line;
-        if (++numbered > 9) {
-            break;
+        // And the derived numbers, in the same order the table lists them.
+        y = 134;
+        const std::array<std::pair<std::size_t, std::string>, 5> derived{{
+            {7, std::to_string(who.hit_points) + " / " + std::to_string(who.max_hit_points)},
+            {8, std::to_string(who.armor_class)},
+            {9, std::to_string(who.spell_points) + " / " + std::to_string(who.max_spell_points)},
+            {12, std::to_string(who.age)},
+            {14, std::to_string(who.experience)},
+        }};
+        for (const auto& [row, value] : derived) {
+            game::draw_text(scene.framebuffer(), font, 260, y,
+                            std::string(game::stat_label(stats, row)) + "  " + value, white,
+                            shadow);
+            y += line;
         }
-    }
 
-    // And the derived numbers, in the same order the table lists them.
-    const int left_bottom = y;
-    y = 134;
-    const std::array<std::pair<std::size_t, std::string>, 5> derived{{
-        {7, std::to_string(who.hit_points) + " / " + std::to_string(who.max_hit_points)},
-        {8, std::to_string(who.armor_class)},
-        {9, std::to_string(who.spell_points) + " / " + std::to_string(who.max_spell_points)},
-        {12, std::to_string(who.age)},
-        {14, std::to_string(who.experience)},
-    }};
-    for (const auto& [row, value] : derived) {
-        game::draw_text(scene.framebuffer(), font, 260, y,
-                        std::string(game::stat_label(stats, row)) + "  " + value, white, shadow);
+        // What the class is, in the designers' own words, below.
+        if (const auto* described = classes.find(who.class_name);
+            described != nullptr && !described->text.empty()) {
+            const std::string text = data::cp1252_to_utf8(described->text.front());
+            int x = 24;
+            int wrap_y = 300;
+            std::string word;
+            for (std::size_t i = 0; i <= text.size(); ++i) {
+                const char ch = i < text.size() ? text[i] : ' ';
+                if (ch != ' ' && ch != '\n') {
+                    word += ch;
+                    continue;
+                }
+                const int width = font.text_width(word + " ");
+                if (x + width > kWidth - 24) {
+                    x = 24;
+                    wrap_y += line;
+                }
+                if (wrap_y < kHeight - line * 2 - 6) {
+                    game::draw_text(scene.framebuffer(), font, x, wrap_y, word, dim, shadow);
+                }
+                x += width;
+                word.clear();
+            }
+        }
+    } else if (page == 1) {
+        // Every skill held, with what raising it would cost. The staircase
+        // is the engine's own; the effects are the table's lines.
+        int y = 134;
+        game::draw_text(scene.framebuffer(), font, 24, y,
+                        "Skills  (" + std::to_string(who.skill_points) + " to spend)", white,
+                        shadow);
         y += line;
-    }
-
-    // The honors the quests set, worded by Awards.txt itself.
-    if (!earned.empty()) {
+        int numbered = 5;
+        for (const auto& [skill, points] : who.skills) {
+            std::string label = (numbered <= 9 ? std::to_string(numbered) + "  " : "   ") +
+                                skill + "  " + std::to_string(points) + "  (raise for " +
+                                std::to_string(game::raise_cost(points)) + ")";
+            game::draw_text(scene.framebuffer(), font, 24, y, label,
+                            who.skill_points >= game::raise_cost(points) ? white : dim, shadow);
+            y += line;
+            ++numbered;
+            if (y > kHeight - line * 2) {
+                break;
+            }
+        }
+    } else if (page == 2) {
+        draw_doll(scene, cache, items, who);
+        game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                        "the pack key opens the grid itself", dim, shadow);
+    } else {
+        // The honors the quests set, worded by Awards.txt itself — all of
+        // them, on their own page.
+        int y = 134;
+        game::draw_text(scene.framebuffer(), font, 24, y, "Honors", white, shadow);
         y += line;
-        game::draw_text(scene.framebuffer(), font, 260, y, "Honors", white, shadow);
-        y += line;
-        std::size_t listed = 0;
         for (const auto& row : awards.entries()) {
             if (!earned.contains(row.bit) || !row.has_text()) {
                 continue;
             }
-            if (++listed > 4) {
-                game::draw_text(scene.framebuffer(), font, 268, y, "...", dim, shadow);
+            if (y > kHeight - line * 2) {
+                game::draw_text(scene.framebuffer(), font, 32, y, "...", dim, shadow);
                 break;
             }
-            game::draw_text(scene.framebuffer(), font, 268, y, data::cp1252_to_utf8(row.text),
+            game::draw_text(scene.framebuffer(), font, 32, y, data::cp1252_to_utf8(row.text),
                             dim, shadow);
             y += line;
         }
-    }
-
-    // What the class is, in the designers' own words, below both columns.
-    if (const auto* described = classes.find(who.class_name);
-        described != nullptr && !described->text.empty()) {
-        const std::string text = data::cp1252_to_utf8(described->text.front());
-        int x = 24;
-        int wrap_y = std::max(left_bottom, y) + line * 2;
-        std::string word;
-        for (std::size_t i = 0; i <= text.size(); ++i) {
-            const char ch = i < text.size() ? text[i] : ' ';
-            if (ch != ' ' && ch != '\n') {
-                word += ch;
-                continue;
-            }
-            const int width = font.text_width(word + " ");
-            if (x + width > kWidth - 24) {
-                x = 24;
-                wrap_y += line;
-            }
-            if (wrap_y < kHeight - line * 2 - 6) {
-                game::draw_text(scene.framebuffer(), font, x, wrap_y, word, dim, shadow);
-            }
-            x += width;
-            word.clear();
+        if (earned.empty()) {
+            game::draw_text(scene.framebuffer(), font, 32, y, "none yet", dim, shadow);
         }
     }
-
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 6,
-                    "1-4 choose a character, 5-9 raise a skill, C closes", dim, shadow);
 }
 
 // Who is in the party, seated in the portrait bar's own ovals: Border2's
@@ -1009,6 +1023,72 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
 }
 
 // One character's pack, on the grid, with the item art the game draws.
+// The paperdoll, shared by the pack screen and the sheet's inventory page.
+void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
+               const data::ItemStatsTable& items, const game::Character& who) {
+    // The paperdoll: the panel, then the body whose letter is the face's —
+    // the twelve dolls and the twelve portraits share their eight-male,
+    // four-female lettering. An item's Equip X/Y is a point on the 640x480
+    // screen, and the items themselves place the body: all seven boots'
+    // art bottoms out at screen row 350, the body is 298 tall, and the helms
+    // centre on column 561 — so the body stands at (504, 52), its feet on
+    // the panel's bottom edge with the panel flush in the corner. `observed`
+    // — see docs/formats/paperdoll.md.
+    constexpr int kDollLeft = kWidth - 173;
+    constexpr int kDollTop = 0;
+    constexpr int kBodyLeft = 504;
+    constexpr int kBodyTop = 52;
+    blit(scene.framebuffer(), cache.icon("BACKDOLL"), kDollLeft, kDollTop);
+
+    // What is worn, by its equip type: a cloak's larger half hangs behind
+    // the body, body armor swaps the torso for its own overlay, and
+    // everything else is the item's art at its recorded point.
+    const auto worn = [&](data::ItemEquipType type) -> const data::ItemStatsEntry* {
+        for (const int id : who.equipped) {
+            if (id <= 0) {
+                continue;
+            }
+            const auto* row = items.at(static_cast<std::size_t>(id));
+            if (row != nullptr && row->equip_type == type) {
+                return row;
+            }
+        }
+        return nullptr;
+    };
+    if (const auto* cloak = worn(data::ItemEquipType::Cloak);
+        cloak != nullptr && !cloak->picture.empty() && cloak->picture.back() == 'a') {
+        std::string back = cloak->picture;
+        back.back() = 'b';
+        blit(scene.framebuffer(), cache.icon(back), kBodyLeft - 15, kBodyTop + 60);
+    }
+
+    const bool female = game::face_is_female(who.face);
+    std::string body = female ? "grl" : "ml";
+    body += static_cast<char>('a' + who.face - (female ? game::kMaleFaceCount : 0));
+    blit(scene.framebuffer(), cache.icon(body + "bod"), kBodyLeft, kBodyTop);
+
+    if (const auto* armor = worn(data::ItemEquipType::Armor);
+        armor != nullptr && armor->picture.size() > 4) {
+        // "chn1icon" wears as "chn1bod", centred on the body with its top at
+        // the shoulder line. The rule is calibrated by eye. `inferred`
+        const std::string stem = armor->picture.substr(0, armor->picture.size() - 4);
+        const render::Texture& torso = cache.icon(stem + "bod");
+        blit(scene.framebuffer(), torso,
+             kBodyLeft + (114 - static_cast<int>(torso.width())) / 2, kBodyTop + 60);
+    }
+
+    for (const int id : who.equipped) {
+        if (id <= 0) {
+            continue;
+        }
+        const auto* row = items.at(static_cast<std::size_t>(id));
+        if (row != nullptr && (row->equip_x != 0 || row->equip_y != 0)) {
+            blit(scene.framebuffer(), cache.icon(row->picture), row->equip_x, row->equip_y);
+        }
+    }
+
+}
+
 void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                const game::Character& who, const game::Pack& pack,  // NOLINT
                const data::ItemStatsTable& items, const data::StandardBonusTable& standard,
@@ -1117,66 +1197,7 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         y += font.height() + 1;
     }
 
-    // The paperdoll: the panel, then the body whose letter is the face's —
-    // the twelve dolls and the twelve portraits share their eight-male,
-    // four-female lettering. An item's Equip X/Y is a point on the 640x480
-    // screen, and the items themselves place the body: all seven boots'
-    // art bottoms out at screen row 350, the body is 298 tall, and the helms
-    // centre on column 561 — so the body stands at (504, 52), its feet on
-    // the panel's bottom edge with the panel flush in the corner. `observed`
-    // — see docs/formats/paperdoll.md.
-    constexpr int kDollLeft = kWidth - 173;
-    constexpr int kDollTop = 0;
-    constexpr int kBodyLeft = 504;
-    constexpr int kBodyTop = 52;
-    blit(scene.framebuffer(), cache.icon("BACKDOLL"), kDollLeft, kDollTop);
-
-    // What is worn, by its equip type: a cloak's larger half hangs behind
-    // the body, body armor swaps the torso for its own overlay, and
-    // everything else is the item's art at its recorded point.
-    const auto worn = [&](data::ItemEquipType type) -> const data::ItemStatsEntry* {
-        for (const int id : who.equipped) {
-            if (id <= 0) {
-                continue;
-            }
-            const auto* row = items.at(static_cast<std::size_t>(id));
-            if (row != nullptr && row->equip_type == type) {
-                return row;
-            }
-        }
-        return nullptr;
-    };
-    if (const auto* cloak = worn(data::ItemEquipType::Cloak);
-        cloak != nullptr && !cloak->picture.empty() && cloak->picture.back() == 'a') {
-        std::string back = cloak->picture;
-        back.back() = 'b';
-        blit(scene.framebuffer(), cache.icon(back), kBodyLeft - 15, kBodyTop + 60);
-    }
-
-    const bool female = game::face_is_female(who.face);
-    std::string body = female ? "grl" : "ml";
-    body += static_cast<char>('a' + who.face - (female ? game::kMaleFaceCount : 0));
-    blit(scene.framebuffer(), cache.icon(body + "bod"), kBodyLeft, kBodyTop);
-
-    if (const auto* armor = worn(data::ItemEquipType::Armor);
-        armor != nullptr && armor->picture.size() > 4) {
-        // "chn1icon" wears as "chn1bod", centred on the body with its top at
-        // the shoulder line. The rule is calibrated by eye. `inferred`
-        const std::string stem = armor->picture.substr(0, armor->picture.size() - 4);
-        const render::Texture& torso = cache.icon(stem + "bod");
-        blit(scene.framebuffer(), torso,
-             kBodyLeft + (114 - static_cast<int>(torso.width())) / 2, kBodyTop + 60);
-    }
-
-    for (const int id : who.equipped) {
-        if (id <= 0) {
-            continue;
-        }
-        const auto* row = items.at(static_cast<std::size_t>(id));
-        if (row != nullptr && (row->equip_x != 0 || row->equip_y != 0)) {
-            blit(scene.framebuffer(), cache.icon(row->picture), row->equip_x, row->equip_y);
-        }
-    }
+    draw_doll(scene, cache, items, who);
 
     // What this character is wearing, beside the grid.
     int worn_y = kTop;
@@ -2233,6 +2254,7 @@ int main(int argc, char** argv) {
     Mm6Random create_random{0x51C7E3A9u};
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
+    int sheet_page = 0;  // which of the sheet's four framed pages shows
     // The spell book: whose is open, which school tab shows, which spell is
     // under the finger, and what each member keeps readied for the cast key.
     int book_member = -1;
@@ -4065,6 +4087,11 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && shown_member >= 0 &&
+                       shown_pack < 0 && open_shop < 0 &&
+                       (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
+                sheet_page =
+                    (sheet_page + (event.key.key == SDLK_LEFT ? 3 : 1)) % 4;
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        talking_to < 0 && shown_pack < 0 &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT ||
@@ -6302,7 +6329,7 @@ int main(int argc, char** argv) {
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
                        stat_descriptions, class_descriptions, clock.minutes(), award_texts,
-                       script_state.awards);
+                       script_state.awards, sheet_page, item_stats);
         }
         if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             advance_room(game::interior_video(

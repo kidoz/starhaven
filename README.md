@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The sheet grew its four pages**: the character sheet now turns
+  between the game's own framed pages — `fr_stats` with attributes,
+  conditions and the class's words, `fr_skill` with every skill and its
+  raise price, `fr_inven` standing the paperdoll itself, `fr_award` with
+  the honors in full — left and right arrows turning the leaf.
 - **The party found its voice**: the sound archive names its voice lines
   exactly like the portrait frames — the sheet letter and a two-digit
   line, a and b takes — so `portrait_entry` is the whole join. Each face
