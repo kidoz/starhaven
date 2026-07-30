@@ -204,10 +204,14 @@ The decoder rejects an outdoor layout when:
 ## Open questions
 
 - Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
-- The meanings of the chest's 140 grid entries. Its first u16 is read:
-  0..7 on every shipped chest, the `DCHEST.BIN` row whose last field
-  numbers the `CHEST01`..`CHEST08` screens — the chest's appearance.
-  The u16 beside it (0 or 1 throughout) stays unread.
+- The chest's first u16 is read: 0..7 on every shipped chest, the
+  `DCHEST.BIN` row whose last field numbers the `CHEST01`..`CHEST08`
+  screens — the chest's appearance. The 140 i16 grid entries are read
+  too, and the answer is silence: **zero on all 187,600 cells across the
+  1,340 shipped chests** — the runtime loot layout, shipped empty like
+  the outdoor third grid. Reproduce with `ddm_info <map>`, which prints
+  the nonzero count. Only the u16 beside the appearance (0 or 1
+  throughout) stays unread.
 - The indoor prefix's 883 bytes, and why the count lands unaligned.
 - What door attribute bits mean, and what the second count word's high half
   duplicates.

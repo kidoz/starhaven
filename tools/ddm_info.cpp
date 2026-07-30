@@ -392,6 +392,21 @@ int main(int argc, char** argv) {
             ++invalid_negative;
         }
     }
+    // The chest record's 140-entry i16 grid: zero on every cell of every
+    // shipped chest — runtime loot layout shipped empty, like the outdoor
+    // third grid. The count printed keeps the claim checkable.
+    {
+        std::size_t grid_nonzero = 0;
+        const auto* p = reinterpret_cast<const unsigned char*>(ev.payload.data());
+        for (std::size_t c = 0; c < layout.chest_count; ++c) {
+            const std::size_t base = layout.chests_offset + c * world::kChestRecordSize;
+            for (std::size_t k = 0; k < world::kChestItemCount; ++k) {
+                const std::size_t at = base + world::kChestGridOffset + k * 2;
+                grid_nonzero += (p[at] | p[at + 1]) != 0 ? 1 : 0;
+            }
+        }
+        std::cout << "  chest_grid_nonzero: " << grid_nonzero << "\n";
+    }
     std::cout << "  chest_items: " << chest_items.size() << " random_by_class=";
     for (std::size_t index = 0; index < random_by_class.size(); ++index) {
         if (index != 0) {

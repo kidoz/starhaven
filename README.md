@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The chest grid closed the same way the third grid did**: the 140
+  i16s beside the chest's item slots are zero on all 187,600 cells
+  across the 1,340 shipped chests — runtime loot layout shipped empty.
+  `ddm_info` prints the nonzero count so the claim stays checkable; the
+  chest record now has exactly one unread u16 left.
 - **Rest at the campfire**: R raises `restmain`'s own camp panel — the
   three plates offering the eight-hour rest, sleep timed to end at dawn,
   or an hour by the fire, the food counted beside the apple and the hour
