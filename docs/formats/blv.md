@@ -584,10 +584,10 @@ record bare. It is **eight 8-byte slots**, each an `i16` count followed by a
 | Offset | Size | Type | Field | Status |
 | ---: | ---: | --- | --- | --- |
 | +0x00 | 4 | — | (head: flags/id) | unknown |
-| +0x04 | 2 | i16 | count 1 (faces) | observed |
+| +0x04 | 2 | i16 | count 1 | observed |
 | +0x08 | 4 | u32 | runtime pointer 1 (patched) | observed |
-| +0x0C | 2 | i16 | count 2 | observed |
-| +0x10 | 4 | u32 | runtime pointer 2 (patched) | observed |
+| +0x0C | 2 | i16 | count 2 — **faces** (the render consumer `0x4080c0` walks this list) | observed |
+| +0x10 | 4 | u32 | runtime pointer 2 — face list (patched) | observed |
 | +0x14 | 2 | i16 | count 3 | observed |
 | +0x18 | 4 | u32 | runtime pointer 3 (patched) | observed |
 | +0x1C | 2 | i16 | count 4 | observed |
@@ -607,9 +607,12 @@ So a sector node owns **eight variable-length arrays** (faces, portals, lights,
 and the rest), each declared by an on-disk count whose entries live in the
 `RLData` pool and whose pointer is resolved at load. This is the "arrays 1-3 of
 each face's six" the data analysis could not place — it is eight per sector,
-not six per face. The per-array meaning (which count is faces, which portals,
-which lights) is pinned to a follow-up trace of the consumers that read each
-pointer. `inferred`
+not six per face. Slot 2 (`+0x0C`/`+0x10`) is **faces** — confirmed by the
+render consumer `fcn.004080c0`, which walks pointer 2 and reads each face's
+fields (testing a flag at face `+0x18`). The other seven slots' specific
+meanings (portals, lights, decals, and the rest) are pinned to a follow-up
+trace of the consumers that read each pointer. `observed` for slot 2, `inferred`
+for the slot structure.
 
   Sliding-window stride detection over that region on `D03.blv` segments it
   into a **stride-8** run, a high-entropy run with no stride above noise
