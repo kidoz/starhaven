@@ -44,7 +44,7 @@ it**.
 | 0x40 | 4 | u32 | full_size | observed | |
 | 0x44 | 4 | u32 | type_size | observed | |
 | 0x48 | 28 | u32[7] | audio_rate | observed | sample rate + flags per track; see below |
-| 0x64 | 4 | u32 | dummy | unknown | |
+| 0x64 | 4 | u32 | dummy | observed | zero on all 127 MM6 videos; unused |
 
 ### Frame rate
 
@@ -250,9 +250,17 @@ were, which is what a run of skip blocks would have done.
 
 ## Open questions
 
-- The Bink-audio variant, which no MM6 video uses. `unknown`
-- Which of bits 31 and 30 is "compressed" and which is "present". `unknown`
-- The `dummy` field at 0x64. `unknown`
-- Whether the `mmap_size`/`mclr_size`/`full_size`/`type_size` fields must be
-  honored as allocation limits; this decoder bounds tree growth independently.
-  `unknown`
+- The Bink-audio variant. The Bink bit (27) is clear on **all 80 audio tracks**
+  across the 127 videos, so no MM6 video uses it; it remains undecoded because
+  nothing exercises it. `unknown` (the path, not the absence)
+- Which of bits 31 and 30 is "compressed" and which is "present". Both are set
+  on **all 80 tracks**, so this data cannot distinguish them; nothing in the
+  decoder depends on telling them apart, since each chunk announces its own
+  compression. `unknown`
+- Whether `mmap_size`/`mclr_size`/`full_size`/`type_size` must be honored as
+  allocation limits. They are **not** per-tree byte sizes of the tree block:
+  their sum exceeds `trees_size` on all 127 videos, and the decoder bounds tree
+  growth via `trees_size` and the block's own structure without consulting them
+  — all 127 videos decode correctly as a result. They read as worst-case
+  allocation hints the original allocator may have used, but whether the
+  *original* engine enforced them is not provable from the data. `unknown`

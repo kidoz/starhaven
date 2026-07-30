@@ -62,8 +62,10 @@ entry on demand rather than holding the archive in memory: `Anims2.vid` is
 
 ## Open questions
 
-- Whether any MM6 build ships a `.vid` containing Bink rather than Smacker
-  payloads. None of the 127 entries here does. `unknown`
+- Whether any *other* MM6 build ships a `.vid` containing Bink rather than
+  Smacker. In this GOG edition all 127 entries begin `"SMK2"` (no `"SMK4"`,
+  no Bink) `observed`, so Bink is absent here; only other editions, which this
+  install cannot speak for, could differ. `unknown` for those editions.
 
 ## The shop videos are keyed by trade and by quality
 
