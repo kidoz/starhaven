@@ -64,8 +64,11 @@ are contiguous. `observed`
 Sequence numbers count from zero within an event: 5,176 records are step 0,
 1,407 are step 1, 1,115 step 2, and so on down. `observed`
 
-**90 distinct opcodes** appear. The most common are 4 (2,192 uses), 14, 1, 15,
-16, 18, 29 and 30. Argument lengths are fixed per opcode.
+**90 distinct opcodes** appear in the raw bytes, but the executable dispatches
+only **1..43** (see "The complete opcode table"): opcodes 44..53 are a six-use
+template and 54..90 are single-use trailing junk, all skipped by the executor's
+default case. The most common are 4 (2,192 uses), 14, 1, 15, 16, 18, 29 and 30.
+Argument lengths are fixed per opcode.
 
 ### Three of them are named
 
@@ -718,34 +721,86 @@ settled it. Each opcode's handler reads its arguments from `[esi+N]` and acts;
 e.g. opcode 15 reads door id `[esi+5]` and state `[esi+6]`, opcode 7 (chest)
 reads `[esi+5]`.
 
-### Opcodes decoded from the dispatch
+### The complete opcode table
 
-The jump table maps every opcode 1..43 to a handler. Cross-referenced against
-the names already known, the newly-decoded opcodes are:
+The dispatch hub at `0x43c948` reads the opcode at step offset +4, subtracts 1,
+and bounds-checks against 42 (`cmp eax, 0x2a`): **only opcodes 1..43 are
+dispatched**; opcode 0 and any opcode ≥44 fall to the default, which merely
+advances the step counter. The shipped data carries opcodes 0..90, but
+54..90 each appear once with zero arguments (trailing junk) and 44..53 are a
+six-use template, so the executable vocabulary is 1..43. `observed`
 
-| Opcode | Handler | Meaning | Status |
+Merging the names already established from the data with the handlers decoded
+from the executable, every opcode 1..43 now has a reading:
+
+| Op | Name | Handler | Status |
 | ---: | --- | --- | --- |
-| 4, 5 | `0x43dd01` | decrement a structured-block counter (`var_14h`), then fall through | observed |
-| 10 | `0x43d835` | set a boolean game-state flag: `[esi+6]` → 0/1 into `0x61a96c` | observed |
-| 20, 27, 28, 31, 37, 38 | `0x43e1e2` | **no-op** (the default case; also case 28) | observed |
+| 1 | End | `0x43e3bd` | observed |
+| 2 | Enter (establishment) | `0x43e076` | observed |
+| 3 | Spawn sprite object (calls spawner `0x48eb40`) | `0x43df77` | observed |
+| 4 | Event header / block-open (data: the interactable noun; handler: decrement block counter) | `0x43dd01` | observed |
+| 5 | Title (shares handler with 4) | `0x43dd01` | observed |
+| 6 | Travel (move party to a map) | `0x43dd35` | observed |
+| 7 | Chest (open) | `0x43dd1e` | observed |
+| 8 | Play effect/sound by category (sub-switch `[esi+5]` 0..5) | `0x43cebf` | observed |
+| 9 | Harm the party | `0x43d575` | observed |
+| 10 | Set boolean game-state flag (`[esi+6]`→`0x61a96c`) | `0x43d835` | observed |
+| 11 | Retexture (repaint a face) | `0x43db10` | observed |
+| 12 | Set variable (value + name pointer) | `0x43db40` | inferred |
+| 13 | Set/compare variable by id | `0x43db94` | inferred |
+| 14 | Check (variable test) | `0x43d05a` | observed |
+| 15 | Door (`[id][state]`; see event-tables.md) | `0x43dd0a` | observed |
+| 16 | Give (item/gold) | `0x43d369` | observed |
+| 17 | Take | `0x43d195` | observed |
+| 18 | Set (variable) | `0x43d281` | observed |
+| 19 | Summon (from encounter table) | `0x43dc7b` | observed |
+| 20 | no-op (default) | `0x43e1e2` | observed |
+| 21 | Launch (sprite) | `0x43da1e` | observed |
+| 22 | Reset 20-slot dialogue/choice buffer | `0x43cab5` | inferred |
+| 23 | Variable op (4-byte value) | `0x43d6fb` | inferred |
+| 24 | Variable op (4-byte value) | `0x43d7bb` | inferred |
+| 25 | RandomJump (roll a step) | `0x43d505` | observed |
+| 26 | Ask (typed answer) | `0x43d451` | observed |
+| 27 | no-op (default) | `0x43e1e2` | observed |
+| 28 | no-op (default) | `0x43e1e2` | observed |
+| 29 | Message (short) | `0x43d855` | observed |
+| 30 | LongMessage (sign text) | `0x43d9a6` | observed |
+| 31 | no-op (default) | `0x43e1e2` | observed |
+| 32 | Switch (event on/off) | `0x43d666` | observed |
+| 33 | Mode-dependent sub-screen enter/exit | `0x43e304` | inferred |
+| 34 | Move to coordinates | `0x43cf90` | inferred |
+| 35 | Name (the interactable noun) | `0x43cf82` | observed |
+| 36 | Goto (jump) | `0x43cea8` | observed |
+| 37 | no-op (default) | `0x43e1e2` | observed |
+| 38 | no-op (default) | `0x43e1e2` | observed |
+| 39 | SetTopic | `0x43cb9d` | observed |
+| 40 | MoveNpc | `0x43cd61` | observed |
+| 41 | Open panel/dialogue | `0x43dffc` | inferred |
+| 42 | Conditional check | `0x43cb48` | inferred |
+| 43 | Read variable by type (sub-switch `[esi+5]` 0..5) | `0x43c94f` | inferred |
 
-So opcode 4 — the commonest at 2,192 uses, long `unknown` — is **control-flow
-bookkeeping**, not a game action: it decrements the block counter the
-interpreter uses to track structured-event nesting, then continues. And six of
-the "unknown" opcodes are simply unimplemented slots that fall to the default.
+Opcode 0 (88 uses, up to 37 arg bytes, carries map filenames like
+`sub03bz.blv`) is the **script/map identifier header**, not an executable
+step — the executor skips it via the same default path. `observed`
 
-The opcodes still carrying real, undecoded handlers are 3, 8, 12, 13, 22, 23,
-24, 33, 34, 41, 42, 43 — each now reachable by name from the table at
-`0x43e3c8`.
+The `observed` rows are grounded in the handler's own reads and calls or in
+the data analysis above; the `inferred` rows name the operation from its shape
+but pin the exact argument semantics to a follow-up trace of the called
+function. Opcode 4's two readings are complementary, not conflicting: in the
+*data* it opens an event and carries the interactable-noun string index (see
+"Opcode 4 opens an event" above); in the *handler* it records the structured
+block's opening.
 
 Do not treat the addresses above as stable across MM6 builds; they are pinned
 to the recorded SHA-256.
 
 ## Open questions
 
-- The rare tail of the 90 distinct opcodes. Two dozen are named above
-  and carry the scripts' bulk; the rest are single-digit-use strays.
-  `unknown`
+- The "rare tail of the 90 distinct opcodes" is now resolved: the executable
+  dispatch covers **only opcodes 1..43** (see "The complete opcode table");
+  opcodes 44..53 are a six-use template and 54..90 are single-use trailing
+  junk, all of which the executor silently skips via its default case.
+  `observed`
 - Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
   on the rest, including consecutive runs within one script. Three readings
   are tested and fail: `2DEvents.txt` row ids (the values run past the
