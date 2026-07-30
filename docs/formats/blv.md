@@ -547,8 +547,11 @@ reached through.
 Each section's count is read as a `u32` immediately before the copy
 (`mov eax,[ebx]; add ebx,4`), and `fcn.00438d20` is called after each as a
 bounds check. The header field `index_block_bytes` at `+0x68` is the sum the
-loader advances by; `+0x6c` and `+0x70` are read later as `i16` pairs in the
-sector-culling child `fcn.0048c3d0`, not as section sizes.
+loader advances by. The header fields at `+0x6c` and `+0x70` are **never read
+by the loader** (it advances straight from the header base to `+0x88`), so they
+are unused by the load path; their meaning stays `unknown`. (The `i16` bounds
+pairs at offsets `0x68..0x72` read by the culler `fcn.0048c3d0` are on the
+116-byte `RData` record, a different structure — not these header fields.)
 
 Do not treat the addresses above as stable across MM6 builds; they are pinned
 to the recorded SHA-256.
@@ -656,7 +659,9 @@ pointer use, `inferred` for the portal/light/collision labels.
 - What follows the decoration block is now partly read: first the lights,
   then the quad section, both above. What the quads mean, and whatever
   trails them, stays `unknown`.
-- The header fields at 0x00, 0x6C and 0x70. `unknown`
+- The header field at `0x00` (1 on most maps, 6 on some). `+0x6C` and `+0x70`
+  are confirmed unused by the loader (it skips them), so only `0x00` stays
+  open. `unknown`
 - The face-extra field at +0x1A is the **event id**: see
   [`map-events.md`](map-events.md). It was carried as unknown here until the
   scripts were found.
@@ -666,6 +671,9 @@ pointer use, `inferred` for the portal/light/collision labels.
   and of those just 7 land on a face boundary, none of them a face carrying the
   door or event bits. The pointers that are pointers mostly address other
   allocations the process made, which are not in the file. `observed`
-- What arrays 1-3 of each face's six actually mean. `unknown`
+- The "arrays 1-3 of each face's six" are now resolved: they are **eight
+  count/pointer arrays per sector** (not six per face) — faces, lights,
+  collision, two portal sets, and three more. See "The front of the record is
+  eight count/pointer slots". Five of the eight are named.
 - The unknown spans inside the face record (+0x10, +0x38, +0x4E). `unknown`
 - Whether the `.dlv` files pair with `.blv` the way `.ddm` pairs with `.odm`.
