@@ -61,6 +61,7 @@ starhaven_core_sources = files(
   'src/core/world/object_table.cpp',
   'src/core/world/chest_table.cpp',
   'src/core/world/overlay_table.cpp',
+  'src/core/world/portrait_frame_table.cpp',
   'src/core/world/sprite_frame_table.cpp',
   'src/core/world/sound_table.cpp',
   'src/core/world/decoration_table.cpp',
