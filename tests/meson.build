@@ -104,6 +104,12 @@ test('blv',
   workdir : meson.current_build_dir(),
 )
 
+test('blv_sector',
+  executable('test_blv_sector', 'test_blv_sector.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('collision',
   executable('test_collision', 'test_collision.cpp',
     dependencies : [starhaven_dep, catch2_main]),

@@ -4,6 +4,7 @@
 #include "core/io/byte_reader.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <utility>
 
 namespace starhaven::world {
@@ -610,6 +611,122 @@ std::vector<BlvLight> extract_lights(const BlvMap& map) {
         out.push_back(light);
     }
     return out;
+}
+
+bool carve_sectors(std::span<const std::uint8_t> payload, std::size_t start, std::size_t stop,
+                   std::size_t face_count, std::vector<BlvSector>& out) {
+    out.clear();
+    if (start + 4 > payload.size() || stop > payload.size() || start >= stop) {
+        return false;
+    }
+    const auto u16_at = [&payload](std::size_t at) {
+        std::uint16_t v = 0;
+        std::memcpy(&v, payload.data() + at, sizeof(v));
+        return v;
+    };
+    const auto i16_at = [&payload](std::size_t at) {
+        std::int16_t v = 0;
+        std::memcpy(&v, payload.data() + at, sizeof(v));
+        return v;
+    };
+
+    const std::uint32_t count =
+        u16_at(start) | (static_cast<std::uint32_t>(u16_at(start + 2)) << 16);
+    // Sanity bound: no shipped map exceeds a few hundred sectors.
+    constexpr std::uint32_t kMaxSectors = 8192;
+    if (count == 0 || count > kMaxSectors) {
+        return false;
+    }
+    const std::size_t records_end = start + 4 + static_cast<std::size_t>(count) * kBlvSectorSize;
+    if (records_end > stop) {
+        return false;  // the records must fit before the decoration block
+    }
+
+    // The flat `L.RLData` u16 index pool begins right after the sector records
+    // and runs to the decoration block. The loader's fixup pass walks each
+    // sector's eight counts in order, advancing a running offset by
+    // count x 2 bytes; the face list is slot 2 (kBlvSectorSlotFaces).
+    std::size_t pool_at = records_end;
+    const auto advance_slot = [&](std::int16_t slot_count) -> bool {
+        const std::size_t bytes = static_cast<std::size_t>(slot_count) * 2U;
+        if (pool_at + bytes > stop) {
+            return false;
+        }
+        pool_at += bytes;
+        return true;
+    };
+
+    out.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        const std::size_t rec = start + 4 + static_cast<std::size_t>(i) * kBlvSectorSize;
+        BlvSector sector;
+        for (std::size_t s = 0; s < kBlvSectorSlotCount; ++s) {
+            sector.slot_counts[s] = i16_at(rec + kBlvSectorSlotOffsets[s]);
+        }
+        sector.min_x = i16_at(rec + kBlvSectorAabbOffset + 0);
+        sector.max_x = i16_at(rec + kBlvSectorAabbOffset + 2);
+        sector.min_y = i16_at(rec + kBlvSectorAabbOffset + 4);
+        sector.max_y = i16_at(rec + kBlvSectorAabbOffset + 6);
+        sector.min_z = i16_at(rec + kBlvSectorAabbOffset + 8);
+        sector.max_z = i16_at(rec + kBlvSectorAabbOffset + 10);
+
+        // Walk the eight slots in order, carving slot 2 as the face list.
+        std::size_t face_pool = pool_at;
+        for (std::size_t s = 0; s < kBlvSectorSlotCount; ++s) {
+            if (s == kBlvSectorSlotFaces) {
+                face_pool = pool_at;  // slot 2's entries start here
+            }
+            if (!advance_slot(sector.slot_counts[s])) {
+                out.clear();
+                return false;
+            }
+        }
+        const std::int16_t faces = sector.slot_counts[kBlvSectorSlotFaces];
+        if (faces < 0) {
+            out.clear();
+            return false;
+        }
+        for (std::int16_t f = 0; f < faces; ++f) {
+            const std::size_t at = face_pool + static_cast<std::size_t>(f) * 2U;
+            const std::uint16_t face_id = u16_at(at);
+            if (face_id >= face_count) {
+                out.clear();  // out-of-range face id -> reject the whole parse
+                return false;
+            }
+            sector.face_ids.push_back(face_id);
+        }
+        out.push_back(std::move(sector));
+    }
+    return true;
+}
+
+bool extract_sectors(BlvMap& map) {
+    map.sectors.clear();
+    map.face_sector.clear();
+    if (map.faces.empty() || map.decoded_bytes >= map.payload.size()) {
+        return false;
+    }
+    const BlvDecorationBlock block = find_decoration_block(map);
+    if (!block.found() || block.offset <= map.decoded_bytes) {
+        return false;
+    }
+    if (!carve_sectors(map.payload, static_cast<std::size_t>(map.decoded_bytes),
+                       static_cast<std::size_t>(block.offset), map.faces.size(), map.sectors)) {
+        return false;
+    }
+
+    // Build the face -> sector map. A face claimed by multiple sectors keeps
+    // the first; unclaimed faces keep kBlvFaceNoSector and fall back to the
+    // per-face cull when drawn.
+    map.face_sector.assign(map.faces.size(), kBlvFaceNoSector);
+    for (std::size_t s = 0; s < map.sectors.size(); ++s) {
+        for (const std::uint16_t fid : map.sectors[s].face_ids) {
+            if (map.face_sector[fid] == kBlvFaceNoSector) {
+                map.face_sector[fid] = static_cast<std::uint16_t>(s);
+            }
+        }
+    }
+    return true;
 }
 
 }  // namespace starhaven::world

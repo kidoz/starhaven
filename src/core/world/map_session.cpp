@@ -508,6 +508,10 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
         return MapSessionError::BadMap;
     }
 
+    // Rooms/sectors feed the visibility cull. A failed parse leaves the map
+    // rendering with the per-face cull it already had, so the result is ignored.
+    static_cast<void>(extract_sectors(out.blv));
+
     // Collision uses the same faces the renderer draws, minus the portals.
     rebuild_indoor_collision(out);
 

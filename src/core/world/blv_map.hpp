@@ -1,6 +1,7 @@
 #ifndef STARHAVEN_CORE_WORLD_BLV_MAP_HPP
 #define STARHAVEN_CORE_WORLD_BLV_MAP_HPP
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -124,6 +125,26 @@ struct BlvFaceExtra {
     std::string name;
 };
 
+// One 116-byte room/sector record from the `L.RData` section. A sector node
+// owns eight variable-length index lists (faces, portals, lights, collision,
+// and four more) whose counts are stored here and whose entries live in the
+// flat `L.RLData` u16 pool; the on-disk pointers are stale runtime addresses,
+// so the lists are carved out of the pool by walking the counts in order.
+// See docs/formats/blv.md. Slot 2 is the face list; the AABB bounds the room.
+struct BlvSector {
+    // The eight list counts, in the order the loader's fixup pass walks them.
+    std::array<std::int16_t, 8> slot_counts{};
+
+    // Axial bounding box of the room, in BLV world units (i16). +0x68..+0x72.
+    std::int16_t min_x = 0, max_x = 0;
+    std::int16_t min_y = 0, max_y = 0;
+    std::int16_t min_z = 0, max_z = 0;
+
+    // The sector's face list — slot 2 — carved from the RLData pool. Each id
+    // is an index into `BlvMap::faces`. Empty when the sector owns no faces.
+    std::vector<std::uint16_t> face_ids;
+};
+
 // A parsed `.blv` indoor map.
 struct BlvMap {
     BlvHeader header;
@@ -146,6 +167,15 @@ struct BlvMap {
     // How far into the payload this slice decodes. Everything after is the
     // room/BSP/light/door data a later slice will cover.
     std::uint64_t decoded_bytes = 0;
+
+    // The room/sector records (`L.RData`) and the flat index pool that backs
+    // their lists (`L.RLData`), parsed from the region after `decoded_bytes`.
+    // Empty when the map has no sector section or the parse rejected it.
+    std::vector<BlvSector> sectors;
+
+    // For each face in `faces`, the index of the sector that owns it, or
+    // `kBlvFaceNoSector` when no sector claims the face. Parallel to `faces`.
+    std::vector<std::uint16_t> face_sector;
 };
 
 constexpr std::uint32_t kBlvDecorationSize = 32;        // the name records
@@ -232,6 +262,23 @@ constexpr std::uint32_t kBlvFaceExtraNameSize = 10;
 // in `payload` for a later slice.
 [[nodiscard]] BlvError parse_blv(std::span<const std::byte> entry, BlvMap& out);
 
+// Parse the room/sector records (`L.RData`) and their index pool (`L.RLData`)
+// from the region of `map.payload` that follows `map.decoded_bytes`, up to the
+// decoration block. Fills `map.sectors` (each with its slot-2 face list carved
+// from the pool) and `map.face_sector` (face -> owning sector). On any
+// malformed input — a count that overruns the pool, or a face id outside
+// `map.faces` — both outputs are cleared and the map keeps rendering with the
+// per-face cull it already had. Returns true on success.
+[[nodiscard]] bool extract_sectors(BlvMap& map);
+
+// Carve the 116-byte sector records out of `[start, stop)` of `payload`, using
+// the flat `L.RLData` u16 pool that follows them, and validate every face id
+// against `face_count`. The pure core of `extract_sectors`, exposed for
+// synthetic tests that build a sector region without a full decoration block.
+[[nodiscard]] bool carve_sectors(std::span<const std::uint8_t> payload, std::size_t start,
+                                 std::size_t stop, std::size_t face_count,
+                                 std::vector<BlvSector>& out);
+
 // Layout constants (see docs/formats/blv.md).
 constexpr std::uint32_t kBlvWrapperSize = 8;
 constexpr std::uint32_t kBlvVertexCountOffset = 0x88;
@@ -240,6 +287,16 @@ constexpr std::uint32_t kBlvFaceSize = 80;       // 0x50
 constexpr std::uint32_t kBlvFaceArrayCount = 6;  // index arrays per face
 constexpr std::uint32_t kBlvTextureNameSize = 10;
 constexpr std::uint32_t kBlvHeaderSize = 0x8C;  // through the vertex count
+
+// Sector layout constants (see docs/formats/blv.md, "L.RData").
+constexpr std::uint32_t kBlvSectorSize = 116;  // 0x74 bytes per room record
+constexpr std::uint32_t kBlvSectorSlotCount = 8;
+// Offsets of the eight list counts within a 116-byte record, in walk order.
+constexpr std::array<std::uint32_t, kBlvSectorSlotCount> kBlvSectorSlotOffsets{
+    0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x3C, 0x44};
+constexpr std::uint32_t kBlvSectorSlotFaces = 1;  // slot 2 is the face list
+constexpr std::uint32_t kBlvSectorAabbOffset = 0x68;  // xmin..zmax, 6 x i16
+constexpr std::uint16_t kBlvFaceNoSector = 0xFFFF;
 
 }  // namespace starhaven::world
 

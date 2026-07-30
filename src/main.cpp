@@ -2788,6 +2788,10 @@ int main(int argc, char** argv) {
         float radius = 0.0f;
     };
     std::vector<FaceBound> face_bounds;
+    // One bounding sphere per room/sector, in render space like face_bounds.
+    // Empty when the map has no sector section; in that case sector culling is
+    // skipped and the per-face sphere test stands on its own.
+    std::vector<FaceBound> sector_bounds;
     const auto bake_lights = [&] {
         face_light.assign(session.blv.faces.size(), 0.0f);
         face_bounds.assign(session.blv.faces.size(), {});
@@ -2844,7 +2848,47 @@ int main(int argc, char** argv) {
             face_light[i] = glow > 1.0f ? 1.0f : glow;
         }
     };
+    // Bake a per-sector bounding sphere in render space, for coarse room
+    // culling. A sector whose sphere leaves the view rejects all its faces at
+    // once, before the per-face test runs. Re-run whenever the map changes.
+    const auto bake_sector_bounds = [&] {
+        sector_bounds.assign(session.blv.sectors.size(), {});
+        for (std::size_t i = 0; i < session.blv.sectors.size(); ++i) {
+            const auto& s = session.blv.sectors[i];
+            const render::Vec3 corners[8] = {
+                world::to_render_space(s.min_x, s.min_y, s.min_z),
+                world::to_render_space(s.min_x, s.min_y, s.max_z),
+                world::to_render_space(s.min_x, s.max_y, s.min_z),
+                world::to_render_space(s.min_x, s.max_y, s.max_z),
+                world::to_render_space(s.max_x, s.min_y, s.min_z),
+                world::to_render_space(s.max_x, s.min_y, s.max_z),
+                world::to_render_space(s.max_x, s.max_y, s.min_z),
+                world::to_render_space(s.max_x, s.max_y, s.max_z),
+            };
+            render::Vec3 lo = corners[0];
+            render::Vec3 hi = corners[0];
+            for (int k = 1; k < 8; ++k) {
+                lo.x = std::min(lo.x, corners[k].x);
+                lo.y = std::min(lo.y, corners[k].y);
+                lo.z = std::min(lo.z, corners[k].z);
+                hi.x = std::max(hi.x, corners[k].x);
+                hi.y = std::max(hi.y, corners[k].y);
+                hi.z = std::max(hi.z, corners[k].z);
+            }
+            const render::Vec3 center{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f,
+                                      (lo.z + hi.z) * 0.5f};
+            float radius = 0.0f;
+            for (int k = 0; k < 8; ++k) {
+                const float dx = corners[k].x - center.x;
+                const float dy = corners[k].y - center.y;
+                const float dz = corners[k].z - center.z;
+                radius = std::max(radius, std::sqrt(dx * dx + dy * dy + dz * dz));
+            }
+            sector_bounds[i] = {center, radius};
+        }
+    };
     bake_lights();
+    bake_sector_bounds();
 
     render::SceneRenderer scene(kWidth, kHeight);
 
@@ -3396,6 +3440,7 @@ int main(int argc, char** argv) {
         shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
         note_town();
         bake_lights();
+        bake_sector_bounds();
         open_shop = -1;
         talking_to = -1;
         shop_stock.clear();
@@ -5614,6 +5659,20 @@ int main(int argc, char** argv) {
             draw_indoor(scene, session, cache, lamp,
                         clock.minutes() < torch_until ? 1.45f : 1.0f, &face_light,
                         [&](std::size_t index) {
+                            // Coarse: reject the whole room at once. A face
+                            // without a sector (or with no sector data) falls
+                            // through to the per-face test below.
+                            if (index < session.blv.face_sector.size()) {
+                                const std::uint16_t sec = session.blv.face_sector[index];
+                                if (sec != world::kBlvFaceNoSector && sec < sector_bounds.size() &&
+                                    sector_bounds[sec].radius > 0.0f) {
+                                    if (!scene.might_see(sector_bounds[sec].center,
+                                                         sector_bounds[sec].radius)) {
+                                        return true;
+                                    }
+                                }
+                            }
+                            // Fine: per-face bounding sphere.
                             return index < face_bounds.size() &&
                                    face_bounds[index].radius > 0.0f &&
                                    !scene.might_see(face_bounds[index].center,
