@@ -5474,6 +5474,18 @@ int main(int argc, char** argv) {
 
             // A door into an establishment opens its counter.
             if (outcome.building != 0) {
+                // Award 35, Freed Archibald, is granted by no script — the
+                // measured negative — and everything about it converges on
+                // the King's Library, row 168: its three 2DEvents rows are
+                // the statue, freed and gone screens, and the two stray NPC
+                // plates are its extra rows' ids. The executable does the
+                // freeing; this engine reads walking in as the deed, and
+                // marks the trigger's true precondition `unknown`.
+                if (outcome.building == 168 && !script_state.awards.contains(35)) {
+                    script_state.awards.insert(35);
+                    pick_up_message = "The statue stirs: Archibald Ironfist is freed";
+                    pick_up_shown = SDL_GetTicks();
+                }
                 for (std::size_t i = 0; i < shops_here.size(); ++i) {
                     if (static_cast<std::uint32_t>(shops_here[i]->id) != outcome.building) {
                         continue;

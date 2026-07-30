@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Award 35 found its house**: "Freed Archibald" is granted by no
+  script — but everything about it converges on the King's Library on
+  map D3, whose three 2DEvents rows are the statue, freed and gone
+  screens and whose two extra row ids are exactly the two stray NPC
+  plates. The executable does the swap and the grant; the engine now
+  reads walking in as the deed, with the true precondition filed as
+  unknown.
 - **The evpan gamble came up empty, on the record**: the number behind
   the exe's `evpan%03d` was hunted through every script opcode's
   argument sets and every numeric column of `2DEvents.txt`, and nothing

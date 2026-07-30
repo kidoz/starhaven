@@ -303,6 +303,21 @@ dense id spaces covering everything else too), and no numeric column of
 likeliest remaining sources are the outdoor model records' unread
 fields or a table in the executable; the feed stays `unknown`.
 
+### The King's Library carries the Archibald machinery
+
+Award 35, "Freed Archibald", is granted by **no script**: a sweep of all
+83 map scripts and `GLOBAL.EVT` finds no give of it, though award 36 and
+Archibald's own Ritual event are all there. Everything about it instead
+converges on one establishment: `2DEvents.txt` holds **three "King's
+Library" rows for map D3** — 168, 553 and 554 — whose pictures are 116,
+117 and 118, exactly the `statue`, `archloop` and `noarchie` interior
+screens, and whose two extra row ids are exactly the two stray `NPC553`
+and `NPC554` portrait plates. The reading: the executable swaps the
+library's row as the story advances and grants the award itself; the
+`archie` string sits in the same EVENTS.CPP block. `observed` for the
+rows, screens and plates; the freeing's true precondition is `unknown` —
+StarHaven grants award 35 on walking in, its own choice, and says so.
+
 ### The NPC plates join by row
 
 The `NPC###` portraits in `icons.lod` are named by `NPCdata.txt` row id:
