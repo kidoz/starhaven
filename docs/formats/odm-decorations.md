@@ -74,11 +74,14 @@ header, a zlib stream, then a `u32` count and 230 fixed 80-byte records.
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 32 | char[32] | name | observed | matches the map's name array |
 | +0x20 | 32 | char[32] | group | observed | e.g. `"tree"`, `"cactus"`, `"test"` |
-| +0x42 | 2 | u16 | unknown | unknown | 96 for trees, 52 for cacti; plausibly a radius |
-| +0x44 | 2 | u16 | unknown | unknown | 76 for trees |
-| +0x48 | 2 | u16 | unknown | inferred | consecutive across sibling entries (tree27→1158, tree28→1159, tree29→1160), so an id rather than a size |
-| +0x4A | 2 | u16 | unknown | unknown | nonzero on five records |
+| +0x40 | 2 | u16 | — | observed | zero on all 230 records |
+| +0x42 | 2 | u16 | radius | observed | collision radius: 96 for trees, 52 for cacti (see below) |
+| +0x44 | 2 | u16 | extent | observed | a second size dimension; a radius/height pair with `+0x42` (see below) |
+| +0x46 | 2 | u16 | light | inferred | 256 on the six torches, 16 on `Pending!`, else 0 — a light-source flag |
+| +0x48 | 2 | u16 | sprite_frame | observed | the `DSFT.BIN` frame index of this decoration's art (see below) |
+| +0x4A | 2 | u16 | — | unknown | nonzero on five records (32 on `Party Start`, 64 on `Shp`, 8 on three torches) |
 | +0x4C | 2 | u16 | sound id | observed | an ambient sound, resolved through `DSOUNDS.BIN` |
+| +0x4E | 2 | u16 | — | observed | zero on all 230 records |
 
 A decoration's `kind` indexes this table, and the record's name matches the
 map's own name array in **726 of 727** entries on `Outa1.odm`. `observed`
@@ -90,6 +93,46 @@ Seven of the 230 types name a sound at `+0x4C`, and all seven resolve through
 `campfire`, `Statue` to `fountain`, `Cauldron` to `bubbling cauldron01`. The
 other 223 are zero, which is correct rather than incomplete: a tree makes no
 noise. `observed`
+
+## `+0x48` is the sprite frame table index
+
+The field at `+0x48` is the decoration's art: a **frame index into
+`DSFT.BIN`** that names the animation the decoration plays. This is the join
+the renderer needs.
+
+The evidence is direct, over all 230 records:
+
+- **228 of 230** carry a nonzero `+0x48` that lands on a valid `DSFT.BIN` frame
+  (the two zeros are `uacrwn` and `Party Start`, placeholders with no art).
+  `observed`
+- **228 of 228** nonzero indices point at a **named group-start frame** — never
+  a mid-animation frame — which is the entry point for playing an animation.
+  `observed`
+- The `DSFT` group name at that index matches the decoration name. 137 match
+  by identical trailing number (`tree01`→`tree01`, `ped01`→`ped01`), and the
+  rest match as abbreviations the sprite table carries: `Cactus01`→`Cac1`,
+  `Crystal03`→`crys5`, `Barrel`→`bigbarel`, `Pending!`→`Pending`. `observed`
+
+`tree27`→`1158`, `tree28`→`1159`, `tree29`→`1160` — the consecutive run that
+first marked the field as an id — is now seen to be three consecutive
+`DSFT.BIN` group-start frames. `observed`
+
+## The size pair: `+0x42` and `+0x44`
+
+`+0x42` is the collision radius (96 for trees, 52 for cacti; the variation
+between kinds is what the layout respects — see the radius note below). `+0x44`
+is a second size dimension, a radius/height pair with it: the ship carries 378
+(its full footprint), torches 7–8 (thin), plates 16 (flat and low), stalactites
+64, trees 52–96. `observed` for the values; that one is a horizontal radius and
+the other a vertical extent is `inferred` from how they vary by kind, not stated
+by the data.
+
+## `+0x46` marks a light source
+
+256 is set on exactly the six torches (`Torch`, `torchnf`, `TorcH2`,
+`nwtrchnf`, `SkullTorch`, `Torch01`) and 16 on the `Pending!` placeholder; every
+other record is 0. Torches are the only decorations that emit dynamic light, so
+the field reads as a light-source flag. `inferred`
 
 ## Rendering
 
@@ -121,8 +164,9 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 ## Open questions
 
+- The `DDECLIST` field at `+0x4A`, nonzero on only five records (32 on
+  `Party Start`, 64 on `Shp`, 8 on three torches). `unknown`
 - The 12 unknown bytes at the end of each record. `unknown`
-- The `DDECLIST` fields at +0x42/+0x44/+0x48. `unknown`
 - Where the missing sprites live. `unknown`
 - The correct world scale for a decoration sprite. `unknown`
 - The ~110 KB that follows the decoration array in every outdoor payload.
@@ -151,6 +195,8 @@ the room a decoration takes up: across the near pairs of decorations on a map,
 Sweet Water and 0 of 2,001 on New Sorpigal — while giving every kind the same
 96 does produce violations (8 on New Sorpigal, 15 on Goblinwatch). It is the
 *variation* between kinds that the layout respects, which a constant cannot
-explain. `inferred`
+explain. `observed`
 
 The engine uses it as the collision radius for monsters walking past.
+`observed` for the field being a radius (the placement analysis above), `unknown`
+only for the absolute unit.
