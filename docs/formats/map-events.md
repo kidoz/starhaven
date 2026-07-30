@@ -667,16 +667,14 @@ of the system, anchored on the strings `global.evt` (`0x4bf524`) and `%s.evt`
 | `0x439870` | indexes the parsed event text | builds a 500-entry table over the text block at `0x54d044`; asserts `MAX_EVENT_TEXT_LENGTH` against a cap of 800 (`0x320`) |
 | `0x54d044` | event-text block (data) | the array `0x439870` indexes |
 | `0x54d03c` | "current event/NPC" id (data) | written by the loaders and triggers, read by the presenter |
-| `0x43c7c0` | **dialogue/message presenter**, not the opcode interpreter | renders a line into `0x55bc04`, word-wraps at 450 (`0x1c2`) px, calls `GetTickCount` for a display timeout |
-| `0x43ab00` | dialogue trigger | sets `0x54d03c`, calls the presenter `0x43c7c0`, then clears it |
+| `0x43c7c0` | **event executor + dialogue presenter** (the runtime interpreter) | a 43-case switch over opcodes 1..43 via the jump table at `0x43e3c8`; also renders the line and word-wraps at 450 (`0x1c2`) px. See "The runtime executor is found" below |
+| `0x43ab00` | dialogue trigger | sets `0x54d03c`, calls the executor `0x43c7c0`, then clears it |
 
 The **opcode interpreter** that executes map-event steps (door, chest, give,
-take, summon, …) was **not** located by these heuristics: it is neither the
-dialogue presenter (`0x43c7c0`) nor the orientation routine (`0x43ab60`), and
-no clean `switch`-on-opcode-byte or jump table surfaced in the event region.
-It is most likely inlined into the large game-update procedure `0x411390`
-(36 KB) or triggered from the facet-collision path rather than the NPC-dialogue
-path.
+take, summon, …) is `0x43c7c0` — located via the door-state call site
+`0x43dd14` (opcode 15's handler). Its dispatch hub is `0x43c948`; the full
+opcode→handler table is at `0x43e3c8`. See "The runtime executor is found"
+below for the decoded opcodes.
 
 ### The parser is found, and the record framing is confirmed
 
@@ -705,21 +703,40 @@ jump table at `0x439e64`, four cases) handles only the few opcodes that need
 special *parsing* — most fall to its default and are stored verbatim. It is not
 the runtime executor.
 
-### Next smallest experiment
+### The runtime executor is found
 
-The runtime executor — the function that fires opcodes during gameplay (door
-opens, give/take) — was still not isolated: it receives a parsed-record pointer
-as a parameter rather than reading `0x54f060` by global, so it does not surface
-through xrefs of the array or its count `0x533eb4`. To reach it:
+The runtime opcode interpreter **is** `fcn.0043c7c0` — the same function the
+earlier note flagged as the "dialogue presenter." It is both: a large switch
+that runs event steps *and* renders their text. The dispatch hub at `0x43c948`
+reads the opcode (`mov al, byte [edx+ebp+4]`, offset +4 — matching the parser),
+subtracts 1, bounds-checks against 42 (`cmp eax, 0x2a`), and jumps through a
+**43-entry table at `0x43e3c8`** covering opcodes 1..43. `esi` is the current
+step; `[esi+5]` onward are its arguments. `observed`
 
-1. The query helpers `0x439f10` / `0x439f60` return a record pointer to their
-   callers (`fcn.0041f190`, `fcn.0045c180`) — follow those call sites to the
-   code that acts on the returned record.
-2. Alternatively, anchor on opcode 15's effect: its handler moves door vertices
-   (see [`event-tables.md`](event-tables.md)). Find the door-vertex move code
-   and backtrace to the opcode-15 branch.
-3. Last resort: dynamic observation — a read watchpoint on a door vertex in a
-   disposable VM backtraces to the handler.
+The door-state call at `0x43dd14` (opcode 15, `case 15`) was the anchor that
+settled it. Each opcode's handler reads its arguments from `[esi+N]` and acts;
+e.g. opcode 15 reads door id `[esi+5]` and state `[esi+6]`, opcode 7 (chest)
+reads `[esi+5]`.
+
+### Opcodes decoded from the dispatch
+
+The jump table maps every opcode 1..43 to a handler. Cross-referenced against
+the names already known, the newly-decoded opcodes are:
+
+| Opcode | Handler | Meaning | Status |
+| ---: | --- | --- | --- |
+| 4, 5 | `0x43dd01` | decrement a structured-block counter (`var_14h`), then fall through | observed |
+| 10 | `0x43d835` | set a boolean game-state flag: `[esi+6]` → 0/1 into `0x61a96c` | observed |
+| 20, 27, 28, 31, 37, 38 | `0x43e1e2` | **no-op** (the default case; also case 28) | observed |
+
+So opcode 4 — the commonest at 2,192 uses, long `unknown` — is **control-flow
+bookkeeping**, not a game action: it decrements the block counter the
+interpreter uses to track structured-event nesting, then continues. And six of
+the "unknown" opcodes are simply unimplemented slots that fall to the default.
+
+The opcodes still carrying real, undecoded handlers are 3, 8, 12, 13, 22, 23,
+24, 33, 34, 41, 42, 43 — each now reachable by name from the table at
+`0x43e3c8`.
 
 Do not treat the addresses above as stable across MM6 builds; they are pinned
 to the recorded SHA-256.
