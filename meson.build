@@ -17,7 +17,7 @@ starhaven_core_inc = include_directories('src', '.')
 
 # zlib decodes the zlib-compressed pixel data inside .LOD image entries
 # (see docs/formats/bitmap.md). It is standard zlib, not a proprietary scheme.
-zlib_dep = dependency('zlib')
+zlib_dep = dependency('zlib', fallback : ['zlib', 'zlib_dep'])
 
 # minimp3 decodes the game's MP3 music: the tracks are ordinary MP3 files, so
 # playing them needs a decoder rather than reverse engineering. Header-only and

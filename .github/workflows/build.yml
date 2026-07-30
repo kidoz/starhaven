@@ -1,0 +1,29 @@
+# The portability claim's witness: the same three commands the README
+# gives, run on the three platforms it names. The game data stays where
+# it belongs — on the user's machine — so only the hermetic tests run.
+name: build
+on: [push, pull_request]
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install meson ninja
+      - name: SDL's Linux build dependencies
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y build-essential
+          zlib1g-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev
+          libxi-dev libxfixes-dev libxss-dev libwayland-dev
+          libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libasound2-dev
+          libpulse-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev
+      - run: meson setup buildDir
+      - run: ninja -C buildDir
+      - run: meson test -C buildDir --print-errorlogs

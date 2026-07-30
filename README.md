@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The portability claim has a witness**: a GitHub Actions workflow
+  runs the README's own three commands — `meson setup`, `ninja`,
+  `meson test` — on macOS, Linux and Windows runners, with a zlib wrap
+  added so Windows builds hermetically alongside the SDL3 and Catch2
+  wraps already in tree. Only the synthetic-fixture tests run there; the
+  game data never leaves the player's machine.
 - **The sheet grew its four pages**: the character sheet now turns
   between the game's own framed pages — `fr_stats` with attributes,
   conditions and the class's words, `fr_skill` with every skill and its
