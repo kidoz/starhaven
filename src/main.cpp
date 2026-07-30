@@ -2331,6 +2331,12 @@ int main(int argc, char** argv) {
     int arena_rank = -1;   // -1 no challenge; 0..3 Page..Lord
     Mm6Random arena_random{20260730};
     int water_phase = -1;  // last baked step of the sea's palette ring
+    // The bounty board, rebuilt engine-side: the original kept its posting
+    // and purse in the executable, so the month's length (28 days), the
+    // pick and the level-times-hundred purse are this engine's numbers,
+    // marked. Award 81 and its count are the table's.
+    std::set<int> kills_this_month;
+    int bounty_month_paid = -1;
     // The spell book: whose is open, which school tab shows, which spell is
     // under the finger, and what each member keeps readied for the cast key.
     int book_member = -1;
@@ -2607,6 +2613,24 @@ int main(int argc, char** argv) {
     // Time, and when this map is next due to refill. The interval is the map's
     // own: see docs/formats/text-tables.md.
     game::GameClock clock;
+
+    // The month's posted bounty: a hostile row picked by the month's own
+    // number, deterministic so every hall posts the same head.
+    const auto bounty_month = [&] { return static_cast<int>(clock.day() / 28); };
+    const auto bounty_of = [&]() -> const data::MonsterStatsEntry* {
+        std::vector<const data::MonsterStatsEntry*> pool;
+        for (const auto& row : monster_stats.entries()) {
+            if (row.hostility > 0 && row.level >= 3) {
+                pool.push_back(&row);
+            }
+        }
+        if (pool.empty()) {
+            return nullptr;
+        }
+        const auto pick = static_cast<std::size_t>(bounty_month() * 2654435761U % pool.size());
+        return pool[pick];
+    };
+
     if (start_hour >= 0 && start_hour < game::kHoursPerDay) {
         clock = game::GameClock{static_cast<std::int64_t>(start_hour) * game::kMinutesPerHour};
     }
@@ -3353,6 +3377,9 @@ int main(int argc, char** argv) {
                 bolt.target = camera.position;
                 launches.push_back(std::move(bolt));
             }
+        }
+        for (const int killed : battle.take_kills()) {
+            kills_this_month.insert(killed);
         }
         for (const auto& noise : battle.take_noises()) {
             if (noise.actor >= session.actors.size()) {
@@ -4231,6 +4258,23 @@ int main(int argc, char** argv) {
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
                 sheet_page =
                     (sheet_page + (event.key.key == SDLK_LEFT ? 3 : 1)) % 4;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       talking_to < 0 && shown_pack < 0 &&
+                       (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) &&
+                       (shops_here[static_cast<std::size_t>(open_shop)]->type == "Town Hall" ||
+                        shops_here[static_cast<std::size_t>(open_shop)]->type ==
+                            "City Council")) {
+                if (const auto* head = bounty_of();
+                    head != nullptr && bounty_month_paid != bounty_month() &&
+                    kills_this_month.contains(head->id)) {
+                    const int purse = head->level * 100;
+                    gold += purse;
+                    bounty_month_paid = bounty_month();
+                    script_state.awards.insert(81);
+                    script_state.variables[239] += 1;
+                    shop_said = "The clerk counts out " + std::to_string(purse) +
+                                " gold and records the deed.";
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        talking_to < 0 && shown_pack < 0 &&
                        (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) &&
@@ -6283,6 +6327,15 @@ int main(int argc, char** argv) {
             pick_up_message = taken;
             pick_up_shown = SDL_GetTicks();
         }
+        // A new month wipes the kill book; the hall posts a fresh head.
+        {
+            static int last_month = -1;
+            const int month_now = static_cast<int>(clock.day() / 28);
+            if (month_now != last_month) {
+                last_month = month_now;
+                kills_this_month.clear();
+            }
+        }
         // The sea shimmers: the water tiles' own blue rings rotated a
         // step every few ticks and re-baked. The cadence is the engine's.
         if (session.outdoor() && !session.water_tiles.empty()) {
@@ -6605,6 +6658,34 @@ int main(int argc, char** argv) {
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
                 game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                                 "Enter descends, B turns away",
+                                render::Color{170, 170, 170, 255}, render::Color{0, 0, 0, 255});
+            } else if (shop.type == "Town Hall" || shop.type == "City Council") {
+                dress_service(scene, font, cache, shop);
+                const auto* head = bounty_of();
+                const int line2 = font.height() + 2;
+                int y = 44;
+                if (head != nullptr) {
+                    const int purse = head->level * 100;
+                    game::draw_text(scene.framebuffer(), font, 190, y,
+                                    "This month's bounty: " + data::cp1252_to_utf8(head->name) +
+                                        ", " + std::to_string(purse) + " gold",
+                                    render::Color{235, 225, 170, 255},
+                                    render::Color{0, 0, 0, 255});
+                    y += line2;
+                    std::string status;
+                    if (bounty_month_paid == bounty_month()) {
+                        status = "The purse is already paid this month.";
+                    } else if (kills_this_month.contains(head->id)) {
+                        status = "The head is taken - Enter claims the purse.";
+                    } else {
+                        status = "The head is still out there.";
+                    }
+                    game::draw_text(scene.framebuffer(), font, 190, y, status,
+                                    render::Color{200, 200, 200, 255},
+                                    render::Color{0, 0, 0, 255});
+                }
+                game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
+                                "Enter claims a taken bounty, T talk, B closes",
                                 render::Color{170, 170, 170, 255}, render::Color{0, 0, 0, 255});
             } else if (game::is_temple(shop)) {
                 draw_temple(scene, font, cache, shop, party, gold, shop_said);

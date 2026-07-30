@@ -1044,6 +1044,12 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The bounty board opens**: Town Halls post a monthly head — a
+  hostile row picked deterministically by the month, the same in every
+  hall — the battle now reports its kills, and a taken head claims a
+  level-times-hundred purse at the counter, ticking award 81 the way
+  the ledger said nothing could. The month's length, the pick and the
+  purse are the engine's numbers, marked; the award is the table's.
 - **The water finally breathes**: the shimmer negative got its second
   half — each water tile's own palette carries one long blue run
   (`WtrTyl`'s spans 182..254, four-fifths of its pixels), and the engine

@@ -354,6 +354,9 @@ public:
     // caller to fly its Miss column's kind at the party.
     [[nodiscard]] std::vector<std::size_t> take_shots() { return std::exchange(shots_, {}); }
 
+    // The monster rows killed since last asked, for the bounty board.
+    [[nodiscard]] std::vector<int> take_kills() { return std::exchange(kills_, {}); }
+
     // The spells cast since last asked: who, and which Spells.txt id — for
     // the caller to fly the school's bolt and play the spell's own sound.
     [[nodiscard]] std::vector<std::pair<std::size_t, int>> take_casts() {
@@ -615,6 +618,7 @@ private:
             target.hit_points = 0;
             target.wince = 0.0f;
             noises_.push_back({actor, 1});
+            kills_.push_back(monster.id);
             experience_ += monster.experience;
             // And whatever its treasure code leaves behind: one roll against
             // the chance, then the gold and the item the code names.
@@ -835,6 +839,7 @@ private:
     std::vector<Noise> noises_;
     std::vector<std::size_t> shots_;
     std::vector<std::pair<std::size_t, int>> casts_;
+    std::vector<int> kills_;
     int cast_id_ = 0;  // the spell the current swing cast, for update()
     int experience_ = 0;
     int gold_ = 0;
