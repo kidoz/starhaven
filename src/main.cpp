@@ -1510,8 +1510,14 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
 }
 
 // Somebody in an establishment, and what they have to say.
+// The talk screen, dressed in the game's own pieces: `BACKEVT`'s marble
+// side panel on the left, and the speaker's `NPC###` plate — the portraits
+// are named by their `NPCdata.txt` row, 396 of the 398 shipped plates
+// joining exactly (553 and 554 stand apart, unclaimed). A passer-by with
+// no row keeps the panel and goes faceless, honestly.
 void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
-                       const game::Conversation& talk, const std::string& answer) {
+                       assets::AssetCache& cache, int npc_id, const game::Conversation& talk,
+                       const std::string& answer) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1529,20 +1535,28 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
     const render::Color said{235, 225, 170, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
-    int y = 28;
 
-    game::draw_text(scene.framebuffer(), font, 24, y, talk.who, white, shadow);
-    y += line * 2;
+    blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
+    if (npc_id > 0 && npc_id < 1000) {
+        char plate[8];
+        std::snprintf(plate, sizeof(plate), "NPC%03d", npc_id);
+        blit(scene.framebuffer(), cache.icon(plate), 60, 64);
+    }
+    game::draw_text(scene.framebuffer(), font, 28, 150, talk.who, white, shadow);
+
+    constexpr int kTalkLeft = 190;
+    int y = 44;
     if (!talk.greeting.empty()) {
-        game::draw_text(scene.framebuffer(), font, 24, y, talk.greeting, said, shadow);
+        game::draw_text(scene.framebuffer(), font, kTalkLeft, y, talk.greeting, said, shadow);
         y += line * 2;
     }
     if (!talk.today.empty()) {
-        game::draw_text(scene.framebuffer(), font, 24, y, "today: " + talk.today, dim, shadow);
+        game::draw_text(scene.framebuffer(), font, kTalkLeft, y, "today: " + talk.today, dim,
+                        shadow);
         y += line * 2;
     }
     for (std::size_t i = 0; i < talk.topics.size(); ++i) {
-        game::draw_text(scene.framebuffer(), font, 24, y,
+        game::draw_text(scene.framebuffer(), font, kTalkLeft, y,
                         std::to_string(i + 1) + "  " + talk.topics[i], white, shadow);
         y += line;
     }
@@ -1550,7 +1564,7 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
         y += line;
         // The answers run long, so they wrap.
         std::string word;
-        int x = 24;
+        int x = 190;
         for (std::size_t i = 0; i <= answer.size(); ++i) {
             const char ch = i < answer.size() ? answer[i] : ' ';
             if (ch != ' ') {
@@ -1559,7 +1573,7 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
             }
             const int width = font.text_width(word + " ");
             if (x + width > kWidth - 24) {
-                x = 24;
+                x = 190;
                 y += line;
             }
             if (y < kHeight - line * 3) {
@@ -5807,7 +5821,7 @@ int main(int argc, char** argv) {
             const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
             if (talking_to < static_cast<int>(here.size())) {
                 const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
-                draw_conversation(scene, font,
+                draw_conversation(scene, font, cache, person.npc_id,
                                   game::talk_to(person, dialogue, personalities, trade_talk,
                                                 clock, interface_words, party[0].name,
                                                 game::face_is_female(party[0].face),
@@ -6008,7 +6022,7 @@ int main(int argc, char** argv) {
             passerby.npc_id = 100000 + street_talk;
             passerby.profession = "Peasant";
             passerby.personality = "Peasant";
-            draw_conversation(scene, font,
+            draw_conversation(scene, font, cache, 0,
                               game::talk_to(passerby, dialogue, personalities, trade_talk,
                                             clock, interface_words, party[0].name,
                                             game::face_is_female(party[0].face),

@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Talk wears the game's face**: the conversation screen stands
+  `BACKEVT`'s marble panel on the left with the speaker's own `NPC###`
+  plate on it — the portraits join `NPCdata.txt` by row id, 396 of 398
+  exactly — and the words move beside the panel. The negative is filed
+  too: 2DEvents' Picture column (1..118) indexes neither the 39 shipped
+  `EVPAN` panels nor the 129 named shop videos by any order measured, so
+  everyone talks on the marble until that join closes.
 - **The monsters' spells fly and speak**: a caster's cast — already
   rolled from the table's own "Spl,Mas,Skil" cell at its written mastery
   and skill — now flies its school's bolt at the party and plays the

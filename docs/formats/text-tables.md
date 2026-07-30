@@ -273,9 +273,27 @@ and opening and closing hours. `observed`
 | 2 | type — "Weapon Shop", "Tavern", "Temple" | observed |
 | 3 | map code | observed |
 | 5–7 | name, proprietor, title | observed |
+| 4 | "Picture", 1..118 | observed; what it indexes is `unknown` — see below |
 | 13–15 | what it stocks, at three levels | inferred |
 | 16 | notes | observed |
 | 18–19 | hour it opens and closes | observed |
+
+### The Picture column does not name the shipped panels
+
+Column 4 runs 1..118 across the 526 typed rows. Two candidate targets were
+measured and neither closes: the `EVPAN###` side panels in `icons.lod` ship
+as 39 entries numbered 1..53 with gaps — 78 of the used values point past
+them — and the `Anims*.vid` shop interiors ship as 129 *named* videos with
+no stated order to index by (the alphabetical order puts an apothecary
+where a weapon shop's 2 points). The column surely picks the talk screen's
+backdrop; by which table it does so is `unknown`. StarHaven's talk screen
+uses `BACKEVT`, the generic marble panel, for everyone meanwhile.
+
+### The NPC plates join by row
+
+The `NPC###` portraits in `icons.lod` are named by `NPCdata.txt` row id:
+396 of the 398 shipped plates land on the 396 named people exactly; the
+two strays, `NPC553` and `NPC554`, match no row. `observed`
 
 ### The map column
 
