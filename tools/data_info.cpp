@@ -761,6 +761,19 @@ int do_riders(const std::filesystem::path& data_dir) {
         std::cout << "  " << word << " x" << count << (ok ? "" : "  (no rider yet)") << "\n";
     }
     std::cout << carried << " of the rows with a word land on a rider\n";
+    // The last column of all, "Special": a literal 0 on every data row —
+    // vestigial, the Quest column's twin.
+    constexpr std::size_t kColSpecial = 32;
+    std::size_t zero_special = 0, counted = 0;
+    for (std::size_t r = 0; r < table.row_count(); ++r) {
+        if (table.cell_int(r, 0) <= 0) {
+            continue;
+        }
+        ++counted;
+        zero_special += table.cell(r, kColSpecial) == "0" ? 1 : 0;
+    }
+    std::cout << "Special: 0 on " << zero_special << " of " << counted
+              << " rows - vestigial, like Quest\n";
     return 0;
 }
 

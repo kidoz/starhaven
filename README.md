@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The Misc Special gamble closed in one measurement**: the monster
+  table's last prose column turned out to hold no prose at all — a
+  literal 0 on every one of the 173 rows, vestigial like the Quest
+  column beside it. The whole of `MONSTERS.TXT` is now either read and
+  running or measured empty; `data_info --riders` reproduces the sweep.
 - **Talk wears the game's face**: the conversation screen stands
   `BACKEVT`'s marble panel on the left with the speaker's own `NPC###`
   plate on it — the portraits join `NPCdata.txt` by row id, 396 of 398

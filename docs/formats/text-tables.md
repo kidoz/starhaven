@@ -313,6 +313,10 @@ file's name refers to.
 
 ### The monster table's last columns
 
+The **Special** column — the table's last — is a literal 0 on all 173
+rows, vestigial like Quest below. `observed` Reproduce with
+`data_info --riders`.
+
 The **Quest** column is vestigial: zero on all 173 rows. Whatever
 guaranteed quest drops the designers once planned through it, the shipped
 game carries none — the quest items travel through the event scripts'
@@ -929,7 +933,7 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   Tested against the shipped placed actors: only 17 of 340 match a slot at
   all, too few to read — see [`event-actors.md`](event-actors.md). Still
   `unknown`.
-- The `Misc Special` column, and `Pref`'s digit values (2, 3, 4), where
+- `Pref`'s digit values (2, 3, 4), where
   its letters read as class initials. `unknown` The other three once
   listed here are read: **Hst** is 0 on exactly the nine Wimp peasants
   and 4 on everyone else — hostility; **Rec** runs 40..100 and the engine
