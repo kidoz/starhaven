@@ -491,7 +491,13 @@ not vertices, not faces — while field 3 stays within 1..31. Read as
 children, field 0's references split almost evenly between once, never and
 repeatedly, which a binary tree would not do. The quads are measured and
 the readings tried are recorded; what the section is remains `unknown`.
-Reproduce with `blv_info <map> --bsp`.
+A third round, run after the sector table and doors were read, added two
+refutations: fields 2 and 3 are **not** an MM7-style coplanar
+offset-and-count pair (as intervals over one array they overlap 978
+times on `D01` alone, though they leave no gaps in 9..170), and field
+2's per-map maxima track neither the sector counts nor the light counts
+(`D03` holds 22 lights against a field-2 reach of 171). Reproduce with
+`blv_info <map> --bsp`, which now prints the interval test.
 
 ## Open questions (next slice)
 

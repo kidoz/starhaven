@@ -436,6 +436,36 @@ int main(int argc, char** argv) {
                   << "; field2 child-shaped " << c_in << "\n";
         std::cout << "  as children: " << once << " referenced once, " << never << " never, "
                   << more << " more than once\n";
+
+        // Round three: MM7's indoor BSP node is {front, back, coplanar
+        // offset, coplanar count} — test fields 2 and 3 as [offset, count)
+        // intervals over one shared array: do they overlap, and do they
+        // tile a contiguous range?
+        {
+            std::vector<std::pair<int, int>> spans;
+            long total = 0;
+            for (std::uint32_t i = 0; i < count; ++i) {
+                const std::size_t r = at + 4 + i * 8;
+                const int off = i16_at(r + 4);
+                const int len = i16_at(r + 6);
+                if (len > 0) {
+                    spans.push_back({off, len});
+                    total += len;
+                }
+            }
+            std::sort(spans.begin(), spans.end());
+            int overlaps = 0, gaps = 0, end = -1, lo = spans.empty() ? 0 : spans.front().first;
+            for (const auto& [off, len] : spans) {
+                if (end >= 0 && off < end) {
+                    ++overlaps;
+                } else if (end >= 0 && off > end) {
+                    ++gaps;
+                }
+                end = std::max(end, off + len);
+            }
+            std::cout << "  fields 2+3 as [offset,count): sum " << total << ", span " << lo
+                      << ".." << end << ", overlaps " << overlaps << ", gaps " << gaps << "\n";
+        }
         return 0;
     }
 

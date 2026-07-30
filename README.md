@@ -1046,6 +1046,12 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The quad section survived round three**: with the sector table and
+  doors now readable, the BLV's last big unknown took two more
+  refutations — fields 2+3 are not an MM7-style coplanar offset-and-count
+  (the intervals overlap by the hundreds though they leave no gaps), and
+  field 2 tracks neither sectors nor lights across maps. The interval
+  test ships in `blv_info --bsp` so round four starts where three ended.
 - **The obelisk trail read end to end**: all fifteen outdoor obelisks
   turn out to write their fragments as autonotes 79..93, one per map —
   so the chronicle assembles the scrambled message on its own as the
