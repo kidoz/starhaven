@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Party creation in the game's own hall**: `Makeme.pcx` is the whole
+  screen — four marble columns whose oval seats (at the art's own x 17,
+  176, 334, 493) hold the creation portraits, names on their plates, each
+  character's class and rolled numbers down their green slab, the chosen
+  class described along the bottom panel, under the `MAKESKY`/`MAKETOP`
+  band. Same keys as before; the rolls still say they are this engine's.
 - **The maps page, for real**: the globe book no longer apologizes.
   Outdoors it draws the 128x128 tilemap with every cell in its own ground
   art's average colour — Sweet Water's roads, lake and mountains read at

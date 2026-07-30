@@ -836,9 +836,12 @@ void draw_party_strip(render::SceneRenderer& scene, assets::AssetCache& cache,
     }
 }
 
-// Shaping the party before the world starts: the twelve portraits, the six
-// base classes and the names are the game's own; the numbers are rolled by
-// this engine and say so on the sheet.
+// Shaping the party before the world starts, in the game's own hall:
+// `Makeme.pcx` is the whole screen — four marble columns, each with an
+// oval seat, a name plate and a green slab — under the `MAKETOP` band.
+// The seats sit at x 17, 176, 334 and 493, measured from the art. The
+// twelve portraits, the six base classes and the names are the game's
+// own; the rolled numbers are this engine's and the sheet says so.
 void draw_creation(render::SceneRenderer& scene, const image::Font& font,
                    assets::AssetCache& cache, const std::array<game::Character, 4>& party,
                    int slot, const data::DescriptionTable& stats,
@@ -846,56 +849,51 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
     if (font.glyph_count() == 0) {
         return;
     }
-    auto pixels = scene.framebuffer().color();
-    for (int y = 0; y < kHeight; ++y) {
-        for (int x = 0; x < kWidth; ++x) {
-            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
-            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 5);
-            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 5);
-            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 5);
-        }
-    }
+    // MAKETOP is cut out where a sky shows through; MAKESKY is that sky.
+    blit(scene.framebuffer(), cache.icon("MAKESKY"), 0, 0);
+    blit(scene.framebuffer(), cache.icon("MAKETOP"), 0, 0);
+    blit(scene.framebuffer(), cache.icon("Makeme.pcx"), 0, 23);
+
     const render::Color white{230, 230, 230, 255};
-    const render::Color dim{170, 170, 170, 255};
+    const render::Color dim{190, 190, 185, 255};
     const render::Color mark{235, 225, 170, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
+    constexpr std::array<int, 4> kSeats{17, 176, 334, 493};
 
-    game::draw_text(scene.framebuffer(), font, 24, 8, "Who goes to Enroth?", white, shadow);
     for (int i = 0; i < 4; ++i) {
         const auto& who = party[static_cast<std::size_t>(i)];
-        const int x = 40 + i * 150;
-        blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face)), x, 32);
-        game::draw_text(scene.framebuffer(), font, x, 116,
-                        std::to_string(i + 1) + " " + who.name, i == slot ? mark : white,
-                        shadow);
-        game::draw_text(scene.framebuffer(), font, x, 116 + line, who.class_name,
-                        i == slot ? mark : dim, shadow);
+        const int x = kSeats[static_cast<std::size_t>(i)];
+        blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face)), x, 35);
+        // The name on its plate, the class atop the green slab.
+        game::draw_text(scene.framebuffer(), font, x - 6, 124,
+                        std::to_string(i + 1) + " " + who.name, i == slot ? mark : dim, shadow);
+        int y = 152;
+        game::draw_text(scene.framebuffer(), font, x - 6, y, who.class_name,
+                        i == slot ? mark : white, shadow);
+        y += line + 4;
+        for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+            game::draw_text(scene.framebuffer(), font, x - 6, y,
+                            std::string(game::stat_label(stats, a)).substr(0, 4) + "  " +
+                                std::to_string(who.attribute(static_cast<game::Attribute>(a))),
+                            white, shadow);
+            y += line;
+        }
+        y += 4;
+        game::draw_text(scene.framebuffer(), font, x - 6, y,
+                        "hp " + std::to_string(who.max_hit_points) + "  sp " +
+                            std::to_string(who.max_spell_points),
+                        dim, shadow);
     }
 
+    // The wide panel along the bottom: the chosen one's class, described.
     const auto& who = party[static_cast<std::size_t>(slot)];
-    int y = 160;
-    for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
-        game::draw_text(scene.framebuffer(), font, 40, y,
-                        std::string(game::stat_label(stats, a)) + "  " +
-                            std::to_string(who.attribute(static_cast<game::Attribute>(a))),
-                        white, shadow);
-        y += line;
-    }
-    game::draw_text(scene.framebuffer(), font, 240, 160,
-                    "Hit Points  " + std::to_string(who.max_hit_points), white, shadow);
-    game::draw_text(scene.framebuffer(), font, 240, 160 + line,
-                    "Spell Points  " + std::to_string(who.max_spell_points), white, shadow);
-    game::draw_text(scene.framebuffer(), font, 240, 160 + line * 3,
-                    "the rolls are this engine's own", dim, shadow);
-
-    // The class's own description, wrapped.
     if (const auto* described = classes.find(who.class_name);
         described != nullptr && !described->text.empty()) {
         const std::string text = data::cp1252_to_utf8(described->text.front());
         std::string word;
-        int x = 40;
-        y = 160 + line * 9;
+        int x = 44;
+        int y = 396;
         for (std::size_t i = 0; i <= text.size(); ++i) {
             const char ch = i < text.size() ? text[i] : ' ';
             if (ch != ' ') {
@@ -903,19 +901,21 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
                 continue;
             }
             const int width = font.text_width(word + " ");
-            if (x + width > kWidth - 40) {
-                x = 40;
+            if (x + width > 470) {
+                x = 44;
                 y += line;
             }
-            if (y < kHeight - line * 3 - 8) {
-                game::draw_text(scene.framebuffer(), font, x, y, word, dim, shadow);
+            if (y < kHeight - line - 4) {
+                game::draw_text(scene.framebuffer(), font, x, y, word, white, shadow);
             }
             x += width;
             word.clear();
         }
     }
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
-                    "1-4 choose, C class, F face, N name, R reroll, Enter begins", dim, shadow);
+    game::draw_text(scene.framebuffer(), font, 8, 6,
+                    "1-4 choose, C class, F face, N name, R reroll (the rolls are this "
+                    "engine's own), Enter begins",
+                    dim, shadow);
 }
 
 // The journal: what the held quest bits say, in Quests.txt's own words,
