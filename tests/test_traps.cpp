@@ -99,19 +99,44 @@ TEST_CASE("the four elements all spring, and carry their names", "[traps]") {
     REQUIRE(trap_element_name(TrapElement::Poison) == "poison");
 }
 
-TEST_CASE("the blast rolls the lock's dice and spares the fallen", "[traps]") {
-    std::array<Character, 4> party;
-    for (auto& who : party) {
-        who.hit_points = 30;
-        who.max_hit_points = 30;
+TEST_CASE("the blast is five plus the trap column's d20s, rolled once", "[traps]") {
+    // No dice, the flat five.
+    Mm6Random none{3};
+    REQUIRE(trap_damage(0, none) == 5);
+    // Three dice stay within 5 + 3..60.
+    for (std::uint32_t seed = 0; seed < 30; ++seed) {
+        Mm6Random r{seed};
+        const int rolled = trap_damage(3, r);
+        REQUIRE(rolled >= 8);
+        REQUIRE(rolled <= 65);
     }
-    party[3].hit_points = 0;  // the fallen are past hurting
+    // The same seed rolls the same blast: it is one shared roll.
+    Mm6Random a{11}, b{11};
+    REQUIRE(trap_damage(9, a) == trap_damage(9, b));
+}
 
-    Mm6Random random{11};
-    const TrapBlast blast = spring_trap(5, party, random);
-    for (std::size_t i = 0; i < 3; ++i) {
-        REQUIRE(blast.damage[i] >= 5);
-        REQUIRE(blast.damage[i] <= 30);
+TEST_CASE("the packed byte carries the level and the rank bits", "[traps]") {
+    REQUIRE(packed_skill_byte(0) == 0);
+    REQUIRE(packed_skill_byte(3) == 3);          // normal: bare points
+    REQUIRE(packed_skill_byte(4) == 0x44);       // expert at four
+    REQUIRE(packed_skill_byte(7) == 0x87);       // master at seven
+}
+
+TEST_CASE("perception leaps clear by the original's roll", "[traps]") {
+    // No skill never dodges; neither does one point — rand % 21 cannot
+    // clear 20.
+    for (std::uint32_t seed = 0; seed < 50; ++seed) {
+        Mm6Random r{seed};
+        REQUIRE_FALSE(perception_dodges(0, r));
+        REQUIRE_FALSE(perception_dodges(1, r));
     }
-    REQUIRE(blast.damage[3] == 0);
+    // A master's packed byte dodges often, but not always: both outcomes
+    // occur across seeds.
+    bool dodged = false, caught = false;
+    for (std::uint32_t seed = 0; seed < 200 && !(dodged && caught); ++seed) {
+        Mm6Random r{seed};
+        (perception_dodges(0x87, r) ? dodged : caught) = true;
+    }
+    REQUIRE(dodged);
+    REQUIRE(caught);
 }

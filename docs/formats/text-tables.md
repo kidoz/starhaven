@@ -628,27 +628,37 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
-## The lock column, cashed
+## The lock and trap columns, cashed
 
 `MapStats.txt` gives each map lock, trap and treasure difficulties (columns
 headed "0-10", "0-10", "0-6"). The treasure one has long fed the chests, and
-the executable's own chest gate is now traced (see
-[`event-tables.md`](event-tables.md), the chest flags word): a trapped chest
-reads **the lock column, times five**, against the acting character's Disarm
-Traps — packed level times 2/3/4 for normal/expert/master, doubled by
-Pendragon, Hades or an item "of Thievery", plus the Tinker, Locksmith and
-Burglar hirelings' promised +4/+6/+8 — plus a d10; falling short detonates a
-random elemental trap at the chest. The parser's column-to-field mapping in
-`MM6.exe` settles that it is the **lock** number the chests cash, not the
-trap number; which executable path spends the trap column remains untraced.
-`observed`
+the executable spends the other two on the same chests, both now traced (see
+[`event-tables.md`](event-tables.md), the chest flags word):
+
+- **The lock column is the disarm gate.** A trapped chest reads it **times
+  five** against the acting character's Disarm Traps — packed level times
+  2/3/4 for normal/expert/master, doubled by Pendragon, Hades or an item
+  "of Thievery", plus the Tinker, Locksmith and Burglar hirelings' promised
+  +4/+6/+8 — plus a d10. The parser's column-to-field mapping in `MM6.exe`
+  settles that it is the lock number the gate cashes, not the trap number.
+  `observed`
+- **The trap column is the damage dice.** Falling short detonates a random
+  elemental trap at the chest, and the blast rolls **five plus the trap
+  column's worth of d20s**, once for the whole party, resistance answering
+  per member unless Perception leaps them clear at `rand % (P + 20) > 20`
+  on the raw packed byte. `observed`
+
+The table knew all along: the header line above those columns annotates the
+lock with `"x5"` and the trap with `"D20's"` — the designers wrote both
+scales into `MapStats.txt` itself, and the executable honors each to the
+letter.
 
 **This corrects the previous revision of this section**, which invented a
 chance-in-ten reading salted by the chest's id, d6 damage scaled by the trap
-column, and a Perception dodge — none of it the executable's.
-src/game/traps.hpp now implements the traced check; only the blast's damage
-dice remain the engine's own, because the original hands the harm to the
-spawned trap object's detonation, which is untraced.
+column, and a five-percent-a-point Perception dodge. The broad strokes were
+close — the trap column does scale damage and Perception does dodge — but
+every number was wrong. src/game/traps.hpp now implements the traced
+mechanism throughout.
 
 ## The promotion join
 

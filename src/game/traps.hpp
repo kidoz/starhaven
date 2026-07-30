@@ -3,18 +3,19 @@
 
 // Chests that bite back, the way the original bites.
 //
-// The mechanism is traced from `MM6.exe`'s chest-open path (see
+// The whole mechanism is traced from `MM6.exe` (see
 // docs/formats/event-tables.md, "The chest flags word"): each chest record
 // carries its own trapped bit, and opening a trapped chest rolls the acting
 // character's Disarm Traps — level times 2/3/4 by rank, doubled by an
 // equipped Pendragon, Hades or item "of Thievery", plus the Tinker,
 // Locksmith and Burglar hirelings' promised points — plus a d10 against
-// five times the map's "Lock 0-10" column. Falling short detonates one of
-// four elemental traps at the chest. All of that is `observed`. What the
-// blast rolls for damage is not traced, so the dice below are this
-// engine's own and say so.
+// five times the map's "Lock 0-10" column. Falling short spawns one of four
+// elemental trap objects at the chest, and when its animation ends it
+// detonates: everyone within 1,024 units takes one shared roll of **five
+// plus the map's "Trap 0-10" column of d20s** — the column MapStats' own
+// header annotates "D20's" — reduced by their resistance, unless their
+// Perception lets them leap clear. All of that is `observed`.
 
-#include <array>
 #include <cstdint>
 #include <string_view>
 
@@ -114,28 +115,55 @@ enum class TrapElement : std::uint8_t { Fire, Cold, Electric, Poison };
     }
 }
 
-// The blast, on everyone standing. The original hands the harm to the
-// spawned trap object's own detonation, which is not yet traced, so the
-// amount here — the lock number's worth of d6 each — is this engine's own
-// reading. `inferred`
-struct TrapBlast {
-    std::array<int, 4> damage{};  // per member; zero where down
-};
-
-[[nodiscard]] inline TrapBlast spring_trap(int difficulty, const std::array<Character, 4>& party,
-                                           Mm6Random& random) {
-    TrapBlast out;
-    for (std::size_t i = 0; i < party.size(); ++i) {
-        if (party[i].hit_points <= 0) {
-            continue;
-        }
-        int rolled = 0;
-        for (int d = 0; d < difficulty; ++d) {
-            rolled += 1 + static_cast<int>(random.next() % 6);
-        }
-        out.damage[i] = rolled;
+// Which resistance answers each element, in the type names the tables
+// write and combat.hpp's `resistance_to` resolves. The executable's own
+// damage-type numbers are fire 2, electric 3, cold 4, poison 5. `observed`
+[[nodiscard]] constexpr std::string_view trap_element_type(TrapElement element) noexcept {
+    switch (element) {
+    case TrapElement::Fire:
+        return "Fire";
+    case TrapElement::Cold:
+        return "Cold";
+    case TrapElement::Electric:
+        return "Elec";
+    default:
+        return "Pois";
     }
-    return out;
+}
+
+// The blast, rolled once and shared by the whole party: five plus the
+// map's trap number of d20s. MapStats' own header annotates the column
+// "D20's", and the executable rolls exactly that. The detonation only
+// reaches a party within 1,024 units of the chest — always true at
+// interaction range, so the shell need not test it. `observed`
+[[nodiscard]] inline int trap_damage(int trap_dice, Mm6Random& random) {
+    int damage = 5;
+    for (int d = 0; d < trap_dice; ++d) {
+        damage += 1 + static_cast<int>(random.next() % 20);
+    }
+    return damage;
+}
+
+// The original stores a skill as one byte: level in the low six bits,
+// expert as bit 6, master as bit 7 — and the dodge below reads that byte
+// raw, mastery bits and all, so an expert leaps far better than their
+// points alone say. The bit layout is the original's; the thresholds
+// behind `rank_of` remain this engine's.
+[[nodiscard]] inline int packed_skill_byte(int points) noexcept {
+    const int rank = rank_of(points);
+    return points | (rank >= 2 ? 0x80 : rank == 1 ? 0x40 : 0);
+}
+
+// A member's leap clear of the blast, by Perception: the executable rolls
+// rand % (P + 20) against 20, so one point never dodges and the chance
+// climbs as (P − 1)/(P + 20). No skill, no roll. The dodger speaks line 33
+// — that is the original's own touch, not this engine's. `observed`
+[[nodiscard]] inline bool perception_dodges(int packed_perception, Mm6Random& random) {
+    if (packed_perception <= 0) {
+        return false;
+    }
+    const auto bound = static_cast<std::uint32_t>(packed_perception) + 20U;
+    return static_cast<int>(random.next() % bound) > 20;
 }
 
 }  // namespace starhaven::game

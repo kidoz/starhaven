@@ -245,9 +245,18 @@ settles which write feeds the read at `0x41e5bf`). The check, in full:
   814 `poistrap` — and spawns the chosen object at the chest's world
   position, derived from the clicked target (decoration, indoor face, or
   outdoor model face), with a sound and a portrait reaction. Bit 0 is
-  cleared here too: a chest trap fires once. The damage itself rides the
-  spawned object's own detonation path, not traced here. `observed` for the
-  spawn, `unknown` for the damage numbers.
+  cleared here too: a chest trap fires once. `observed`
+- The detonation is traced to the end: when the spawned object's animation
+  expires, the per-frame updater special-cases the four trap ids into the
+  detonation routine at `0x4309d0`. Within 1,024 units of the party it rolls
+  **once, for everyone: 5 plus the map's `Trap` column of d20s** — the
+  column `MapStats.txt`'s own header annotates `"D20's"` — with the element
+  by id (fire 811 → type 2, electric 813 → 3, cold 812 → 4, poison 814 → 5).
+  Each member then rolls a Perception dodge — the packed skill byte `P` read
+  raw, dodging when `rand % (P + 20) > 20`, speaking line 33 on the leap —
+  and the rest take the roll through their resistance inside the
+  receive-damage routine. See [`text-tables.md`](text-tables.md), "The lock
+  and trap columns, cashed". `observed`
 - A map with no `MapStats.txt` row skips the check entirely; the chest opens
   quietly with the bit still set. `observed`
 

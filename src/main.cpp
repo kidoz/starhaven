@@ -6261,23 +6261,31 @@ int main(int argc, char** argv) {
                         took = "A trap clicks, disarmed.  ";
                     } else {
                         const game::TrapElement element = game::trap_element(misc_random);
-                        const game::TrapBlast blast =
-                            game::spring_trap(session.lock_difficulty, party, misc_random);
-                        int hurt = 0;
-                        for (std::size_t i = 0; i < party.size(); ++i) {
-                            if (blast.damage[i] <= 0) {
+                        // One roll shared by the whole party, the Trap
+                        // column's worth of d20s; each member may leap
+                        // clear by Perception, and resistance answers the
+                        // element for the rest.
+                        const int rolled =
+                            game::trap_damage(session.trap_difficulty, misc_random);
+                        for (auto& member : party) {
+                            int perception = 0;
+                            if (const auto it = member.skills.find("Perception");
+                                it != member.skills.end()) {
+                                perception = it->second;
+                            }
+                            if (game::perception_dodges(game::packed_skill_byte(perception),
+                                                        misc_random)) {
+                                speak(member, 33);  // line 33: the close call's word
                                 continue;
                             }
-                            party[i].hit_points =
-                                std::max(0, party[i].hit_points - blast.damage[i]);
-                            ++hurt;
+                            const int through = game::after_resistance(
+                                rolled,
+                                game::resistance_to(member, game::trap_element_type(element)));
+                            member.hit_points = std::max(0, member.hit_points - through);
                         }
                         took = "A ";
                         took += game::trap_element_name(element);
                         took += " trap explodes!  ";
-                        if (hurt > 0) {
-                            speak(party[0], 33);  // line 33: the trap's word
-                        }
                     }
                 }
                 for (const auto& rolled : game::chest_contents(

@@ -135,7 +135,7 @@ struct MapSession {
     // The ground under a point, in the footstep sounds' vocabulary:
     // outdoor by the tile's art, indoor always the stone hall. `inferred`
     [[nodiscard]] std::string_view ground_at(float x, float z) const;
-    int trap_difficulty = 0;   // MapStats' "Trap 0-10"; its executable use is untraced
+    int trap_difficulty = 0;   // MapStats' "Trap 0-10"; the blast's d20 count
     int lock_difficulty = 0;   // MapStats' "Lock 0-10"; what a chest's trap checks against
 
     // Outdoor geometry.

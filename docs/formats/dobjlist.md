@@ -71,7 +71,9 @@ Four records have a demonstrated runtime role reached by constant object id
 rather than through a map: `firetrap` (811), `coldtrap` (812), `electrap`
 (813) and `poistrap` (814) are the chest-trap explosions — the chest-open
 path in `MM6.exe` picks one of the four ids uniformly at random and spawns
-it at the chest when a trapped chest's disarm roll fails (see
+it at the chest when a trapped chest's disarm roll fails. The object then
+lives out its animation, and at expiry the per-frame updater routes exactly
+these four ids into the detonation routine that damages the party (see
 [`event-tables.md`](event-tables.md), the chest flags word). `observed`
 
 ## Invalid-input behavior
