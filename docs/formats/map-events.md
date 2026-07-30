@@ -31,6 +31,7 @@ for a script, and the `.ddm`'s undecoded prefix is 1,947 zero bytes out of
 | Archive | `data/icons.lod` |
 | Scripts | 83 `.EVT`, 15,504 records `observed` |
 | Strings | 76 `.STR`, 1,274 strings `observed` |
+| Executable | `MM6.exe`, 857,720 bytes, SHA-256 `28d2b83e75db45134d161da1da767afcbdb3e381921d3de61c2784ac85cd00ce`; PE32 i386, image base `0x400000`; analysis read-only in radare2 6.1.8 `observed` |
 
 Reproduce with:
 
@@ -652,6 +653,77 @@ Bat Guano ships as item 554 but no event in any script touches it,
 Prince's only script contact is the capture that grants award 5. They
 join the Quest column as rows the shipped game cannot reach. `observed`
 
+## Binary anchors: the event-loading machinery
+
+Read-only radare2 reconnaissance of `MM6.exe` locates the script-loading half
+of the system, anchored on the strings `global.evt` (`0x4bf524`) and `%s.evt`
+(`0x4bf56c`). All RVAs below are virtual addresses; the binary is image-based at
+`0x400000`. `observed`
+
+| Address | Role | Evidence |
+| --- | --- | --- |
+| `0x4397b0` | loads `global.evt` | references `str.global.evt` at `0x4397ba` |
+| `0x439ea0` | loads `<map>.evt` | references `str._s.evt` at `0x439eae` |
+| `0x439870` | indexes the parsed event text | builds a 500-entry table over the text block at `0x54d044`; asserts `MAX_EVENT_TEXT_LENGTH` against a cap of 800 (`0x320`) |
+| `0x54d044` | event-text block (data) | the array `0x439870` indexes |
+| `0x54d03c` | "current event/NPC" id (data) | written by the loaders and triggers, read by the presenter |
+| `0x43c7c0` | **dialogue/message presenter**, not the opcode interpreter | renders a line into `0x55bc04`, word-wraps at 450 (`0x1c2`) px, calls `GetTickCount` for a display timeout |
+| `0x43ab00` | dialogue trigger | sets `0x54d03c`, calls the presenter `0x43c7c0`, then clears it |
+
+The **opcode interpreter** that executes map-event steps (door, chest, give,
+take, summon, …) was **not** located by these heuristics: it is neither the
+dialogue presenter (`0x43c7c0`) nor the orientation routine (`0x43ab60`), and
+no clean `switch`-on-opcode-byte or jump table surfaced in the event region.
+It is most likely inlined into the large game-update procedure `0x411390`
+(36 KB) or triggered from the facet-collision path rather than the NPC-dialogue
+path.
+
+### The parser is found, and the record framing is confirmed
+
+The hypothetical step 1 above is done. The raw-byte parser is `fcn.00439940`
+(called from the loader `0x439ea0`); it reads the raw EVT stream at `0x54fce4`,
+builds an index of 12-byte entries at `0x552f60`, and a 32-byte parsed-record
+array at `0x54f060`, capped at 3000 records (`0xbb8`). It asserts against
+`D:\MM6Src\code\EVENTS.CPP` line 588 on overflow. `observed`
+
+Its field reads confirm the record framing byte-for-byte against this project's
+own parser (`map_script.cpp`), relative to the record's leading size byte:
+
+| Offset | Field | Engine read | Project read |
+| ---: | --- | --- | --- |
+| +0 | size | `0x54fce4`, advance `pos += size + 1` | `at += 1 + size` |
+| +1..+2 | event_id | `0x54fce5` low, `0x54fce6` high | `payload[at+1] | payload[at+2]<<8` |
+| +3 | sequence | `0x54fce7` | `payload[at+3]` |
+| +4 | opcode | `0x54fce8` | `payload[at+4]` |
+| +5.. | arguments | `0x54fce9`.. | `payload[at+5]..` |
+
+The two agree exactly, so the project's parser is faithful to the original on
+all 83 shipped scripts. `observed`
+
+The parser's own dispatch (opcodes 3..38 via a case table at `0x439e74` and
+jump table at `0x439e64`, four cases) handles only the few opcodes that need
+special *parsing* — most fall to its default and are stored verbatim. It is not
+the runtime executor.
+
+### Next smallest experiment
+
+The runtime executor — the function that fires opcodes during gameplay (door
+opens, give/take) — was still not isolated: it receives a parsed-record pointer
+as a parameter rather than reading `0x54f060` by global, so it does not surface
+through xrefs of the array or its count `0x533eb4`. To reach it:
+
+1. The query helpers `0x439f10` / `0x439f60` return a record pointer to their
+   callers (`fcn.0041f190`, `fcn.0045c180`) — follow those call sites to the
+   code that acts on the returned record.
+2. Alternatively, anchor on opcode 15's effect: its handler moves door vertices
+   (see [`event-tables.md`](event-tables.md)). Find the door-vertex move code
+   and backtrace to the opcode-15 branch.
+3. Last resort: dynamic observation — a read watchpoint on a door vertex in a
+   disposable VM backtraces to the handler.
+
+Do not treat the addresses above as stable across MM6 builds; they are pinned
+to the recorded SHA-256.
+
 ## Open questions
 
 - The rare tail of the 90 distinct opcodes. Two dozen are named above
@@ -682,8 +754,11 @@ join the Quest column as rows the shipped game cannot reach. `observed`
   `GLOBAL.EVT`. `unknown`
 - Opcode 15's door numbers are the ids of the indoor event files' own door
   records — see [`event-tables.md`](event-tables.md) — and the engine moves
-  them. What state 2 is, where 0 and 1 read as shut and open, is still
-  `unknown`; the engine reads it as a toggle.
+  them. The open/shut argument (0/1/2) is the requested state passed to the
+  door-state function; the state machine at `[door+0x4c]` is now decoded (see
+  [`event-tables.md`](event-tables.md)): **0 = closed, 1 = open, 2 = in
+  transition, 3 = at-target**. State 2 is the mid-motion state: re-triggering
+  it snaps the door to state 3. `observed`
 - Opcode 11's outdoor uses: whether the u32 indexes model facets or terrain
   tiles there. `unknown`
 - Opcode 1's byte, always 0..2. `unknown`

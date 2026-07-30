@@ -105,6 +105,30 @@ this one file. Each 80-byte record is a door:
 | +0x24 | 8×u32 | heap pointers | meaningless on disk |
 | +0x44 | u16, u16 | vertex count, face count | |
 | +0x48 | u16 | sector count | 0 on every D01 door |
+| +0x4C | u16 | state | runtime; 0 closed, 1 open, 2 in transition, 3 at-target |
+
+### The door state machine (`+0x4C`)
+
+The runtime state word at `+0x4C` is decoded from the door-state function in
+`MM6.exe` (anchored on its `"Unable to find Door ID: %i!"` assertion and the
+200-door / 80-byte-stride scan of the array at `0x5f7d44`). Opcode 15's second
+byte is the **requested state** passed to that function. `observed`
+
+| State | Meaning |
+| ---: | --- |
+| 0 | closed |
+| 1 | open |
+| 2 | in transition (mid-motion); re-triggering snaps to 3 |
+| 3 | at-target / idle (the "already there" skip) |
+
+The transitions are direct in the code: requesting a state already held is a
+no-op; requesting the opposite of state 2 snaps it to 3 and zeroes the timer
+at `+0x08`. The timer integrates against the open/close speeds at `+0x1C/+0x20`
+(`imul` of speed × elapsed), and `0x3c00` is a fixed-point threshold the timer
+saturates against. The per-frame vertex translation that actually moves the
+door is in the door-update function (`0x44f320`/`0x4552e0`), which walks the
+same array. `observed`
+
 
 The region between the block and the trailer — the part whose size the
 paired level declares — is each door's id arrays in slot order, in exactly
