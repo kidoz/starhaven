@@ -256,6 +256,11 @@ The decoder rejects an outdoor layout when:
   count word's high half is closed: it **duplicates the vertex count**,
   the low half of the word before it, on 795 of 795 doors. `observed`
   (`ddm_info <map> --doors` prints each door's attribute word.)
-- The chest's remaining u16 is measured and stays open: 0 on 149 records
-  and 1 on 1,191, splitting along neither the appearance row nor whether
-  the chest holds items. `unknown`
+- The chest's remaining u16 (`+0x02`, beside the appearance) is **1 on ~89%
+  of records and 0 on ~11%**. A re-census shows it is *not* wholly
+  uncorrelated with appearance: the flag=0 cases cluster on appearances 5 and
+  7 (the metal-chest variants), while flag=1 is dominated by appearance 0 —
+  though appearance 7 appears in both groups, so the flag is not a pure
+  function of appearance. It reads as a per-chest variant/placement toggle
+  rather than a trap or lock flag, but the runtime read that would name it is
+  in the chest-load path, not yet traced. `unknown`
