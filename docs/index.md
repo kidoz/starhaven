@@ -18,7 +18,20 @@ Audio, UI, and gameplay systems remain future work.
 - [Ground tiles](formats/dtile.md), [bitmaps](formats/bitmap.md), and
   [sprites](formats/sprite.md) cover visual resources.
 - [VID containers](formats/vid.md) and
-  [Smacker video](formats/smacker.md) document cinematics.
+  [Smacker video](formats/smacker.md) document cinematics; the
+  [texture frame table](formats/dtft.md) holds the walls that move.
+- [Map event scripts](formats/map-events.md),
+  [event tables](formats/event-tables.md) and the
+  [design data tables](formats/text-tables.md) carry the quests, shops
+  and monsters the engine runs on.
+- [The monster table](formats/dmonlist.md), the
+  [sprite frame table](formats/dsft.md) and the
+  [sound table](formats/dsounds.md) give every monster its art, motion
+  and voice.
+- [Interface panels](formats/interface-panels.md),
+  [portraits](formats/portraits.md) and the
+  [paperdoll](formats/paperdoll.md) describe the screen furniture the
+  interface wears.
 - [Software rasterizer](rendering/software-rasterizer.md) explains the
   rendering pipeline.
 

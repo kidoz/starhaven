@@ -41,6 +41,9 @@ nav:
       - VID containers: formats/vid.md
       - Smacker video: formats/smacker.md
       - Sound archive: formats/snd.md
+      - Texture frame table: formats/dtft.md
+      - Interface panels: formats/interface-panels.md
+      - Paperdoll: formats/paperdoll.md
   - Rendering:
       - Software rasterizer: rendering/software-rasterizer.md
       - Terrain coloring: rendering/terrain-coloring.md
