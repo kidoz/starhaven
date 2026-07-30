@@ -542,9 +542,36 @@ to the recorded SHA-256.
   live *after* the decorations, so what remains here is the high-entropy
   middle. The loader (see "Binary anchors" above) **names** this middle as
   `L.RData` (116-byte room/sector records) then `L.RLData` (room links), so
-  the section identities are settled; what stays `unknown` is the
-  field-by-field layout of each 116-byte `RData` record and the `RLData`
-  link format.
+  the section identities are settled. The `RData` field layout is partly
+  decoded from the sector-culling consumer `fcn.0048c3d0` (see below); the
+  remaining fields and the `RLData` link format stay `unknown`.
+
+### The 116-byte `L.RData` record (partly decoded)
+
+The sector-culling function `fcn.0048c3d0` iterates the `RData` array (count
+`[obj+0x288]`, base `[obj+0x28c]`, stride `0x74` = 116) and reads these fields
+per record, so they are firm: `observed`
+
+| Offset | Size | Type | Field | Status |
+| ---: | ---: | --- | --- | --- |
+| +0x04 | 2 | i16 | first face index (or sector-of-faces start) | observed |
+| +0x24 | 2 | i16 | face/element count (added to `+0x04` for the range) | observed |
+| +0x28 | 4 | u32 | link — an offset/pointer read when walking a neighbour | observed |
+| +0x68 | 2 | i16 | bounds X min | observed |
+| +0x6a | 2 | i16 | bounds X max | observed |
+| +0x6c | 2 | i16 | bounds Y min | observed |
+| +0x6e | 2 | i16 | bounds Y max | observed |
+| +0x70 | 2 | i16 | bounds Z min | observed |
+| +0x72 | 2 | i16 | bounds Z max | observed |
+
+The culler tests the AABB (`+0x68..+0x72`, with `±0x40` units of slack on the
+maxima) against the view volume, and for a passing record walks the face range
+`[+0x04, +0x04 + +0x24)` following the `+0x28` link. This is the shape of a
+**sector/portal node**: an axial bounding box, a range of the faces it owns,
+and a link to its neighbours. `inferred`
+
+The record is 0x74 bytes, so offsets `+0x00`, `+0x06..+0x23`, `+0x2c..+0x67`
+remain unread. `unknown`
 
   Sliding-window stride detection over that region on `D03.blv` segments it
   into a **stride-8** run, a high-entropy run with no stride above noise
