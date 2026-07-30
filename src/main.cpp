@@ -1196,13 +1196,12 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
 }
 
 // A temple's counter: the two verbs its margin notes name, at its own Val.
-void draw_temple(render::SceneRenderer& scene, const image::Font& font,
-                 const data::BuildingStatsEntry& shop,
-                 const std::array<game::Character, 4>& party, int gold,
-                 const std::string& said) {
-    if (font.glyph_count() == 0) {
-        return;
-    }
+// The service screens' shared dressing: the darkened room, `BACKEVT`'s
+// marble panel on the left with the establishment's name, trade and
+// proprietor written down it, and the footer strip carrying the keys.
+// The words keep to the panel's right.
+void dress_service(render::SceneRenderer& scene, const image::Font& font,
+                   assets::AssetCache& cache, const data::BuildingStatsEntry& shop) {
     auto pixels = scene.framebuffer().color();
     for (int y = 0; y < kHeight; ++y) {
         for (int x = 0; x < kWidth; ++x) {
@@ -1212,16 +1211,32 @@ void draw_temple(render::SceneRenderer& scene, const image::Font& font,
             pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
         }
     }
+    blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
+    blit(scene.framebuffer(), cache.icon("FOOTER"), 0, kHeight - 24);
+    const int line = font.height() + 2;
+    int y = 56;
+    for (const std::string text : {data::cp1252_to_utf8(shop.name), std::string(shop.type),
+                                   data::cp1252_to_utf8(shop.proprietor)}) {
+        game::draw_text(scene.framebuffer(), font, 26, y, text,
+                        render::Color{225, 220, 195, 255}, render::Color{0, 0, 0, 255});
+        y += line + 2;
+    }
+}
+
+void draw_temple(render::SceneRenderer& scene, const image::Font& font,
+                assets::AssetCache& cache,
+                 const data::BuildingStatsEntry& shop,
+                 const std::array<game::Character, 4>& party, int gold,
+                 const std::string& said) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    dress_service(scene, font, cache, shop);
     const render::Color white{230, 230, 230, 255};
     const render::Color dim{165, 165, 165, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
-    int y = 24;
-    game::draw_text(scene.framebuffer(), font, 24, y,
-                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
-                        data::cp1252_to_utf8(shop.proprietor),
-                    white, shadow);
-    y += line;
+    int y = 44;
     const game::TempleService service = game::temple_service(shop);
     std::string terms = "you have " + std::to_string(gold) + " gold; healing costs " +
                         std::to_string(game::heal_price(shop));
@@ -1240,7 +1255,7 @@ void draw_temple(render::SceneRenderer& scene, const image::Font& font,
             terms.pop_back();
         }
     }
-    game::draw_text(scene.framebuffer(), font, 24, y, terms, dim, shadow);
+    game::draw_text(scene.framebuffer(), font, 190, y, terms, dim, shadow);
     y += line * 2;
     for (std::size_t i = 0; i < party.size(); ++i) {
         const auto& who = party[i];
@@ -1258,99 +1273,74 @@ void draw_temple(render::SceneRenderer& scene, const image::Font& font,
         if (!needs) {
             text += "  whole";
         }
-        game::draw_text(scene.framebuffer(), font, 24, y, text, needs ? white : dim, shadow);
+        game::draw_text(scene.framebuffer(), font, 190, y, text, needs ? white : dim, shadow);
         y += line;
     }
     if (!said.empty()) {
         y += line;
-        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+        game::draw_text(scene.framebuffer(), font, 190, y, said, render::Color{235, 225, 170, 255},
                         shadow);
     }
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+    game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                     "1-4 heal a character, 5 donate, T talk, B closes", dim, shadow);
 }
 
 // A bank's counter: the balance, and the sheet's own two verbs.
 void draw_bank(render::SceneRenderer& scene, const image::Font& font,
+                assets::AssetCache& cache,
                const data::BuildingStatsEntry& shop, int gold, int balance,
                const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
-    auto pixels = scene.framebuffer().color();
-    for (int y = 0; y < kHeight; ++y) {
-        for (int x = 0; x < kWidth; ++x) {
-            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
-            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
-            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
-            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
-        }
-    }
+    dress_service(scene, font, cache, shop);
     const render::Color white{230, 230, 230, 255};
     const render::Color dim{165, 165, 165, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
-    int y = 24;
-    game::draw_text(scene.framebuffer(), font, 24, y,
-                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
-                        data::cp1252_to_utf8(shop.proprietor),
-                    white, shadow);
-    y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y,
+    int y = 44;
+    game::draw_text(scene.framebuffer(), font, 190, y,
                     "you carry " + std::to_string(gold) + " gold; the vault holds " +
                         std::to_string(balance),
                     dim, shadow);
     y += line * 2;
-    game::draw_text(scene.framebuffer(), font, 24, y, "1  deposit 100", white, shadow);
+    game::draw_text(scene.framebuffer(), font, 190, y, "1  deposit 100", white, shadow);
     y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y, "2  deposit all", white, shadow);
+    game::draw_text(scene.framebuffer(), font, 190, y, "2  deposit all", white, shadow);
     y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y, "3  withdraw 100", white, shadow);
+    game::draw_text(scene.framebuffer(), font, 190, y, "3  withdraw 100", white, shadow);
     y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y, "4  withdraw all", white, shadow);
+    game::draw_text(scene.framebuffer(), font, 190, y, "4  withdraw all", white, shadow);
     y += line;
     if (!said.empty()) {
         y += line;
-        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+        game::draw_text(scene.framebuffer(), font, 190, y, said, render::Color{235, 225, 170, 255},
                         shadow);
     }
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+    game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                     "T talk to whoever is here, B closes", dim, shadow);
 }
 
 // A training hall's counter: who can train, to what, and for how much.
 void draw_training(render::SceneRenderer& scene, const image::Font& font,
+                assets::AssetCache& cache,
                    const data::BuildingStatsEntry& shop,
                    const std::array<game::Character, 4>& party, int gold,
                    const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
-    auto pixels = scene.framebuffer().color();
-    for (int y = 0; y < kHeight; ++y) {
-        for (int x = 0; x < kWidth; ++x) {
-            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
-            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
-            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
-            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
-        }
-    }
+    dress_service(scene, font, cache, shop);
     const render::Color white{230, 230, 230, 255};
     const render::Color dim{165, 165, 165, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
-    int y = 24;
-
-    game::draw_text(scene.framebuffer(), font, 24, y,
-                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
-                        data::cp1252_to_utf8(shop.proprietor),
-                    white, shadow);
-    y += line;
+    int y = 44;
     std::string ceiling = "you have " + std::to_string(gold) + " gold";
     if (const int top = game::max_level_of(shop); top > 0) {
         ceiling += "; this hall trains to level " + std::to_string(top);
     }
-    game::draw_text(scene.framebuffer(), font, 24, y, ceiling, dim, shadow);
+    game::draw_text(scene.framebuffer(), font, 190, y, ceiling, dim, shadow);
     y += line * 2;
 
     for (std::size_t i = 0; i < party.size(); ++i) {
@@ -1369,47 +1359,34 @@ void draw_training(render::SceneRenderer& scene, const image::Font& font,
                     std::to_string(offer.cost) + " gold";
             ready = offer.cost <= gold;
         }
-        game::draw_text(scene.framebuffer(), font, 24, y, text, ready ? white : dim, shadow);
+        game::draw_text(scene.framebuffer(), font, 190, y, text, ready ? white : dim, shadow);
         y += line;
     }
     if (!said.empty()) {
         y += line;
-        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+        game::draw_text(scene.framebuffer(), font, 190, y, said, render::Color{235, 225, 170, 255},
                         shadow);
     }
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+    game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                     "1-4 train a character, T talk to whoever is here, B closes", dim, shadow);
 }
 
 // A travel counter: where the rides go, when they leave, and the fare.
 void draw_travel(render::SceneRenderer& scene, const image::Font& font,
+                assets::AssetCache& cache,
                  const data::BuildingStatsEntry& shop,
                  const std::vector<game::TravelRoute>& routes, int fare,
                  const game::GameClock& clock, int gold, const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
-    auto pixels = scene.framebuffer().color();
-    for (int y = 0; y < kHeight; ++y) {
-        for (int x = 0; x < kWidth; ++x) {
-            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
-            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
-            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
-            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
-        }
-    }
+    dress_service(scene, font, cache, shop);
     const render::Color white{230, 230, 230, 255};
     const render::Color dim{165, 165, 165, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
-    int y = 24;
-
-    game::draw_text(scene.framebuffer(), font, 24, y,
-                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
-                        data::cp1252_to_utf8(shop.proprietor),
-                    white, shadow);
-    y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y,
+    int y = 44;
+    game::draw_text(scene.framebuffer(), font, 190, y,
                     "you have " + std::to_string(gold) + " gold; today is " +
                         std::string(clock.weekday()),
                     dim, shadow);
@@ -1430,55 +1407,42 @@ void draw_travel(render::SceneRenderer& scene, const image::Font& font,
         if (route.leaves_on(clock.day())) {
             text += "  (leaves today)";
         }
-        game::draw_text(scene.framebuffer(), font, 24, y, text,
+        game::draw_text(scene.framebuffer(), font, 190, y, text,
                         route.leaves_on(clock.day()) && fare <= gold ? white : dim, shadow);
         y += line;
     }
     if (routes.empty()) {
-        game::draw_text(scene.framebuffer(), font, 24, y, "No rides leave from here.", dim,
+        game::draw_text(scene.framebuffer(), font, 190, y, "No rides leave from here.", dim,
                         shadow);
         y += line;
     }
     if (!said.empty()) {
         y += line;
-        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+        game::draw_text(scene.framebuffer(), font, 190, y, said, render::Color{235, 225, 170, 255},
                         shadow);
     }
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+    game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                     "1-3 ride, T talk to whoever is here, B closes", dim, shadow);
 }
 
 // A shop's counter: what it has, what it wants for it, and what the
 // shopkeeper says about the state of your purse.
 void draw_shop(render::SceneRenderer& scene, const image::Font& font,
+                assets::AssetCache& cache,
                const data::BuildingStatsEntry& shop, const std::vector<game::StockItem>& stock,
                const data::ItemStatsTable& items, const data::MerchantTextTable& words, int gold,
                const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
-    auto pixels = scene.framebuffer().color();
-    for (int y = 0; y < kHeight; ++y) {
-        for (int x = 0; x < kWidth; ++x) {
-            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
-            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 6);
-            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 6);
-            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
-        }
-    }
+    dress_service(scene, font, cache, shop);
 
     const render::Color white{230, 230, 230, 255};
     const render::Color dim{165, 165, 165, 255};
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
-    int y = 24;
-
-    game::draw_text(scene.framebuffer(), font, 24, y,
-                    data::cp1252_to_utf8(shop.name) + " \x97 " + shop.type + ", " +
-                        data::cp1252_to_utf8(shop.proprietor),
-                    white, shadow);
-    y += line;
-    game::draw_text(scene.framebuffer(), font, 24, y, "you have " + std::to_string(gold) + " gold",
+    int y = 44;
+    game::draw_text(scene.framebuffer(), font, 190, y, "you have " + std::to_string(gold) + " gold",
                     dim, shadow);
     y += line * 2;
 
@@ -1488,24 +1452,24 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
         if (row == nullptr) {
             continue;
         }
-        game::draw_text(scene.framebuffer(), font, 24, y,
+        game::draw_text(scene.framebuffer(), font, 190, y,
                         std::to_string(i + 1) + "  " + data::cp1252_to_utf8(row->name) + "  " +
                             std::to_string(stock[i].price) + " gold",
                         stock[i].price <= gold ? white : dim, shadow);
         y += line;
     }
     if (stock.empty()) {
-        game::draw_text(scene.framebuffer(), font, 24, y, "The shelves are bare.", dim, shadow);
+        game::draw_text(scene.framebuffer(), font, 190, y, "The shelves are bare.", dim, shadow);
         y += line;
     }
 
     // The shopkeeper's own words, from Merchant.txt.
     if (!said.empty()) {
         y += line;
-        game::draw_text(scene.framebuffer(), font, 24, y, said, render::Color{235, 225, 170, 255},
+        game::draw_text(scene.framebuffer(), font, 190, y, said, render::Color{235, 225, 170, 255},
                         shadow);
     }
-    game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+    game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                     "1-9 buy, S sell, F repair, T talk, B closes", dim, shadow);
 }
 
@@ -5831,17 +5795,17 @@ int main(int argc, char** argv) {
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
             if (game::is_temple(shop)) {
-                draw_temple(scene, font, shop, party, gold, shop_said);
+                draw_temple(scene, font, cache, shop, party, gold, shop_said);
             } else if (game::is_bank(shop)) {
-                draw_bank(scene, font, shop, gold, bank_gold, shop_said);
+                draw_bank(scene, font, cache, shop, gold, bank_gold, shop_said);
             } else if (game::is_training(shop)) {
-                draw_training(scene, font, shop, party, gold, shop_said);
+                draw_training(scene, font, cache, shop, party, gold, shop_said);
             } else if (game::is_travel(shop)) {
-                draw_travel(scene, font, shop, game::routes_of(shop, map_stats),
+                draw_travel(scene, font, cache, shop, game::routes_of(shop, map_stats),
                             game::fare_of(shop), clock, gold, shop_said);
             } else {
-                draw_shop(scene, font, shop, shop_stock, item_stats, merchant_words, gold,
-                          shop_said);
+                draw_shop(scene, font, cache, shop, shop_stock, item_stats, merchant_words,
+                          gold, shop_said);
             }
         }
         if (shown_pack >= 0) {

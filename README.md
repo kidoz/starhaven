@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The services take the marble too**: temple, bank, training hall,
+  travel desk and shop all stand `BACKEVT`'s panel on the left with the
+  establishment's name, trade and proprietor written down it, their
+  words beside it and their key legends on the `FOOTER` strip — the last
+  five debug-styled screens retired.
 - **The Misc Special gamble closed in one measurement**: the monster
   table's last prose column turned out to hold no prose at all — a
   literal 0 on every one of the 173 rows, vestigial like the Quest
