@@ -104,7 +104,14 @@ even though the engine's use of them is `unknown`:
 | 4 | 24 | `GirlA34a`, `MaleG37a` — the party's spoken lines |
 
 Group 0 holds the continuous and world-positioned sounds; group 2 is the bulk
-of one-shot effects. `inferred`
+of one-shot effects. The four values read as a **sound category / channel
+select** — group 0 the ambient loops (`Run*` footsteps, `campfire`), group 1
+the door and impact one-shots (`wooddrclose`, `fireBall`, `metal vs metal`),
+group 2 the UI and effect one-shots (`tip`, `heal`, `TurnPageU`), and group 4
+the party's spoken voice lines (`Girl/Male` + class letter). `inferred` — the
+names are consistent with the category reading in all 1,355 records, but the
+engine's exact use (which channel each plays on, or whether it gates looping)
+is not established from the data.
 
 ## Ambient sounds: `DDECLIST.BIN` +0x4C
 
@@ -146,9 +153,9 @@ indexed by name.
 
 ## Open questions
 
-- What the group field selects — looping, attenuation, or channel priority are
-  all consistent with the names. `unknown`
-- The 72 zero bytes at `+0x28`. `unknown`
+- The engine's exact use of the group field — the category reading is
+  `inferred` above (ambient loop / door-impact / UI-effect / voice); whether it
+  gates looping, attenuation, or channel routing is `unknown`.
 The archive's own entry names carry a second numbering: many casts open
 with their spell's `Spells.txt` id — `04firebolt01` is Fire Bolt's row 4,
 `06fireball01` row 6, `21fly03` Fly's 21, `31townportal03` Town Portal's

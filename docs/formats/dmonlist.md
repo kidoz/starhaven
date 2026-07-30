@@ -149,10 +149,12 @@ engine's. `inferred`
 
 ## Open questions
 
-- The constant 140 at +0x04 — the one field of the record still unread. A
-  velocity would be the natural guess for its seat between the body and
-  the sounds, but a table with one value for a bat and a dragon is not
-  stating one. `unknown`
+- The constant 140 at +0x04 — 140 on all 173 records. It is **not** a
+  per-monster move speed: that comes from MONSTERS.TXT's `Spd` column (which
+  varies per monster, read into the AI as `monster.speed * kSpeedScale`). A
+  single value shared by a bat and a dragon cannot be a velocity, so 140 is a
+  fixed constant — a structural base or unused — whose meaning this data does
+  not state. `unknown`
 
 ## The eight animations are used, not just listed
 
