@@ -301,6 +301,7 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::filesyste
     if (out.indoor()) {
         out.doors = extract_doors(file);
     }
+    out.chest_looks = extract_chest_appearances(file);
     data::TextTable monster_text;
     data::MonsterStatsTable monster_stats;
     if (data::load_text_table(data_dir, "MONSTERS.TXT", monster_text) ==

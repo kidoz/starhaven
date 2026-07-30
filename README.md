@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The sheet and the chest take their art**: the character sheet's
+  numbers now sit inside `fr_stats`' own gilded boxes, and an opened
+  chest shows its own face — the record's first word turned out to be
+  the `DCHEST.BIN` row, whose art column numbers the `CHEST01`..`08`
+  screens, closing half of that record's old open question — with the
+  finds written on the planks and any key closing the lid.
 - **The rooms come alive**: the service and talk screens play their
   interiors live — one Smacker decoder stepped at the video's own frame
   rate, each frame written over the cached still so every screen sees

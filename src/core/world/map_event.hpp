@@ -239,6 +239,11 @@ struct MapChestItem {
     MapItemInstance item;
 };
 
+// Each chest's first u16: 0..7 across every shipped file, the row of
+// `DCHEST.BIN` whose own last field numbers the CHEST01..CHEST08 art —
+// the chest's appearance. The u16 beside it holds 0 or 1, unread.
+[[nodiscard]] std::vector<std::uint16_t> extract_chest_appearances(const MapEventFile& file);
+
 // Return the nonempty item slots across the decoded chest array. Concrete item
 // ids and negative random-generation placeholders are both retained.
 [[nodiscard]] std::vector<MapChestItem> extract_chest_items(const MapEventFile& file,

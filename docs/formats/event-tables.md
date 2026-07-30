@@ -204,7 +204,10 @@ The decoder rejects an outdoor layout when:
 ## Open questions
 
 - Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
-- The first chest word and meanings of its 140 grid entries.
+- The meanings of the chest's 140 grid entries. Its first u16 is read:
+  0..7 on every shipped chest, the `DCHEST.BIN` row whose last field
+  numbers the `CHEST01`..`CHEST08` screens — the chest's appearance.
+  The u16 beside it (0 or 1 throughout) stays unread.
 - The indoor prefix's 883 bytes, and why the count lands unaligned.
 - What door attribute bits mean, and what the second count word's high half
   duplicates.

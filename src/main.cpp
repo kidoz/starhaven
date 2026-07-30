@@ -676,6 +676,10 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
 
+    // The sheet's own gilded frame: `fr_stats` is a transparent overlay of
+    // box borders that sections the page — the numbers keep their places
+    // inside its boxes.
+    blit(scene.framebuffer(), cache.icon("fr_stats"), 8, 100);
     blit(scene.framebuffer(), cache.icon(game::portrait_entry(
                                   who.face, game::portrait_frame_of(who, false))),
          24, 28);
@@ -684,7 +688,7 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
                     who.class_name + ", level " + std::to_string(who.level), dim, shadow);
 
     // The seven attributes, named and ordered by stats.txt itself.
-    int y = 120;
+    int y = 134;
     for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
         const std::string_view label = game::stat_label(stats, a);
         const int value = who.attribute(static_cast<game::Attribute>(a));
@@ -745,7 +749,7 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
 
     // And the derived numbers, in the same order the table lists them.
     const int left_bottom = y;
-    y = 120;
+    y = 134;
     const std::array<std::pair<std::size_t, std::string>, 5> derived{{
         {7, std::to_string(who.hit_points) + " / " + std::to_string(who.max_hit_points)},
         {8, std::to_string(who.armor_class)},
@@ -2438,6 +2442,10 @@ int main(int argc, char** argv) {
     };
     RoomPlayer room;
 
+    // The opened chest's screen: which CHEST art shows and what was found.
+    int chest_art = -1;
+    std::string chest_note;
+
     // The map's own lights, baked per face once per load: the sum of each
     // light's reach at the face's centre. The linear falloff and the floor
     // are this engine's; the positions, radii and brightness are the
@@ -3140,6 +3148,8 @@ int main(int argc, char** argv) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && chest_art >= 0) {
+                chest_art = -1;
             } else if (event.type == SDL_EVENT_KEY_DOWN && book_member >= 0) {
                 // The book holds the keys while it is open.
                 const auto key = event.key.key;
@@ -5649,6 +5659,14 @@ int main(int argc, char** argv) {
                     }
                 }
                 said_text = took.empty() ? "The chest is empty" : took;
+                // The chest's own face: its record's first word is the
+                // DCHEST row, and that table's art runs CHEST01..CHEST08.
+                const auto look =
+                    static_cast<std::size_t>(outcome.chest) < session.chest_looks.size()
+                        ? session.chest_looks[static_cast<std::size_t>(outcome.chest)]
+                        : 0;
+                chest_art = look < 8 ? static_cast<int>(look) : 0;
+                chest_note = said_text;
                 }
             }
 
@@ -5911,6 +5929,31 @@ int main(int argc, char** argv) {
         if (show_map) {
             draw_map_page(scene, session, camera.position, camera.forward(), map_tile_colors,
                           map_colors_ready);
+        }
+        if (chest_art >= 0 && font.glyph_count() > 0) {
+            blit(scene.framebuffer(), cache.icon("CHEST0" + std::to_string(chest_art + 1)), 8, 8);
+            const int line = font.height() + 2;
+            int y = 40;
+            std::string word;
+            int x = 40;
+            for (std::size_t i = 0; i <= chest_note.size(); ++i) {
+                const char ch = i < chest_note.size() ? chest_note[i] : ' ';
+                if (ch != ' ') {
+                    word += ch;
+                    continue;
+                }
+                const int width = font.text_width(word + " ");
+                if (x + width > 420) {
+                    x = 40;
+                    y += line;
+                }
+                game::draw_text(scene.framebuffer(), font, x, y, word,
+                                render::Color{225, 215, 180, 255}, render::Color{0, 0, 0, 255});
+                x += width;
+                word.clear();
+            }
+            game::draw_text(scene.framebuffer(), font, 40, 320, "any key closes the lid",
+                            render::Color{170, 165, 150, 255}, render::Color{0, 0, 0, 255});
         }
         if (show_calendar) {
             // The calendar page: TIME_BG's own 360x300, centred in the

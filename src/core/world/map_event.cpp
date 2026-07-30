@@ -313,6 +313,23 @@ std::vector<MapDoor> extract_doors(const MapEventFile& file) {
     return out;
 }
 
+std::vector<std::uint16_t> extract_chest_appearances(const MapEventFile& file) {
+    std::vector<std::uint16_t> out;
+    EventLayout layout;
+    if (parse_event_layout(file, layout) != EventLayoutError::None) {
+        return out;
+    }
+    const auto* p = reinterpret_cast<const std::uint8_t*>(file.payload.data());
+    for (std::size_t c = 0; c < layout.chest_count; ++c) {
+        const std::size_t at = layout.chests_offset + c * kChestRecordSize;
+        if (at + 2 > file.payload.size()) {
+            break;
+        }
+        out.push_back(static_cast<std::uint16_t>(p[at] | (p[at + 1] << 8)));
+    }
+    return out;
+}
+
 std::vector<MapChestItem> extract_chest_items(const MapEventFile& file, std::size_t max_records) {
     EventLayout layout;
     if (parse_event_layout(file, layout) != EventLayoutError::None) {
