@@ -630,7 +630,11 @@ executable references it beside `Hive.blv` — the tournament that fills
 those counters is executable code around a real level), Freed Archibald (see the King's Library
 in [`text-tables.md`](text-tables.md)), and three story honors —
 Returned the Prince, the Bat Guano, the Obelisk Puzzle — whose granting
-mechanism is `unknown`. `observed`
+mechanism was `unknown`. The obelisk's has since been read: all fifteen
+outdoor obelisks give autonotes 79..93, one fragment per map, and the
+executable grants award 62 for the completed set — StarHaven grants it
+the same way, on the fifteenth fragment. `observed` for the gives,
+`inferred` for the grant's timing. `observed`
 
 ## Open questions
 

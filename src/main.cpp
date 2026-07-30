@@ -6456,6 +6456,21 @@ int main(int argc, char** argv) {
                     blit(scene.framebuffer(), cache.icon("MHP_CAPR"), left + 200, top);
                 }
             }
+            // The obelisk puzzle solves itself when the fifteenth
+            // fragment lands: the events give autonotes 79..93, one per
+            // outdoor map, and the completed set earns award 62 — the
+            // grant's placement is the engine's, like the library's.
+            if (!script_state.awards.contains(62)) {
+                bool all15 = true;
+                for (int note = 79; note <= 93 && all15; ++note) {
+                    all15 = script_state.autonotes.contains(note);
+                }
+                if (all15) {
+                    script_state.awards.insert(62);
+                    pick_up_message = "The fifteen fragments align: the obelisk puzzle is solved";
+                    pick_up_shown = SDL_GetTicks();
+                }
+            }
             // The arena's judge: the sand cleared with a challenge open
             // pays the purse and ticks the rank's own counter award. The
             // purse is the engine's number.

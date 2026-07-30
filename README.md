@@ -1044,6 +1044,12 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The obelisk trail read end to end**: all fifteen outdoor obelisks
+  turn out to write their fragments as autonotes 79..93, one per map —
+  so the chronicle assembles the scrambled message on its own as the
+  party travels, and the fifteenth fragment now earns award 62, the
+  puzzle's own honor, placed by the engine the way the library's was.
+  Sweet Water's fragment is beat twenty-five of the regression.
 - **The door bit refused a third name**: the timbre gamble came up
   empty — the 41 bit-1 doors share their face textures freely with the
   753 plain ones, and the travel axis splits no better — so the bit now

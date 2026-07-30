@@ -1924,6 +1924,22 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 25. The obelisk trail: every outdoor map's obelisk writes its own
+    //     fragment into the chronicle — Sweet Water's is note 79.
+    {
+        world::MapScript outa1;
+        if (icons.payload("OUTA1.EVT", raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, outa1) != world::MapScriptError::None) {
+            std::cerr << "arc: no OUTA1.EVT\n";
+            return 1;
+        }
+        game::WalkState state;
+        const auto outcome = game::walk_event(outa1, 210, state);
+        if (!beat(outcome.ran && state.autonotes.contains(79),
+                  "Sweet Water's obelisk writes fragment 79 into the chronicle")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }
