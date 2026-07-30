@@ -125,7 +125,12 @@ They are close to the vertex world position projected onto the two axes the
 facet's normal does *not* dominate, but not identically so: a per-facet offset
 is involved, and the exact rule reproduces only about half the facets.
 `unknown` — this does not block rendering, because the values are stored
-explicitly rather than derived.
+explicitly rather than derived. Confirmed from the executable: the renderer
+(`fcn.004080c0`) reads the stored `u`/`v` directly and does **not** derive them
+at runtime, and the `+0x10` span (the candidate offset/gradient seat) is not
+read by the render path — consistent with it being zero in most facets. The
+mismatch is an authoring-time offset baked into the stored values, not a runtime
+computation to recover. `observed`
 
 ### Attributes
 
@@ -206,4 +211,7 @@ mis-attribute later models' facets.
   backface culling can be enabled for models. Bit `0x8` is the one the renderer
   branches on (see Attributes above), gating a visibility/cull-state reset; the
   remaining bits (`0x1000`, `0x2000000`, …) are still `unknown`.
-- The exact rule that derives `u`/`v` from world coordinates.
+- The exact rule that derives `u`/`v` from world coordinates — resolved as
+  **not a runtime computation**: the renderer reads the stored `u`/`v` directly
+  and the `+0x10` span is unused by it (see the u/v note above). The remaining
+  mismatch is an authoring-time offset in the stored values.
