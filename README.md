@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The placeholder gamble mostly paid**: the census of every `%NN`
+  across the shipped prose first separated the false hits (MONSTERS'
+  treasure codes) and then pinned five new codes by their own sentences
+  — the reputation word, the hireling's gold percent, and the identify
+  price now substitute alongside the six already known — with the seven
+  strangers left open, each filed with its context.
 - **The portability claim has a witness**: a GitHub Actions workflow
   runs the README's own three commands — `meson setup`, `ninja`,
   `meson test` — on macOS, Linux and Windows runners, with a zlib wrap

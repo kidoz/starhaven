@@ -52,6 +52,14 @@ struct Speech {
     std::string title;  // %28, the shopkeeper's own trade
     int asking = 0;     // %25, the ordinary price
     int offered = 0;    // %27, the one actually named
+
+    // Pinned by the census of every %NN across the shipped prose: "Your
+    // reputation is %11" names the standing's own word, "takes %17
+    // percent" the profession's cut, "what it is for %29 gold" the
+    // identify price. `inferred` from the sentences around them.
+    std::string reputation;  // %11
+    int percent = 0;         // %17
+    int naming = 0;          // %29
 };
 
 // Replace the placeholders a line carries. Anything not known is left as it
@@ -95,6 +103,15 @@ struct Speech {
             break;
         case 28:
             with = who.title;
+            break;
+        case 11:
+            with = who.reputation;
+            break;
+        case 17:
+            with = who.percent > 0 ? std::to_string(who.percent) : std::string{};
+            break;
+        case 29:
+            with = who.naming > 0 ? std::to_string(who.naming) : std::string{};
             break;
         default:
             break;
@@ -173,7 +190,13 @@ talk_to(const world::SessionNpc& person, const data::NpcDialogueTable& dialogue,
         const GameClock& clock, const data::InterfaceStrings& words = {},
         std::string_view listener = {}, bool listener_is_female = false,
         const Standing& standing = {}) {
-    const Speech who{person.name, std::string(listener), listener_is_female, clock.hour()};
+    Speech who{person.name, std::string(listener), listener_is_female, clock.hour()};
+    // The standing's word, for the greetings that name it.
+    who.reputation = standing.reputation <= kNotoriousAt ? "notorious"
+                     : standing.reputation < 0           ? "poor"
+                     : standing.reputation >= kSaintlyAt ? "saintly"
+                     : standing.reputation > 10          ? "respectable"
+                                                         : "average";
     Conversation out;
     out.who = person.name;
     if (!person.profession.empty()) {

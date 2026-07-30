@@ -972,7 +972,21 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   cut, `DrainSP`, the afflictions, and the three that end a character:
   `Stone`, `Dead` and `Errad`. All 39 distinct words land on an engine
   rider; reproduce with `data_info --riders`.
-- The `%01` codes other than 1, 2, 5 and 6. `unknown`
+- The `%NN` placeholder vocabulary is censused across every shipped
+  table and string file. First, a disentangling: the `%` hits inside
+  `MONSTERS.TXT` are treasure codes (`5%2D6+L1Bow`), not placeholders.
+  The real codes and what their sentences pin: **%01** the speaker's
+  name, **%02** the listener's, **%05** the time-of-day word, **%06**
+  the sir/lady honorific (all long read); **%11** the party's reputation
+  word ("Your reputation is %11") and **%12** the required one; **%17**
+  the profession's gold percent ("takes %17 percent"); **%24** the item,
+  **%25** the ordinary price, **%27** the named price, **%28** the
+  trade, **%29** the identify price ("what it is for %29 gold"). The
+  engine substitutes 1, 2, 5, 6, 11, 17, 24, 25, 27, 28 and 29. Still
+  open, with their contexts filed: **%03** and **%09** read as
+  possessives, **%07** a reverent salutation, **%08** the famous deed
+  clause, **%10** a my-lord address, **%13**, **%14** and **%16**
+  epithets whose source table is unplaced. `inferred`
 - What indexes `GLOBAL.TXT` by id. `unknown`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
   `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`
