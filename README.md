@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Every grantor walks, on the record**: `evt_info --ledger walk` runs
+  all 58 award-granting events through the walker — each with its checks
+  satisfied, bare, and with each fact left out in turn — and asserts
+  every one actually grants its award: 58 of 58 hold. Getting there
+  fixed two real walker bugs the sweep exposed: steps after a chest
+  never ran (the obelisk event grants award 61 behind its chest), and
+  class checks needed equality for the honorary branches to exist.
 - **The chronicle writes itself**: variable type 205 turned out to be
   the autonotes — its values are `Autonotes.txt` rows, the Seer writing
   the very stage its line speaks — so the walker now keeps the

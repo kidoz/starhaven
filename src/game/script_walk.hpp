@@ -201,6 +201,12 @@ struct WalkOutcome {
             case world::kVarGold:
                 passes = state.gold >= value;
                 break;
+            case 2:
+                // The class check is equality: the promotion events check
+                // the exact qualifying rung, and their honorary branches
+                // exist only because a different class fails it. `inferred`
+                passes = state.variables[type] == value;
+                break;
             default:
                 passes = state.variables[type] >= value;
                 break;
@@ -325,7 +331,9 @@ struct WalkOutcome {
             if (!a.empty()) {
                 out.chest = a.front();
             }
-            return out;
+            // The steps after a chest still run: SCI-FI's obelisk event
+            // grants award 61 behind its chest, which stopping here lost.
+            break;
         case world::kOpcodeTravel:
             if (auto travel = world::parse_travel(step)) {
                 out.travel = std::move(travel);

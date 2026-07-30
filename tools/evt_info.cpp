@@ -1392,7 +1392,8 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
 // Audit mode: every award row against every script's gives. Award 35
 // taught the lesson — some honors are granted outside the scripts — so
 // the orphans become a measured list instead of surprises.
-int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
+int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir,
+              bool walk) {
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
     namespace data = starhaven::data;
@@ -1402,8 +1403,10 @@ int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::pa
         std::cerr << "ledger: no Awards.txt\n";
         return 1;
     }
-    // award id -> "SCRIPT event N" of its first grantor.
+    // award id -> "SCRIPT event N" of its first grantor, and the parsed
+    // script + event for the walking pass.
     std::map<int, std::string> grantor;
+    std::map<int, std::pair<world::MapScript, std::uint16_t>> grantor_event;
     for (const auto& entry : icons.entries()) {
         const std::string& name = entry.name;
         if (name.size() < 4 || (name.substr(name.size() - 4) != ".EVT" &&
@@ -1424,10 +1427,73 @@ int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::pa
             const int award = step.arguments[1] | (step.arguments[2] << 8);
             if (!grantor.contains(award)) {
                 grantor[award] = name + " event " + std::to_string(step.event_id);
+                grantor_event[award] = {script, step.event_id};
             }
         }
     }
-    std::size_t granted = 0, orphans = 0;
+    // The walking pass: run each grantor with a state built to satisfy
+    // its own checks — every bit, item, award and variable a check names
+    // is granted up front — and once bare, so a grant on either branch
+    // counts. An event that walks without ever granting is a named gap.
+    const auto walks_and_grants = [](const world::MapScript& script, std::uint16_t event,
+                                     int award) {
+        starhaven::game::WalkState satisfied;
+        satisfied.gold = 1000000;
+        for (const auto& step : script.event(event)) {
+            if (step.opcode != world::kOpcodeCheck || step.arguments.size() < 6) {
+                continue;
+            }
+            const int type = step.arguments[0];
+            const int value = step.arguments[1] | (step.arguments[2] << 8);
+            if (type == world::kVarQuestBit) {
+                satisfied.bits.insert(value);
+            } else if (type == world::kVarItem) {
+                satisfied.items.push_back(value);
+            } else if (type == world::kVarAward) {
+                satisfied.awards.insert(value);
+            } else if (type != world::kVarGold) {
+                satisfied.variables[type] = value;
+            }
+        }
+        // Doors tried: everything satisfied, nothing satisfied, and each
+        // single fact left out in turn — the honorary promotions grant
+        // only when the class check fails while the deed holds, and some
+        // once-only chains need their own done-bit left unset.
+        auto try_state = [&](starhaven::game::WalkState state) {
+            const auto outcome = starhaven::game::walk_event(script, event, state);
+            return outcome.ran && state.awards.contains(award);
+        };
+        if (try_state(satisfied)) {
+            return true;
+        }
+        if (try_state(starhaven::game::WalkState{})) {
+            return true;
+        }
+        for (const int bit : std::set<int>(satisfied.bits)) {
+            starhaven::game::WalkState leave = satisfied;
+            leave.bits.erase(bit);
+            if (try_state(std::move(leave))) {
+                return true;
+            }
+        }
+        for (const auto& [type, value] : std::map<int, int>(satisfied.variables)) {
+            starhaven::game::WalkState leave = satisfied;
+            leave.variables.erase(type);
+            if (try_state(std::move(leave))) {
+                return true;
+            }
+            // The class checks read as equality in the original; a value
+            // past the checked one fails them where absence cannot.
+            leave = satisfied;
+            leave.variables[type] = value + 1000;
+            if (try_state(std::move(leave))) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    std::size_t granted = 0, orphans = 0, walked = 0, stuck = 0;
     for (const auto& row : awards.entries()) {
         if (!row.has_text()) {
             continue;
@@ -1435,15 +1501,29 @@ int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::pa
         const auto it = grantor.find(row.bit);
         if (it != grantor.end()) {
             ++granted;
-            std::cout << "  " << row.bit << "  " << it->second << "\n";
+            std::string note;
+            if (walk) {
+                const auto& [script, event] = grantor_event[row.bit];
+                if (walks_and_grants(script, event, row.bit)) {
+                    ++walked;
+                } else {
+                    ++stuck;
+                    note = "  WALKS BUT NEVER GRANTS";
+                }
+            }
+            std::cout << "  " << row.bit << "  " << it->second << note << "\n";
         } else {
             ++orphans;
             std::cout << "  " << row.bit << "  NO SCRIPT GRANTS THIS  ("
                       << starhaven::data::cp1252_to_utf8(row.text) << ")\n";
         }
     }
-    std::cout << granted << " awards granted by scripts, " << orphans << " orphans\n";
-    return 0;
+    std::cout << granted << " awards granted by scripts, " << orphans << " orphans";
+    if (walk) {
+        std::cout << "; " << walked << " grantors walk and grant, " << stuck << " stick";
+    }
+    std::cout << "\n";
+    return stuck > 0 ? 1 : 0;
 }
 
 // Verification mode: the New Sorpigal opening arc, walked end to end
@@ -1877,7 +1957,8 @@ int main(int argc, char** argv) {
         return do_transitions(icons, *install / "data");
     }
     if (stem == "--ledger") {
-        return do_ledger(icons, *install / "data");
+        const bool walk = argc == 3 && std::string(argv[2]) == "walk";
+        return do_ledger(icons, *install / "data", walk);
     }
     if (stem == "--asks") {
         return do_asks(icons);

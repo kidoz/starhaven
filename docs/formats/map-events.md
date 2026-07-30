@@ -376,8 +376,10 @@ the given value, the word after it names the type. Reproduce with
   bit 82's, the notes wording exactly the stages their events speak.
   `observed` for the Seer's ladder, `inferred` for the rest; verified in
   `evt_info --arc`.
-- **Type 2 is the character's class id**: the promotion events check it
-  against the qualifying class and set it to the next rung — the Crusader
+- **Type 2 is the character's class id, checked by equality**: the
+  promotion events check it against the qualifying class and set it to
+  the next rung — equality, not at-least, or their honorary branches
+  could never fire and a promoted class would qualify again — the Crusader
   event turns 9 into 10 beside award 8, the Wizard 6 into 7 beside award
   12 — and **type 214 reads as "this person follows"**, checked against
   NPCdata row ids (the Prince of Thieves at 17, the Crusader's charge at
