@@ -1046,6 +1046,13 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The last two orphans ruled cut content**: "Returned the Prince" and
+  "Gave Bat Guano to Barad" have no mechanism anywhere — the guano
+  pouch ships as item 554 that no event touches, and Barad exists in no
+  table, no prose and no executable string. They join the Quest column
+  as rows the shipped game cannot reach, and the orphan ledger is now
+  fully explained: services, counters, the library, the obelisks, and
+  two cuts.
 - **MM6.ini honored**: the install's own three-line config follows the
   player in — `AlwaysRun=1` makes shift walk instead of run (footsteps
   agreeing), `LoudMusic` picks the music gain, and `FlipOnExit`, which

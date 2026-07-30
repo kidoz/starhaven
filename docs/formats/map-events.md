@@ -640,13 +640,17 @@ tallies no script could keep; the arena itself *ships*: `zarena.blv` in
 `Games.lod` names itself "The Arena", renders under this engine, and the
 executable references it beside `Hive.blv` — the tournament that fills
 those counters is executable code around a real level), Freed Archibald (see the King's Library
-in [`text-tables.md`](text-tables.md)), and three story honors —
-Returned the Prince, the Bat Guano, the Obelisk Puzzle — whose granting
+in [`text-tables.md`](text-tables.md)), and three story honors whose granting
 mechanism was `unknown`. The obelisk's has since been read: all fifteen
 outdoor obelisks give autonotes 79..93, one fragment per map, and the
 executable grants award 62 for the completed set — StarHaven grants it
 the same way, on the fifteenth fragment. `observed` for the gives,
-`inferred` for the grant's timing. `observed`
+`inferred` for the grant's timing. The last two — Returned the Prince
+(1) and Gave Bat Guano to Barad (44) — are **cut content**: the Pouch of
+Bat Guano ships as item 554 but no event in any script touches it,
+"Barad" appears in no table, no prose and no executable string, and the
+Prince's only script contact is the capture that grants award 5. They
+join the Quest column as rows the shipped game cannot reach. `observed`
 
 ## Open questions
 
