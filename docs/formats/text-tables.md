@@ -295,8 +295,13 @@ the Archibald screens. `observed` for the strings and the anchors,
 `inferred` for the descending read they pin. Reproduce with
 `data_info --backdrops`. The earlier reading that the column might name
 the `EVPAN###` side panels was wrong — though the same string block's
-`evpan%03d` format shows those, too, are picked by a computed number
-still `unknown`.
+`evpan%03d` format shows those, too, are picked by a computed number.
+That number was hunted and not found: no script opcode's argument set
+matches the 39 shipped panel ids (the candidates that cover them are
+dense id spaces covering everything else too), and no numeric column of
+`2DEvents.txt` comes close (the best covers 14 of 39 with strays). The
+likeliest remaining sources are the outdoor model records' unread
+fields or a table in the executable; the feed stays `unknown`.
 
 ### The NPC plates join by row
 

@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The evpan gamble came up empty, on the record**: the number behind
+  the exe's `evpan%03d` was hunted through every script opcode's
+  argument sets and every numeric column of `2DEvents.txt`, and nothing
+  covers the 39 shipped panels without drowning them in strays — filed
+  as the honest negative, with the outdoor model records and the
+  executable named as the remaining suspects.
 - **The doors slide**: a thrown lever no longer teleports geometry — the
   door's vertices travel between their shut and open stations at the
   file's own open and close speeds, read as world units a second (three
