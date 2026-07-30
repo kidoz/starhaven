@@ -240,8 +240,7 @@ Reproduce with `sft_info --views`.
 - The flag bits outside 0x1, 0x4, 0x10 and 0xE000 — including 0x0020, and the
   high bits that appear on 933 frames. `unknown`
 - The real length of a time unit. `inferred`
-- The sibling tables in the same archive that share this container:
-  `DOBJLIST.BIN` (232 × 52), `DCHEST.BIN` (8 × 36), `DIFT.BIN` (61 × 32),
-  `DPFT.BIN` (67 × 10), `DTFT.BIN` (19 × 20), `DOVERLAY.BIN` (96 × 8) and
-  `DSOUNDS.BIN` (1,355 × 112). Each is a clean count-plus-fixed-stride array;
-  none is decoded. `unknown`
+- The sibling tables in the same archive that share this container are now
+  decoded: `DOBJLIST.BIN` (232 × 52), `DCHEST.BIN` (8 × 36),
+  `DIFT.BIN` (61 × 32), `DPFT.BIN` (67 × 10), `DTFT.BIN` (19 × 20),
+  `DOVERLAY.BIN` (96 × 8) and `DSOUNDS.BIN` (1,355 × 112).

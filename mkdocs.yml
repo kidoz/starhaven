@@ -28,6 +28,10 @@ nav:
       - Event actors: formats/event-actors.md
       - Event sprite objects: formats/event-objects.md
       - Object descriptor table: formats/dobjlist.md
+      - Chest appearance table: formats/dchest.md
+      - Overlay table: formats/doverlay.md
+      - Portrait frame table: formats/dpft.md
+      - Decoration frame table: formats/dift.md
       - Items and item instances: formats/items.md
       - Outdoor decorations: formats/odm-decorations.md
       - Outdoor tile index: formats/odm-tile-index.md

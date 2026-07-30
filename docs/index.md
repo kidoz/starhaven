@@ -27,7 +27,12 @@ Audio, UI, and gameplay systems remain future work.
 - [The monster table](formats/dmonlist.md), the
   [sprite frame table](formats/dsft.md) and the
   [sound table](formats/dsounds.md) give every monster its art, motion
-  and voice.
+  and voice. Their small siblings cover
+  [chest graphics](formats/dchest.md), the
+  [object descriptor table](formats/dobjlist.md),
+  [overlay scaling](formats/doverlay.md), the
+  [portrait frame table](formats/dpft.md) and the
+  [decoration glow table](formats/dift.md).
 - [Interface panels](formats/interface-panels.md),
   [portraits](formats/portraits.md) and the
   [paperdoll](formats/paperdoll.md) describe the screen furniture the
