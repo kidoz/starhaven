@@ -47,6 +47,9 @@ SaveState full_state() {
     who.affliction = "Asleep";
     who.equipped_broken[0] = true;
     state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
+    state.readied = {6, 0, 22, 0};
+    state.turn_based = true;
+    state.hourglass_turn = 9;
     return state;
 }
 
@@ -69,6 +72,9 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(after.npc_places == before.npc_places);
     REQUIRE(after.opened_chests == before.opened_chests);
     REQUIRE(after.open_doors == before.open_doors);
+    REQUIRE(after.readied == before.readied);
+    REQUIRE(after.turn_based == before.turn_based);
+    REQUIRE(after.hourglass_turn == before.hourglass_turn);
 
     const Character& who = after.party[0];
     // The name keeps its own hyphen and the class survives beside it.

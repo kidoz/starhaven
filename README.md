@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The save file caught up**: the audit found three things the record
+  had outrun — each member's readied spell, the turn-based toggle and
+  the hourglass's count — now appended as new record kinds the old
+  parser skips and the old saves simply lack, round-tripped in the save
+  test. UI cursor state (the sheet's page, the book's tab) stays
+  deliberately unsaved.
 - **A sky over Enroth**: the ODM header's slot at 0x60 turned out to
   name the sky — `plansky2` on New Sorpigal, empty elsewhere — and the
   engine now drapes the named panorama (defaulting to `PLANSKY1`, its

@@ -3623,6 +3623,9 @@ int main(int argc, char** argv) {
                 state.fly_until = fly_until;
                 state.reputation = reputation;
                 state.torch_until = torch_until;
+                state.readied = readied;
+                state.turn_based = turn_based;
+                state.hourglass_turn = hourglass_turn;
                 state.eye_until = eye_until;
                 state.eye_rank = eye_rank;
                 for (const auto& beacon : beacons) {
@@ -3719,6 +3722,9 @@ int main(int argc, char** argv) {
                     fly_until = state.fly_until;
                     reputation = state.reputation;
                     torch_until = state.torch_until;
+                    readied = state.readied;
+                    turn_based = state.turn_based;
+                    hourglass_turn = state.hourglass_turn;
                     eye_until = state.eye_until;
                     eye_rank = state.eye_rank;
                     beacons.clear();

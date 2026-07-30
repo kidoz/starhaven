@@ -56,6 +56,13 @@ struct SaveState {
     std::int64_t fly_until = 0;
     int reputation = 0;
 
+    // What each member keeps readied for the cast key, the turn-based
+    // toggle and the hourglass's count — appended for compatibility; an
+    // older save simply reads them absent.
+    std::array<int, 4> readied{};
+    bool turn_based = false;
+    int hourglass_turn = 0;
+
     // Torch Light's hours, the eye, and Lloyd's markers: where, until when.
     std::int64_t torch_until = 0;
     std::int64_t eye_until = 0;
@@ -98,6 +105,15 @@ struct SaveState {
     }
     if (state.reputation != 0) {
         out << "reputation\t" << state.reputation << "\n";
+    }
+    if (state.readied[0] != 0 || state.readied[1] != 0 || state.readied[2] != 0 ||
+        state.readied[3] != 0) {
+        out << "readied\t" << state.readied[0] << "\t" << state.readied[1] << "\t"
+            << state.readied[2] << "\t" << state.readied[3] << "\n";
+    }
+    if (state.turn_based || state.hourglass_turn > 0) {
+        out << "turnbased\t" << (state.turn_based ? 1 : 0) << "\t" << state.hourglass_turn
+            << "\n";
     }
     if (state.torch_until > 0) {
         out << "torch\t" << state.torch_until << "\n";
@@ -267,6 +283,13 @@ struct SaveState {
             out.fly_until = next_int();
         } else if (kind == "reputation") {
             out.reputation = next_int();
+        } else if (kind == "readied") {
+            for (auto& id : out.readied) {
+                id = next_int();
+            }
+        } else if (kind == "turnbased") {
+            out.turn_based = next_int() != 0;
+            out.hourglass_turn = next_int();
         } else if (kind == "torch") {
             out.torch_until = next_int();
         } else if (kind == "eye") {
