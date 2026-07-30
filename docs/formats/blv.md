@@ -573,6 +573,44 @@ and a link to its neighbours. `inferred`
 The record is 0x74 bytes, so offsets `+0x00`, `+0x06..+0x23`, `+0x2c..+0x67`
 remain unread. `unknown`
 
+### The front of the record is eight count/pointer slots
+
+The loader's fixup loop (`0x48ae46`, run right after the `L.RData` copy) walks
+every record and patches runtime pointers into it, which lays the front of the
+record bare. It is **eight 8-byte slots**, each an `i16` count followed by a
+`u32` runtime pointer the loader writes (resolving the count's worth of
+`RLData` entries into an absolute address). `observed`
+
+| Offset | Size | Type | Field | Status |
+| ---: | ---: | --- | --- | --- |
+| +0x00 | 4 | — | (head: flags/id) | unknown |
+| +0x04 | 2 | i16 | count 1 (faces) | observed |
+| +0x08 | 4 | u32 | runtime pointer 1 (patched) | observed |
+| +0x0C | 2 | i16 | count 2 | observed |
+| +0x10 | 4 | u32 | runtime pointer 2 (patched) | observed |
+| +0x14 | 2 | i16 | count 3 | observed |
+| +0x18 | 4 | u32 | runtime pointer 3 (patched) | observed |
+| +0x1C | 2 | i16 | count 4 | observed |
+| +0x20 | 4 | u32 | runtime pointer 4 (patched) | observed |
+| +0x24 | 2 | i16 | count 5 | observed |
+| +0x28 | 4 | u32 | runtime pointer 5 (patched) | observed |
+| +0x2C | 2 | i16 | count 6 | observed |
+| +0x30 | 4 | u32 | runtime pointer 6 (patched) | observed |
+| +0x34..+0x3B | 8 | — | (gap; counts resume at +0x3C) | unknown |
+| +0x3C | 2 | i16 | count 7 | observed |
+| +0x40 | 4 | u32 | runtime pointer 7 (patched) | observed |
+| +0x44 | 2 | i16 | count 8 | observed |
+| +0x48 | 4 | u32 | runtime pointer 8 (patched) | observed |
+| +0x4C..+0x67 | 28 | — | (unread middle) | unknown |
+
+So a sector node owns **eight variable-length arrays** (faces, portals, lights,
+and the rest), each declared by an on-disk count whose entries live in the
+`RLData` pool and whose pointer is resolved at load. This is the "arrays 1-3 of
+each face's six" the data analysis could not place — it is eight per sector,
+not six per face. The per-array meaning (which count is faces, which portals,
+which lights) is pinned to a follow-up trace of the consumers that read each
+pointer. `inferred`
+
   Sliding-window stride detection over that region on `D03.blv` segments it
   into a **stride-8** run, a high-entropy run with no stride above noise
   (plausibly a BSP or bit-packed structure), then a **stride-28** run ending at
