@@ -227,6 +227,10 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The aimed monster shows its blood**: the original's `MHP` bar stands
+  across the viewport's top when something is in the sights — the backing
+  and its end caps the art's own, the fill strip green, yellow or red as
+  the target falls (the two thresholds are the engine's, marked).
 - **The dungeon doors invite you in**: the entrance establishments join
   their maps by name — 34 of the 39 rows match a MapStats display name
   exactly, the five lords' castle doors matching none because the

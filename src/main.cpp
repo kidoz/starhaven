@@ -6259,6 +6259,53 @@ int main(int argc, char** argv) {
             }
             draw_frame(scene, cache);
             draw_party_strip(scene, cache, party, wincing);
+            // The aimed monster's blood, in the game's own bar: MHP_BG
+            // with its end caps across the viewport's top, the fill strip
+            // green, yellow or red as the target falls. The thresholds
+            // between the three strips are the engine's. `inferred`
+            if (const std::size_t aimed_now =
+                    game::aimed_actor(session, battle, camera.position, camera.forward(),
+                                      game::kMissileRange);
+                aimed_now != game::kNoActor) {
+                const auto [hp, max_hp] = battle.health_of(aimed_now);
+                if (max_hp > 0) {
+                    const int left = 8 + (460 - 200) / 2;
+                    const int top = 12;
+                    blit(scene.framebuffer(), cache.icon("MHP_BG"), left, top);
+                    const float frac =
+                        std::clamp(static_cast<float>(hp) / static_cast<float>(max_hp), 0.0f,
+                                   1.0f);
+                    const char* strip = frac > 0.5f   ? "MHP_GRN"
+                                        : frac > 0.25f ? "MHP_YEL"
+                                                       : "MHP_RED";
+                    const auto& fill = cache.icon(strip);
+                    const int width = static_cast<int>(frac * 200.0f);
+                    // The strip clipped to the blood left: rows copied by hand
+                    // because blit has no width limit.
+                    if (!fill.empty() && width > 0) {
+                        auto fb = scene.framebuffer().color();
+                        const auto src = fill.pixels();
+                        for (int y = 0; y < static_cast<int>(fill.height()); ++y) {
+                            for (int x = 0; x < width && x < static_cast<int>(fill.width());
+                                 ++x) {
+                                const auto si = (static_cast<std::size_t>(y) * fill.width() +
+                                                 static_cast<std::size_t>(x)) * 4;
+                                if (src[si + 3] == 0) {
+                                    continue;
+                                }
+                                const auto di =
+                                    (static_cast<std::size_t>(top + 2 + y) * kWidth +
+                                     static_cast<std::size_t>(left + x)) * 4;
+                                fb[di] = src[si];
+                                fb[di + 1] = src[si + 1];
+                                fb[di + 2] = src[si + 2];
+                            }
+                        }
+                    }
+                    blit(scene.framebuffer(), cache.icon("MHP_CAPL"), left - 5, top);
+                    blit(scene.framebuffer(), cache.icon("MHP_CAPR"), left + 200, top);
+                }
+            }
             // The engine's own readouts keep to the corner no shipped
             // piece claims.
             int corner_y = 344;

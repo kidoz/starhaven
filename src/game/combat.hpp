@@ -243,6 +243,15 @@ public:
     }
     [[nodiscard]] std::size_t size() const noexcept { return combatants_.size(); }
 
+    // The aimed one's blood, for the bar the interface draws: current and
+    // full, zero when out of range.
+    [[nodiscard]] std::pair<int, int> health_of(std::size_t actor) const noexcept {
+        if (actor >= combatants_.size()) {
+            return {0, 0};
+        }
+        return {combatants_[actor].hit_points, combatants_[actor].max_hit_points};
+    }
+
     // Which of its eight animations a monster should be drawn in. The dead
     // stay dead: a corpse keeps its death picture rather than disappearing.
     [[nodiscard]] world::MonsterAnimation animation_of(std::size_t actor) const noexcept {
