@@ -155,6 +155,44 @@ int list_maps(const std::filesystem::path& data_dir) {
     return 0;
 }
 
+// The sky behind the world: the header's own texture where the map names
+// one, PLANSKY1 — the named one's sibling — where it does not, wrapped as
+// a cylinder around the camera's yaw and dimmed with the daylight. The
+// projection and the default are the engine's. `inferred`
+void draw_sky(render::SceneRenderer& scene, assets::AssetCache& cache,
+              const world::MapSession& session, float yaw, float pitch, float level) {
+    const std::string& name =
+        session.odm.header.sky_name.empty() ? std::string("PLANSKY1")
+                                            : session.odm.header.sky_name;
+    const render::Texture& sky = cache.bitmap(name);
+    if (sky.empty()) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    const auto source = sky.pixels();
+    const int tw = static_cast<int>(sky.width());
+    const int th = static_cast<int>(sky.height());
+    constexpr float kFov = 1.0472f;  // 60 degrees, the projection's own
+    for (int y = 0; y < kHeight; ++y) {
+        // The row's world pitch: negative looks above the horizon.
+        const float row = (static_cast<float>(y) / kHeight - 0.5f) * kFov + pitch;
+        const int tv = ((static_cast<int>((row + 1.6f) * static_cast<float>(th) * 0.6f) % th) +
+                        th) % th;
+        for (int x = 0; x < kWidth; ++x) {
+            const float column = yaw + (static_cast<float>(x) / kWidth - 0.5f) * kFov;
+            const int tu =
+                ((static_cast<int>(column / 6.2832f * static_cast<float>(tw) * 4.0f) % tw) +
+                 tw) % tw;
+            const auto si = (static_cast<std::size_t>(tv) * static_cast<std::size_t>(tw) +
+                             static_cast<std::size_t>(tu)) * 4;
+            const auto di = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[di] = static_cast<std::uint8_t>(static_cast<float>(source[si]) * level);
+            pixels[di + 1] = static_cast<std::uint8_t>(static_cast<float>(source[si + 1]) * level);
+            pixels[di + 2] = static_cast<std::uint8_t>(static_cast<float>(source[si + 2]) * level);
+        }
+    }
+}
+
 void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session,
                   assets::AssetCache& cache, const render::Vec3& sun, float level = 1.0f) {
     const auto& mesh = session.terrain_mesh;
@@ -5296,6 +5334,7 @@ int main(int argc, char** argv) {
         const render::Color sky = session.outdoor() ? game::sky_colour(clock) : indoor_sky;
         scene.begin(camera, sky);
         if (session.outdoor()) {
+            draw_sky(scene, cache, session, camera.yaw, camera.pitch, game::light_level(clock));
             draw_outdoor(scene, session, cache, game::sun_direction(clock),
                          game::light_level(clock));
         } else {

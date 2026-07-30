@@ -27,6 +27,7 @@ struct OdmHeader {
     std::string name;                         // offset 0x00, e.g. "blank"
     std::string file_name;                    // offset 0x20, e.g. "default.odm"
     std::string version;                      // offset 0x40, e.g. "MM6 Outdoor v1.11"
+    std::string sky_name;                     // offset 0x60; empty on 14 of 15 maps
     std::string ground_name;                  // offset 0x80, e.g. "grastyl" (ground tileset)
     std::array<OdmTilesetDef, 4> tilesets{};  // offset 0xA0 (4 tileset defs)
 

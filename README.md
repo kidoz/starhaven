@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **A sky over Enroth**: the ODM header's slot at 0x60 turned out to
+  name the sky — `plansky2` on New Sorpigal, empty elsewhere — and the
+  engine now drapes the named panorama (defaulting to `PLANSKY1`, its
+  own pick, marked) behind the terrain as a yaw-wrapped cylinder, dimmed
+  by the same daylight the sun follows. What the fourteen `sky01`..
+  `sky14` panoramas are for remains an open lead.
 - **The placeholder gamble mostly paid**: the census of every `%NN`
   across the shipped prose first separated the false hits (MONSTERS'
   treasure codes) and then pinned five new codes by their own sentences

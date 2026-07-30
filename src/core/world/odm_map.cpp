@@ -19,6 +19,7 @@ namespace {
 constexpr std::uint32_t kNameOff = 0x00;        // name[32]
 constexpr std::uint32_t kFileNameOff = 0x20;    // file_name[32]
 constexpr std::uint32_t kVersionOff = 0x40;     // version[31] + 1 pad byte
+constexpr std::uint32_t kSkyNameOff = 0x60;     // sky texture, named on one map
 constexpr std::uint32_t kGroundNameOff = 0x80;  // ground_name[32]
 constexpr std::uint32_t kTilesetsOff = 0xA0;    // 4 x (i16 group, i16 offset)
 
@@ -88,6 +89,13 @@ OdmError parse_odm(std::span<const std::byte> entry, OdmMap& out) {
     }
     if (!version_supported(out.header.version)) {
         return OdmError::UnsupportedVersion;
+    }
+    // The slot between the version and the ground tileset holds a sky
+    // texture name on the one map that states one (Oute3's "plansky2");
+    // the other fourteen leave it empty. `observed`
+    h.seek(kSkyNameOff);
+    if (!h.read_fixed_string(16, out.header.sky_name)) {
+        return OdmError::HeaderTooSmall;
     }
     h.seek(kGroundNameOff);
     if (!h.read_fixed_string(kNameFieldSize, out.header.ground_name)) {
