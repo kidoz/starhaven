@@ -515,16 +515,34 @@ vertex/face arrays) is, in file order:
 | --- | ---: | --- | --- |
 | `L.FData` (`0x4c2da0`) | count × 80 | the face records | observed |
 | `L.RData` (`0x4c2d98`) | count × 116 | the room/sector records — the "high-entropy middle" | observed |
-| `L.RLData` (`0x4c2d8c`) | allocator-built (variable) | room links — a variable/linked structure, not a flat copy | inferred |
+| `L.RLData` (`0x4c2d8c`) | flat `u16` pool | the index pool every sector's eight lists point into (vertex/face/portal ids) | observed |
 | `L.DData` (`0x4c2d84`) | fixed 16,000 bytes | the 200-slot × 80-byte **door array** (see [`event-tables.md`](event-tables.md)) | observed |
 
 So the undecoded middle is **`L.RData` (116-byte room/sector records) followed
 by `L.RLData` (room links)**, and `L.DData` is the door block the event-tables
 analysis already cracked. The "stride-8 / no-stride / stride-28" segmentation
 the data analysis found maps onto these: the 116-byte `RData` records contain
-the stride-8 and stride-28 sub-arrays, and the no-stride run is the
-variable-length `RLData` portion built through the allocator rather than copied
-flat. `inferred`
+the stride-8 and stride-28 sub-arrays, and the no-stride run is the `RLData`
+index pool (flat `u16`s, allocator-owned but copied verbatim). `observed`
+
+### `L.RLData` is a flat `u16` index pool
+
+The earlier "variable/linked structure" reading was wrong, and is corrected
+here. The loader (`0x48bb44`) allocates the `RLData` pool with
+`fcn.00421390`, then **flat-copies the on-disk `RLData` bytes into it**
+(`rep movsd`). The allocator only handles memory; the data is verbatim.
+`observed`
+
+A preceding fixup pass (`0x48ba22`) walks every sector, reads each of its eight
+counts, advances a running offset by `count × 2`, and patches the sector's
+eight pointers to index into this pool. The consumers then read the pool as
+`u16`s: the collision path (`0x407c86`) reads `word [ptr + idx*2]` and
+multiplies by 3 to index a vertex; the render path reads face ids the same way.
+So **each `RLData` entry is a `u16` index** — a vertex, face, portal, or light
+id into the level's flat arrays — and a sector "owns" eight sub-ranges of the
+pool. `observed` for the pool layout and `u16` element size; `inferred` that a
+given sub-range holds vertex vs face vs portal ids follows from the slot it is
+reached through.
 
 Each section's count is read as a `u32` immediately before the copy
 (`mov eax,[ebx]; add ebx,4`), and `fcn.00438d20` is called after each as a
@@ -544,7 +562,8 @@ to the recorded SHA-256.
   `L.RData` (116-byte room/sector records) then `L.RLData` (room links), so
   the section identities are settled. The `RData` field layout is partly
   decoded from the sector-culling consumer `fcn.0048c3d0` (see below); the
-  remaining fields and the `RLData` link format stay `unknown`.
+  remaining fields stay `unknown`; the `RLData` format is now decoded (a flat
+  `u16` index pool — see "`L.RLData` is a flat `u16` index pool" below).
 
 ### The 116-byte `L.RData` record (partly decoded)
 
