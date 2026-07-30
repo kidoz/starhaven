@@ -2500,16 +2500,16 @@ int main(int argc, char** argv) {
     int frame = 0;
     bool running = true;
 
-    // Stand a door's vertices where its open flag says, shared by throwing a
-    // lever and loading a save. The caller rebuilds collision after the last
-    // door it moves.
+    // Stand a door's vertices where its progress says, shared by the slide,
+    // a thrown lever and loading a save. The caller rebuilds collision
+    // after the last door it moves.
     const auto move_door = [&](world::MapDoor& door) {
         for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
             const std::uint16_t vid = door.vertex_ids[i];
             if (vid >= session.blv.vertices.size()) {
                 continue;
             }
-            const float slide = door.open ? static_cast<float>(door.distance) : 0.0f;
+            const float slide = door.progress * static_cast<float>(door.distance);
             auto& v = session.blv.vertices[vid];
             v.x = static_cast<std::int16_t>(door.x_base[i] + static_cast<int>(door.dx * slide));
             v.y = static_cast<std::int16_t>(door.y_base[i] + static_cast<int>(door.dy * slide));
@@ -3461,6 +3461,7 @@ int main(int argc, char** argv) {
                         for (auto& door : session.doors) {
                             if (door.id == id) {
                                 door.open = true;
+                                door.progress = 1.0f;
                                 move_door(door);
                                 doors_moved = true;
                                 break;
@@ -4979,6 +4980,29 @@ int main(int argc, char** argv) {
             party_recovery = std::max(0.0f, party_recovery - sim_dt);
             clock.advance_seconds(sim_dt);
             game::advance_launches(launches, sim_dt);
+            // Doors travel between their stations at the file's own
+            // open and close speeds, read as world units a second;
+            // collision follows the geometry while anything slides.
+            bool doors_sliding = false;
+            for (auto& door : session.doors) {
+                const float target = door.open ? 1.0f : 0.0f;
+                if (door.progress == target || door.distance <= 0) {
+                    continue;
+                }
+                const int speed = door.open ? door.open_speed : door.close_speed;
+                const float rate = speed > 0 ? static_cast<float>(speed) /
+                                                   static_cast<float>(door.distance)
+                                             : 2.0f;
+                const float step = rate * sim_dt;
+                door.progress = door.progress < target
+                                    ? std::min(target, door.progress + step)
+                                    : std::max(target, door.progress - step);
+                move_door(door);
+                doors_sliding = true;
+            }
+            if (doors_sliding) {
+                world::rebuild_indoor_collision(session);
+            }
             for (auto& shot : spell_shots) {
                 // The bolt tracks its monster the way the fight does; on
                 // arrival the blow lands with the spell's own numbers.
@@ -5385,8 +5409,9 @@ int main(int argc, char** argv) {
                     if (door.id != static_cast<std::uint32_t>(id)) {
                         continue;
                     }
+                    // Only the destination changes here; the frame loop
+                    // slides the geometry there at the door's own speed.
                     door.open = state == 2 ? !door.open : state != 0;
-                    move_door(door);
                     doors_moved = true;
                     break;
                 }
@@ -5437,11 +5462,11 @@ int main(int argc, char** argv) {
             }
 
             if (doors_moved) {
-                world::rebuild_indoor_collision(session);
                 // No script opcode names event sounds — a sweep of every
                 // unnamed opcode's arguments against the sound table found
                 // none — so the working of a door is this engine's choice
-                // from the archive's own names. `inferred`
+                // from the archive's own names. `inferred` The geometry
+                // itself follows over the next frames, at the door's speed.
                 ambient.play_once("stone door0101");
             } else if (!outcome.retextures.empty()) {
                 ambient.play_once("WoodDRClose");

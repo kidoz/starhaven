@@ -101,7 +101,7 @@ this one file. Each 80-byte record is a door:
 | +0x08 | u32 | timer/state | zero on disk |
 | +0x0C | 3×i32 | direction, 16.16 | unit axes: (-1,0,0), (0,0,+1)… |
 | +0x18 | u32 | distance | 8..504 world units |
-| +0x1C, +0x20 | u32 | open and close speeds | 50..150 |
+| +0x1C, +0x20 | u32 | open and close speeds | 50..150; read as world units a second — Goblinwatch's 250-unit doors at 85 take three seconds, which is what a stone door sounds like. `inferred` |
 | +0x24 | 8×u32 | heap pointers | meaningless on disk |
 | +0x44 | u16, u16 | vertex count, face count | |
 | +0x48 | u16 | sector count | 0 on every D01 door |

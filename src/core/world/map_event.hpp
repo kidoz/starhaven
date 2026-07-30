@@ -221,8 +221,11 @@ struct MapDoor {
     std::vector<std::int16_t> x_base, y_base, z_base;  // the shut position
 
     // Live state, not from the file: every base equals its shipped vertex on
-    // 4,067 of 4,067 across the 52 maps, so a door starts shut.
+    // 4,067 of 4,067 across the 52 maps, so a door starts shut. `progress`
+    // is how far along its travel the door stands, 0 shut to 1 open, so a
+    // thrown lever slides the geometry instead of teleporting it.
     bool open = false;
+    float progress = 0.0f;
 };
 
 // Decode the door block of an indoor event file. Returns no records for an

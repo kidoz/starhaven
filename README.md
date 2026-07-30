@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The doors slide**: a thrown lever no longer teleports geometry — the
+  door's vertices travel between their shut and open stations at the
+  file's own open and close speeds, read as world units a second (three
+  seconds for Goblinwatch's stone slabs), with collision following the
+  faces while they move.
 - **The interiors play**: the seating chart is in use — each
   establishment's service screen and its people's talk screens stand on
   the first frame of its own `Anims*.vid` interior, dimmed to half under
