@@ -227,7 +227,11 @@ The decoder rejects an outdoor layout when:
 
 ## Open questions
 
-- Meanings of the two fixed 968-byte blocks and the 256-byte trailer.
+- The two fixed 968-byte blocks (`0x008`, `0x3D0`) and the 256-byte trailer
+  are **entirely zero on every shipped map** (verified across all sampled
+  `.ddm` payloads) — they are runtime state buffers shipped empty, the same
+  pattern as the monsters' zero tails. `968` is an allocation size, not a
+  record count; the engine fills these at runtime. `observed`
 - The chest's first u16 is read: 0..7 on every shipped chest, the
   `DCHEST.BIN` row whose last field numbers the `CHEST01`..`CHEST08`
   screens — the chest's appearance. The 140 i16 grid entries are read
