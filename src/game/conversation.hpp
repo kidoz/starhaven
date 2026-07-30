@@ -35,6 +35,19 @@ inline constexpr int kStringEvening = 397;
 inline constexpr int kStringSir = 385;
 inline constexpr int kStringLady = 387;
 
+// The rest of the phrasebook's neighborhood, censused: his and her at 383
+// and 384, Lord and Lady at 388 and 389, son and daughter at 392 and 393.
+// "%09 band" reads as the listener's possessive, "my %10" as the
+// Lord/Lady address, "Ah, %16" as the familiar child-word — all pinned by
+// their sentences; %03 is the speaker's own possessive, left visible
+// until the speaker's gender is modelled. `inferred`
+inline constexpr int kStringHis = 383;
+inline constexpr int kStringHer = 384;
+inline constexpr int kStringLord = 388;
+inline constexpr int kStringLadyTitle = 389;
+inline constexpr int kStringSon = 392;
+inline constexpr int kStringDaughter = 393;
+
 // Who is speaking to whom, for the placeholders every line of NPC prose
 // carries. What each number stands for is read from the lines themselves:
 // `"I'm %01"` and `"Name's %01"` make 1 the speaker, `"%06 %02"` makes 2 the
@@ -112,6 +125,15 @@ struct Speech {
             break;
         case 29:
             with = who.naming > 0 ? std::to_string(who.naming) : std::string{};
+            break;
+        case 9:
+            with = word(who.listener_is_female ? kStringHer : kStringHis);
+            break;
+        case 10:
+            with = word(who.listener_is_female ? kStringLadyTitle : kStringLord);
+            break;
+        case 16:
+            with = word(who.listener_is_female ? kStringDaughter : kStringSon);
             break;
         default:
             break;

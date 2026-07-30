@@ -982,11 +982,15 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   the profession's gold percent ("takes %17 percent"); **%24** the item,
   **%25** the ordinary price, **%27** the named price, **%28** the
   trade, **%29** the identify price ("what it is for %29 gold"). The
-  engine substitutes 1, 2, 5, 6, 11, 17, 24, 25, 27, 28 and 29. Still
-  open, with their contexts filed: **%03** and **%09** read as
-  possessives, **%07** a reverent salutation, **%08** the famous deed
-  clause, **%10** a my-lord address, **%13**, **%14** and **%16**
-  epithets whose source table is unplaced. `inferred`
+  engine substitutes 1, 2, 5, 6, 11, 17, 24, 25, 27, 28 and 29. Three more
+  joined against `GLOBAL.TXT`'s own neighborhood — his/her at 383/384,
+  Lord/Lady at 388/389, son/daughter at 392/393 — so **%09** (the
+  listener's possessive), **%10** (the my-lord address) and **%16** (the
+  familiar child-word) now substitute by the listener's gender. Still
+  open: **%03**, the speaker's own possessive (the ids are known; the
+  speaker's gender is not modelled), **%07** a reverent salutation with
+  no matching row found, **%08** the famous-deed clause, **%13** and
+  **%14** epithets unplaced. `inferred`
 - What indexes `GLOBAL.TXT` by id. `unknown`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
   `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`

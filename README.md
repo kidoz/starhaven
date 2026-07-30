@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **Three strangers came home**: the gamble on `GLOBAL.TXT` paid for
+  %09, %10 and %16 — his/her, Lord/Lady and son/daughter sit at rows
+  383-393, right where sir and morning already lived — and they now
+  substitute by the listener's gender. %03 waits on modelling the
+  speaker's gender; %07, %08, %13 and %14 stay honestly open.
 - **The award ledger, audited**: `evt_info --ledger` maps all 86 worded
   awards to their granting event or to "no script grants this" — 58
   script-granted, 28 orphans, and the orphans sort themselves: the
