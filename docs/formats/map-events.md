@@ -665,7 +665,14 @@ join the Quest column as rows the shipped game cannot reach. `observed`
   fixed point the common values are exactly 5.0 ×4, 6.0 ×43 and 8.0 ×2,
   with the odd runs as fine fractional steps — a scalar of some kind, not
   an index. Which scalar is `unknown`.
-- What `OUT.EVT`'s 87 stub events are for, and what points at them. `unknown`
+- `OUT.EVT`'s 87 stubs are answered as far as the data reaches: every
+  stub is the same two-step husk that does nothing, and exactly **three
+  outdoor facets point into the shared script** — Sweet Water's at ids
+  50 and 51, New Sorpigal's at 38 — facets whose event ids their own
+  map's script does not define. The shared script reads as a **null
+  sink**: a defined nothing for stray facet ids to land on. Why the
+  other 84 husks exist when nothing shipped points at them stays
+  `unknown`; `inferred` for the sink reading.
 - Which of the shared scripts beyond `OUT.EVT` use the headerless framing,
   and what the misframed remainder of the unheaded class parses to under it.
   `unknown`

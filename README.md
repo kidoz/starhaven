@@ -1046,6 +1046,11 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **OUT.EVT unmasked as a null sink**: the shared outdoor script's 87
+  stubs are identical do-nothing husks, and exactly three shipped
+  facets — two in Sweet Water, one in New Sorpigal — point into it,
+  each with an event id its own map never defines. A defined nothing
+  for stray ids to land on; why the other 84 husks exist stays open.
 - **The window grows without lying**: `--scale N` (default 2) presents
   the honest 640x480 at an integer multiple through SDL's logical
   presentation, mouse zones converted back to the game's own
