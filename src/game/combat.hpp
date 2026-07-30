@@ -805,13 +805,16 @@ private:
 };
 
 // Which living monster the party is aiming at and can reach, or kNoActor.
-// Ties go to whatever is most directly in front, the way the inspect panel
-// chooses what to name.
+// A monster is aimed at when the look ray passes through its body — the
+// DMONLIST record's own radius and height, so a dragon is hard to miss and
+// a bat hard to hit. The nearest such body wins, the way a ray does; the
+// slack on the cylinder and the fallback body are the engine's. `inferred`
 [[nodiscard]] inline std::size_t aimed_actor(const world::MapSession& session, const Battle& battle,
                                              const render::Vec3& eye, const render::Vec3& forward,
                                              float reach) {
+    constexpr float kSlack = 12.0f;
     std::size_t best = kNoActor;
-    float best_aim = 0.5f;  // anything less is not being aimed at
+    float best_distance = 0.0f;
     for (std::size_t i = 0; i < session.actors.size(); ++i) {
         if (!battle.alive(i)) {
             continue;
@@ -822,10 +825,29 @@ private:
         if (distance > reach || distance <= 0.001f) {
             continue;
         }
-        const float aim = (d.x * forward.x + d.y * forward.y + d.z * forward.z) / distance;
-        if (aim > best_aim) {
-            best_aim = aim;
+        float radius = 48.0f;
+        float height = 160.0f;
+        const auto id = static_cast<std::size_t>(session.actors[i].monster_id);
+        if (const auto* body = id > 0 ? session.monsters.at(id - 1) : nullptr;
+            body != nullptr && body->radius > 0) {
+            radius = static_cast<float>(body->radius);
+            height = static_cast<float>(body->height);
+        }
+        // The ray's closest approach, split into floor plan and height.
+        const float along = d.x * forward.x + d.y * forward.y + d.z * forward.z;
+        if (along <= 0.0f) {
+            continue;
+        }
+        const render::Vec3 p{eye.x + forward.x * along, eye.y + forward.y * along,
+                             eye.z + forward.z * along};
+        const float flat = std::sqrt((p.x - at.x) * (p.x - at.x) + (p.z - at.z) * (p.z - at.z));
+        const bool tall = p.y >= at.y - kSlack && p.y <= at.y + height + kSlack;
+        if (flat > radius + kSlack || !tall) {
+            continue;
+        }
+        if (best == kNoActor || distance < best_distance) {
             best = i;
+            best_distance = distance;
         }
     }
     return best;

@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The bodies take up space**: the monster record's height and radius
+  now govern the world — the party keeps a body's radius away instead of
+  walking through titans, aiming casts a ray against each monster's own
+  cylinder so a dragon is hard to miss and a bat hard to hit, and the Fly
+  column's riders hover one body height up, the record's own number in
+  place of the engine's old constant.
 - **The frame answers the mouse**: M frees the cursor, and the painted
   furniture works — the shelf's sword book opens the quest journal, the
   quill the establishment notes, the key the calendar on `TIME_BG`'s own

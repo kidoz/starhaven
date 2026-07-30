@@ -139,6 +139,14 @@ The parser rejects, deterministically and without reading out of bounds:
 - a body that is not a zlib stream;
 - a record count that does not account for the inflated block exactly.
 
+## The engine stands on the body
+
+The party keeps a body's radius away and cannot walk through a titan,
+aiming is a ray against the body's own cylinder — a dragon hard to miss, a
+bat hard to hit — and a flier rides one body height above the ground. The
+readings of radius as personal space and height as the ride are the
+engine's. `inferred`
+
 ## Open questions
 
 - The constant 140 at +0x04 — the one field of the record still unread. A

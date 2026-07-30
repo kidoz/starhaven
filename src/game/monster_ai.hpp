@@ -27,6 +27,10 @@ struct MonsterMotion {
     float notice = 0.0f;  // how near the party has to be for it to react
     bool flees = false;   // a Wimp runs the other way
     bool flying = false;  // the Fly column: it keeps its height, not the floor's
+    // The body, from the DMONLIST record where it states one: a dragon
+    // takes up a dragon's worth of floor and a bat a bat's.
+    float radius = 48.0f;
+    float height = 160.0f;
 
     [[nodiscard]] bool still() const noexcept { return speed <= 0.0f; }
 };
@@ -181,6 +185,15 @@ public:
             if (actor.monster_id > 0 && id <= monsters.entries().size()) {
                 s.motion = motion_for(monsters.entries()[id - 1]);
             }
+            if (const auto* body = session.monsters.at(id - 1);
+                actor.monster_id > 0 && body != nullptr) {
+                if (body->radius > 0) {
+                    s.motion.radius = static_cast<float>(body->radius);
+                }
+                if (body->height > 0) {
+                    s.motion.height = static_cast<float>(body->height);
+                }
+            }
             states_.push_back(s);
         }
     }
@@ -237,7 +250,10 @@ private:
                 continue;
             }
             auto& actor = session.actors[i];
-            actor.position = push_out(actor.position, party, kPartySpacing);
+            // The party keeps a body's radius plus its old margin away.
+            actor.position = push_out(
+                actor.position, party,
+                states_[i].motion.radius + (kPartySpacing - kMonsterRadius));
             buckets_[key_of(actor.position)].push_back(i);
         }
 
@@ -347,11 +363,12 @@ private:
         actor.position = to;
         if (session.outdoor()) {
             const float ground = session.terrain_height_at(actor.position.x, actor.position.z);
-            // The Fly column: a flier rides above the ground instead of on
-            // it. The hover height is this engine's own. `inferred`
-            constexpr float kHover = 160.0f;
-            actor.position.y = state.motion.flying ? std::max(actor.position.y, ground + kHover)
-                                                   : ground;
+            // The Fly column: a flier rides above the ground instead of
+            // on it, one body height up — the record's own number where it
+            // states one. `inferred` for the reading of height as the ride.
+            actor.position.y = state.motion.flying
+                                   ? std::max(actor.position.y, ground + state.motion.height)
+                                   : ground;
         }
     }
 
