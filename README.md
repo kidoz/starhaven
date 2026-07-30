@@ -1044,6 +1044,11 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The door bit refused a third name**: the timbre gamble came up
+  empty — the 41 bit-1 doors share their face textures freely with the
+  753 plain ones, and the travel axis splits no better — so the bit now
+  carries three filed refutations and one odd fact: D07 alone holds 20
+  of the 41, half its own doors. Still `unknown`, honestly.
 - **The bounty board opens**: Town Halls post a monthly head — a
   hostile row picked deterministically by the month, the same in every
   hall — the battle now reports its kills, and a taken head claims a

@@ -214,8 +214,13 @@ The decoder rejects an outdoor layout when:
   throughout) stays unread.
 - The indoor prefix's 883 bytes, and why the count lands unaligned.
 - The door attribute word is measured across all 795 doors of the 52
-  indoor maps: **zero on 754, one on 41**. What bit 0 marks is `unknown` —
-  it correlates with no map, speed or size pattern tested. The second
+  indoor maps: **zero on 754, one on 41**. What bit 0 marks is `unknown`,
+  and it now carries three refutations: not the door's timbre (the bit-1
+  doors' face textures — walls, floors, ceilings, trims — are shared
+  freely with bit-0 doors), not the travel axis (13 of the 41 move
+  vertically against 475 of the 754), and not one map's quirk, though it
+  concentrates oddly — D07 alone carries 20 of the 41, half its own
+  doors. The second
   count word's high half is closed: it **duplicates the vertex count**,
   the low half of the word before it, on 795 of 795 doors. `observed`
   (`ddm_info <map> --doors` prints each door's attribute word.)
