@@ -645,9 +645,10 @@ trap number; which executable path spends the trap column remains untraced.
 
 **This corrects the previous revision of this section**, which invented a
 chance-in-ten reading salted by the chest's id, d6 damage scaled by the trap
-column, and a Perception dodge — none of it the executable's. That invention
-still lives in src/game/traps.hpp, which predates the trace and now diverges
-from the documented behavior.
+column, and a Perception dodge — none of it the executable's.
+src/game/traps.hpp now implements the traced check; only the blast's damage
+dice remain the engine's own, because the original hands the harm to the
+spawned trap object's detonation, which is untraced.
 
 ## The promotion join
 

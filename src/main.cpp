@@ -6227,50 +6227,42 @@ int main(int argc, char** argv) {
                 }
             }
             // A chest gives up what the map's treasure level rolls — after
-            // any trap the map's own difficulty put on it has its say.
+            // any trap its own record armed has its say. The check is the
+            // original's, traced: the chest's trapped bit against the
+            // acting character's Disarm and the map's lock number
+            // (docs/formats/event-tables.md, "The chest flags word").
             if (outcome.chest >= 0 && !opened_chests.contains(outcome.chest)) {
-                // A locked chest — the Lock column's own chance — stays
-                // shut until the party's best Disarm reaches the number.
-                int party_disarm = 0;
-                for (const auto& member : party) {
-                    if (const auto it = member.skills.find("Disarm Traps");
-                        it != member.skills.end()) {
-                        party_disarm = std::max(party_disarm, it->second);
-                    }
-                }
-                for (const auto& h : hirelings) {
-                    party_disarm = std::max(party_disarm, h.benefit.disarm_bonus);
-                }
-                const bool locked_fast =
-                    game::chest_locked(session.lock_difficulty, outcome.chest) &&
-                    !game::disarmed(session.lock_difficulty, party_disarm);
-                if (locked_fast) {
-                    said_text = "The chest is locked fast.";
-                }
-                if (!locked_fast) {
                 opened_chests.insert(outcome.chest);
                 std::string took;
-                if (game::chest_trapped(session.trap_difficulty, outcome.chest)) {
-                    int disarm = 0, perception = 0;
-                    for (const auto& member : party) {
-                        if (const auto it = member.skills.find("Disarm Traps");
-                            it != member.skills.end()) {
-                            disarm = std::max(disarm, it->second);
-                        }
-                        if (const auto it = member.skills.find("Perception");
-                            it != member.skills.end()) {
-                            perception = std::max(perception, it->second);
-                        }
-                    }
+                const auto chest_index = static_cast<std::size_t>(outcome.chest);
+                const bool trapped = chest_index < session.chest_flags.size() &&
+                                     (session.chest_flags[chest_index] & 1) != 0;
+                if (trapped) {
+                    // The hirelings' promised points, one per trade held.
+                    std::set<int> hireling_trades;
                     for (const auto& h : hirelings) {
-                        disarm = std::max(disarm, h.benefit.disarm_bonus);
-                        perception = std::max(perception, h.benefit.perception_bonus);
+                        if (h.benefit.disarm_bonus > 0) {
+                            hireling_trades.insert(h.benefit.disarm_bonus);
+                        }
                     }
-                    if (game::disarmed(session.trap_difficulty, disarm)) {
+                    int hireling_points = 0;
+                    for (const int points : hireling_trades) {
+                        hireling_points += points;
+                    }
+                    // The original spends the acting character's skill; this
+                    // shell has no chosen portrait yet, so the best hand in
+                    // the party stands in. `inferred`
+                    int disarm = 0;
+                    for (const auto& member : party) {
+                        disarm = std::max(
+                            disarm, game::character_disarm_value(member, hireling_points));
+                    }
+                    if (game::disarm_check(disarm, session.lock_difficulty, misc_random)) {
                         took = "A trap clicks, disarmed.  ";
                     } else {
-                        const game::TrapBlast blast = game::spring_trap(
-                            session.trap_difficulty, party, perception, misc_random);
+                        const game::TrapElement element = game::trap_element(misc_random);
+                        const game::TrapBlast blast =
+                            game::spring_trap(session.lock_difficulty, party, misc_random);
                         int hurt = 0;
                         for (std::size_t i = 0; i < party.size(); ++i) {
                             if (blast.damage[i] <= 0) {
@@ -6280,8 +6272,9 @@ int main(int argc, char** argv) {
                                 std::max(0, party[i].hit_points - blast.damage[i]);
                             ++hurt;
                         }
-                        took = hurt == 0 ? "A trap fires wide.  "
-                                         : "The chest was trapped!  ";
+                        took = "A ";
+                        took += game::trap_element_name(element);
+                        took += " trap explodes!  ";
                         if (hurt > 0) {
                             speak(party[0], 33);  // line 33: the trap's word
                         }
@@ -6324,7 +6317,6 @@ int main(int argc, char** argv) {
                         : 0;
                 chest_art = look < 8 ? static_cast<int>(look) : 0;
                 chest_note = said_text;
-                }
             }
 
             // A fountain's blessing: the walker keeps the seven attributes'

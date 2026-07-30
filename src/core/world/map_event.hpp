@@ -241,8 +241,13 @@ struct MapChestItem {
 
 // Each chest's first u16: 0..7 across every shipped file, the row of
 // `DCHEST.BIN` whose own last field numbers the CHEST01..CHEST08 art —
-// the chest's appearance. The u16 beside it holds 0 or 1, unread.
+// the chest's appearance.
 [[nodiscard]] std::vector<std::uint16_t> extract_chest_appearances(const MapEventFile& file);
+
+// The u16 beside the appearance: the chest's flags word. Bit 0 is the trap,
+// set on 1,191 of the 1,340 shipped chests; bit 1 is the runtime "items
+// placed" mark and ships zero. See docs/formats/event-tables.md.
+[[nodiscard]] std::vector<std::uint16_t> extract_chest_flags(const MapEventFile& file);
 
 // Return the nonempty item slots across the decoded chest array. Concrete item
 // ids and negative random-generation placeholders are both retained.

@@ -313,7 +313,11 @@ std::vector<MapDoor> extract_doors(const MapEventFile& file) {
     return out;
 }
 
-std::vector<std::uint16_t> extract_chest_appearances(const MapEventFile& file) {
+namespace {
+
+// The chest record opens with two u16s — appearance, then flags. Read one
+// of them across the chest array.
+std::vector<std::uint16_t> extract_chest_words(const MapEventFile& file, std::size_t word_offset) {
     std::vector<std::uint16_t> out;
     EventLayout layout;
     if (parse_event_layout(file, layout) != EventLayoutError::None) {
@@ -321,13 +325,23 @@ std::vector<std::uint16_t> extract_chest_appearances(const MapEventFile& file) {
     }
     const auto* p = reinterpret_cast<const std::uint8_t*>(file.payload.data());
     for (std::size_t c = 0; c < layout.chest_count; ++c) {
-        const std::size_t at = layout.chests_offset + c * kChestRecordSize;
+        const std::size_t at = layout.chests_offset + c * kChestRecordSize + word_offset;
         if (at + 2 > file.payload.size()) {
             break;
         }
         out.push_back(static_cast<std::uint16_t>(p[at] | (p[at + 1] << 8)));
     }
     return out;
+}
+
+}  // namespace
+
+std::vector<std::uint16_t> extract_chest_appearances(const MapEventFile& file) {
+    return extract_chest_words(file, 0);
+}
+
+std::vector<std::uint16_t> extract_chest_flags(const MapEventFile& file) {
+    return extract_chest_words(file, 2);
 }
 
 std::vector<MapChestItem> extract_chest_items(const MapEventFile& file, std::size_t max_records) {
