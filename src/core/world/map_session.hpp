@@ -116,6 +116,13 @@ struct MapSession {
     int treasure_level = 0;    // MapStats' "Tres 0-6"; what its chests hold
     std::vector<std::uint16_t> chest_looks;  // each chest's DCHEST row
     std::vector<SessionNpc> everyone;  // the whole NPC roster, for arrivals
+    // What ground each tile index is, in the footstep sounds' own words
+    // ("Grass", "Snow", "Water"...); empty for indoor maps.
+    std::array<std::string, 256> tile_grounds{};
+
+    // The ground under a point, in the footstep sounds' vocabulary:
+    // outdoor by the tile's art, indoor always the stone hall. `inferred`
+    [[nodiscard]] std::string_view ground_at(float x, float z) const;
     int trap_difficulty = 0;   // MapStats' "Trap 0-10"; how its chests bite
     int lock_difficulty = 0;   // MapStats' "Lock 0-10"; how they resist opening
 

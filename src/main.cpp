@@ -2526,6 +2526,7 @@ int main(int argc, char** argv) {
 
     // The campfire screen: R opens it, its buttons choose how long.
     bool rest_screen = start_rest;
+    float step_timer = 0.0f;  // seconds to the next footfall
 
     // The opened chest's screen: which CHEST art shows and what was found.
     int chest_art = -1;
@@ -3258,6 +3259,9 @@ int main(int argc, char** argv) {
                         SDL_SetWindowRelativeMouseMode(window, true);
                     }
                 };
+                if (chosen >= 0) {
+                    ambient.play_once("ClickStart");
+                }
                 if (chosen == 0) {
                     leave_title();
                     creating = true;
@@ -5093,6 +5097,9 @@ int main(int argc, char** argv) {
                         chosen = 3;
                     }
                 }
+                if (chosen >= 0) {
+                    ambient.play_once("ClickIn");
+                }
                 if (chosen == 0) {
                     want_rest = true;
                     rest_screen = false;
@@ -5135,6 +5142,10 @@ int main(int argc, char** argv) {
                     synthetic.key.key = key;
                     SDL_PushEvent(&synthetic);
                 };
+                if ((mx >= 478 && mx < 634 && my >= 115 && my < 325) ||
+                    (my >= 361 && my < 440 && mx >= 22 && mx < 440)) {
+                    ambient.play_once("ClickIn");
+                }
                 if (mx >= 478 && mx < 634 && my >= 115 && my < 200) {
                     const int book = (mx - 478) / 39;
                     if (book == 0) {
@@ -5176,6 +5187,23 @@ int main(int argc, char** argv) {
         in.down = keys[SDL_SCANCODE_Q];
         in.up = keys[SDL_SCANCODE_E];
         in.speed = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1200.0f : 400.0f;
+
+        // Footfalls: the ground's own Walk/Run sound at a walking cadence
+        // while the party moves in the world. The cadence is the engine's.
+        if (!at_title && !creating && open_shop < 0 && shown_member < 0 && shown_pack < 0 &&
+            book_member < 0 && !rest_screen && mouse_look &&
+            (in.forward || in.back || in.left || in.right)) {
+            step_timer -= in.dt > 0.0f ? in.dt : 0.0f;
+            if (step_timer <= 0.0f) {
+                const bool running = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+                ambient.play_step(std::string(running ? "Run" : "Walk") +
+                                  std::string(session.ground_at(camera.position.x,
+                                                                camera.position.z)));
+                step_timer = running ? 0.34f : 0.52f;
+            }
+        } else {
+            step_timer = 0.0f;
+        }
 
         // Spell-borne flight counts as the flag while it lasts; the spell's
         // own words keep it outdoors.
@@ -5972,11 +6000,29 @@ int main(int argc, char** argv) {
                         const auto* held_row =
                             held_now > 0 ? item_stats.at(static_cast<std::size_t>(held_now))
                                          : nullptr;
-                        ambient.play_once(held_row != nullptr &&
-                                                  held_row->equip_type ==
-                                                      data::ItemEquipType::Missile
-                                              ? "ArchShoot"
-                                              : "hit with sword 02m");
+                        // The blow in the weapon's own voice: the archive
+                        // names hits by kind and weight — sword, axe, blunt,
+                        // arrow, light to heavy — and the skill group picks
+                        // among them. The join is the engine's. `inferred`
+                        if (held_row != nullptr &&
+                            held_row->equip_type == data::ItemEquipType::Missile) {
+                            ambient.play_once("ArchShoot");
+                        } else {
+                            const std::string kind =
+                                held_row != nullptr ? held_row->skill_group : std::string();
+                            const char weight = "lmh"[(SDL_GetTicks() / 97) % 3];
+                            const char digit = static_cast<char>(
+                                '1' + static_cast<int>((SDL_GetTicks() / 97) % 3));
+                            std::string name;
+                            if (kind == "Axe") {
+                                name = std::string("hit with axe0") + digit + weight;
+                            } else if (kind == "Mace" || kind == "Staff") {
+                                name = std::string("hit with blunt weapon 0") + digit + weight;
+                            } else {
+                                name = std::string("hit with sword 0") + digit + weight;
+                            }
+                            ambient.play_once(name);
+                        }
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
                         pending_round = turn_based;

@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The world sounds underfoot**: the party's footfalls play the
+  archive's own Walk/Run set keyed by the ground beneath — grass, snow,
+  desert, swamp, water, the stone hall indoors — off the tile art's own
+  names; a landed blow speaks in the weapon's voice (sword, axe, blunt,
+  arrow, light to heavy, by the weapon's own skill group); and the
+  title, frame and camp buttons click with the archive's Click set. Each
+  join is the engine's choice among the archive's names and says so.
 - **The chest grid closed the same way the third grid did**: the 140
   i16s beside the chest's item slots are zero on all 187,600 cells
   across the 1,340 shipped chests — runtime loot layout shipped empty.

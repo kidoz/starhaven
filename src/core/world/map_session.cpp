@@ -83,10 +83,40 @@ void load_script(const std::filesystem::path& data_dir, const std::string& stem,
     }
 }
 
+// The ground a tile index stands for, as the footstep sounds name grounds:
+// the tile's own BITMAPS name prefix mapped onto the Walk*/Run* set the
+// sound archive ships. The prefixes are the art's; which sound answers
+// each is this engine's join. `inferred`
+std::string ground_kind_of(std::string_view tile_name) {
+    const auto begins = [&](std::string_view prefix) {
+        if (tile_name.size() < prefix.size()) {
+            return false;
+        }
+        for (std::size_t i = 0; i < prefix.size(); ++i) {
+            if (std::tolower(static_cast<unsigned char>(tile_name[i])) !=
+                std::tolower(static_cast<unsigned char>(prefix[i]))) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (begins("gras")) return "Grass";
+    if (begins("snow")) return "Snow";
+    if (begins("dese") || begins("sand")) return "Desert";
+    if (begins("swmp") || begins("swamp")) return "Swamp";
+    if (begins("dirt") || begins("mud")) return "Mud";
+    if (begins("wtrtyl") || begins("watr")) return "Water";
+    if (begins("road") || begins("cobb")) return "Road";
+    if (begins("crak") || begins("bad")) return "Badlands";
+    if (begins("volc") || begins("lava")) return "CooledLava";
+    if (begins("ice")) return "Ice";
+    return "Dirt";
+}
+
 // Ground textures for the tile indices this map actually uses, resolved
 // through DTILE.BIN (see docs/formats/dtile.md).
 int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& terrain,
-                      render::TileSet& out) {
+                      render::TileSet& out, std::array<std::string, 256>& grounds) {
     lod::LodArchive icons;
     lod::LodArchive bitmaps;
     if (lod::LodArchive::open(data_dir / "icons.lod", icons) != lod::LodError::None ||
@@ -118,6 +148,7 @@ int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& t
         if (record == nullptr || record->name.empty()) {
             continue;
         }
+        grounds[static_cast<std::size_t>(i)] = ground_kind_of(record->name);
         // The tile set owns its textures, so decode straight into it rather
         // than copying out of the shared cache.
         std::span<const std::byte> raw;
@@ -138,6 +169,7 @@ int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& t
     }
     return resolved;
 }
+
 
 // Does this installation have art for an animation? The sprite frame table
 // names the entries, so ask it rather than guessing at a view digit.
@@ -346,7 +378,7 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
         return MapSessionError::BadMap;
     }
     out.terrain_mesh = render::build_terrain_mesh(out.terrain, {});
-    if (load_ground_tiles(data_dir, out.terrain, out.tiles) <= 0) {
+    if (load_ground_tiles(data_dir, out.terrain, out.tiles, out.tile_grounds) <= 0) {
         out.tiles = render::TileSet::make_placeholder();
     }
     if (extract_models(out.odm, out.models) != OdmError::None) {
@@ -487,6 +519,20 @@ void MapSession::decorations_near(float x, float z, std::vector<std::size_t>& ou
             out.push_back(id);
         }
     }
+}
+
+std::string_view MapSession::ground_at(float x, float z) const {
+    if (!outdoor()) {
+        return "StoneHall";
+    }
+    constexpr int dim = OdmTerrain::kGridDim;
+    const render::TerrainScale scale{};
+    const float half = (dim - 1) * scale.cell_size * 0.5f;
+    const int gx = std::clamp(static_cast<int>((x + half) / scale.cell_size), 0, dim - 1);
+    const int gz = std::clamp(static_cast<int>((z + half) / scale.cell_size), 0, dim - 1);
+    const auto tile = terrain.tilemap[static_cast<std::size_t>(gz) * dim + gx];
+    const std::string& kind = tile_grounds[tile];
+    return kind.empty() ? std::string_view("Dirt") : std::string_view(kind);
 }
 
 float MapSession::terrain_height_at(float x, float z) const {

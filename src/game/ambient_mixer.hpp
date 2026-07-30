@@ -171,6 +171,34 @@ public:
                                static_cast<int>(count * sizeof(std::int16_t)));
     }
 
+    // Footsteps get a voice of their own so a footfall never swallows a
+    // sword or a door.
+    void play_step(const std::string& name) {
+        if (archive_.size() == 0) {
+            return;
+        }
+        if (step_.stream != nullptr) {
+            SDL_DestroyAudioStream(step_.stream);
+            step_ = {};
+        }
+        std::vector<std::uint8_t> riff;
+        audio::WavAudio decoded;
+        const std::size_t index = archive_.find(name);
+        if (index < archive_.size() && archive_.read(index, riff) == audio::SndError::None &&
+            audio::decode_wav(riff, decoded) == audio::WavError::None &&
+            !decoded.samples.empty() && SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+            const SDL_AudioSpec spec{SDL_AUDIO_S16LE, decoded.channels,
+                                     static_cast<int>(decoded.sample_rate)};
+            step_.stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
+                                                     nullptr, nullptr);
+            if (step_.stream != nullptr) {
+                step_.samples = std::move(decoded.samples);
+                queue(step_);
+                SDL_ResumeAudioStreamDevice(step_.stream);
+            }
+        }
+    }
+
     void stop_room() {
         if (room_.stream != nullptr) {
             SDL_DestroyAudioStream(room_.stream);
@@ -243,6 +271,7 @@ private:
     std::map<std::uint32_t, Voice> voices_;
     Voice effect_;  // the current one-shot; a new one replaces it
     Voice room_;    // the open interior's streaming soundtrack
+    Voice step_;    // the party's footfalls, apart from the one-shots
     int room_rate_ = 0;
     bool room_stereo_ = false;
 };
