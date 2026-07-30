@@ -1011,7 +1011,13 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   two NPC bytes (`[+0x11]`, `[+1]`) and calls `0x489af0`. So all five resolve to
   engine-defined substitutions keyed on the speaker's NPC record. `observed`
   for the dispatch and handlers, `inferred` for the exact NPC-field semantics.
-- What indexes `GLOBAL.TXT` by id. `unknown`
+- `GLOBAL.TXT` is indexed by **sequential row number**: the loader
+  (`fcn.004455d0`) tokenises the file on tab/NUL (handling quoted fields) and
+  stores one pointer per row into a flat array at `0x56b830`, growing to
+  `0x56c180` (596 slots, matching the ~598 shipped rows). The `%NN`
+  placeholders index this array directly — `%NN` is a row number, and the
+  engine fetches `[0x56b830 + NN*4]`. There is no separate id column; "by id"
+  is "by row." `observed`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
   `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`
 - `MONSTERS.TXT`'s treasure codes are read and paid out through the four
