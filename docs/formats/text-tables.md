@@ -996,11 +996,21 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   joined against `GLOBAL.TXT`'s own neighborhood — his/her at 383/384,
   Lord/Lady at 388/389, son/daughter at 392/393 — so **%09** (the
   listener's possessive), **%10** (the my-lord address) and **%16** (the
-  familiar child-word) now substitute by the listener's gender. Still
-  open: **%03**, the speaker's own possessive (the ids are known; the
-  speaker's gender is not modelled), **%07** a reverent salutation with
-  no matching row found, **%08** the famous-deed clause, **%13** and
-  **%14** epithets unplaced. `inferred`
+  familiar child-word) now substitute by the listener's gender.
+
+  The substitution itself is decoded from the engine: `fcn.00489cf0` scans a
+  string for `%` (`cmp al, 0x25` at `0x489e0e`), reads the two following
+  digits, and dispatches through a **29-entry table at `0x48a3d8`** covering
+  `%00..%28`. `observed` The previously-open placeholders now land on handlers:
+  **%07** scans a `(key, value)` `u16` lookup table at `0x4c29a8` (the reverent
+  salutation, which *is* defined in the engine — it was a table this census did
+  not search); **%08** is a gendered pair chosen by a flag at `[npc+0x30]`
+  (globals `0x56be2c`/`0x56be30`); **%03** selects among string ids by the
+  party member's class and gender (`[npc+0x7b] & 0x3f`, then a 23/24 lookup);
+  **%13** calls `0x489c60` with an epithet pointer `[npc+0x10]`; **%14** reads
+  two NPC bytes (`[+0x11]`, `[+1]`) and calls `0x489af0`. So all five resolve to
+  engine-defined substitutions keyed on the speaker's NPC record. `observed`
+  for the dispatch and handlers, `inferred` for the exact NPC-field semantics.
 - What indexes `GLOBAL.TXT` by id. `unknown`
 - The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
   `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`
