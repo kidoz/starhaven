@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The rooms come alive**: the service and talk screens play their
+  interiors live — one Smacker decoder stepped at the video's own frame
+  rate, each frame written over the cached still so every screen sees
+  the forge fire move through its ordinary lookup, and each frame's
+  DPCM audio chunk fed to a streaming room voice in the mixer: the
+  tavern murmurs while you trade. Closing the screen stops both.
 - **Award 35 found its house**: "Freed Archibald" is granted by no
   script — but everything about it converges on the King's Library on
   map D3, whose three 2DEvents rows are the statue, freed and gone

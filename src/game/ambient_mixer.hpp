@@ -145,7 +145,42 @@ public:
         }
     }
 
+    // The open room's own soundtrack, fed a video frame's worth at a time
+    // by the interior player. A format change reopens the stream; closing
+    // the screen stops it.
+    void play_room_chunk(const std::int16_t* samples, std::size_t count, int rate, bool stereo) {
+        if (count == 0) {
+            return;
+        }
+        if (room_.stream == nullptr || rate != room_rate_ || stereo != room_stereo_) {
+            stop_room();
+            if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+                return;
+            }
+            const SDL_AudioSpec spec{SDL_AUDIO_S16LE, stereo ? 2 : 1, rate};
+            room_.stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
+                                                     nullptr, nullptr);
+            if (room_.stream == nullptr) {
+                return;
+            }
+            room_rate_ = rate;
+            room_stereo_ = stereo;
+            SDL_ResumeAudioStreamDevice(room_.stream);
+        }
+        SDL_PutAudioStreamData(room_.stream, samples,
+                               static_cast<int>(count * sizeof(std::int16_t)));
+    }
+
+    void stop_room() {
+        if (room_.stream != nullptr) {
+            SDL_DestroyAudioStream(room_.stream);
+            room_ = {};
+        }
+        room_rate_ = 0;
+    }
+
     void stop() {
+        stop_room();
         for (auto& [id, voice] : voices_) {
             if (voice.stream != nullptr) {
                 SDL_DestroyAudioStream(voice.stream);
@@ -207,6 +242,9 @@ private:
     audio::SndArchive archive_;
     std::map<std::uint32_t, Voice> voices_;
     Voice effect_;  // the current one-shot; a new one replaces it
+    Voice room_;    // the open interior's streaming soundtrack
+    int room_rate_ = 0;
+    bool room_stereo_ = false;
 };
 
 }  // namespace starhaven::game

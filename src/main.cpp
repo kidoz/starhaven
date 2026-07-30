@@ -28,6 +28,7 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
+#include "core/video/smacker.hpp"
 #include "core/world/map_session.hpp"
 #include "core/world/monster_spawn.hpp"
 #include "game/ambient_mixer.hpp"
@@ -2424,6 +2425,19 @@ int main(int argc, char** argv) {
     };
     std::vector<SpellBurst> spell_bursts;
 
+    // The open screen's room, playing live: one decoder stepped at the
+    // video's own pace, its frames written over the cached still so every
+    // screen sees the fire move through the same lookup.
+    struct RoomPlayer {
+        std::string video;
+        std::vector<std::byte> bytes;
+        video::SmackerDecoder decoder;
+        std::uint32_t frame = 0;
+        std::uint64_t next_at = 0;
+        bool ready = false;
+    };
+    RoomPlayer room;
+
     // The map's own lights, baked per face once per load: the sum of each
     // light's reach at the face's centre. The linear falloff and the floor
     // are this engine's; the positions, radii and brightness are the
@@ -2515,6 +2529,49 @@ int main(int argc, char** argv) {
             v.y = static_cast<std::int16_t>(door.y_base[i] + static_cast<int>(door.dy * slide));
             v.z = static_cast<std::int16_t>(door.z_base[i] + static_cast<int>(door.dz * slide));
         }
+    };
+
+    // Step the open interior one video frame when its time comes: the
+    // frame lands in the cache under the video's name, so the service and
+    // talk screens see the live room through their ordinary lookup, and
+    // the frame's audio chunk feeds the mixer's room voice.
+    const auto advance_room = [&](std::string_view video) {
+        if (video.empty()) {
+            return;
+        }
+        if (room.video != video) {
+            room = {};
+            room.video = std::string(video);
+            room.ready = cache.interior_bytes(room.video, room.bytes) &&
+                         video::SmackerDecoder::load(room.bytes, room.decoder) ==
+                             video::SmackerError::None &&
+                         room.decoder.info().frame_count > 0;
+        }
+        if (!room.ready || SDL_GetTicks() < room.next_at) {
+            return;
+        }
+        std::span<const std::uint8_t> rgba;
+        if (room.decoder.decode_frame_rgba(room.frame, rgba) == video::SmackerError::None) {
+            std::vector<std::uint8_t> pixels(rgba.begin(), rgba.end());
+            render::Texture picture;
+            if (render::Texture::create(static_cast<std::uint16_t>(room.decoder.info().width),
+                                        static_cast<std::uint16_t>(room.decoder.info().height),
+                                        std::move(pixels), picture)) {
+                cache.set_interior(room.video, std::move(picture));
+            }
+            video::SmackerAudioFrame chunk;
+            // A one-frame capture must not open an audio device at all.
+            if (mouse_look &&
+                room.decoder.decode_audio(room.frame, 0, chunk) == video::SmackerError::None &&
+                !chunk.samples.empty()) {
+                const auto track = room.decoder.audio_info(0);
+                ambient.play_room_chunk(chunk.samples.data(), chunk.samples.size(),
+                                        static_cast<int>(track.sample_rate), track.stereo);
+            }
+        }
+        room.frame = (room.frame + 1) % room.decoder.info().frame_count;
+        const double fps = room.decoder.info().fps > 1.0 ? room.decoder.info().fps : 10.0;
+        room.next_at = SDL_GetTicks() + static_cast<std::uint64_t>(1000.0 / fps);
     };
 
     // A person as the quest chain has rewritten them: topic slots overridden
@@ -5875,6 +5932,13 @@ int main(int argc, char** argv) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],
                        stat_descriptions, class_descriptions, clock.minutes(), award_texts,
                        script_state.awards);
+        }
+        if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
+            advance_room(game::interior_video(
+                shops_here[static_cast<std::size_t>(open_shop)]->picture));
+        } else if (!room.video.empty()) {
+            room = {};
+            ambient.stop_room();
         }
         if (talking_to >= 0 && open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);

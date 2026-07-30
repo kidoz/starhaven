@@ -55,11 +55,7 @@ const render::Texture& AssetCache::bitmap(const std::string& name) {
     return bitmaps_.emplace(name, std::move(texture)).first->second;
 }
 
-const render::Texture& AssetCache::interior(const std::string& name) {
-    if (const auto it = interiors_.find(name); it != interiors_.end()) {
-        return it->second;
-    }
-    render::Texture texture;
+bool AssetCache::interior_bytes(const std::string& name, std::vector<std::byte>& out) {
     if (!anims_tried_) {
         anims_tried_ = true;
         // GOG installs keep them under Anims/; open whichever answers.
@@ -75,26 +71,33 @@ const render::Texture& AssetCache::interior(const std::string& name) {
         }
         anims_open_ = any;
     }
-    if (anims_open_) {
-        for (auto& archive : anims_) {
-            const std::size_t at = archive.find(name);
-            if (at >= archive.size()) {
-                continue;
-            }
-            std::vector<std::byte> data;
-            video::SmackerDecoder decoder;
-            std::span<const std::uint8_t> rgba;
-            if (archive.read(at, data) &&
-                video::SmackerDecoder::load(data, decoder) == video::SmackerError::None &&
-                decoder.decode_frame_rgba(0, rgba) == video::SmackerError::None) {
-                std::vector<std::uint8_t> pixels(rgba.begin(), rgba.end());
-                (void)render::Texture::create(
-                    static_cast<std::uint16_t>(decoder.info().width),
-                    static_cast<std::uint16_t>(decoder.info().height), std::move(pixels),
-                    texture);
-            }
-            break;
+    if (!anims_open_ || name.empty()) {
+        return false;
+    }
+    for (auto& archive : anims_) {
+        const std::size_t at = archive.find(name);
+        if (at < archive.size()) {
+            return archive.read(at, out);
         }
+    }
+    return false;
+}
+
+const render::Texture& AssetCache::interior(const std::string& name) {
+    if (const auto it = interiors_.find(name); it != interiors_.end()) {
+        return it->second;
+    }
+    render::Texture texture;
+    std::vector<std::byte> data;
+    video::SmackerDecoder decoder;
+    std::span<const std::uint8_t> rgba;
+    if (interior_bytes(name, data) &&
+        video::SmackerDecoder::load(data, decoder) == video::SmackerError::None &&
+        decoder.decode_frame_rgba(0, rgba) == video::SmackerError::None) {
+        std::vector<std::uint8_t> pixels(rgba.begin(), rgba.end());
+        (void)render::Texture::create(static_cast<std::uint16_t>(decoder.info().width),
+                                      static_cast<std::uint16_t>(decoder.info().height),
+                                      std::move(pixels), texture);
     }
     return interiors_.emplace(name, std::move(texture)).first->second;
 }

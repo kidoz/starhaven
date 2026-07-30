@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "core/image/palette.hpp"
 #include "core/lod/lod_archive.hpp"
@@ -54,6 +55,17 @@ public:
     // Anims*.vid archives, as a still. Returns an empty texture when the
     // archives or the name are absent — a partial install shows marble.
     [[nodiscard]] const render::Texture& interior(const std::string& name);
+
+    // The same entry's raw bytes, for a caller that plays the video live
+    // rather than hanging its first frame on the wall.
+    [[nodiscard]] bool interior_bytes(const std::string& name, std::vector<std::byte>& out);
+
+    // Replace the cached still with a live frame: the interior player
+    // steps the video and every screen that asks for the room sees the
+    // current frame through the same lookup.
+    void set_interior(const std::string& name, render::Texture texture) {
+        interiors_[name] = std::move(texture);
+    }
 
     // Whether SPRITES.LOD holds an entry, without decoding it. Used to probe
     // candidate names before committing to one.
