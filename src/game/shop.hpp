@@ -25,6 +25,7 @@
 #include "core/data/spell_stats.hpp"
 #include "core/data/use_items.hpp"
 #include "core/random.hpp"
+#include "core/world/map_event.hpp"
 
 namespace starhaven::game {
 
@@ -273,20 +274,48 @@ stock_of(const data::BuildingStatsEntry& shop, const data::RandomItemTable& rand
     return out;
 }
 
-// Roll what a chest holds, from the map's own treasure level. The seed is the
-// chest's own index, so a chest holds the same things however often it is
-// looked at, and a different set from the chest beside it.
+// What a chest holds: its record's own slots, decoded from the map's event
+// payload. A positive id is the designers' fixed item, carried with whatever
+// enchantment the record wrote (the shipped templates write none). Ids
+// −1..−6 defer to the generator in placeholder classes 1..6, joined with
+// the map's 0..6 treasure class through the documented 6×7 level-range
+// table (see docs/formats/items.md and event-tables.md). The seed keeps a
+// chest's rolls its own; an unknown negative id is dropped, not invented.
 [[nodiscard]] inline std::vector<data::GeneratedItem>
-chest_contents(std::size_t treasure_level, const data::RandomItemTable& random_items,
+chest_contents(const std::vector<world::MapItemInstance>& slots,
+               std::size_t map_treasure_class, const data::RandomItemTable& random_items,
                const data::ItemStatsTable& items, const data::StandardBonusTable& standard,
-               const data::SpecialBonusTable& special, std::uint32_t seed, int count) {
+               const data::SpecialBonusTable& special, std::uint32_t seed) {
     std::vector<data::GeneratedItem> out;
     Mm6Random random{seed};
     data::ArtifactGenerationState artifacts;
-    for (int i = 0; i < count; ++i) {
+    for (const auto& slot : slots) {
+        if (slot.empty()) {
+            continue;
+        }
+        if (slot.item_id > 0) {
+            data::GeneratedItem fixed;
+            fixed.item_id = slot.item_id;
+            fixed.standard_bonus = slot.standard_bonus_or_potion_power;
+            fixed.standard_bonus_strength = slot.standard_bonus_strength;
+            fixed.special_bonus = slot.special_bonus_or_gold_amount;
+            fixed.charges = slot.charges;
+            fixed.identified = slot.identified();
+            out.push_back(fixed);
+            continue;
+        }
+        const int placeholder = slot.random_treasure_class();
+        if (placeholder == 0) {
+            continue;
+        }
+        const auto level = data::roll_chest_treasure_level(
+            static_cast<std::size_t>(placeholder), map_treasure_class, random);
+        if (!level) {
+            continue;
+        }
         data::GeneratedItem rolled;
-        if (data::generate_random_item(random_items, items, standard, special, treasure_level,
-                                       random, artifacts,
+        if (data::generate_random_item(random_items, items, standard, special,
+                                       static_cast<std::size_t>(*level), random, artifacts,
                                        rolled) != data::ItemGenerationError::None) {
             continue;
         }

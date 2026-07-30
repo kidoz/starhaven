@@ -6288,11 +6288,17 @@ int main(int argc, char** argv) {
                         took += " trap explodes!  ";
                     }
                 }
+                // The chest's own slots: the designers' fixed items and the
+                // −1..−6 placeholders the generator resolves against the
+                // map's treasure class.
+                static const std::vector<world::MapItemInstance> kNoSlots;
+                const auto& slots = chest_index < session.chest_items.size()
+                                        ? session.chest_items[chest_index]
+                                        : kNoSlots;
                 for (const auto& rolled : game::chest_contents(
-                         static_cast<std::size_t>(session.treasure_level), random_items, item_stats,
-                         standard_bonuses, special_bonuses,
-                         static_cast<std::uint32_t>(outcome.chest + 1) * 40503U,
-                         game::kChestItems)) {
+                         slots, static_cast<std::size_t>(session.treasure_level), random_items,
+                         item_stats, standard_bonuses, special_bonuses,
+                         static_cast<std::uint32_t>(outcome.chest + 1) * 40503U)) {
                     const int id = rolled.item_id;
                     const auto* row = item_stats.at(static_cast<std::size_t>(id));
                     if (row == nullptr) {

@@ -102,10 +102,27 @@ TEST_CASE("a shop with no tables behind it has bare shelves", "[shop]") {
     REQUIRE(stock_of(shop, {}, {}, {}, {}, 1).empty());
 }
 
-TEST_CASE("a chest with no tables behind it holds nothing", "[shop]") {
-    // The generator needs four tables; a missing install must empty a chest,
-    // not crash opening it.
-    REQUIRE(chest_contents(2, {}, {}, {}, {}, 7, kChestItems).empty());
+TEST_CASE("a chest with no slots or no tables holds nothing", "[shop]") {
+    // No authored slots, nothing to give.
+    REQUIRE(chest_contents({}, 2, {}, {}, {}, {}, 7).empty());
+    // A placeholder with no tables behind it must empty the slot, not crash.
+    world::MapItemInstance placeholder;
+    placeholder.item_id = -3;
+    REQUIRE(chest_contents({placeholder}, 2, {}, {}, {}, {}, 7).empty());
+}
+
+TEST_CASE("a chest's fixed items pass through as the designers wrote them", "[shop]") {
+    world::MapItemInstance fixed;
+    fixed.item_id = 429;
+    fixed.charges = 3;
+    world::MapItemInstance empty;  // id 0: an unused slot
+    world::MapItemInstance unknown;
+    unknown.item_id = -9;  // no placeholder class: dropped, not invented
+
+    const auto out = chest_contents({empty, fixed, unknown}, 4, {}, {}, {}, {}, 7);
+    REQUIRE(out.size() == 1);
+    REQUIRE(out[0].item_id == 429);
+    REQUIRE(out[0].charges == 3);
 }
 
 TEST_CASE("a guild's shelf is its own row's spell range", "[shop]") {

@@ -169,13 +169,6 @@ private:
     std::vector<PackedItem> items_;
 };
 
-// How many things a chest holds. The shipped chests are empty — every one of
-// the twenty slots on every map reads -1 — because the original fills them on
-// first visit from the map's own treasure level. So the contents are rolled
-// here, through the same generator the rest of the game's loot uses, and how
-// many to roll is this engine's. `inferred`
-inline constexpr int kChestItems = 4;
-
 // How near the party has to be to something on the ground to pick it up, in
 // world units. Half a terrain tile. `inferred`
 inline constexpr float kPickUpRange = 256.0f;

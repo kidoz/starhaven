@@ -116,6 +116,9 @@ struct MapSession {
     int treasure_level = 0;    // MapStats' "Tres 0-6"; what its chests hold
     std::vector<std::uint16_t> chest_looks;  // each chest's DCHEST row
     std::vector<std::uint16_t> chest_flags;  // each chest's flags; bit 0 is the trap
+    // Each chest's authored slots: fixed item ids and −1..−6 generation
+    // placeholders, exactly as the record serializes them.
+    std::vector<std::vector<MapItemInstance>> chest_items;
     std::vector<SessionNpc> everyone;  // the whole NPC roster, for arrivals
     // What ground each tile index is, in the footstep sounds' own words
     // ("Grass", "Snow", "Water"...); empty for indoor maps.

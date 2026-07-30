@@ -362,6 +362,12 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::filesyste
     }
     out.chest_looks = extract_chest_appearances(file);
     out.chest_flags = extract_chest_flags(file);
+    out.chest_items.resize(out.chest_looks.size());
+    for (const auto& slot : extract_chest_items(file)) {
+        if (slot.chest_index < out.chest_items.size()) {
+            out.chest_items[slot.chest_index].push_back(slot.item);
+        }
+    }
     data::TextTable monster_text;
     data::MonsterStatsTable monster_stats;
     if (data::load_text_table(data_dir, "MONSTERS.TXT", monster_text) ==
