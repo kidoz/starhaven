@@ -1044,6 +1044,12 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The water finally breathes**: the shimmer negative got its second
+  half — each water tile's own palette carries one long blue run
+  (`WtrTyl`'s spans 182..254, four-fifths of its pixels), and the engine
+  now rotates the detected ring a step at a time and re-bakes the tile,
+  so the coasts of Enroth move. The run is the palette's own; the
+  cadence is the engine's, marked.
 - **The arena fights back**: the standing level got its tournament —
   1 through 4 at the gate take the Page, Squire, Knight or Lord
   challenge, a crowd drawn from the monster table's own level bands

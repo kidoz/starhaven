@@ -11,7 +11,23 @@ namespace starhaven::image {
 
 using detail::inflate_all;
 
+namespace {
+BitmapError decode_bitmap_impl(std::span<const std::byte> entry, int cycle_lo, int cycle_len,
+                               int shift, Bitmap& out);
+}
+
 BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
+    return decode_bitmap_impl(entry, 0, 0, 0, out);
+}
+
+BitmapError decode_bitmap_cycled(std::span<const std::byte> entry, int cycle_lo, int cycle_len,
+                                 int shift, Bitmap& out) {
+    return decode_bitmap_impl(entry, cycle_lo, cycle_len, shift, out);
+}
+
+namespace {
+BitmapError decode_bitmap_impl(std::span<const std::byte> entry, int cycle_lo, int cycle_len,
+                               int shift, Bitmap& out) {
     out = Bitmap{};
 
     if (entry.size() < kHeaderSize) {
@@ -76,7 +92,10 @@ BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
     out.height = height;
     out.rgba.assign(static_cast<std::size_t>(size) * 4, 0);
     for (std::size_t i = 0; i < size; ++i) {
-        const std::uint8_t idx = pixels[i];
+        std::uint8_t idx = pixels[i];
+        if (cycle_len > 0 && idx >= cycle_lo && idx < cycle_lo + cycle_len) {
+            idx = static_cast<std::uint8_t>(cycle_lo + (idx - cycle_lo + shift) % cycle_len);
+        }
         const std::size_t p = static_cast<std::size_t>(idx) * 3;
         std::uint8_t* px = &out.rgba[i * 4];
         px[0] = palette[p + 0];  // R
@@ -87,5 +106,6 @@ BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out) {
 
     return BitmapError::None;
 }
+}  // namespace
 
 }  // namespace starhaven::image

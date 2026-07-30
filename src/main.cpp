@@ -24,6 +24,7 @@
 #include "core/assets/asset_cache.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/image/bitmap.hpp"
 #include "core/image/font.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
@@ -2329,6 +2330,7 @@ int main(int argc, char** argv) {
     // says so. The counter awards 84..87 are the table's.
     int arena_rank = -1;   // -1 no challenge; 0..3 Page..Lord
     Mm6Random arena_random{20260730};
+    int water_phase = -1;  // last baked step of the sea's palette ring
     // The spell book: whose is open, which school tab shows, which spell is
     // under the finger, and what each member keeps readied for the cast key.
     int book_member = -1;
@@ -6280,6 +6282,26 @@ int main(int argc, char** argv) {
             !taken.empty()) {
             pick_up_message = taken;
             pick_up_shown = SDL_GetTicks();
+        }
+        // The sea shimmers: the water tiles' own blue rings rotated a
+        // step every few ticks and re-baked. The cadence is the engine's.
+        if (session.outdoor() && !session.water_tiles.empty()) {
+            const int phase = static_cast<int>(SDL_GetTicks() / 180);
+            if (phase != water_phase) {
+                water_phase = phase;
+                for (const auto& tile : session.water_tiles) {
+                    image::Bitmap rebaked;
+                    if (image::decode_bitmap_cycled(tile.raw, tile.ramp_lo, tile.ramp_len,
+                                                    phase % tile.ramp_len, rebaked) ==
+                        image::BitmapError::None) {
+                        render::Texture texture;
+                        if (render::Texture::create(rebaked.width, rebaked.height,
+                                                    std::move(rebaked.rgba), texture)) {
+                            (void)session.tiles.set(tile.index, std::move(texture));
+                        }
+                    }
+                }
+            }
         }
         // Step the moving wall textures.
         for (std::size_t g = 0; g < texture_loops.size(); ++g) {

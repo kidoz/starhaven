@@ -120,6 +120,17 @@ struct MapSession {
     // ("Grass", "Snow", "Water"...); empty for indoor maps.
     std::array<std::string, 256> tile_grounds{};
 
+    // The water tiles kept re-bakeable: their raw entries and the blue
+    // palette run detected in each, for the rotation that makes the sea
+    // shimmer.
+    struct WaterTile {
+        std::uint8_t index = 0;
+        std::vector<std::byte> raw;
+        int ramp_lo = 0;
+        int ramp_len = 0;
+    };
+    std::vector<WaterTile> water_tiles;
+
     // The ground under a point, in the footstep sounds' vocabulary:
     // outdoor by the tile's art, indoor always the stone hall. `inferred`
     [[nodiscard]] std::string_view ground_at(float x, float z) const;

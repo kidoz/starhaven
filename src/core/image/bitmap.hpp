@@ -40,6 +40,14 @@ enum class BitmapError {
 // width*height pixels) is decoded; mipmaps are ignored.
 [[nodiscard]] BitmapError decode_bitmap(std::span<const std::byte> entry, Bitmap& out);
 
+// The same decode with a palette cycle applied: indices inside
+// [cycle_lo, cycle_lo+cycle_len) read their colour `shift` steps around
+// the ring. This is how the water shimmers: its own palette carries one
+// long blue run, and rotating it is the classic effect — the run is
+// detected from the palette, the cadence is the engine's. `inferred`
+[[nodiscard]] BitmapError decode_bitmap_cycled(std::span<const std::byte> entry, int cycle_lo,
+                                               int cycle_len, int shift, Bitmap& out);
+
 // The fixed sizes from the verified spec, exposed for tests and tools.
 constexpr std::uint32_t kHeaderSize = 48;
 constexpr std::uint32_t kPaletteSize = 768;  // 256 * 3

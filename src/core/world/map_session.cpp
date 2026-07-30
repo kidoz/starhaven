@@ -116,7 +116,8 @@ std::string ground_kind_of(std::string_view tile_name) {
 // Ground textures for the tile indices this map actually uses, resolved
 // through DTILE.BIN (see docs/formats/dtile.md).
 int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& terrain,
-                      render::TileSet& out, std::array<std::string, 256>& grounds) {
+                      render::TileSet& out, std::array<std::string, 256>& grounds,
+                      std::vector<MapSession::WaterTile>& water) {
     lod::LodArchive icons;
     lod::LodArchive bitmaps;
     if (lod::LodArchive::open(data_dir / "icons.lod", icons) != lod::LodError::None ||
@@ -149,6 +150,7 @@ int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& t
             continue;
         }
         grounds[static_cast<std::size_t>(i)] = ground_kind_of(record->name);
+        const bool is_water = grounds[static_cast<std::size_t>(i)] == "Water";
         // The tile set owns its textures, so decode straight into it rather
         // than copying out of the shared cache.
         std::span<const std::byte> raw;
@@ -165,6 +167,31 @@ int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& t
         }
         if (out.set(static_cast<std::uint8_t>(i), std::move(texture))) {
             ++resolved;
+        }
+        // A water tile keeps its raw entry and its blue run, so the frame
+        // loop can rotate the ring and re-bake the shimmer.
+        if (is_water && raw.size() >= image::kHeaderSize + image::kPaletteSize) {
+            const auto* pal = reinterpret_cast<const std::uint8_t*>(raw.data()) + raw.size() -
+                              image::kPaletteSize;
+            int best_lo = 0, best_len = 0, run_lo = -1;
+            for (int idx = 0; idx <= 256; ++idx) {
+                const bool blue = idx < 256 && pal[idx * 3 + 2] > pal[idx * 3] &&
+                                  pal[idx * 3 + 2] > pal[idx * 3 + 1];
+                if (blue && run_lo < 0) {
+                    run_lo = idx;
+                } else if (!blue && run_lo >= 0) {
+                    if (idx - run_lo > best_len) {
+                        best_lo = run_lo;
+                        best_len = idx - run_lo;
+                    }
+                    run_lo = -1;
+                }
+            }
+            if (best_len >= 16) {
+                water.push_back({static_cast<std::uint8_t>(i),
+                                 std::vector<std::byte>(raw.begin(), raw.end()), best_lo,
+                                 best_len});
+            }
         }
     }
     return resolved;
@@ -378,7 +405,8 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
         return MapSessionError::BadMap;
     }
     out.terrain_mesh = render::build_terrain_mesh(out.terrain, {});
-    if (load_ground_tiles(data_dir, out.terrain, out.tiles, out.tile_grounds) <= 0) {
+    if (load_ground_tiles(data_dir, out.terrain, out.tiles, out.tile_grounds,
+                          out.water_tiles) <= 0) {
         out.tiles = render::TileSet::make_placeholder();
     }
     if (extract_models(out.odm, out.models) != OdmError::None) {

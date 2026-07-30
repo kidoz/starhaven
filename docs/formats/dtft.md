@@ -35,5 +35,9 @@ No shipped table animates the ground water. `WtrTyl` is a single 128×128
 entry with no frame run beside it, `DTFT.BIN` names only the walls above,
 and `DTILE.BIN`'s water rows carry attribute bit 2 with nothing measured
 that joins it to motion. The original's shimmer is most plausibly palette
-rotation with ranges held in the executable; which indices rotate is
-`unknown`, and StarHaven's water stands still until that is measured.
+rotation with ranges held in the executable; which indices the *original*
+rotates is `unknown`. StarHaven measures the ring itself instead: each
+water tile's own palette carries one long blue-dominant run (`WtrTyl`'s
+spans 182..254 and covers four-fifths of the tile's pixels), and the
+engine rotates that detected run a step at a time, re-baking the texture
+— the detection is the palette's, the cadence the engine's. `inferred`
