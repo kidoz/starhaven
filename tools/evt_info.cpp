@@ -1737,6 +1737,23 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 22. A side chain, the template for the rest: Avinril Smythers sets
+    //     the hunt for Snergle, and the dwarf king's axe closes it.
+    {
+        game::WalkState ask;
+        const auto sent = game::walk_event(global, 290, ask);
+        game::WalkState back;
+        back.items.push_back(498);
+        const auto paid = game::walk_event(global, 291, back);
+        const bool ok = sent.ran && ask.bits.contains(124) &&
+                        ask.npc_topics.at({32, 0}) == 291 && paid.ran &&
+                        back.experience == 20000 && back.awards.contains(37) &&
+                        back.bits.contains(27) && back.npc_topics.at({32, 0}) == 207;
+        if (!beat(ok, "Snergle's Axe pays 20000 experience and seals award 37, "
+                      "Killed Snergle")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }
