@@ -6,9 +6,9 @@ Resolves the open question in `docs/rendering/terrain-coloring.md`: how an
 
 ## Scope
 
-Covers the global tile table and the tilemap-byte lookup. Does **not** settle
-how the per-record `section` field selects pixels within a shared bitmap; see
-"Open questions".
+Covers the global tile table and the tilemap-byte lookup, and settles that the
+per-record `section` field is an ordinal within the group, not a pixel
+selector: see "`section` is an ordinal, not an atlas index".
 
 ## Source provenance (non-expressive)
 
@@ -64,11 +64,11 @@ marks it container-uncompressed.
 | Offset | Size | Type | Field | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 16 | char[16] | name | observed | bitmap name, NUL-padded, lowercase |
-| +0x10 | 2 | u16 | unknownA | unknown | 0 in every observed record |
-| +0x12 | 2 | u16 | unknownB | unknown | 0 in every observed record |
+| +0x10 | 2 | u16 | unknownA | observed | 0 on all 882 records; unused |
+| +0x12 | 2 | u16 | unknownB | observed | 0 on all 882 records; unused |
 | +0x14 | 2 | u16 | tilesetGroup | observed | matches the map header's tileset group ids |
-| +0x16 | 2 | u16 | section | inferred | 0-based ordinal within the group |
-| +0x18 | 2 | u16 | attributes | inferred | bit flags; 0, 2, 64, 512 observed |
+| +0x16 | 2 | u16 | section | observed | 0-based ordinal within the group; not a pixel selector |
+| +0x18 | 2 | u16 | attributes | observed | four bits; see below |
 
 Record 0 is a sentinel: name `"pending"`, group 255, section 255. `observed`
 
@@ -123,19 +123,76 @@ the archive.
 `Grastyl` is 128×128 (`size` = 16384, `width` = 128, `widthLn2` = 7).
 `observed`
 
+## `section` is an ordinal, not an atlas index
+
+The worry that opened this slice — twelve records named `grastyl` carrying
+`section` 0–11 against a single 128×128 `Grastyl` bitmap — resolves to: **the
+records intentionally share one image.** `section` does not select pixels.
+
+The evidence is direct:
+
+- `BITMAPS.LOD` holds exactly **one** `Grastyl`, 128×128. There is no atlas of
+  twelve sub-tiles to index. `observed`
+- The twelve `grastyl` records in `DTILE.BIN` are **byte-identical except for
+  the `section` field itself**: masking `+0x16` collapses all twelve to one
+  record. They name the same bitmap, the same group, the same attributes.
+  `observed`
+- The transition tiles that *do* differ are **distinct bitmaps with distinct
+  names** — `GrdrtN`, `GrdrtNE`, `GrdrtXSE` … each a separate `BITMAPS.LOD`
+  entry — not sub-rectangles of one. `observed`
+
+`section` is therefore a 0-based ordinal within the group (the records' own
+order), and a tile resolves to its art **by name**, which is what the engine
+does. A name-based lookup is correct, not merely plausible. `observed`
+
+The two readings the open question offered as alternatives — "the tiles are
+smaller than 64×64" and "section is not an atlas index" — are both settled: the
+tiles are 128×128, and section is not an atlas index.
+
+## Attribute bits
+
+The `attributes` word uses four bits across all 882 records:
+
+| Bit | Value | Meaning | Records | Status |
+| ---: | ---: | --- | ---: | --- |
+| 1 | 2 | water base tile (`wtrtyl`) | 12 | observed |
+| 6 | 64 | sentinel (`pending`) | 65 | observed |
+| 8 | 256 | water-edge — set alone on the 12 empty-name water records, with bit 9 on the 12 `wtrdr*` water-to-dirt transitions | 24 | observed |
+| 9 | 512 | transition / road tile (the `*dr*` directionals) | 303 | observed |
+
+The remaining 490 records carry 0. The earlier inference (512 = transition,
+2 = water, 64 = sentinel) holds and gains bit 8 as the water-edge marker.
+`observed`
+
+## The four map tileset definitions are indices into this table
+
+The four `TilesetDef` entries in each map header (see
+[`odm.md`](odm.md)) are not redundant: each `(group, offset)` is an index
+**into `DTILE.BIN` itself**. `group` is the tileset group id, and `offset` is
+the record index where that group begins.
+
+The proof is across all 15 outdoor maps. For every 36-entry group the tileset
+`offset` equals the group's first record index exactly: group 1 → 342,
+group 2 → 234, group 3 → 198, group 5 → 126, group 6 → 162, group 7 → 270,
+group 8 → 306, group 22 → 774. `observed` (Group 0, the 113-entry base
+terrain, starts at record 13 and is addressed by offset 90, a point within its
+own run.)
+
+The four slots hold the same shape on every map: `tileset[1]` is always
+`(5, 126)` (water) and `tileset[3]` is always `(22, 774)`, while `tileset[0]`
+and `tileset[2]` are the map's terrain pair (grass/dirt/snow/etc.). A tile
+resolves either way — by the name this table carries, or by the group+offset
+the map header carries — and both reach the same record. The engine's primary
+path is the index; the name is the readable convenience. `observed`
+
+## The lookup holds on every outdoor map
+
+All 15 `.odm` maps share the same `DTILE.BIN` and the same four-slot tileset
+shape; only the terrain pair in slots 0 and 2 varies. The name-based lookup
+that holds on `Outa1.odm` therefore holds on all fifteen — verified by
+decompressing each map's header and reading its tileset block. `observed`
+
 ## Open questions (next slice)
 
-- **How `section` selects pixels.** Records 90–101 all carry the name
-  `grastyl` with `section` 0–11, but `BITMAPS.LOD` holds a single 128×128
-  `Grastyl`. Twelve sections cannot be 64×64 cells of a 128×128 atlas (that
-  would allow four). Either the tiles are smaller than 64×64, `section` is not
-  an atlas index, or several records intentionally share one image.
-  `unknown` — this must be settled before textures can be considered correct
-  rather than merely plausible.
-- **`unknownA` / `unknownB`** are zero in every observed record. `unknown`
-- **`attributes` bit meanings.** 512 co-occurs with every transition tile
-  observed; 2 with water; 64 with the sentinel. `inferred`, not confirmed.
-- **What the map header's four tileset definitions are for**, given the lookup
-  does not need them. They may declare which groups the map loads. `unknown`
-- Whether the direct lookup holds for maps whose tilesets differ from
-  `Outa1.odm`. Only one map has been checked. `unknown`
+- Whether indoor (`.blv`) maps carry an equivalent tile lookup; the `.blv`
+  tail remains undescribed (see [`blv.md`](blv.md)). `unknown`

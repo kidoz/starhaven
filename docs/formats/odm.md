@@ -82,12 +82,15 @@ Four ground tileset references, each 4 bytes:
 | Offset | Size | Type | Field | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 2 | i16 | group | observed | tileset group id |
-| +0x02 | 2 | i16 | offset | observed | tileset offset |
+| +0x02 | 2 | i16 | offset | observed | record index where this group begins in `DTILE.BIN` |
 
-`observed` on `Outa1.odm`: tilesets = (6,162), (5,126), (6,162), (22,774). These
-select the seasonal/terrain tile groups (snow, dirt, grass, water, etc.) used by
-the map; their mapping to specific tile graphics is resolved against the
-`dtile.bin` tileset table in a later slice.
+`observed` on `Outa1.odm`: tilesets = (6,162), (5,126), (6,162), (22,774). Each
+`(group, offset)` is an index into `DTILE.BIN`: `group` is the tileset group id
+and `offset` is the record index where that group's tiles begin. Across all 15
+outdoor maps `tileset[1]` is always `(5,126)` (water) and `tileset[3]` always
+`(22,774)`, while slots 0 and 2 are the map's terrain pair. See
+[`dtile.md`](dtile.md) for the verification that every 36-entry group's offset
+matches its first record index.
 
 ## After the header: terrain and geometry
 
@@ -140,5 +143,7 @@ The parser rejects, deterministically and without reading out of bounds:
   **every byte is zero on all fifteen shipped maps** — zeroed runtime
   state shipped empty, like the monster records' tails. `observed`
   Reproduce with `odm_info <map>`, which prints its nonzero count.
-- The tileset group/offset → tile-graphic mapping (via `dtile.bin`).
+- The tileset group/offset → tile-graphic mapping is now resolved: each
+  `(group, offset)` indexes `DTILE.BIN` by record — see
+  [`dtile.md`](dtile.md).
 - How decorations and spawns are stored.
