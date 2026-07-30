@@ -340,8 +340,14 @@ interoperability and compatibility with a legally purchased copy.
   are in — then into act two: the letter that unseats Slicker
   Silvertongue (award 32, bit 168), the Oracle waking on award 33 and
   spending the four memory-crystal bits, and the Control Cube's 500000
-  experience opening the Control Center with award 34 — nineteen beats,
-  exit-nonzero on any break. Walking the global
+  experience opening the Control Center with award 34 — and to the end:
+  Archibald Ironfist handing over the Ritual of the Void, and the Hive's
+  own flush event refusing the unprepared, then spending the Ritual for
+  award 36, "Destroyed the Hive and Saved Enroth" — twenty-one beats,
+  the whole main quest from Sulman's letter to the last explosion,
+  exit-nonzero on any break. One honest gap: no script in any event file
+  grants award 35, "Freed Archibald" — wherever the game bestows it, it
+  is not in the scripts. Walking the global
   bank exposed that message indices were being read one byte wide, fine
   for every map's own strings and wrong past 255; the walk now reads the
   whole index. The audit found the one snag no

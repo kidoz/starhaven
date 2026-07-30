@@ -1700,6 +1700,43 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 20. Archibald Ironfist hands over the Ritual of the Void.
+    {
+        game::WalkState state;
+        const auto outcome = game::walk_event(global, 30, state);
+        const bool ok = outcome.ran && state.experience == 50000 && state.bits.contains(177) &&
+                        std::find(state.items.begin(), state.items.end(), 544) !=
+                            state.items.end();
+        if (!beat(ok, "Archibald gives the Ritual of the Void, item 544, and 50000 experience")) {
+            return 1;
+        }
+    }
+    // 21. The reactor refuses whoever comes without the containment.
+    {
+        world::MapScript hive;
+        if (icons.payload("HIVE.EVT", raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, hive) != world::MapScriptError::None) {
+            std::cerr << "arc: no HIVE.EVT\n";
+            return 1;
+        }
+        game::WalkState bare;
+        bare.bits.insert(202);
+        const auto refused = game::walk_event(hive, 60, bare);
+        // 22. And yields to the Ritual: the flush takes the scroll, sets
+        //     bit 237 and grants award 36, the game's last word.
+        game::WalkState ready;
+        ready.bits.insert(202);
+        ready.items.push_back(544);
+        const auto flushed = game::walk_event(hive, 60, ready);
+        const bool ok = refused.ran && !bare.awards.contains(36) && flushed.ran &&
+                        ready.awards.contains(36) && ready.bits.contains(237) &&
+                        std::find(ready.items.begin(), ready.items.end(), 544) ==
+                            ready.items.end();
+        if (!beat(ok, "the flush spends the Ritual for award 36, Destroyed the Hive and "
+                      "Saved Enroth")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }
