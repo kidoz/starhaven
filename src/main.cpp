@@ -2683,6 +2683,21 @@ int main(int argc, char** argv) {
         room.next_at = SDL_GetTicks() + static_cast<std::uint64_t>(1000.0 / fps);
     };
 
+    // The voice a face speaks with: the archive's lines are named exactly
+    // like the portrait frames — the sheet letter and a two-digit line,
+    // then an a or b take. Which line fits which moment is the
+    // executable's knowledge; the numbers picked here are the engine's
+    // own, marked at each call. `inferred`
+    const auto speak = [&](const game::Character& who, int line) {
+        if (!mouse_look) {
+            return;
+        }
+        std::string name = game::portrait_entry(who.face, line);
+        if (!name.empty()) {
+            ambient.play_once(name + 'a');
+        }
+    };
+
     // A person as the quest chain has rewritten them: topic slots overridden
     // by the walked events' own opcode-39 steps, so Andover offers the next
     // thing once the letter is paid for. Where an NPC has been moved is
@@ -4219,6 +4234,7 @@ int main(int argc, char** argv) {
                             }
                         }
                         shop_said = who.name + " reaches level " + std::to_string(who.level) + ".";
+                        speak(who, 20);  // line 20: the trained word
                     }
                 } else if (open_shop >= 0 &&
                            game::is_travel(*shops_here[static_cast<std::size_t>(open_shop)])) {
@@ -5625,6 +5641,7 @@ int main(int argc, char** argv) {
             const game::RestResult result =
                 game::rest(party, clock, disturbed, party_food, cost);
             if (result == game::RestResult::Rested) {
+                speak(party[0], 22);  // line 22: the waking word
                 // What lasts until a rest ends with one, fountains included.
                 for (auto& member : party) {
                     member.rest_expires();
@@ -6008,6 +6025,9 @@ int main(int argc, char** argv) {
                                       weapon_skill_of(party[who]), rider.extra_damage,
                                       rider.damage_element);
                     if (!blow.empty()) {
+                        if (blow.find(" and kills it") != std::string::npos) {
+                            speak(party[who], 1);  // line 1: the victor's word
+                        }
                         // The release and the blow: archive names picked by
                         // this engine, marked as such.
                         const int held_now =
@@ -6118,6 +6138,12 @@ int main(int argc, char** argv) {
         for (std::size_t i = 0; i < party.size(); ++i) {
             if (party[i].hit_points < known_hp[i]) {
                 wince_until[i] = SDL_GetTicks() + 500;
+                // Crossing below half is worth a word; line 34 is the
+                // engine's pick for the pained one.
+                if (party[i].hit_points * 2 < party[i].max_hit_points &&
+                    known_hp[i] * 2 >= party[i].max_hit_points) {
+                    speak(party[i], 34);
+                }
             }
             known_hp[i] = party[i].hit_points;
         }

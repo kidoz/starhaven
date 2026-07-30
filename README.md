@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The party found its voice**: the sound archive names its voice lines
+  exactly like the portrait frames — the sheet letter and a two-digit
+  line, a and b takes — so `portrait_entry` is the whole join. Each face
+  now speaks in its own voice when a wound crosses below half, on a
+  kill, waking from rest and reaching a level; which line serves which
+  moment is the executable's knowledge, and the four numbers used are
+  marked as the engine's picks.
 - **The loose-ends drawer, emptied and inventoried**: the door block's
   second count word's high half is closed — it duplicates the vertex
   count on 795 of 795 doors — while two measurements stay honestly open
