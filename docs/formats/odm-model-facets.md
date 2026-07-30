@@ -141,7 +141,15 @@ apparent exceptions were ties being broken the other way, not counterexamples.
 The same three bits mean the same thing on indoor faces, where the rule holds
 on all 89,091; see [`blv.md`](blv.md) for the derivation.
 
-The remaining bits (`0x8`, `0x1000`, `0x2000000`, …) are `unknown`.
+The remaining bits (`0x1000`, `0x2000000`, …) are `unknown`. **Bit `0x8`** is
+now partially decoded: the indoor face-walk (`fcn.004080c0`) tests it at
+`0x409121` (`test byte [face+0x18], 8`), and when set jumps to `fcn.0042abd0`,
+a 63-byte routine that clears a per-face state flag (it zeroes a word at
+`[face_pool+0x5c9ada]` and clears bit 4 of `[face_pool+0x5c9af2]`). So bit
+`0x8` gates a visibility/cull-state reset path on the face — it is the
+attribute bit the renderer branches on, not a plain two-sided flag. The exact
+semantic (always-visible, portal, or two-sided) is `inferred` from the reset;
+the branch itself is `observed`.
 
 ### Texture names
 
@@ -195,5 +203,7 @@ mis-attribute later models' facets.
   permutation of the facet indices and are all zero in some models. `unknown`
 - The BSP node layout (8 bytes), unexercised by any shipped map. `unknown`
 - Which attribute bit marks a facet two-sided or invisible — needed before
-  backface culling can be enabled for models.
+  backface culling can be enabled for models. Bit `0x8` is the one the renderer
+  branches on (see Attributes above), gating a visibility/cull-state reset; the
+  remaining bits (`0x1000`, `0x2000000`, …) are still `unknown`.
 - The exact rule that derives `u`/`v` from world coordinates.

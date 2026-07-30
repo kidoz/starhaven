@@ -973,7 +973,12 @@ because ragged rows make out-of-range reads normal rather than exceptional.
   all, too few to read — see [`event-actors.md`](event-actors.md). Still
   `unknown`.
 - `Pref`'s digit values (2, 3, 4), where
-  its letters read as class initials. `unknown` The other three once
+  its letters read as class initials (and M/F as gender). `unknown` The
+  digits have no clean code anchor: `Pref` is a data column only (no string in
+  the executable), and the target-selection that consumes it is inlined into
+  the large game-update procedure with no isolated handler. The digits most
+  plausibly encode target *position* (a party slot 0..3, front/back row) rather
+  than class, but that is unproven. The other three once
   listed here are read: **Hst** is 0 on exactly the nine Wimp peasants
   and 4 on everyone else — hostility; **Rec** runs 40..100 and the engine
   reads it as hundredths of a second between blows (`inferred` for the
