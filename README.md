@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The monsters' spells fly and speak**: a caster's cast — already
+  rolled from the table's own "Spl,Mas,Skil" cell at its written mastery
+  and skill — now flies its school's bolt at the party and plays the
+  spell's own sound, the same two joins the party's casting uses; and a
+  caster with no Miss-column missile can finally cast across the missile
+  band instead of waiting to be cornered. The liches stop swinging fists.
 - **The last monster columns, measured**: `Hst` is hostility — zero on
   exactly the nine Wimp peasants, four on the other 164; `Rec` is the
   blow-to-blow recovery, 40..100 read as hundredths of a second; and

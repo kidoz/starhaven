@@ -335,6 +335,12 @@ public:
     // caller to fly its Miss column's kind at the party.
     [[nodiscard]] std::vector<std::size_t> take_shots() { return std::exchange(shots_, {}); }
 
+    // The spells cast since last asked: who, and which Spells.txt id — for
+    // the caller to fly the school's bolt and play the spell's own sound.
+    [[nodiscard]] std::vector<std::pair<std::size_t, int>> take_casts() {
+        return std::exchange(casts_, {});
+    }
+
     // And the gold, which is the party's rather than any one character's.
     [[nodiscard]] int unclaimed_gold() const noexcept { return gold_; }
     int take_gold() noexcept {
@@ -534,18 +540,23 @@ public:
             // Past arm's reach, only a monster whose Miss column names a
             // missile attacks — and its shot is reported for the caller to
             // fly.
+            // Past arm's reach the missile band serves whoever can use
+            // it: a Miss-column shooter, or a caster with a spell to throw.
             const bool in_melee = range2 <= kMeleeRange * kMeleeRange;
-            if (!in_melee &&
-                (range2 > kMissileRange * kMissileRange || !has_missile(monster))) {
+            if (!in_melee && (range2 > kMissileRange * kMissileRange ||
+                              (!has_missile(monster) && monster.spell_percent == 0))) {
                 continue;
             }
             // Slow "doubles the recovery rate of a single monster".
             c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale *
                          (c.slowed > 0.0f ? 2.0f : 1.0f);
 
+            cast_id_ = 0;
             if (std::string what = swing(monster, spells, party, now); !what.empty()) {
                 noises_.push_back({i, 0});
-                if (!in_melee) {
+                if (cast_id_ > 0) {
+                    casts_.push_back({i, cast_id_});
+                } else if (!in_melee) {
                     shots_.push_back(i);
                 }
                 last = std::move(what);
@@ -667,6 +678,7 @@ private:
                     damage = after_resistance(damage < 1 ? 1 : damage,
                                               resistance_to(target, spell->element));
                     target.hit_points -= damage;
+                    cast_id_ = spell->id;
                     std::string what = monster.name + " casts " + spell->name + " at " +
                                        target.name + " for " + std::to_string(damage);
                     what += fell(target, was_down, damage);
@@ -803,6 +815,8 @@ private:
     std::vector<Combatant> combatants_;
     std::vector<Noise> noises_;
     std::vector<std::size_t> shots_;
+    std::vector<std::pair<std::size_t, int>> casts_;
+    int cast_id_ = 0;  // the spell the current swing cast, for update()
     int experience_ = 0;
     int gold_ = 0;
     std::vector<data::GeneratedItem> loot_;

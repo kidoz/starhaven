@@ -3015,6 +3015,22 @@ int main(int argc, char** argv) {
             bolt.target = camera.position;
             launches.push_back(std::move(bolt));
         }
+        // A monster's cast flies its school's own bolt and speaks with the
+        // spell's own sound — the same joins the party's casting uses.
+        for (const auto& [caster, spell_id] : battle.take_casts()) {
+            if (caster >= session.actors.size()) {
+                continue;
+            }
+            ambient.play_spell(spell_id);
+            if (const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id))) {
+                game::ActiveLaunch bolt;
+                bolt.animation = game::spell_sprite_group(spell->school, spell->number);
+                bolt.position = session.actors[caster].position;
+                bolt.position.y += 32.0f;
+                bolt.target = camera.position;
+                launches.push_back(std::move(bolt));
+            }
+        }
         for (const auto& noise : battle.take_noises()) {
             if (noise.actor >= session.actors.size()) {
                 continue;

@@ -511,6 +511,11 @@ TEST_CASE("a caster monster throws its table's own spell", "[combat]") {
     }
     REQUIRE_FALSE(cast.empty());
 
+    // The cast is reported with its spell id, for the bolt and the sound.
+    const auto casts = battle.take_casts();
+    REQUIRE_FALSE(casts.empty());
+    REQUIRE(casts.front().second == 6);
+
     // Five rolls of 1-6: the wound is at least 5 on somebody.
     int worst = 0;
     for (const auto& who : party) {
