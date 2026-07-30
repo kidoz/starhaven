@@ -136,6 +136,9 @@ The parser rejects, deterministically and without reading out of bounds:
   carries offset/count fields; the model array itself is now decoded — see
   [`odm-models.md`](odm-models.md)).
 - The meaning of the remaining terrain attribute grids after the tilemap
-  (a third 128×128 grid precedes the model array).
+  (a third 128×128 grid precedes the model array). That grid is now read:
+  **every byte is zero on all fifteen shipped maps** — zeroed runtime
+  state shipped empty, like the monster records' tails. `observed`
+  Reproduce with `odm_info <map>`, which prints its nonzero count.
 - The tileset group/offset → tile-graphic mapping (via `dtile.bin`).
 - How decorations and spawns are stored.

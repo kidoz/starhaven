@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The third grid gamble closed at zero**: the 128x128 grid at 0x80B0
+  — the outdoor format's oldest unknown — ships as all zeroes on every
+  one of the fifteen maps, with the model array starting right behind
+  it: runtime state shipped empty, like the monster records' tails.
+  `odm_info` now prints its nonzero count so the claim stays checkable.
 - **The shops show their wares**: the stock list became a rack — each
   item's own art hanging at full length in the room, prices staggered
   beneath, the arrows walking a gold border along the shelf and Enter

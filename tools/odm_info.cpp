@@ -117,6 +117,20 @@ int main(int argc, char** argv) {
               << static_cast<int>(*hmax) << "]  distinct=" << distinct(terrain.heightmap) << "\n";
     std::cout << "  tilemap:   128x128  range[" << static_cast<int>(*tmin) << ".."
               << static_cast<int>(*tmax) << "]  distinct=" << distinct(terrain.tilemap) << "\n";
+    // The third 128x128 grid at 0x80B0, in front of the model array: a
+    // long-standing unknown, and the answer is that it ships empty — every
+    // byte is zero on every one of the fifteen outdoor maps. Runtime
+    // scratch, like the monster records' zeroed tails.
+    {
+        constexpr std::size_t kThirdGridOffset = 0x80B0;
+        std::size_t nonzero = 0;
+        if (map.payload.size() >= kThirdGridOffset + world::OdmTerrain::kGridBytes) {
+            for (std::size_t i = 0; i < world::OdmTerrain::kGridBytes; ++i) {
+                nonzero += map.payload[kThirdGridOffset + i] != 0 ? 1 : 0;
+            }
+        }
+        std::cout << "  third grid: 128x128  nonzero=" << nonzero << "\n";
+    }
 
     // Placed models (non-expressive: count and a few names).
     std::vector<world::OdmModel> models;
