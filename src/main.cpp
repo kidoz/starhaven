@@ -2832,10 +2832,13 @@ int main(int argc, char** argv) {
         if (!mouse_look) {
             return;
         }
-        std::string name = game::portrait_entry(who.face, line);
-        if (!name.empty()) {
-            ambient.play_once(name + 'a');
+        const std::string name = game::portrait_entry(who.face, line);
+        if (name.empty()) {
+            return;
         }
+        // The b take when the face has one for this line, else the a.
+        const bool other = (SDL_GetTicks() / 731) % 2 == 1 && ambient.has(name + 'b');
+        ambient.play_once(name + (other ? 'b' : 'a'));
     };
 
     // A person as the quest chain has rewritten them: topic slots overridden
@@ -3202,6 +3205,7 @@ int main(int argc, char** argv) {
             }
         }
         if (outcome.gold_found > 0) {
+            speak(party[0], 30);  // line 30: the finder's word
             // The Factor's and Banker's "bonus on all gold found" rides on
             // exactly what was found, not what was paid.
             int bonus = 0;
@@ -4718,6 +4722,7 @@ int main(int argc, char** argv) {
                                 }
                             }
                             const int amount = effect.heal.low;
+                            speak(party[worst], 24);  // line 24: the drink's word
                             party[worst].hit_points =
                                 std::min(party[worst].max_hit_points,
                                          party[worst].hit_points + amount);
@@ -5355,6 +5360,9 @@ int main(int argc, char** argv) {
                 }
                 if (chosen >= 0) {
                     ambient.play_once("ClickIn");
+                }
+                if (chosen == 0 || chosen == 1) {
+                    speak(party[0], 21);  // line 21: the goodnight
                 }
                 if (chosen == 0) {
                     want_rest = true;
@@ -6112,6 +6120,9 @@ int main(int argc, char** argv) {
                         }
                         took = hurt == 0 ? "A trap fires wide.  "
                                          : "The chest was trapped!  ";
+                        if (hurt > 0) {
+                            speak(party[0], 33);  // line 33: the trap's word
+                        }
                     }
                 }
                 for (const auto& rolled : game::chest_contents(

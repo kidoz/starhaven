@@ -171,6 +171,11 @@ public:
                                static_cast<int>(count * sizeof(std::int16_t)));
     }
 
+    // Whether the archive holds a name, for callers choosing among takes.
+    [[nodiscard]] bool has(const std::string& name) const {
+        return archive_.size() != 0 && archive_.find(name) < archive_.size();
+    }
+
     // Footsteps get a voice of their own so a footfall never swallows a
     // sword or a door.
     void play_step(const std::string& name) {

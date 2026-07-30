@@ -1015,9 +1015,11 @@ interoperability and compatibility with a legally purchased copy.
   exactly like the portrait frames — the sheet letter and a two-digit
   line, a and b takes — so `portrait_entry` is the whole join. Each face
   now speaks in its own voice when a wound crosses below half, on a
-  kill, waking from rest and reaching a level; which line serves which
-  moment is the executable's knowledge, and the four numbers used are
-  marked as the engine's picks.
+  kill, waking from rest and reaching a level — and now also drinking a
+  potion, springing a chest trap, finding gold and bidding the camp
+  goodnight, with the b takes played where a face recorded one. Which
+  line serves which moment is the executable's knowledge; the eight
+  numbers used are marked as the engine's picks.
 
 - **The world sounds underfoot**: the party's footfalls play the
   archive's own Walk/Run set keyed by the ground beneath — grass, snow,
