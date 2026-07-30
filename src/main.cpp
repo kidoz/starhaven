@@ -156,13 +156,15 @@ int list_maps(const std::filesystem::path& data_dir) {
 }
 
 // The sky behind the world: the header's own texture where the map names
-// one, PLANSKY1 — the named one's sibling — where it does not, wrapped as
-// a cylinder around the camera's yaw and dimmed with the daylight. The
-// projection and the default are the engine's. `inferred`
+// one, and the executable's own fallback — its outdoor loader carries
+// "sky%02d" with "sky01" beside it — where it does not, wrapped as a
+// cylinder around the camera's yaw and dimmed with the daylight. What
+// number feeds the %02d is `unknown`; sky01 is its stated floor. The
+// projection is the engine's. `inferred`
 void draw_sky(render::SceneRenderer& scene, assets::AssetCache& cache,
               const world::MapSession& session, float yaw, float pitch, float level) {
-    const std::string& name =
-        session.odm.header.sky_name.empty() ? std::string("PLANSKY1")
+    const std::string name =
+        session.odm.header.sky_name.empty() ? std::string("sky01")
                                             : session.odm.header.sky_name;
     const render::Texture& sky = cache.bitmap(name);
     if (sky.empty()) {

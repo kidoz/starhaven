@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The skies half-seated themselves**: the exe's outdoor loader
+  carries `sky%02d` with `sky01` beside it — the fourteen panoramas are
+  the outdoor sky set with `sky01` its stated floor, now the engine's
+  default in place of its earlier guess; what number feeds the `%02d`
+  (month and weather are the untested candidates) is filed `unknown`.
 - **The aimed monster shows its blood**: the original's `MHP` bar stands
   across the viewport's top when something is in the sights — the backing
   and its end caps the art's own, the fill strip green, yellow or red as
@@ -255,8 +260,9 @@ interoperability and compatibility with a legally purchased copy.
   deliberately unsaved.
 - **A sky over Enroth**: the ODM header's slot at 0x60 turned out to
   name the sky — `plansky2` on New Sorpigal, empty elsewhere — and the
-  engine now drapes the named panorama (defaulting to `PLANSKY1`, its
-  own pick, marked) behind the terrain as a yaw-wrapped cylinder, dimmed
+  engine now drapes the named panorama (defaulting to `sky01`, the
+  loader's own stated floor) behind the terrain as a yaw-wrapped
+  cylinder, dimmed
   by the same daylight the sun follows. What the fourteen `sky01`..
   `sky14` panoramas are for remains an open lead.
 - **The placeholder gamble mostly paid**: the census of every `%NN`
