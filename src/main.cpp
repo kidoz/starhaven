@@ -101,6 +101,8 @@ void print_usage(const char* argv0) {
               << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
               << "  B          open the spell book: tabs by school, Enter readies a spell\n"
+              << "  M          free the cursor: the frame's books, medallions and\n"
+              << "             portraits answer clicks; M again returns to the view\n"
               << "  H          cast the readied spell, else the best heal or smite\n"
               << "  Space      strike whatever you are aiming at, in reach\n"
               << "  R          rest, if nothing is close enough to object\n"
@@ -1909,6 +1911,10 @@ int main(int argc, char** argv) {
     if (mouse_look) {
         SDL_SetWindowRelativeMouseMode(window, true);
     }
+    // M frees the cursor to work the frame's own buttons; M again returns
+    // it to the view.
+    bool cursor_free = false;
+    bool show_calendar = false;
 
     // A one-frame capture ends before a note sounds, so do not open audio
     // devices for it at all.
@@ -3001,6 +3007,15 @@ int main(int argc, char** argv) {
                 } else if (key >= SDLK_0 && key <= SDLK_9 && ask_typed.size() < 40) {
                     ask_typed += static_cast<char>('0' + (key - SDLK_0));
                 }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M &&
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating) {
+                cursor_free = !cursor_free;
+                if (mouse_look) {
+                    SDL_SetWindowRelativeMouseMode(window, !cursor_free);
+                }
+                pick_up_message = cursor_free ? "The cursor is yours; M returns it to the view"
+                                              : "";
+                pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB) {
                 show_directory = !show_directory;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C) {
@@ -4637,9 +4652,54 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R &&
                        shown_member < 0 && shown_pack < 0) {
                 want_rest = true;
-            } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look) {
+            } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look && !cursor_free) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
+            } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && cursor_free &&
+                       event.button.button == SDL_BUTTON_LEFT) {
+                // The frame's own buttons, by their painted places: the four
+                // books, the four medallions, and the portraits' oval seats.
+                // The zones are read off the panels; which screen each book
+                // opens follows the shelf's pictures — sword for quests,
+                // quill for notes, globe for maps, key for the calendar.
+                const int mx = static_cast<int>(event.button.x);
+                const int my = static_cast<int>(event.button.y);
+                const auto push_key = [](SDL_Keycode key) {
+                    SDL_Event synthetic{};
+                    synthetic.type = SDL_EVENT_KEY_DOWN;
+                    synthetic.key.key = key;
+                    SDL_PushEvent(&synthetic);
+                };
+                if (mx >= 478 && mx < 634 && my >= 115 && my < 200) {
+                    const int book = (mx - 478) / 39;
+                    if (book == 0) {
+                        push_key(SDLK_J);
+                    } else if (book == 1) {
+                        push_key(SDLK_TAB);
+                    } else if (book == 2) {
+                        pick_up_message = "The maps page is beyond this engine yet";
+                        pick_up_shown = SDL_GetTicks();
+                    } else {
+                        show_calendar = !show_calendar;
+                    }
+                } else if (mx >= 478 && mx < 634 && my >= 252 && my < 325) {
+                    const int seal = (mx - 478) / 39;
+                    if (seal == 0) {
+                        push_key(SDLK_H);
+                    } else if (seal == 1) {
+                        push_key(SDLK_R);
+                    } else if (seal == 2) {
+                        push_key(SDLK_B);
+                    } else {
+                        push_key(SDLK_F5);
+                    }
+                } else if (my >= 361 && my < 440 && mx >= 22 && mx < 440) {
+                    const int seat = (mx - 22) / 113;
+                    if (seat >= 0 && seat < 4 && (mx - 22) % 113 < 59) {
+                        shown_member = shown_member == seat ? -1 : seat;
+                        shown_pack = -1;
+                    }
+                }
             }
         }
 
@@ -5544,6 +5604,22 @@ int main(int argc, char** argv) {
             }
             draw_book(scene, font, cache, reader, spell_stats, book_school, book_pick,
                       readied[static_cast<std::size_t>(book_member)], points);
+        }
+        if (show_calendar) {
+            // The calendar page: TIME_BG's own 360x300, centred in the
+            // viewport, with the clock's words on it.
+            blit(scene.framebuffer(), cache.icon("TIME_BG"), 8 + (460 - 360) / 2,
+                 8 + (344 - 300) / 2);
+            const int line = font.height() + 2;
+            int y = 8 + (344 - 300) / 2 + 90;
+            for (const std::string text :
+                 {"day " + std::to_string(clock.day() + 1) + ", " + std::string(clock.weekday()),
+                  clock.hhmm()}) {
+                game::draw_text(scene.framebuffer(), font,
+                                kWidth / 2 - font.text_width(text) / 2 - 90 + 4, y, text,
+                                render::Color{60, 42, 22, 255}, render::Color{0, 0, 0, 0});
+                y += line;
+            }
         }
         if (shown_member >= 0) {
             draw_sheet(scene, font, cache, party[static_cast<std::size_t>(shown_member)],

@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The frame answers the mouse**: M frees the cursor, and the painted
+  furniture works — the shelf's sword book opens the quest journal, the
+  quill the establishment notes, the key the calendar on `TIME_BG`'s own
+  page (the globe's maps page honestly says it is not written yet); the
+  four medallions cast, rest, open the spell book and save; a click on a
+  portrait's oval seat opens that member's sheet. The zones are read off
+  the panels' own art.
 - **The spell book, in its own art**: B opens the `Book` page over the
   viewport with the game's school tabs down its edge and every known
   spell wearing its `FIRE004`-style icon — the same school-and-number
