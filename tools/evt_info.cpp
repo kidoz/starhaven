@@ -1940,6 +1940,28 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 26. The dark turn-in: the Zenofex letter can be shown to the wrong
+    //     man. Slicker's own event swaps bit 200 for 201 — the traitor
+    //     warned — and keeps the letter in your hands; a bare visit hands
+    //     you a Cloak of Baa instead.
+    {
+        game::WalkState warned;
+        warned.bits.insert(200);
+        warned.items.push_back(502);
+        const auto shown = game::walk_event(global, 102, warned);
+        game::WalkState bare;
+        const auto given = game::walk_event(global, 102, bare);
+        const bool ok = shown.ran && !warned.bits.contains(200) && warned.bits.contains(201) &&
+                        std::find(warned.items.begin(), warned.items.end(), 502) !=
+                            warned.items.end() &&
+                        given.ran &&
+                        std::find(bare.items.begin(), bare.items.end(), 485) !=
+                            bare.items.end();
+        if (!beat(ok, "showing Slicker the letter tips the traitor; empty hands get a Cloak "
+                      "of Baa")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }

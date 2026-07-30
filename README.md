@@ -1046,6 +1046,12 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The dark turn-ins walked**: the census of rival item branches found
+  the one that matters — Slicker Silvertongue's own topic takes the
+  Zenofex letter shown to the wrong man, swaps bit 200 for 201 (the
+  traitor warned) and hands cultist cloaks to the empty-handed — now
+  beat twenty-six, with the friendlier branches (the charm-seer's three
+  tokens, the musician's flute-or-harp) filed beside it.
 - **The chronicle spells the secret**: the fifteen fragments render as
   the fifteen-column grid they are — held stones side by side in a
   fixed hand, dark columns for the missing — so the obelisk sentence

@@ -616,6 +616,18 @@ attack fragments. The working of a door or a lever must be sounded by the
 engine's own choice, which is what this engine does, from the archive's own
 names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 
+## The rival branches
+
+Five global events check more than one item, and they are not all
+kindness: the Seer's ladder reads the blasters and the Ritual (46), the
+Hourglass event also answers about Gharik's key (52, a hint line), the
+charm-seer trades any of Lodestone, Harpy Feather or Four Leaf Clover
+(105), the musician takes Flute or Harp (304) — and **Slicker
+Silvertongue's own topic (102) is the dark turn-in**: shown the Zenofex
+letter he swaps bit 200 for 201 — the traitor warned — and keeps nothing;
+approached empty-handed he hands over a Cloak of Baa. `observed`,
+verified in `evt_info --arc`.
+
 ## The award ledger, audited
 
 Every award row swept against every script's gives (`evt_info --ledger`):
