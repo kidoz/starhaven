@@ -1,3 +1,5 @@
+#include <array>
+#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
@@ -5,12 +7,14 @@
 #include <string>
 
 #include "core/data/game_data.hpp"
+#include "core/data/map_stats.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/lod/game_lod_archive.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/blv_map.hpp"
 #include "core/world/map_event.hpp"
+#include "core/world/monster_list.hpp"
 #include "core/world/object_table.hpp"
 
 namespace {
@@ -22,6 +26,10 @@ void print_usage(const char* argv0) {
               << "file from your own legal game install (Games.lod) and prints\n"
               << "non-expressive statistics. Outdoor files also report their\n"
               << "counted actors, sprite objects, and chests.\n"
+              << "\n"
+              << "  --variants   research mode: every placed actor's A/B/C letter\n"
+              << "               against its map's encounter slots and its own\n"
+              << "               variant byte\n"
               << "\n"
               << "Set " << starhaven::platform::kInstallEnvVar << " to the install directory.\n";
 }
@@ -48,6 +56,114 @@ std::filesystem::path resolve_data_dir() {
     return "data";
 }
 
+// Research mode: does an encounter slot's "Dif 1-5" pick the A/B/C
+// variant? The shipped event files place ~290 actors whose names carry
+// their letter; each is matched to its map's slot by the slot's picture
+// base, and the letters are tallied against that slot's difficulty.
+int do_variants() {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace data = starhaven::data;
+
+    lod::GameLodArchive archive;
+    if (lod::GameLodArchive::open(resolve_games_lod(), archive) != lod::GameLodError::None) {
+        std::cerr << "error: could not open Games.lod\n";
+        return 1;
+    }
+    data::MapStatsTable maps;
+    if (data::load_map_stats(resolve_data_dir(), maps) != data::GameDataError::None) {
+        std::cerr << "error: could not read MapStats.txt\n";
+        return 1;
+    }
+    const auto lower = [](std::string text) {
+        for (char& c : text) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        return text;
+    };
+    lod::LodArchive icons;
+    world::MonsterList monsters;
+    std::span<const std::byte> list_raw;
+    if (lod::LodArchive::open(resolve_data_dir() / "icons.lod", icons) != lod::LodError::None ||
+        icons.payload("DMONLIST.BIN", list_raw) != lod::LodArchive::PayloadError::None ||
+        world::MonsterList::parse(list_raw, monsters) != world::MonsterListError::None) {
+        std::cerr << "error: could not read DMONLIST.BIN\n";
+        return 1;
+    }
+    // tally[dif][letter], letter 0..2 for A..C; and the record's own
+    // variant byte cross-tabbed against the letter.
+    std::array<std::array<int, 3>, 6> tally{};
+    std::array<std::array<int, 16>, 3> variant_byte{};
+    std::array<int, 3> unmatched{};
+    int placed = 0;
+    for (const auto& map : maps.entries()) {
+        const std::string stem = map.file_name.substr(0, map.file_name.find('.'));
+        std::span<const std::byte> entry;
+        std::string file;
+        for (const char* extension : {".ddm", ".dlv"}) {
+            if (archive.payload(stem + extension, entry) ==
+                lod::GameLodArchive::PayloadError::None) {
+                file = stem + extension;
+                break;
+            }
+        }
+        world::MapEventFile ev;
+        if (file.empty() || world::parse_map_event(entry, ev) != world::MapEventError::None) {
+            continue;
+        }
+        for (const auto& actor : world::extract_actors(ev)) {
+            // The record names the display name; the letter lives on the
+            // DMONLIST row its monster id points at.
+            const auto* row =
+                actor.monster_id > 0 ? monsters.at(actor.monster_id - 1u) : nullptr;
+            if (row == nullptr || row->name.empty()) {
+                continue;
+            }
+            const char letter = row->name.back();
+            if (letter != 'A' && letter != 'B' && letter != 'C') {
+                continue;
+            }
+            ++placed;
+            ++variant_byte[static_cast<std::size_t>(letter - 'A')]
+                          [actor.variant < 16 ? actor.variant : 15];
+            const std::string base = lower(row->name.substr(0, row->name.size() - 1));
+            int dif = -1;
+            for (const auto& slot : map.monsters) {
+                if (!slot.empty() && lower(slot.picture) == base) {
+                    dif = slot.difficulty;
+                }
+            }
+            if (dif >= 1 && dif <= 5) {
+                ++tally[static_cast<std::size_t>(dif)][static_cast<std::size_t>(letter - 'A')];
+            } else {
+                ++unmatched[static_cast<std::size_t>(letter - 'A')];
+            }
+        }
+    }
+    std::cout << placed << " placed actors carry a variant letter\n";
+    std::cout << "matched to their map's slot, by the slot's Dif 1-5:\n";
+    for (int dif = 1; dif <= 5; ++dif) {
+        const auto& row = tally[static_cast<std::size_t>(dif)];
+        std::cout << "  Dif " << dif << ":  A=" << row[0] << "  B=" << row[1] << "  C=" << row[2]
+                  << "\n";
+    }
+    std::cout << "  no matching slot:  A=" << unmatched[0] << "  B=" << unmatched[1]
+              << "  C=" << unmatched[2] << "\n";
+    std::cout << "the record's variant byte, against the id's own letter:\n";
+    for (int letter = 0; letter < 3; ++letter) {
+        std::cout << "  " << static_cast<char>('A' + letter) << ":";
+        for (int v = 0; v < 16; ++v) {
+            if (variant_byte[static_cast<std::size_t>(letter)][static_cast<std::size_t>(v)] > 0) {
+                std::cout << "  byte " << v << " x"
+                          << variant_byte[static_cast<std::size_t>(letter)]
+                                         [static_cast<std::size_t>(v)];
+            }
+        }
+        std::cout << "\n";
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -56,6 +172,9 @@ int main(int argc, char** argv) {
         return 2;
     }
     const std::string name = argv[1];
+    if (name == "--variants") {
+        return do_variants();
+    }
     const bool show_doors = argc == 3 && std::string(argv[2]) == "--doors";
 
     namespace lod = starhaven::lod;

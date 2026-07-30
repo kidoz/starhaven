@@ -64,11 +64,32 @@ Actors are exposed only after the complete outdoor section layout validates.
 A caller-supplied limit may cap returned records without changing the decoded
 count.
 
+## The variant byte is the letter
+
+The byte at `+0x35` states the monster's A/B/C variant as 1, 2 or 3: on
+**319 of the 340** shipped placed actors it equals the letter its own
+monster id's `DMONLIST` name already ends in — 1 on the A rows, 2 on the
+B rows, 3 on the C rows. `observed` Of the rest, **15 appears 18 times
+across all three letters** — an "any of the three" marker is the natural
+reading, but nothing measured pins it — and three stragglers carry 6, 10
+and 12. `unknown` Reproduce with `ddm_info --variants`.
+
+## What Dif 1-5 does not provably drive
+
+The encounter slots' "Dif 1-5" column was tested against the placed
+actors' letters: only **17 of the 340** match any of their map's slot
+pictures — the placed actors are almost all quest specials, not slot
+spawns — and seventeen samples spread over five difficulties read as
+noise (Dif 4: one A, six C). What the column drives remains `unknown`;
+the shipped placements cannot answer it. Reproduce with
+`ddm_info --variants`.
+
 ## Open questions
 
 - The remaining actor state and the roles of the repeated position triples.
-- The `variant` byte at `+0x35`, which ranges well past the three A/B/C
-  variants.
+- The `variant` byte's value 15, shared by all three letters, and the three
+  stragglers 6, 10 and 12.
+- What `Dif 1-5` drives — the placed actors are too few to say.
 
 ## What an actor record holds beyond its name and position
 

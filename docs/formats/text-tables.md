@@ -908,7 +908,9 @@ because ragged rows make out-of-range reads normal rather than exceptional.
 
 - The container's `unknown` field at 0x2C (256 on every table). `unknown`
 - Which A/B/C variant an encounter slot selects, and what `Dif 1-5` drives.
-  `unknown`
+  Tested against the shipped placed actors: only 17 of 340 match a slot at
+  all, too few to read — see [`event-actors.md`](event-actors.md). Still
+  `unknown`.
 - The semantics of the monster columns still unread — `Bonus`, `Hst`,
   `Rec` — and of the `Misc Special` column; `Pref`'s digit values (2, 3,
   4), where its letters now read as class initials. `unknown`

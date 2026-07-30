@@ -227,6 +227,14 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The gamble split down the middle**: whether `Dif 1-5` picks a spawn's
+  A/B/C letter could not be read from the shipped placements — only 17 of
+  the 340 placed actors match an encounter slot at all, noise over five
+  difficulties, filed as the honest negative — but the cross-tab cracked
+  a different unknown on the way: the actor record's variant byte at
+  +0x35 **is** the letter, 1=A 2=B 3=C on 319 of 340, with a shared value
+  15 and three stragglers left honestly open. Reproduce with
+  `ddm_info --variants`.
 - **The bodies take up space**: the monster record's height and radius
   now govern the world — the party keeps a body's radius away instead of
   walking through titans, aiming casts a ray against each monster's own
