@@ -628,19 +628,26 @@ shop's shelves can be generated rather than invented. The generator's kinds are
 equipment types, not weapon skills, so `"Sword,Dagger"` narrows only as far as
 *weapon*. `inferred`
 
-## The trap column, cashed
+## The lock column, cashed
 
 `MapStats.txt` gives each map lock, trap and treasure difficulties (columns
-headed "0-10", "0-10", "0-6"). The treasure one has long fed the chests;
-the trap one now bites: read as a chance in ten per chest — salted by the
-chest's id so a chest answers the same way twice — it fires the
-difficulty's worth of d6 at everyone standing, unless the party's best
-Disarm Traps reaches the map's number, with Perception avoiding at five
-percent a point. The chance reading, the dice and both scales are the
-engine's own (`inferred`); the difficulty and the two skills' jobs are the
-tables'. The lock column gates the same chests now, by its own chance-in-ten with a
-salt of its own: a locked chest stays shut until the party's best Disarm
-Traps reaches the map's number. See src/game/traps.hpp.
+headed "0-10", "0-10", "0-6"). The treasure one has long fed the chests, and
+the executable's own chest gate is now traced (see
+[`event-tables.md`](event-tables.md), the chest flags word): a trapped chest
+reads **the lock column, times five**, against the acting character's Disarm
+Traps — packed level times 2/3/4 for normal/expert/master, doubled by
+Pendragon, Hades or an item "of Thievery", plus the Tinker, Locksmith and
+Burglar hirelings' promised +4/+6/+8 — plus a d10; falling short detonates a
+random elemental trap at the chest. The parser's column-to-field mapping in
+`MM6.exe` settles that it is the **lock** number the chests cash, not the
+trap number; which executable path spends the trap column remains untraced.
+`observed`
+
+**This corrects the previous revision of this section**, which invented a
+chance-in-ten reading salted by the chest's id, d6 damage scaled by the trap
+column, and a Perception dodge — none of it the executable's. That invention
+still lives in src/game/traps.hpp, which predates the trace and now diverges
+from the documented behavior.
 
 ## The promotion join
 

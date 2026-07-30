@@ -67,6 +67,13 @@ A map sprite object selects this table by `descriptor_index` and repeats the
 descriptor's object id. This two-field join succeeds for all 129 objects
 serialized in the 15 outdoor maps. `observed`
 
+Four records have a demonstrated runtime role reached by constant object id
+rather than through a map: `firetrap` (811), `coldtrap` (812), `electrap`
+(813) and `poistrap` (814) are the chest-trap explosions — the chest-open
+path in `MM6.exe` picks one of the four ids uniformly at random and spawns
+it at the chest when a trapped chest's disarm roll fails (see
+[`event-tables.md`](event-tables.md), the chest flags word). `observed`
+
 ## Invalid-input behavior
 
 The decoder rejects a missing 48-byte header, invalid zlib data, and any count

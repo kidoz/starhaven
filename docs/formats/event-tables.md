@@ -192,7 +192,8 @@ the two disagree. `observed`
 The chest body is now structurally bounded:
 
 ```text
-u32 unknown
+u16 appearance           // DCHEST.BIN row, 0..7
+u16 flags                // bit 0: trapped; bit 1: items placed (runtime)
 ItemInstance items[140]  // 28 bytes each
 i16 grid[140]
 ```
@@ -206,8 +207,62 @@ executable combines that class with the map's 0…6 treasure class through the
 documented 6×7 level-range table. Across the 15 shipped outdoor maps, 191 of
 202 nonempty chest slots are such placeholders; all 11 fixed positive ids join
 to `ITEMS.TXT`. The item-state fields are zero in these serialized templates
-because generation happens when the map is populated. Meanings of the chest's
-first word and grid values remain open. `observed`
+because generation happens when the map is populated. The two leading words
+and the grid's fill are decoded below. `observed`
+
+## The chest flags word (`+0x02`)
+
+Both used bits are read and written by the chest-open routine at `0x41e4f0`
+in `MM6.exe` (the sole caller sits in the interaction dispatcher; opcode 7 is
+the chest opener). The routine addresses the 20-slot chest array at
+`0x5e2580` with the 4204-byte stride — `0x5e2580 + 20 × 4204 = 0x5f6df0` is
+the loop bound — which is how the record layout above was anchored in the
+first place. `observed`
+
+**Bit 0 is the trap.** Set on 1,191 of the 1,340 shipped chests, clear on
+149. On open with the bit set, the engine looks up the current map's compiled
+`MapStats.txt` row — the lookup at `0x446bd0` walks the 56-byte rows
+comparing the **File name** column against the runtime map-name buffer — and
+reads the byte the parser filled from the column headed **`Lock` `0-10`**
+(not the `Trap` column; the parser's per-column jump table at `0x446b6c`
+settles which write feeds the read at `0x41e5bf`). The check, in full:
+
+- The acting character's Disarm Traps is fetched by `0x4853e0`, whose only
+  callers are this check. The skill byte lives at player `+0x7d`: low six
+  bits the level, bit 6 expert, bit 7 master. The level is doubled by an
+  equipped, unbroken **Pendragon** (item 410), **Hades** (item 415), or any
+  equipped item bearing special bonus 35 — **"of Thievery"**, whose prose
+  says only "Increases chance of Disarming" and turns out to mean ×2. Then
+  +4, +6, +8 apply for party checks on ids 25, 26, 51 — `npcprof.txt`'s
+  **Tinker, Locksmith and Burglar** hirelings, whose prose promises exactly
+  those points to Disarm Traps. The sum is finally multiplied by 2, 3 or 4
+  for normal, expert or master. `observed`
+- The roll: that value plus `rand % 10` must **exceed five times the map's
+  lock difficulty**. Success clears bit 0 and the chest opens with no
+  ceremony. A value of zero skips the roll and fails outright. `observed`
+- Failure fires the trap: the engine picks uniformly among four
+  `DOBJLIST.BIN` entries — 811 `firetrap`, 813 `electrap`, 812 `coldtrap`,
+  814 `poistrap` — and spawns the chosen object at the chest's world
+  position, derived from the clicked target (decoration, indoor face, or
+  outdoor model face), with a sound and a portrait reaction. Bit 0 is
+  cleared here too: a chest trap fires once. The damage itself rides the
+  spawned object's own detonation path, not traced here. `observed` for the
+  spawn, `unknown` for the damage numbers.
+- A map with no `MapStats.txt` row skips the check entirely; the chest opens
+  quietly with the bit still set. `observed`
+
+**This corrects the previous revision's reading** of the flag as a
+"per-chest variant/placement toggle": the clustering of flag=0 on the
+metal-chest appearances is just which chests the designers left untrapped.
+
+**Bit 1 is "items placed", and ships zero.** On an open with bit 1 clear the
+routine at `0x41e3b0` runs first (its assertion cites `button.cpp`, so this
+is original chest code): it reads the appearance word, asserts it below 8,
+takes the grid dimensions from two 8-entry tables at `0x4bd18c`/`0x4bd1ac` —
+**every entry is 9, so every chest is a 9×9 grid** and the 140-cell array is
+capacity — shuffles the cell order, lays each nonzero item id into free
+cells, and sets bit 1 so placement never reruns. That is why all 187,600
+grid cells ship zero. `observed`
 
 ## Correction to the earlier interpretation
 
@@ -236,10 +291,9 @@ The decoder rejects an outdoor layout when:
   `DCHEST.BIN` row whose last field numbers the `CHEST01`..`CHEST08`
   screens — the chest's appearance. The 140 i16 grid entries are read
   too, and the answer is silence: **zero on all 187,600 cells across the
-  1,340 shipped chests** — the runtime loot layout, shipped empty like
-  the outdoor third grid. Reproduce with `ddm_info <map>`, which prints
-  the nonzero count. Only the u16 beside the appearance (0 or 1
-  throughout) stays unread.
+  1,340 shipped chests** — the runtime loot layout, filled on first open
+  by the placement routine (see the flags-word section). Reproduce with
+  `ddm_info <map>`, which prints the nonzero count.
 - The indoor prefix's 883 bytes are **entirely zero on every shipped map**
   (verified across D01, D07, D11, zddb01, CD1) — a fixed runtime scratch
   buffer shipped empty, like the outdoor 968-byte blocks. The "unaligned"
@@ -256,11 +310,8 @@ The decoder rejects an outdoor layout when:
   count word's high half is closed: it **duplicates the vertex count**,
   the low half of the word before it, on 795 of 795 doors. `observed`
   (`ddm_info <map> --doors` prints each door's attribute word.)
-- The chest's remaining u16 (`+0x02`, beside the appearance) is **1 on ~89%
-  of records and 0 on ~11%**. A re-census shows it is *not* wholly
-  uncorrelated with appearance: the flag=0 cases cluster on appearances 5 and
-  7 (the metal-chest variants), while flag=1 is dominated by appearance 0 —
-  though appearance 7 appears in both groups, so the flag is not a pure
-  function of appearance. It reads as a per-chest variant/placement toggle
-  rather than a trap or lock flag, but the runtime read that would name it is
-  in the chest-load path, not yet traced. `unknown`
+- The chest's remaining u16 (`+0x02`, beside the appearance) is now traced:
+  it is the flags word — bit 0 the trap, bit 1 runtime "items placed" — and
+  has its own section above. The census that read it as a
+  "variant/placement toggle" was measuring which chests ship untrapped.
+  `observed`
