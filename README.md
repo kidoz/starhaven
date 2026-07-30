@@ -1046,6 +1046,10 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The opening plays as it shipped**: the 3DO logo and the intro run
+  before the title — full-screen Smacker with their own sound through
+  the room player's machinery, any key sending the reel forward — and
+  the Credits plate now rolls the credits film itself.
 - **The last two orphans ruled cut content**: "Returned the Prince" and
   "Gave Bat Guano to Barad" have no mechanism anywhere — the guano
   pouch ships as item 554 that no event touches, and Barad exists in no

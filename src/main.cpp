@@ -2381,7 +2381,13 @@ int main(int argc, char** argv) {
     // The game opens like the game: the title painting and its four
     // plates. New Game walks into the creation hall, Load into the saved
     // slot, Exit out — and the world holds its breath underneath.
+    // The opening movies, and the credits when asked: any key skips the
+    // one that plays. The decoder itself lives with the room player below.
+    std::vector<std::string> movie_queue;
     bool at_title = start_title || (creating && !force_create);
+    if (at_title && !start_title && screenshot.empty()) {
+        movie_queue = {"3dologo", "MM6Intro"};
+    }
     bool title_credits = false;
     if (at_title) {
         creating = false;
@@ -2749,6 +2755,9 @@ int main(int argc, char** argv) {
         bool ready = false;
     };
     RoomPlayer room;
+    RoomPlayer movie;
+    render::Texture movie_frame;
+
 
     // The campfire screen: R opens it, its buttons choose how long.
     bool rest_screen = start_rest;
@@ -3482,6 +3491,13 @@ int main(int argc, char** argv) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+            } else if (!movie_queue.empty() &&
+                       (event.type == SDL_EVENT_KEY_DOWN ||
+                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+                // Any key sends the reel forward.
+                movie_queue.erase(movie_queue.begin());
+                movie = {};
+                ambient.stop_room();
             } else if (at_title &&
                        (event.type == SDL_EVENT_KEY_DOWN ||
                         event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
@@ -3521,6 +3537,7 @@ int main(int argc, char** argv) {
                     SDL_PushEvent(&synthetic);
                 } else if (chosen == 2) {
                     title_credits = !title_credits;
+                    movie_queue = {"credits"};
                 } else if (chosen == 3) {
                     running = false;
                 }
@@ -7017,7 +7034,62 @@ int main(int argc, char** argv) {
                           class_descriptions);
         }
 
-        if (at_title) {
+        if (!movie_queue.empty()) {
+            const std::string& reel = movie_queue.front();
+            if (movie.video != reel) {
+                movie = {};
+                movie.video = reel;
+                movie.ready = cache.interior_bytes(reel, movie.bytes) &&
+                              video::SmackerDecoder::load(movie.bytes, movie.decoder) ==
+                                  video::SmackerError::None &&
+                              movie.decoder.info().frame_count > 0;
+                movie.frame = 0;
+                movie.next_at = 0;
+                if (!movie.ready) {
+                    movie_queue.erase(movie_queue.begin());
+                }
+            }
+            if (movie.ready && SDL_GetTicks() >= movie.next_at) {
+                std::span<const std::uint8_t> rgba;
+                if (movie.decoder.decode_frame_rgba(movie.frame, rgba) ==
+                    video::SmackerError::None) {
+                    std::vector<std::uint8_t> pixels(rgba.begin(), rgba.end());
+                    (void)render::Texture::create(
+                        static_cast<std::uint16_t>(movie.decoder.info().width),
+                        static_cast<std::uint16_t>(movie.decoder.info().height),
+                        std::move(pixels), movie_frame);
+                    video::SmackerAudioFrame chunk;
+                    if (mouse_look &&
+                        movie.decoder.decode_audio(movie.frame, 0, chunk) ==
+                            video::SmackerError::None &&
+                        !chunk.samples.empty()) {
+                        const auto track = movie.decoder.audio_info(0);
+                        ambient.play_room_chunk(chunk.samples.data(), chunk.samples.size(),
+                                                static_cast<int>(track.sample_rate),
+                                                track.stereo);
+                    }
+                }
+                ++movie.frame;
+                if (movie.frame >= movie.decoder.info().frame_count) {
+                    movie_queue.erase(movie_queue.begin());
+                    movie = {};
+                    ambient.stop_room();
+                } else {
+                    const double fps =
+                        movie.decoder.info().fps > 1.0 ? movie.decoder.info().fps : 15.0;
+                    movie.next_at =
+                        SDL_GetTicks() + static_cast<std::uint64_t>(1000.0 / fps);
+                }
+            }
+            if (!movie_frame.empty()) {
+                // Centred on black, at its own size.
+                auto pixels = scene.framebuffer().color();
+                std::fill(pixels.begin(), pixels.end(), 0);
+                blit(scene.framebuffer(), movie_frame,
+                     (kWidth - static_cast<int>(movie_frame.width())) / 2,
+                     (kHeight - static_cast<int>(movie_frame.height())) / 2);
+            }
+        } else if (at_title) {
             blit(scene.framebuffer(), cache.icon("MM6TITLE.PCX"), 0, 0);
             const std::array<const char*, 4> kPlates{"MMNEW1", "MMLOA1", "MMCRE1", "MMESC1"};
             for (int i = 0; i < 4; ++i) {
