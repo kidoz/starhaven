@@ -39,6 +39,7 @@
 #include "game/hire.hpp"
 #include "game/inspect.hpp"
 #include "game/inventory.hpp"
+#include "game/interiors.hpp"
 #include "game/launches.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
@@ -1211,16 +1212,42 @@ void dress_service(render::SceneRenderer& scene, const image::Font& font,
             pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 6);
         }
     }
-    blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
-    blit(scene.framebuffer(), cache.icon("FOOTER"), 0, kHeight - 24);
+    // The establishment's own room, when the Picture column's video is in
+    // the install: its first frame fills the viewport, dimmed to half so
+    // the words read over it. Without it, the marble panel as before.
+    const std::string_view video = game::interior_video(shop.picture);
+    const render::Texture& room =
+        video.empty() ? cache.interior(std::string()) : cache.interior(std::string(video));
     const int line = font.height() + 2;
-    int y = 56;
-    for (const std::string text : {data::cp1252_to_utf8(shop.name), std::string(shop.type),
-                                   data::cp1252_to_utf8(shop.proprietor)}) {
-        game::draw_text(scene.framebuffer(), font, 26, y, text,
-                        render::Color{225, 220, 195, 255}, render::Color{0, 0, 0, 255});
-        y += line + 2;
+    if (!room.empty()) {
+        blit(scene.framebuffer(), room, 8, 8);
+        for (int y = 8; y < 352; ++y) {
+            for (int x = 8; x < 468; ++x) {
+                const auto i =
+                    (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+                pixels[i] = static_cast<std::uint8_t>(pixels[i] / 2);
+                pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 2);
+                pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 2);
+            }
+        }
+        int y = 44;
+        for (const std::string text : {data::cp1252_to_utf8(shop.name), std::string(shop.type),
+                                       data::cp1252_to_utf8(shop.proprietor)}) {
+            game::draw_text(scene.framebuffer(), font, 26, y, text,
+                            render::Color{225, 220, 195, 255}, render::Color{0, 0, 0, 255});
+            y += line + 2;
+        }
+    } else {
+        blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
+        int y = 56;
+        for (const std::string text : {data::cp1252_to_utf8(shop.name), std::string(shop.type),
+                                       data::cp1252_to_utf8(shop.proprietor)}) {
+            game::draw_text(scene.framebuffer(), font, 26, y, text,
+                            render::Color{225, 220, 195, 255}, render::Color{0, 0, 0, 255});
+            y += line + 2;
+        }
     }
+    blit(scene.framebuffer(), cache.icon("FOOTER"), 0, kHeight - 24);
 }
 
 void draw_temple(render::SceneRenderer& scene, const image::Font& font,
@@ -1481,7 +1508,8 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
 // no row keeps the panel and goes faceless, honestly.
 void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
                        assets::AssetCache& cache, int npc_id, const game::Conversation& talk,
-                       const std::string& answer) {
+                       const std::string& answer,
+                       const data::BuildingStatsEntry* shop = nullptr) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1500,7 +1528,26 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
     const render::Color shadow{0, 0, 0, 255};
     const int line = font.height() + 2;
 
-    blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
+    // Inside an establishment the room itself is the backdrop, dimmed to
+    // half so the words read; in the street, the marble panel.
+    const std::string_view video =
+        shop != nullptr ? game::interior_video(shop->picture) : std::string_view{};
+    const render::Texture& room =
+        video.empty() ? cache.interior(std::string()) : cache.interior(std::string(video));
+    if (!room.empty()) {
+        blit(scene.framebuffer(), room, 8, 8);
+        for (int y = 8; y < 352; ++y) {
+            for (int x = 8; x < 468; ++x) {
+                const auto i =
+                    (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+                pixels[i] = static_cast<std::uint8_t>(pixels[i] / 2);
+                pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 2);
+                pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 2);
+            }
+        }
+    } else {
+        blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
+    }
     if (npc_id > 0 && npc_id < 1000) {
         char plate[8];
         std::snprintf(plate, sizeof(plate), "NPC%03d", npc_id);
@@ -5801,7 +5848,8 @@ int main(int argc, char** argv) {
                                                 clock, interface_words, party[0].name,
                                                 game::face_is_female(party[0].face),
                                                 standing_for(person.npc_id)),
-                                  talk_answer);
+                                  talk_answer,
+                                  shops_here[static_cast<std::size_t>(open_shop)]);
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];

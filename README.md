@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The interiors play**: the seating chart is in use — each
+  establishment's service screen and its people's talk screens stand on
+  the first frame of its own `Anims*.vid` interior, dimmed to half under
+  the words: Caine at his forge behind the weapon list, the apothecary
+  among their bottles, every guild in its own hall. An install without
+  the Anims archives falls back to the marble panel, honestly.
 - **The backdrop gamble paid in full**: the 2DEvents Picture column's
   target was recovered from the game's own executable — `MM6.exe`'s
   EVENTS.CPP string block lists the interior-video names, and read in

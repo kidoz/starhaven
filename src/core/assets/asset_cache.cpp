@@ -3,9 +3,12 @@
 #include "core/image/bitmap.hpp"
 #include "core/image/pcx.hpp"
 #include "core/image/sprite.hpp"
+#include "core/video/smacker.hpp"
+#include "core/video/vid_archive.hpp"
 
 #include <algorithm>
 #include <span>
+#include <vector>
 #include <utility>
 
 namespace starhaven::assets {
@@ -16,6 +19,7 @@ const render::Texture kEmpty{};
 }  // namespace
 
 void AssetCache::open(const std::filesystem::path& data_dir) {
+    install_root_ = data_dir.parent_path();
     bitmaps_open_ =
         lod::LodArchive::open(data_dir / "BITMAPS.LOD", bitmap_archive_) == lod::LodError::None;
     sprites_open_ =
@@ -49,6 +53,50 @@ const render::Texture& AssetCache::bitmap(const std::string& name) {
     }
     // Cache failures too, so a name that never resolves is probed once.
     return bitmaps_.emplace(name, std::move(texture)).first->second;
+}
+
+const render::Texture& AssetCache::interior(const std::string& name) {
+    if (const auto it = interiors_.find(name); it != interiors_.end()) {
+        return it->second;
+    }
+    render::Texture texture;
+    if (!anims_tried_) {
+        anims_tried_ = true;
+        // GOG installs keep them under Anims/; open whichever answers.
+        bool any = false;
+        for (std::size_t k = 0; k < anims_.size(); ++k) {
+            const std::string file = "Anims" + std::to_string(k + 1) + ".vid";
+            const bool ok =
+                video::VidArchive::open(install_root_ / "Anims" / file, anims_[k]) ==
+                    video::VidError::None ||
+                video::VidArchive::open(install_root_ / file, anims_[k]) ==
+                    video::VidError::None;
+            any = any || ok;
+        }
+        anims_open_ = any;
+    }
+    if (anims_open_) {
+        for (auto& archive : anims_) {
+            const std::size_t at = archive.find(name);
+            if (at >= archive.size()) {
+                continue;
+            }
+            std::vector<std::byte> data;
+            video::SmackerDecoder decoder;
+            std::span<const std::uint8_t> rgba;
+            if (archive.read(at, data) &&
+                video::SmackerDecoder::load(data, decoder) == video::SmackerError::None &&
+                decoder.decode_frame_rgba(0, rgba) == video::SmackerError::None) {
+                std::vector<std::uint8_t> pixels(rgba.begin(), rgba.end());
+                (void)render::Texture::create(
+                    static_cast<std::uint16_t>(decoder.info().width),
+                    static_cast<std::uint16_t>(decoder.info().height), std::move(pixels),
+                    texture);
+            }
+            break;
+        }
+    }
+    return interiors_.emplace(name, std::move(texture)).first->second;
 }
 
 const render::Texture& AssetCache::icon(const std::string& name) {

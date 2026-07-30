@@ -1,6 +1,7 @@
 #ifndef STARHAVEN_CORE_ASSETS_ASSET_CACHE_HPP
 #define STARHAVEN_CORE_ASSETS_ASSET_CACHE_HPP
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <map>
@@ -9,6 +10,7 @@
 #include "core/image/palette.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/render/texture.hpp"
+#include "core/video/vid_archive.hpp"
 
 namespace starhaven::assets {
 
@@ -48,6 +50,11 @@ public:
     // only in palette. Pass kSpritePaletteFromHeader for the default.
     [[nodiscard]] const render::Texture& sprite(const std::string& name, int palette_override);
 
+    // The first frame of a named interior video from the install's
+    // Anims*.vid archives, as a still. Returns an empty texture when the
+    // archives or the name are absent — a partial install shows marble.
+    [[nodiscard]] const render::Texture& interior(const std::string& name);
+
     // Whether SPRITES.LOD holds an entry, without decoding it. Used to probe
     // candidate names before committing to one.
     [[nodiscard]] bool has_sprite(const std::string& name);
@@ -66,7 +73,13 @@ private:
     // Cached decodes, including failures: an empty texture means "looked up and
     // not found", so a missing name costs one archive probe rather than one
     // per frame.
+    std::filesystem::path install_root_;  // where the Anims archives live
+    bool anims_open_ = false;
+    bool anims_tried_ = false;
+    std::array<video::VidArchive, 2> anims_;
+
     std::map<std::string, render::Texture> bitmaps_;
+    std::map<std::string, render::Texture> interiors_;
     std::map<std::string, render::Texture> icons_;
     std::map<std::string, render::Texture> sprites_;
     std::map<std::uint16_t, image::Palette> palettes_;
