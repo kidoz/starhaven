@@ -616,6 +616,23 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
                 }
                 out.buildings.push_back(std::move(entry));
             }
+            // The whole roster too, so a person the quest chain moves to
+            // one of this map's establishments can arrive from anywhere —
+            // even from no establishment at all.
+            for (const auto& n : npcs.entries()) {
+            SessionNpc person;
+            person.name = data::cp1252_to_utf8(n.name);
+            person.npc_id = n.id;
+            person.profession_id = n.profession_id;
+            if (const auto* p = professions.at(n.profession_id); p != nullptr) {
+                person.profession = p->name;
+                person.personality = p->personality;
+            }
+            for (std::size_t k = 0; k < person.topics.size() && k < n.events.size(); ++k) {
+                person.topics[k] = n.events[k];
+            }
+                out.everyone.push_back(std::move(person));
+            }
         }
     }
 

@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The people move with the story**: the quest chain's opcode-40 moves
+  now show — whoever it sends somewhere arrives off the full roster even
+  from another map or from no establishment at all, and whoever it
+  removes stays gone; the King's Library wears its three faces in turn —
+  Archibald's statue until award 35, the freed king until he hands over
+  the Ritual, the empty room after.
 - **The game opens like the game**: `MM6TITLE.PCX` and its four plates
   stand in front now — New Game walks into the creation hall, Load pulls
   the saved slot, Credits says whose art this is, Exit leaves — clicked

@@ -2401,6 +2401,7 @@ int main(int argc, char** argv) {
     // not in this session.
     const auto people_of = [&](const data::BuildingStatsEntry& shop) {
         std::vector<world::SessionNpc> out;
+        std::set<int> seated;
         for (const auto& b : session.buildings) {
             for (const auto& person : b.people) {
                 const auto moved = script_state.npc_places.find(person.npc_id);
@@ -2408,11 +2409,33 @@ int main(int argc, char** argv) {
                                              ? moved->second == shop.id
                                              : b.building_id == shop.id;
                 if (placed_here) {
+                    seated.insert(person.npc_id);
                     out.push_back(person);
                 }
             }
         }
+        // Whoever the chain sent here from anywhere else — Archibald to
+        // his library — arrives off the full roster.
+        for (const auto& person : session.everyone) {
+            const auto moved = script_state.npc_places.find(person.npc_id);
+            if (moved != script_state.npc_places.end() && moved->second == shop.id &&
+                !seated.contains(person.npc_id)) {
+                out.push_back(person);
+            }
+        }
         return out;
+    };
+    // The King's Library wears its three faces by the story: the statue
+    // until award 35, the freed loop until Archibald hands over the
+    // Ritual (bit 177), and the empty room after. The three pictures are
+    // the rows' own; the gating between them is the engine's. `inferred`
+    const auto face_of = [&](const data::BuildingStatsEntry& shop) {
+        if (shop.id == 168 || shop.id == 553 || shop.id == 554) {
+            return !script_state.awards.contains(35)  ? 116
+                   : !script_state.bits.contains(177) ? 117
+                                                      : 118;
+        }
+        return shop.picture;
     };
     // What a counter stocks: a magic guild's shelves are its own row's
     // spell range as books; everything else is generated from its stock
@@ -6096,7 +6119,7 @@ int main(int argc, char** argv) {
         }
         if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             advance_room(game::interior_video(
-                shops_here[static_cast<std::size_t>(open_shop)]->picture));
+                face_of(*shops_here[static_cast<std::size_t>(open_shop)])));
         } else if (!room.video.empty()) {
             room = {};
             ambient.stop_room();
@@ -6114,7 +6137,8 @@ int main(int argc, char** argv) {
                                   shops_here[static_cast<std::size_t>(open_shop)]);
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
-            const auto& shop = *shops_here[static_cast<std::size_t>(open_shop)];
+            data::BuildingStatsEntry shop = *shops_here[static_cast<std::size_t>(open_shop)];
+            shop.picture = face_of(shop);
             if (game::is_temple(shop)) {
                 draw_temple(scene, font, cache, shop, party, gold, shop_said);
             } else if (game::is_bank(shop)) {
