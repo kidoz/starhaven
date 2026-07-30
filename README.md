@@ -1046,6 +1046,10 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The chronicle spells the secret**: the fifteen fragments render as
+  the fifteen-column grid they are — held stones side by side in a
+  fixed hand, dark columns for the missing — so the obelisk sentence
+  assembles visually on the chronicle page the way the puzzle intends.
 - **The quad section survived round three**: with the sector table and
   doors now readable, the BLV's last big unknown took two more
   refutations — fields 2+3 are not an MM7-style coplanar offset-and-count

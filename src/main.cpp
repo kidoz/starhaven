@@ -1034,11 +1034,64 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
     };
 
     if (page == 1) {
+        // The obelisk grid first: the fifteen fragments are columns, and
+        // side by side they spell the sentence. A missing stone leaves
+        // its column dark.
+        bool any_stone = false;
+        std::array<std::string, 15> columns{};
+        for (int c = 0; c < 15; ++c) {
+            const int note = 79 + c;
+            if (!collected.contains(note)) {
+                continue;
+            }
+            for (const auto& row : notes.entries()) {
+                if (row.bit != note || !row.has_text()) {
+                    continue;
+                }
+                std::string text = data::cp1252_to_utf8(row.text);
+                if (const auto colon = text.find(':'); colon != std::string::npos) {
+                    text = text.substr(colon + 1);
+                }
+                std::string cleaned;
+                for (const char ch : text) {
+                    if (ch == '_') {
+                        cleaned += ' ';
+                    } else if (ch != ' ' || !cleaned.empty()) {
+                        cleaned += ch == '"' ? ' ' : ch;
+                    }
+                }
+                while (!cleaned.empty() && cleaned.front() == ' ') {
+                    cleaned.erase(cleaned.begin());
+                }
+                columns[static_cast<std::size_t>(c)] = cleaned;
+                any_stone = true;
+            }
+        }
+        if (any_stone) {
+            std::size_t depth = 0;
+            for (const auto& column : columns) {
+                depth = std::max(depth, column.size());
+            }
+            game::draw_text(scene.framebuffer(), font, 24, y, "The obelisks:", white, shadow);
+            y += line;
+            for (std::size_t r = 0; r < depth && y < kHeight - line * 3; ++r) {
+                std::string across;
+                for (const auto& column : columns) {
+                    across += column.empty() ? '?'
+                              : r < column.size() ? column[r]
+                                                  : ' ';
+                }
+                game::draw_text(scene.framebuffer(), font, 24, y, across, white, shadow);
+                y += line - 2;
+            }
+            y += line;
+        }
         // The chronicle: what the events wrote as the story advanced,
         // worded by Autonotes.txt itself, newest stages last.
         std::size_t written = 0;
         for (const auto& row : notes.entries()) {
-            if (!collected.contains(row.bit) || !row.has_text()) {
+            if (!collected.contains(row.bit) || !row.has_text() ||
+                (row.bit >= 79 && row.bit <= 93)) {
                 continue;
             }
             ++written;
