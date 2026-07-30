@@ -67,6 +67,12 @@ public:
         interiors_[name] = std::move(texture);
     }
 
+    // Show one bitmap under another's name: the texture frame table's
+    // animation, done by replacing the cached still each tick.
+    void alias_bitmap(const std::string& shown_as, const std::string& source) {
+        bitmaps_[shown_as] = bitmap(source);
+    }
+
     // Whether SPRITES.LOD holds an entry, without decoding it. Used to probe
     // candidate names before committing to one.
     [[nodiscard]] bool has_sprite(const std::string& name);

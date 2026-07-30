@@ -15,6 +15,7 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/monster_list.hpp"
+#include "core/world/texture_frame_table.hpp"
 #include "core/world/sound_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
 
@@ -368,6 +369,26 @@ int do_body(const lod::LodArchive& icons) {
     return 0;
 }
 
+// Verification mode: DTFT.BIN, the texture frame table — DSFT's small
+// sibling for the wall textures that move.
+int do_dtft(const lod::LodArchive& icons) {
+    std::span<const std::byte> raw;
+    if (icons.payload("DTFT.BIN", raw) != lod::LodArchive::PayloadError::None) {
+        std::cerr << "error: no DTFT.BIN\n";
+        return 1;
+    }
+    const auto loops = world::parse_texture_frames(raw);
+    std::cout << loops.size() << " texture animations\n";
+    for (const auto& loop : loops) {
+        std::cout << "  " << (loop.frames.empty() ? "?" : loop.frames.front().name) << ":";
+        for (const auto& frame : loop.frames) {
+            std::cout << " " << frame.name << "(" << frame.duration << ")";
+        }
+        std::cout << "  total " << loop.total << "\n";
+    }
+    return 0;
+}
+
 int do_views(const std::filesystem::path& data_dir, const world::SpriteFrameTable& table) {
     lod::LodArchive sprites;
     if (lod::LodArchive::open(data_dir / "SPRITES.LOD", sprites) != lod::LodError::None) {
@@ -479,6 +500,8 @@ int main(int argc, char** argv) {
         return do_sounds(icons);
     if (command == "--body")
         return do_body(icons);
+    if (command == "--dtft")
+        return do_dtft(icons);
     if (command.rfind("--", 0) == 0) {
         print_usage(argv[0]);
         return 2;

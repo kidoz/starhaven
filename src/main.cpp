@@ -31,6 +31,7 @@
 #include "core/video/smacker.hpp"
 #include "core/world/map_session.hpp"
 #include "core/world/monster_spawn.hpp"
+#include "core/world/texture_frame_table.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
@@ -2307,6 +2308,20 @@ int main(int argc, char** argv) {
             (void)world::MapScript::parse(raw, global_script);
         }
     }
+
+    // The wall textures that move: DTFT.BIN's four loops, stepped on the
+    // frame tables' shared clock; each tick the shown frame is copied over
+    // the group's first name so the ordinary lookup draws the motion.
+    std::vector<world::TextureAnimation> texture_loops;
+    {
+        lod::LodArchive icons_archive;
+        std::span<const std::byte> raw;
+        if (lod::LodArchive::open(data_dir / "icons.lod", icons_archive) == lod::LodError::None &&
+            icons_archive.payload("DTFT.BIN", raw) == lod::LodArchive::PayloadError::None) {
+            texture_loops = world::parse_texture_frames(raw);
+        }
+    }
+    std::vector<std::string> texture_loop_shown(texture_loops.size());
 
     // Talking. The tables are all decoded; this is the first thing that uses
     // them together. See src/game/conversation.hpp.
@@ -6065,6 +6080,18 @@ int main(int argc, char** argv) {
             !taken.empty()) {
             pick_up_message = taken;
             pick_up_shown = SDL_GetTicks();
+        }
+        // Step the moving wall textures.
+        for (std::size_t g = 0; g < texture_loops.size(); ++g) {
+            const auto& loop = texture_loops[g];
+            if (loop.frames.size() < 2) {
+                continue;
+            }
+            const std::string* frame = loop.frame_at(game::sprite_ticks(SDL_GetTicks()));
+            if (frame != nullptr && *frame != texture_loop_shown[g]) {
+                texture_loop_shown[g] = *frame;
+                cache.alias_bitmap(loop.frames.front().name, *frame);
+            }
         }
         std::vector<game::ActiveLaunch> in_flight = launches;
         for (const auto& shot : spell_shots) {

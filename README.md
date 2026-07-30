@@ -227,6 +227,13 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The walls that move, move**: `DTFT.BIN` decoded — DSFT's small
+  sibling, nineteen records in four loops verified against the same
+  shape — and the engine steps them, so the moss-and-wood wall breathes
+  and the two haunted paintings cycle. The water gamble half of this
+  item closed as a negative: no shipped table animates `WtrTyl`, and the
+  original's shimmer is most plausibly exe-held palette rotation, filed
+  `unknown` in `docs/formats/dtft.md`.
 - **The world sounds underfoot**: the party's footfalls play the
   archive's own Walk/Run set keyed by the ground beneath — grass, snow,
   desert, swamp, water, the stone hall indoors — off the tile art's own
