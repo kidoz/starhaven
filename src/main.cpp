@@ -105,7 +105,8 @@ void print_usage(const char* argv0) {
               << "  M          in a pack: pour the first potion into the second\n"
               << "  X          read the first spell scroll at what you aim at\n"
               << "  B          open the spell book: tabs by school, Enter readies a spell\n"
-              << "             (--map opens the maps page, --title the title screen)\n"
+              << "             (--map opens the maps page, --title the title screen;\n"
+              << "              --scale N sizes the window, default 2)\n"
               << "  M          free the cursor: the frame's books, medallions and\n"
               << "             portraits answer clicks; M again returns to the view\n"
               << "  H          cast the readied spell, else the best heal or smite\n"
@@ -2006,6 +2007,7 @@ int main(int argc, char** argv) {
     bool start_map = false;      // --map: open the maps page at once
     bool start_title = false;    // --title: hold the title screen for a capture
     bool start_rest = false;     // --rest: open the campfire for a capture
+    int window_scale = 2;        // --scale N: the window's integer multiple
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
@@ -2049,6 +2051,8 @@ int main(int argc, char** argv) {
             start_title = true;
         } else if (a == "--rest") {
             start_rest = true;
+        } else if (a == "--scale" && i + 1 < argc) {
+            window_scale = std::clamp(std::atoi(argv[++i]), 1, 6);
         } else if (a == "--eye") {
             start_eye = true;
         } else if (a == "--screenshot" && i + 1 < argc) {
@@ -2290,8 +2294,13 @@ int main(int argc, char** argv) {
         return 1;
     }
     const std::string title = "StarHaven - " + session.title() + " (" + session.file_name + ")";
-    SDL_Window* window = SDL_CreateWindow(title.c_str(), kWidth, kHeight, 0);
+    // The honest 640x480, presented at an integer multiple: the window
+    // grows, the pixels stay square, and every screen keeps its measures.
+    SDL_Window* window =
+        SDL_CreateWindow(title.c_str(), kWidth * window_scale, kHeight * window_scale, 0);
     SDL_Renderer* sdl_renderer = SDL_CreateRenderer(window, nullptr);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, kWidth, kHeight,
+                                     SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     SDL_Texture* screen = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ABGR8888,
                                             SDL_TEXTUREACCESS_STREAMING, kWidth, kHeight);
 
@@ -3489,6 +3498,9 @@ int main(int argc, char** argv) {
         bool want_rest = false;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            // Mouse coordinates arrive in window space; the zones are laid
+            // out in the logical 640x480.
+            SDL_ConvertEventToRenderCoordinates(sdl_renderer, &event);
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (!movie_queue.empty() &&

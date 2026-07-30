@@ -1046,6 +1046,10 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The window grows without lying**: `--scale N` (default 2) presents
+  the honest 640x480 at an integer multiple through SDL's logical
+  presentation, mouse zones converted back to the game's own
+  coordinates — square pixels on modern glass.
 - **The opening plays as it shipped**: the 3DO logo and the intro run
   before the title — full-screen Smacker with their own sound through
   the room player's machinery, any key sending the reel forward — and
