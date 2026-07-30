@@ -46,7 +46,7 @@ The same 48-byte-header + zlib container the rest of `icons.lod` uses (see
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 1 | u8 | firstChar | observed | 31 in twelve fonts, 30 in `COMIC.FNT` |
 | +0x01 | 1 | u8 | lastChar | observed | 255 in all |
-| +0x02 | 2 | u16 | unknown | unknown | 8 in all fourteen |
+| +0x02 | 2 | u16 | — | observed | 8 on all 14 fonts; unused |
 | +0x04 | 1 | — | zero | observed | |
 | +0x05 | 1 | u8 | height | observed | 14 to 30 |
 | +0x06 | 26 | — | zero | observed | |
@@ -104,7 +104,6 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 ## Open questions
 
-- The `u16` at +0x02, which is 8 in every font. `unknown`
 - What `fontpal` is for, and whether the body and outline colours come from it
   or are chosen per call site. StarHaven currently chooses them. `unknown`
 - Which font the original interface used where. `unknown`

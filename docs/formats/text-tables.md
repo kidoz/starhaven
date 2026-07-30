@@ -64,7 +64,7 @@ marks it container-uncompressed.
 | 0x00 | 16 | char[16] | name | observed | e.g. `"MAPSTATS.TXT"`; cased differently from the archive entry |
 | 0x14 | 4 | u32 | packedSize | observed | stored size − 48 |
 | 0x28 | 4 | u32 | unpackedSize | observed | text length after inflation |
-| 0x2C | 4 | u32 | unknown | unknown | 256 on every observed table |
+| 0x2C | 4 | u32 | — | observed | 256 on all 30 tables; unused |
 | 0x30 | … | bytes | zlibData | observed | standard zlib stream (`78 9c`) |
 
 **An `unpackedSize` of zero means the bytes are stored as-is.** Exactly one
@@ -968,7 +968,6 @@ because ragged rows make out-of-range reads normal rather than exceptional.
 
 ## Open questions
 
-- The container's `unknown` field at 0x2C (256 on every table). `unknown`
 - Which A/B/C variant an encounter slot selects, and what `Dif 1-5` drives.
   Tested against the shipped placed actors: only 17 of 340 match a slot at
   all, too few to read — see [`event-actors.md`](event-actors.md). Still

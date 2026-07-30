@@ -124,8 +124,9 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 ## Unknown / open questions
 
-- Exact meaning of `flags`, `unk_0`, `emptyBottomLines` (`observed` to be 0/0/0
-  in sampled entries, but treated as opaque by the decoder).
+- Exact meaning of `flags`. `unk_0` is `0` on all 299 sampled sprites and
+  `emptyBottomLines` is the redundant clear-line count; both are now `observed`
+  constants, treated as opaque by the decoder.
 - Whether any sprite uses a non-zero `decompressedSize == 0` (uncompressed)
   path — none observed, but the decoder supports it.
 - Non-index-0 transparency / colorkey for sprites — not observed; deferred.

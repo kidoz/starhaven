@@ -95,9 +95,18 @@ when flag `0x0200` is set.
 | Bit | Meaning | Status |
 | --- | --- | --- |
 | 0x0002 | has mipmaps | observed |
-| 0x0100 | not an image (text file?) | inferred |
+| 0x0100 | — | unknown |
 | 0x0200 | palette entry 0 is transparent (alpha key); else colorkey | inferred |
-| 0x0400 | don't free buffers (runtime hint) | inferred |
+| 0x0400 | — | unknown |
+
+A full census of all 1,958 entries: `0x0100` is set on 578 and `0x0400` on
+1,084 (409 carry both, 705 carry neither). The earlier `inferred` readings
+— `0x0100` "not an image (text file?)" and `0x0400` "don't free buffers" —
+are **refuted**: the `0x0100`-only entries (`BRX*`, `HC*`, `bd1ft*`) are real
+bitmaps (wall and floor texture fragments), not text files, and there are no
+non-image entries in this archive. Both bits are common on structural tiling
+textures, but their meaning (mip selection? tiling? cache policy?) is not
+determinable from the names alone and needs the executable. `unknown`
 
 This slice treats index 0 as transparent when `0x0200` is set; full colorkey
 handling is deferred.
@@ -125,6 +134,9 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 ## Unknown / open questions
 
-- Exact semantics of flags `0x0100`, `0x0400` (`inferred`).
+- Semantics of flags `0x0100` and `0x0400`. Both are common (578 and 1,084 of
+  1,958 entries) and set on real bitmap textures; the earlier "text file" /
+  "don't free" readings are refuted, and the names do not reveal the meaning.
+  `unknown`
 - Colorkey (non-index-0 transparency) handling — deferred.
 - Whether `anotherPaletteId` is ever non-zero — not observed.
