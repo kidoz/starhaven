@@ -584,16 +584,16 @@ record bare. It is **eight 8-byte slots**, each an `i16` count followed by a
 | Offset | Size | Type | Field | Status |
 | ---: | ---: | --- | --- | --- |
 | +0x00 | 4 | — | (head: flags/id) | unknown |
-| +0x04 | 2 | i16 | count 1 | observed |
-| +0x08 | 4 | u32 | runtime pointer 1 (patched) | observed |
+| +0x04 | 2 | i16 | count 1 — **portals/neighbours** (the culler walks these between sectors) | inferred |
+| +0x08 | 4 | u32 | runtime pointer 1 — portal list (patched; culler `0x48c3d0` reads it) | observed |
 | +0x0C | 2 | i16 | count 2 — **faces** (the render consumer `0x4080c0` walks this list) | observed |
 | +0x10 | 4 | u32 | runtime pointer 2 — face list (patched) | observed |
-| +0x14 | 2 | i16 | count 3 | observed |
-| +0x18 | 4 | u32 | runtime pointer 3 (patched) | observed |
-| +0x1C | 2 | i16 | count 4 | observed |
-| +0x20 | 4 | u32 | runtime pointer 4 (patched) | observed |
-| +0x24 | 2 | i16 | count 5 | observed |
-| +0x28 | 4 | u32 | runtime pointer 5 (patched) | observed |
+| +0x14 | 2 | i16 | count 3 — **lights** (the lighting consumer `0x404ed0` walks this list) | inferred |
+| +0x18 | 4 | u32 | runtime pointer 3 — light list (patched; lighting reads it) | observed |
+| +0x1C | 2 | i16 | count 4 — **collision geometry** (the collision consumer `0x407720` builds vertex triples from this) | inferred |
+| +0x20 | 4 | u32 | runtime pointer 4 — collision list (patched; `0x407c81` reads it 6×) | observed |
+| +0x24 | 2 | i16 | count 5 — **portals/neighbours** (second portal set the culler reads at `+0x28`) | inferred |
+| +0x28 | 4 | u32 | runtime pointer 5 — portal list 2 (patched; culler reads it) | observed |
 | +0x2C | 2 | i16 | count 6 | observed |
 | +0x30 | 4 | u32 | runtime pointer 6 (patched) | observed |
 | +0x34..+0x3B | 8 | — | (gap; counts resume at +0x3C) | unknown |
@@ -607,12 +607,14 @@ So a sector node owns **eight variable-length arrays** (faces, portals, lights,
 and the rest), each declared by an on-disk count whose entries live in the
 `RLData` pool and whose pointer is resolved at load. This is the "arrays 1-3 of
 each face's six" the data analysis could not place — it is eight per sector,
-not six per face. Slot 2 (`+0x0C`/`+0x10`) is **faces** — confirmed by the
-render consumer `fcn.004080c0`, which walks pointer 2 and reads each face's
-fields (testing a flag at face `+0x18`). The other seven slots' specific
-meanings (portals, lights, decals, and the rest) are pinned to a follow-up
-trace of the consumers that read each pointer. `observed` for slot 2, `inferred`
-for the slot structure.
+not six per face. Five of the eight slots are now named by their consumers:
+slot 1 (`+0x08`) and slot 5 (`+0x28`) are the **portal/neighbour** lists the
+sector culler walks between sectors; slot 2 (`+0x10`) is **faces** (render
+`0x4080c0`); slot 3 (`+0x18`) is **lights** (lighting `0x404ed0`); slot 4
+(`+0x20`) is **collision geometry** (collision `0x407720` builds vertex triples
+from it). The remaining three slots (6, 7, 8) and the head/gap/middle bytes are
+pinned to a follow-up trace of their consumers. `observed` for the named slots'
+pointer use, `inferred` for the portal/light/collision labels.
 
   Sliding-window stride detection over that region on `D03.blv` segments it
   into a **stride-8** run, a high-entropy run with no stride above noise
