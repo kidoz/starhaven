@@ -8,9 +8,11 @@ This is a playable engine. It renders every outdoor and indoor map with the
 game's own art, lights, music and sound, and runs the game's systems — event
 scripts, real-time and turn-based combat, skills, spells, shops, hirelings,
 promotions, reputation, travel, rest, saves — grounded in the game's own data
-tables rather than invented: New Sorpigal's opening arc, from the letter to
-Goblinwatch's reward to the coach out, runs end to end under a scripted
-regression. Every decoded format is documented with its evidence tagged
+tables rather than invented — and its whole interface wears the shipped
+art, from the title painting to the campfire. The entire main quest, from
+Sulman's letter to the Hive's last flush, runs as a 24-beat scripted
+regression, and all 58 award-granting events walk and grant on the
+record. Every decoded format is documented with its evidence tagged
 `observed`, `inferred` or `unknown`, and where the engine had to choose a
 number the tables don't give, the code and docs say so.
 
@@ -60,6 +62,9 @@ interoperability and compatibility with a legally purchased copy.
   after the model geometry, with a parallel name array that cross-checks it:
   all 15 maps, 6,210 placements, 85 type ids each mapping to exactly one name.
   `starhaven` draws them as camera-facing billboards.
+
+### The world, drawn and walked
+
 - **Real ground textures**: the `DTILE.BIN` global tile table (in `icons.lod`)
   resolves an `.odm` tilemap byte to a `BITMAPS.LOD` entry, so terrain is drawn
   with the game's own art rather than placeholder colors.
@@ -104,42 +109,7 @@ interoperability and compatibility with a legally purchased copy.
   and a RIFF/WAVE decoder handling PCM and **IMA ADPCM** — the encoding every
   MM6 effect uses. All 1,526 decode, trimmed to the exact length the `fact`
   chunk declares.
-- **Music playback**: the installation's fifteen MP3 tracks, decoded with the
-  public-domain minimp3 (the project's only non-standard decoding dependency)
-  and played through the same SDL3 sink as the sound effects.
-- A reader for the **design data tables** — thirty tab-separated spreadsheets
-  the developers left inside `icons.lod`, holding maps, monsters, items,
-  spells, quests and NPC dialogue. All thirty parse. `MapStats.txt` and
-  `MONSTERS.TXT` have typed views, and both join exactly to data already
-  decoded: the table's 67 map names are precisely the 67 maps in `Games.lod`,
-  and its 173 monsters line up one-to-one with `DMONLIST.BIN`. The walkers now
-  show a map's real name — "Sweet Water", not `OutA1.Odm` — and play the music
-  track the designers assigned it.
-- A decoder for the **sprite frame table** (`DSFT.BIN`) — the 6,455 frames in
-  1,656 animations that turn a name into the pictures to draw, in order, at the
-  right size and in the right colours. Monsters and torches now animate. It
-  also corrected a wrong conclusion: the B and C monster variants were never
-  missing art, they are one picture drawn through three palettes, and going
-  through the table raises monster sprite coverage from 31 of 173 to 173 of 173.
-- A decoder for the **indoor event sections** (`.dlv`), so dungeons are
-  populated: the same actor, loot and chest arrays the outdoor files use, after
-  a shorter prefix. All 52 indoor maps decode — 76 monsters, 219 loot objects
-  and 1,040 chests — with every actor standing inside the level's own geometry
-  and every item id resolving in `ITEMS.TXT`. `starhaven` draws them. The state
-  that follows is partly mapped too: a fixed 200-slot record array, then a
-  region the writer trims to whatever it happened to fill.
-- A decoder for the **sound table** (`DSOUNDS.BIN`) and the **decoration table**
-  (`DDECLIST.BIN`), which together say what a place sounds like: 1,338 of the
-  table's 1,345 names are entries of the already-decoded `Audio.snd`, and the
-  seven decoration types that name an ambient sound all resolve — a campfire to
-  `campfire`, a fountain to `fountain`, a cauldron to `bubbling cauldron01`.
-  Both walkers mix those sounds by distance, so New Sorpigal's fountains and a
-  dungeon's braziers are audible as you approach them.
-- A decoder for the game's **bitmap fonts** and text drawing in the engine.
-  Thirteen of the fourteen `.FNT` entries decode — 225 glyphs each, heights 14
-  to 30 — and the engine draws the map's name in the game's own typeface.
-  `font_info <font> <text>` renders a string as ASCII art, which is how the
-  format was verified.
+
 - **The decoded content, on screen.** `--labels` names every monster and every
   loot object in the world from `MONSTERS.TXT` and `ITEMS.TXT`. In New Sorpigal
   that is 38 of 38 monsters and 42 of 42 objects named — the joins those tables
@@ -208,6 +178,7 @@ interoperability and compatibility with a legally purchased copy.
   "Wrong!". Opcode 25 rolls one of up to six steps — 452 of 452 nonzero
   entries are steps of their own event — which is D05's mine paying 400, 600
   or 800 gold against two chances of "Cave-in!", weights written as repeats.
+
 - **Opcode 6 is the door out, and the world is connected**: its argument is a
   spawn point — X, Y, Z and a facing — and a NUL-terminated destination, either
   `"0"` for a teleport within the map or a map file name. Of the 99 named
@@ -217,6 +188,502 @@ interoperability and compatibility with a legally purchased copy.
   exit door loads the destination map through the same one-path loader and
   stands the party at the recorded spot, so the 67 maps are now one world
   rather than 67 command lines.
+
+- **The skies half-seated themselves**: the exe's outdoor loader
+  carries `sky%02d` with `sky01` beside it — the fourteen panoramas are
+  the outdoor sky set with `sky01` its stated floor, now the engine's
+  default in place of its earlier guess; what number feeds the `%02d`
+  (month and weather are the untested candidates) is filed `unknown`.
+
+- **A sky over Enroth**: the ODM header's slot at 0x60 turned out to
+  name the sky — `plansky2` on New Sorpigal, empty elsewhere — and the
+  engine now drapes the named panorama (defaulting to `sky01`, the
+  loader's own stated floor) behind the terrain as a yaw-wrapped
+  cylinder, dimmed
+  by the same daylight the sun follows. What the fourteen `sky01`..
+  `sky14` panoramas are for remains an open lead.
+
+- **The walls that move, move**: `DTFT.BIN` decoded — DSFT's small
+  sibling, nineteen records in four loops verified against the same
+  shape — and the engine steps them, so the moss-and-wood wall breathes
+  and the two haunted paintings cycle. The water gamble half of this
+  item closed as a negative: no shipped table animates `WtrTyl`, and the
+  original's shimmer is most plausibly exe-held palette rotation, filed
+  `unknown` in `docs/formats/dtft.md`.
+
+- **The doors slide**: a thrown lever no longer teleports geometry — the
+  door's vertices travel between their shut and open stations at the
+  file's own open and close speeds, read as world units a second (three
+  seconds for Goblinwatch's stone slabs), with collision following the
+  faces while they move.
+
+- **The bodies take up space**: the monster record's height and radius
+  now govern the world — the party keeps a body's radius away instead of
+  walking through titans, aiming casts a ray against each monster's own
+  cylinder so a dragon is hard to miss and a bat hard to hit, and the Fly
+  column's riders hover one body height up, the record's own number in
+  place of the engine's old constant.
+
+- **The dungeons found their lights**: the section after the BLV decoration
+  block is the level's static lights — 12-byte records of position,
+  brightness (31 on every shipped record) and radius, every point inside
+  its map's own bounds on 48 of 52 maps — and the walker bakes them per
+  face, so Goblinwatch's sconces light their own corners over a dim floor.
+  The falloff curve is the engine's; the lights are the file's. The
+  tree-shaped section after them is logged as the likely BSP, the next lead.
+
+- **Day and night**: outdoors the sky and the sun follow the clock — dark blue
+  before dawn, warm at the edges of the day, blue overhead at noon — and the
+  world is lit by where the sun actually is. **Tab** now marks each
+  establishment open or shut against the hours `2DEvents.txt` gives it, and
+  tells you what the trade inside talks about *today*: `PROFTEXT.txt` is
+  decoded, the largest table in the archive, and all 77 hireable professions
+  resolve with all 539 of their profession-days filled.
+
+- **Time, and somewhere to sleep**: a clock in the corner counting the hours,
+  the days and the seven weekdays `PROFTEXT.txt` names; **R** rests eight hours
+  and everyone still standing wakes up whole, unless something alive is close
+  enough to object. Each map refills with monsters on the interval its own
+  `MapStats.txt` row gives — 168, 224 or 672 days — and a map that ships
+  spawn points refills the way it filled: new groups rolled at its own
+  points from its own encounter slots, with the placed townspeople left
+  standing. A map of placed monsters stands its fallen back up instead.
+
+- **Fountains and potions that really work**: the temporary bonuses land
+  now — a fountain's "+10 Might temporary" lies on the party, an Energy
+  potion's "Set Temp 7 Stats to 10" on its drinker, Protection's AC and
+  Resistance's elements in the sheet's own amounts, and the timed conditions
+  ("Set Haste to 6 Hrs") run on the clock for exactly their written hours.
+  The sheet shows all of it, a rest ends what lasts until rest, and it all
+  rides in the save. The amounts and hours are the tables'; the until-rest
+  convention and the party-wide reach of a fountain are this engine's.
+
+- **Ambushes that spring**: opcode 19 named itself against the encounter
+  table — its slot stays within the map's own filled encounter slots on 272
+  of 272 resolvable uses, its variant is the monster triple's own A/B/C, and
+  its count runs to six. Step on the wrong plate and the engine fills the
+  room from the map's own table, the new arrivals joining the fight at full
+  health while everyone else keeps their wounds.
+
+- **Doors that open**: the indoor event files' fixed 200-slot block turned
+  out to be the door array — per door an id, a direction, a distance, two
+  speeds, and id arrays whose total is byte-exact against the size the level
+  declares. The bases equal the shipped vertex on 4,067 of 4,067 across 795
+  doors on the 52 maps, so a door ships shut and opens by sliding its own
+  vertices its own distance. Throw a lever and the portcullis rises, the
+  wall texture flips, and the collision world lets you through.
+
+- **Coaches and boats you can ride**: the stables' and docks' rows write
+  their routes in the stock columns, the designers' way — destination and
+  area code, departure weekdays, days of travel — and the counter reads them
+  back as a timetable. Ride on a departure day and the fare is paid, the
+  clock advances the route's own days, and the party stands on the
+  destination map. The fare scale and the arrival point are this engine's
+  and say so.
+
+- **Monsters that collide**: they no longer walk through walls, buildings,
+  trees or each other, or stand inside the party to attack it — and the party
+  cannot walk through them either. Trees block them
+  by the radius `DDECLIST.BIN` gives each kind — a field that had been unknown,
+  and that no two decorations on a map are ever placed closer together than.
+
+- **Monsters that move, and that are drawn from the side you see them from**:
+  each wanders near where it started, as far and as fast as its `MONSTERS.TXT`
+  row says, and turns toward you — or away, if it is a Wimp — when you come
+  within range its AI type decides. The frame table's five views turned out to
+  be angles relative to the viewer rather than compass headings, measured by
+  the left-right symmetry of all 1,153 directional frames, so a monster now
+  shows you its front, its profile or its back.
+
+- **Monsters, spawned the way the map asks for them**: an outdoor map ships no
+  wandering monsters, only places where they appear. Each spawn point names one
+  of the map's three `MapStats.txt` encounter slots, the slot names a monster
+  and how many of it appear, and all 138 filled slots across the 79 maps
+  resolve to a `MONSTERS.TXT` row. All fifteen outdoor maps now populate — 62
+  monsters in Sweet Water, 260 in New Sorpigal — placed on the ground around
+  their points, from a seed fixed by the map so a place always populates the
+  same way.
+- Typed views over **how NPCs react**: `npcbtb.txt` says which of begging,
+  bribing and threatening works on each personality, and how each phrases the
+  twenty-four things it can say. All twelve personalities the professions name
+  are described there, and the file states the matrix three times over — in the
+  column headings, in the three rows, and in which messages a personality has
+  at all — agreeing on all 39 pairs. Plus `GLOBAL.TXT`, the 596 interface
+  strings the original drew on its panels.
+- Typed views over the **journal**: `Quests.txt`, `Awards.txt` and
+  `Autonote.txt` — 512 quest bits, 100 awards and 128 categorised automatic
+  notes. Only 52 quest bits carry player-facing text; the rest are recorded as
+  the blanks they are.
+- Typed views over the **character tables**: `Spells.txt` (99 spells across
+  nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
+  and `SkillDes.txt`. `data_info --spells Fireball` prints one.
+- A portable install/data-path layer (no drive letters, registry, or hardcoded
+  paths).
+
+
+### The interface, in the game's own art
+
+- **The aimed monster shows its blood**: the original's `MHP` bar stands
+  across the viewport's top when something is in the sights — the backing
+  and its end caps the art's own, the fill strip green, yellow or red as
+  the target falls (the two thresholds are the engine's, marked).
+
+- **The dungeon doors invite you in**: the entrance establishments join
+  their maps by name — 34 of the 39 rows match a MapStats display name
+  exactly, the five lords' castle doors matching none because the
+  original gave them no maps — and walking up to one now shows the
+  mouth's own video with a single choice: Enter descends.
+
+- **The sheet grew its four pages**: the character sheet now turns
+  between the game's own framed pages — `fr_stats` with attributes,
+  conditions and the class's words, `fr_skill` with every skill and its
+  raise price, `fr_inven` standing the paperdoll itself, `fr_award` with
+  the honors in full — left and right arrows turning the leaf.
+
+- **Rest at the campfire**: R raises `restmain`'s own camp panel — the
+  three plates offering the eight-hour rest, sleep timed to end at dawn,
+  or an hour by the fire, the food counted beside the apple and the hour
+  on the marble slab — clicked or keyed, with the exit plate folding the
+  blanket.
+
+- **The game opens like the game**: `MM6TITLE.PCX` and its four plates
+  stand in front now — New Game walks into the creation hall, Load pulls
+  the saved slot, Credits says whose art this is, Exit leaves — clicked
+  or keyed, with the world holding its breath underneath until a choice
+  is made.
+
+- **The shops show their wares**: the stock list became a rack — each
+  item's own art hanging at full length in the room, prices staggered
+  beneath, the arrows walking a gold border along the shelf and Enter
+  buying what it holds, with the picked piece named above. The digits
+  still work for the impatient.
+
+- **The sheet and the chest take their art**: the character sheet's
+  numbers now sit inside `fr_stats`' own gilded boxes, and an opened
+  chest shows its own face — the record's first word turned out to be
+  the `DCHEST.BIN` row, whose art column numbers the `CHEST01`..`08`
+  screens, closing half of that record's old open question — with the
+  finds written on the planks and any key closing the lid.
+
+- **The rooms come alive**: the service and talk screens play their
+  interiors live — one Smacker decoder stepped at the video's own frame
+  rate, each frame written over the cached still so every screen sees
+  the forge fire move through its ordinary lookup, and each frame's
+  DPCM audio chunk fed to a streaming room voice in the mixer: the
+  tavern murmurs while you trade. Closing the screen stops both.
+
+- **The interiors play**: the seating chart is in use — each
+  establishment's service screen and its people's talk screens stand on
+  the first frame of its own `Anims*.vid` interior, dimmed to half under
+  the words: Caine at his forge behind the weapon list, the apothecary
+  among their bottles, every guild in its own hall. An install without
+  the Anims archives falls back to the marble panel, honestly.
+
+- **The hourglass turns**: turn-based mode retired its text tag for the
+  game's own `HGLAS` hourglass, standing in the corner readout and
+  stepping through its 80 frames as rounds resolve.
+
+- **The services take the marble too**: temple, bank, training hall,
+  travel desk and shop all stand `BACKEVT`'s panel on the left with the
+  establishment's name, trade and proprietor written down it, their
+  words beside it and their key legends on the `FOOTER` strip — the last
+  five debug-styled screens retired.
+
+- **Talk wears the game's face**: the conversation screen stands
+  `BACKEVT`'s marble panel on the left with the speaker's own `NPC###`
+  plate on it — the portraits join `NPCdata.txt` by row id, 396 of 398
+  exactly — and the words move beside the panel. The negative is filed
+  too: 2DEvents' Picture column (1..118) indexes neither the 39 shipped
+  `EVPAN` panels nor the 129 named shop videos by any order measured, so
+  everyone talks on the marble until that join closes.
+
+- **Party creation in the game's own hall**: `Makeme.pcx` is the whole
+  screen — four marble columns whose oval seats (at the art's own x 17,
+  176, 334, 493) hold the creation portraits, names on their plates, each
+  character's class and rolled numbers down their green slab, the chosen
+  class described along the bottom panel, under the `MAKESKY`/`MAKETOP`
+  band. Same keys as before; the rolls still say they are this engine's.
+
+- **The maps page, for real**: the globe book no longer apologizes.
+  Outdoors it draws the 128x128 tilemap with every cell in its own ground
+  art's average colour — Sweet Water's roads, lake and mountains read at
+  a glance — and indoors it traces the floor plan from the BLV's own
+  upward faces, with the party's red arrow on both. The cells and floors
+  are the maps' own; the flat-colour reading and the projection are the
+  engine's.
+
+- **The frame answers the mouse**: M frees the cursor, and the painted
+  furniture works — the shelf's sword book opens the quest journal, the
+  quill the establishment notes, the key the calendar on `TIME_BG`'s own
+  page (the globe's maps page honestly says it is not written yet); the
+  four medallions cast, rest, open the spell book and save; a click on a
+  portrait's oval seat opens that member's sheet. The zones are read off
+  the panels' own art.
+
+- **The spell book, in its own art**: B opens the `Book` page over the
+  viewport with the game's school tabs down its edge and every known
+  spell wearing its `FIRE004`-style icon — the same school-and-number
+  naming the projectiles fly by. Arrows browse, Enter readies, and the
+  cast key then throws the player's own choice instead of the "best
+  damage wins" heuristic. This install ships no Water icons and only
+  Light's emblem, so those spells stand as their names, honestly.
+
+- **The game's own screen furniture**: the main view now sits in the
+  original frame — the border strips, the right column with its windows,
+  book buttons and medallions, the portrait bar whose measured oval seats
+  hold the party's faces with the green hits and blue mana gauges standing
+  in the bar's own grooves, and the footer strip carrying the message
+  line. The two big panels ship as PCX inside the standard container, so
+  the engine grew a PCX reader (see `docs/formats/interface-panels.md`).
+
+- **Nine save slots**: F5 and F9 speak to the current slot, F6 turns to
+  the next and says what it holds — the map's name and the day, read off
+  the save itself — with slot 1 keeping the old single file's name so
+  existing saves survive.
+
+- **The pack obeys its cursor**: wearing, drinking and mixing all start
+  from the chosen cell when the pack is open — the sell key already did —
+  falling back to the old first-found walk otherwise. Reading scrolls stays
+  a world verb: it casts at what the party aims at.
+
+- **The faces react**: the portrait families' 53 frames gave up their
+  meanings to a contact sheet — the green poisoned face, the stone-grey
+  petrified one, the slumped sleeper, the corpse, the wince — and the party
+  strip now wears them: four portraits above the text, each in the frame
+  its condition picks, flinching for half a second when a blow lands. The
+  frame naming is an observation of the shipped art and says so.
+
+- **Wizard Eye opens the corner automap**, exactly where its prose puts it
+  — "the upper right corner ... while outdoors", an hour per point of
+  skill — showing what each rank cell says: monsters, treasure at expert,
+  points of interest at master. The window's reach and the dot colours are
+  the engine's; the hired Cartographer keeps it lit at expert as their row
+  promises. `--eye` lights it for reproducing.
+
+- **A journal at last**: J opens the page the walker has been keeping all
+  along — every held quest bit's note in `Quests.txt`'s own words, the
+  honors beneath — and `--journal` opens it from the command line for
+  reproducing.
+
+- **Equipment slots**: ten of them, and which one an item goes in is its own
+  `ITEMS.TXT` equip type — weapons, missiles and two-handers to the hand, the
+  rest where the table says. **E** in a pack wears the first thing that can be
+  worn and puts back whatever it replaces. A character now swings what is in
+  their weapon slot rather than whatever happened to be first in the pack, and
+  armour's flat modifier counts toward armour class while a weapon's dice do
+  not.
+
+- **Loot you can pick up, and somewhere to put it**: walk over a thing lying
+  on a map and the first character with room takes it. **I** opens a pack,
+  drawn with the game's own item icons — all 229 of them resolve out of
+  `icons.lod` — on a grid, with what each thing is and what it is worth.
+
+- **A paperdoll, dressed**: the pack screen stands the character's own doll
+  beside the grid — twelve uniform 112x298 bodies in `icons.lod`, lettered
+  the way the twelve portraits are — and draws what is worn at the
+  `Equip X`/`Equip Y` point `ITEMS.TXT` gives each item. The items place the
+  body itself: every boot's art bottoms out at row 350 and the helms centre
+  on one column, which pins the doll at (504, 52) with the panel flush in
+  the corner. Body armor swaps the torso for its own overlay — chain drapes
+  the shoulders, plate reaches the boots — and a cloak's larger half hangs
+  behind the body. See `docs/formats/paperdoll.md`, and reproduce the
+  measurements with `doll_info`.
+
+- **A party, and the character sheet**: four characters with the game's own
+  portraits — twelve faces of 53 frames each, found in `icons.lod` — named from
+  `npcnames.txt`, classed from `Class.txt`, and laid out with the field names
+  `stats.txt` itself lists, in its order. **C** opens the sheet and **1**-**4**
+  choose whose. What a character *starts* with is not in any shipped table, so
+  those numbers are this engine's and say so where they are defined.
+
+
+### Combat, both ways
+
+- **The monsters' spells fly and speak**: a caster's cast — already
+  rolled from the table's own "Spl,Mas,Skil" cell at its written mastery
+  and skill — now flies its school's bolt at the party and plays the
+  spell's own sound, the same two joins the party's casting uses; and a
+  caster with no Miss-column missile can finally cast across the missile
+  band instead of waiting to be cornered. The liches stop swinging fists.
+
+- **The party fires back**: the best damage spell somebody knows flies at
+  what the party aims at, out to the same missile band the monsters shoot
+  across — a bolt in the school's own art (`fire04` is Fire Bolt, and the
+  Water school's prefix is `cold`), the blow landing on arrival at the
+  prose's numbers scaled by the caster's rank, with the `X`-variant burst
+  flashing where it hit.
+
+- **Wands cast their charges**: a wand equips as a weapon — "you must equip
+  it as though you were equipping a weapon", the rows' own instruction — and
+  X waves it first: its Mod1 S-number is the spell, its Mod2 the fresh
+  charge count, the generator's rolled charges riding the item through
+  packs and saves. A charge burns per cast; a spent wand says so.
+
+- **Turn-based combat**: Enter holds the world's breath, the original's own
+  toggle. Time then flows only in rounds a party action spends — a strike,
+  a cast, a scroll — each advancing the fight, the wanderers, the launches
+  and the clock by one engine-own second, everything inside it still running
+  on the tables' numbers. Enter again and time flows free.
+
+- **The party can lose**: four down means somebody drags them back to the
+  last town — a week gone, the name dented ten points, everyone waking at a
+  single hit point with their conditions shaken off. Every number is the
+  engine's own and says so; the tables never speak of defeat.
+
+- **Magic items finally bite**: the generator's rolls ride the items now —
+  through packs, purchases, saves and onto the body — and wearing them
+  grants what the tables say: a standard bonus's own stat column at its
+  rolled strength (the seven attributes, resistances, AC, hit and spell
+  points), and the special bonuses' parsed prose — "+10 to all
+  Resistances", "Adds 6-8 points of Cold damage" rolling apart on every
+  swing and answered by its own element. Names follow their affixes' own
+  shapes: "Longsword of Might", "Vampiric Dagger". What the prose doesn't
+  phrase in numbers stays prose, honestly.
+
+- **The fight found its range**: a monster whose Miss column names a
+  missile — Arrow, Fire, Elec, Cold, Pois, Ener, Magic — now attacks from
+  afar, its shot flying as a frame-table sprite (the arrow's own "ARRA", the
+  elements' bolt families; the sprite picks and the shared range are the
+  engine's). A drawn bow — the Missile equip type, the item table's word —
+  answers over the same ground while everyone else needs arm's length.
+
+- **Torch Light and Lloyd's Beacon**: the torch brightens the indoor lamp
+  for its cell's own hour per point of skill (this renderer has no light
+  radius, so the whole lamp glows — marked as our reading); Lloyd's places
+  one marker at normal rank exactly as its cell writes — cast once to set
+  it, cast again to return and burn it, decaying in an hour per point —
+  both kept in the save.
+
+- **The cures close the loop**: Cure Poison, Cure Disease, Remove Fear,
+  Awaken, Remove Curse, Cure Weakness, Cure Paralysis and Cure Insanity lift
+  exactly the conditions their first sentences name — in the monster
+  column's own vocabulary, misspellings included — from the first sufferer,
+  or the whole party where Awaken says "all". The H-cast prefers a cure when
+  someone is afflicted, above heals, above smiting.
+
+- **The travel spells cash in**: Fly grants the engine's existing flight for
+  its rank cell's own minutes per point of skill, outdoors only as its prose
+  insists, and Town Portal behaves exactly as written — a 10% chance per
+  point of Water skill, to "the last town visited" at a normal-rank scroll,
+  with the Gate Master's daily master-rank cast giving the promised choice of
+  destination (P opens the list of towns seen, kept in the save). The Wind
+  Master's daily two hours of Fly lift at dawn. What counts as a town — an
+  outdoor map with counters — is the engine's own reading, and says so.
+
+- **The chests fight back**: `MapStats.txt`'s "Trap 0-10" column finally
+  gates something — a chest on a trapped map may blast the party for the
+  difficulty's worth of dice, defused outright when the best Disarm Traps
+  reaches the map's own number and dodged at five percent a point of
+  Perception ("increases chance to avoid traps", the table's line). Which
+  chests are trapped, the dice and both scales are the engine's own and say
+  so; the Tinkers, Locksmiths, Scouts and Psychics finally earn their wages.
+
+- **Loot arrives unknown**: `ITEMS.TXT`'s two unread columns now work —
+  found things above their `ID/Rep/St` difficulty show only their own
+  "Not identified name" and keep their worth hidden, until the party's
+  Identify skill reaches the item's number, a hired Scholar's unlimited eye
+  sees it, or a counter names everything for a tenth of its value (Y at any
+  shop, answered by the merchant table's own Identify line).
+
+- **The fight's conditions cut both ways**: Mass Fear, Slow, Paralyze and
+  Charm now do to monsters exactly what their prose says — fear holds their
+  blows and breaks on damage, slow doubles their recovery, paralysis pins
+  them where they stand and cannot retaliate, charm calms until hurt — for
+  the "3 minutes per point of skill" their own descriptions state, read by
+  the same duration parser the buffs use.
+
+- **Loot from kills**: `MONSTERS.TXT`'s treasure column is a format, not a
+  note — a chance, a roll of gold and an item level with a kind — and all 145
+  coded rows parse. A kill pays what its own row says: the gold goes to the
+  purse, and the item is rolled by the same generator that fills chests and
+  shelves, since every kind the codes name is a selector it already takes.
+
+- **Fighting, with consequences**: a monster flinches into its Wince animation
+  when hit and keeps its Death picture where it fell; the party splits the
+  experience the monster's own row is worth; a character at zero hit points
+  goes down, stops swinging and stops being a target. Every monster carries
+  eight animation names and 1,382 of the 1,384 resolve, so the pictures are the
+  game's own. **Space** strikes whatever you are aiming at within reach, with
+  the weapon that character is carrying — a longsword rolls the `3d3` its own
+  `ITEMS.TXT` row gives — and the monsters strike back on the recovery their
+  rows give, for the damage their rows give, answered by the resistances their
+  rows give. The damage notation parses everywhere it appears: 212 of 212
+  monster attacks and 78 of 78 weapons. What a *character* hits for is not in
+  any table, and is marked as this engine's where it is defined.
+
+- **The monsters' whole dirty vocabulary**: the on-hit column's 38 values
+  mostly land now — `DrainSP` drains, `Stealx2` cuts the purse, `Agex3` puts
+  years on, `Disease1..3` runs poison's scaffold at half pace, and the three
+  `Brk` words break the slot they name: a broken sword swings as a fist, a
+  broken hauberk counts for nothing, and **F** at any counter mends it all
+  for half value in the merchant table's own Repair words. And the named
+  conditions now bite: the asleep and the paralyzed act for nobody until
+  struck awake, cured or rested; the afraid keep their feet but lose their
+  swing; a character at zero hit points is down, a blow that lands on the
+  downed kills them, and a night's rest wakes the knocked-out at a single
+  hit point while the dead wait for a temple whose row does not say "No
+  Dead". Triggers, levels and the temples' ceilings are the tables';
+  magnitudes, the one-in-five, and the conditions' rules are this engine's,
+  marked `inferred`.
+
+- **Poison, and being knocked out**: the first conditions. The monster
+  table's on-hit column names them — `Poison1x5`, `Uncon` — and the herbs
+  and potions write both ends: Poppysnaps "Set Poison1 condition", Cure
+  Poison and Restoration cure it. A poisoned character loses their poison's
+  level in hit points each game hour, down to the last point but not through
+  it, and the party strip says so. The levels and cures are the tables'; the
+  hourly rate and the one-in-five on-hit chance are this engine's.
+
+- **Buff scrolls with the sheet's own hours**: the four conditions the
+  potions set exist as spells too, and their rank cells write the duration —
+  "Duration 1 hour + 5 minutes per point of skill" — in phrasing the parser
+  now reads apart. A scroll of Haste, Bless, Heroism or Stone Skin sets the
+  same character condition the potion would, for exactly the written time at
+  the reader's level.
+
+- **Books that teach, casters that know**: all 99 spell books carry their
+  spell as the same S-number the scrolls use — one book per spell, 99 of 99
+  — and **U** on one follows the USEITEMS header's own rule: the character
+  learns it and the book is spent, or nothing happens if it is known.
+  **H** now casts from what a character actually knows, at the table's cost
+  and the prose's numbers: the best heal they can afford when someone is
+  wounded, else the best damage at what the party aims at. Knowledge rides
+  in the save; that only casters read, and what "best" means, are this
+  engine's.
+
+- **Monsters that cast**: `MONSTERS.TXT`'s spell column carries everything —
+  `"Fireball,N,5"` is the spell's name, its mastery, and a real skill value,
+  cast as often as the row's own percent says. The name resolves in
+  `Spells.txt` (tolerating the sheet's two typos), the prose's per-skill
+  dice roll at the written skill, and the character's own elemental
+  resistance answers. Fire Archers finally throw Fireballs, with no invented
+  numbers anywhere in the chain.
+
+- **Spells with the table's own numbers**: the damage and healing in
+  `Spells.txt`'s prose follow few enough phrasings to parse exactly — 25 of
+  99 spells yield their dice, every direct-damage spell and both heals.
+  **X** reads the first spell scroll anyone carries: Fire Bolt rolls its
+  written 1-4 per point of skill at what you aim at, answered by the
+  monster's own elemental resistance, and the paper is spent. **H** lets a
+  caster finally spend spell points — First Aid at the table's cost and
+  amount. Who reads, and level standing in for skill, are this engine's and
+  say so.
+
+- **Potions you can drink, from the alchemy's own table**: `USEITEMS.TXT`
+  turned out to hold the herbs and potions with their effects in the
+  designers' prose, their fates — a drunk potion becomes the empty bottle,
+  item 163, exactly as written — and a full mixing matrix where 50 pairs
+  combine and 390 explode in four written-out grades. **U** in a pack drinks
+  the first thing the table knows, applies its cures and says its effect in
+  the table's words; **M** pours the first potion into the second, yielding
+  the matrix's own answer — a new potion, or the graded explosion's fire
+  damage on the mixer. Spell scrolls carry their spell as an S-number in
+  `ITEMS.TXT`, and `Scroll.txt` is the message scrolls' full prose — the
+  Sulman letter is readable data.
+
+
+### The story, proven and running
+
 - **The conditional machinery, decoded and running**: seven more opcodes fall
   together as one machine — check-and-jump (its jump target is a step of its
   own event on 1,951 of 1,951 uses), give, take, set, goto, end, and a door
@@ -227,6 +694,7 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+
 - **Every grantor walks, on the record**: `evt_info --ledger walk` runs
   all 58 award-granting events through the walker — each with its checks
   satisfied, bare, and with each fact left out in turn — and asserts
@@ -234,136 +702,40 @@ interoperability and compatibility with a legally purchased copy.
   fixed two real walker bugs the sweep exposed: steps after a chest
   never ran (the obelisk event grants award 61 behind its chest), and
   class checks needed equality for the honorary branches to exist.
+
 - **The chronicle writes itself**: variable type 205 turned out to be
   the autonotes — its values are `Autonotes.txt` rows, the Seer writing
   the very stage its line speaks — so the walker now keeps the
   collected notes, the save carries them, and the journal grew a second
   page where the story's chronicle assembles itself as the events run.
-- **The skies half-seated themselves**: the exe's outdoor loader
-  carries `sky%02d` with `sky01` beside it — the fourteen panoramas are
-  the outdoor sky set with `sky01` its stated floor, now the engine's
-  default in place of its earlier guess; what number feeds the `%02d`
-  (month and weather are the untested candidates) is filed `unknown`.
-- **The aimed monster shows its blood**: the original's `MHP` bar stands
-  across the viewport's top when something is in the sights — the backing
-  and its end caps the art's own, the fill strip green, yellow or red as
-  the target falls (the two thresholds are the engine's, marked).
-- **The dungeon doors invite you in**: the entrance establishments join
-  their maps by name — 34 of the 39 rows match a MapStats display name
-  exactly, the five lords' castle doors matching none because the
-  original gave them no maps — and walking up to one now shows the
-  mouth's own video with a single choice: Enter descends.
+
 - **Three strangers came home**: the gamble on `GLOBAL.TXT` paid for
   %09, %10 and %16 — his/her, Lord/Lady and son/daughter sit at rows
   383-393, right where sir and morning already lived — and they now
   substitute by the listener's gender. %03 waits on modelling the
   speaker's gender; %07, %08, %13 and %14 stay honestly open.
+
 - **The award ledger, audited**: `evt_info --ledger` maps all 86 worded
   awards to their granting event or to "no script grants this" — 58
   script-granted, 28 orphans, and the orphans sort themselves: the
   seventeen guild memberships (counter services, which this engine
   already grants), the seven arena-and-bounty counters, Archibald's
   library, and three story honors whose mechanism stays unknown.
-- **The save file caught up**: the audit found three things the record
-  had outrun — each member's readied spell, the turn-based toggle and
-  the hourglass's count — now appended as new record kinds the old
-  parser skips and the old saves simply lack, round-tripped in the save
-  test. UI cursor state (the sheet's page, the book's tab) stays
-  deliberately unsaved.
-- **A sky over Enroth**: the ODM header's slot at 0x60 turned out to
-  name the sky — `plansky2` on New Sorpigal, empty elsewhere — and the
-  engine now drapes the named panorama (defaulting to `sky01`, the
-  loader's own stated floor) behind the terrain as a yaw-wrapped
-  cylinder, dimmed
-  by the same daylight the sun follows. What the fourteen `sky01`..
-  `sky14` panoramas are for remains an open lead.
+
 - **The placeholder gamble mostly paid**: the census of every `%NN`
   across the shipped prose first separated the false hits (MONSTERS'
   treasure codes) and then pinned five new codes by their own sentences
   — the reputation word, the hireling's gold percent, and the identify
   price now substitute alongside the six already known — with the seven
   strangers left open, each filed with its context.
-- **The portability claim has a witness**: a GitHub Actions workflow
-  runs the README's own three commands — `meson setup`, `ninja`,
-  `meson test` — on macOS, Linux and Windows runners, with a zlib wrap
-  added so Windows builds hermetically alongside the SDL3 and Catch2
-  wraps already in tree. Only the synthetic-fixture tests run there; the
-  game data never leaves the player's machine.
-- **The sheet grew its four pages**: the character sheet now turns
-  between the game's own framed pages — `fr_stats` with attributes,
-  conditions and the class's words, `fr_skill` with every skill and its
-  raise price, `fr_inven` standing the paperdoll itself, `fr_award` with
-  the honors in full — left and right arrows turning the leaf.
-- **The party found its voice**: the sound archive names its voice lines
-  exactly like the portrait frames — the sheet letter and a two-digit
-  line, a and b takes — so `portrait_entry` is the whole join. Each face
-  now speaks in its own voice when a wound crosses below half, on a
-  kill, waking from rest and reaching a level; which line serves which
-  moment is the executable's knowledge, and the four numbers used are
-  marked as the engine's picks.
-- **The loose-ends drawer, emptied and inventoried**: the door block's
-  second count word's high half is closed — it duplicates the vertex
-  count on 795 of 795 doors — while two measurements stay honestly open
-  with their refutations filed: the door attribute word is 1 on exactly
-  41 of 795 doors (no pattern tested fits), and the chest's last u16
-  splits 149/1191 along neither appearance nor contents.
-- **The walls that move, move**: `DTFT.BIN` decoded — DSFT's small
-  sibling, nineteen records in four loops verified against the same
-  shape — and the engine steps them, so the moss-and-wood wall breathes
-  and the two haunted paintings cycle. The water gamble half of this
-  item closed as a negative: no shipped table animates `WtrTyl`, and the
-  original's shimmer is most plausibly exe-held palette rotation, filed
-  `unknown` in `docs/formats/dtft.md`.
-- **The world sounds underfoot**: the party's footfalls play the
-  archive's own Walk/Run set keyed by the ground beneath — grass, snow,
-  desert, swamp, water, the stone hall indoors — off the tile art's own
-  names; a landed blow speaks in the weapon's voice (sword, axe, blunt,
-  arrow, light to heavy, by the weapon's own skill group); and the
-  title, frame and camp buttons click with the archive's Click set. Each
-  join is the engine's choice among the archive's names and says so.
-- **The chest grid closed the same way the third grid did**: the 140
-  i16s beside the chest's item slots are zero on all 187,600 cells
-  across the 1,340 shipped chests — runtime loot layout shipped empty.
-  `ddm_info` prints the nonzero count so the claim stays checkable; the
-  chest record now has exactly one unread u16 left.
-- **Rest at the campfire**: R raises `restmain`'s own camp panel — the
-  three plates offering the eight-hour rest, sleep timed to end at dawn,
-  or an hour by the fire, the food counted beside the apple and the hour
-  on the marble slab — clicked or keyed, with the exit plate folding the
-  blanket.
+
 - **The people move with the story**: the quest chain's opcode-40 moves
   now show — whoever it sends somewhere arrives off the full roster even
   from another map or from no establishment at all, and whoever it
   removes stays gone; the King's Library wears its three faces in turn —
   Archibald's statue until award 35, the freed king until he hands over
   the Ritual, the empty room after.
-- **The game opens like the game**: `MM6TITLE.PCX` and its four plates
-  stand in front now — New Game walks into the creation hall, Load pulls
-  the saved slot, Credits says whose art this is, Exit leaves — clicked
-  or keyed, with the world holding its breath underneath until a choice
-  is made.
-- **The third grid gamble closed at zero**: the 128x128 grid at 0x80B0
-  — the outdoor format's oldest unknown — ships as all zeroes on every
-  one of the fifteen maps, with the model array starting right behind
-  it: runtime state shipped empty, like the monster records' tails.
-  `odm_info` now prints its nonzero count so the claim stays checkable.
-- **The shops show their wares**: the stock list became a rack — each
-  item's own art hanging at full length in the room, prices staggered
-  beneath, the arrows walking a gold border along the shelf and Enter
-  buying what it holds, with the picked piece named above. The digits
-  still work for the impatient.
-- **The sheet and the chest take their art**: the character sheet's
-  numbers now sit inside `fr_stats`' own gilded boxes, and an opened
-  chest shows its own face — the record's first word turned out to be
-  the `DCHEST.BIN` row, whose art column numbers the `CHEST01`..`08`
-  screens, closing half of that record's old open question — with the
-  finds written on the planks and any key closing the lid.
-- **The rooms come alive**: the service and talk screens play their
-  interiors live — one Smacker decoder stepped at the video's own frame
-  rate, each frame written over the cached still so every screen sees
-  the forge fire move through its ordinary lookup, and each frame's
-  DPCM audio chunk fed to a streaming room voice in the mixer: the
-  tavern murmurs while you trade. Closing the screen stops both.
+
 - **Award 35 found its house**: "Freed Archibald" is granted by no
   script — but everything about it converges on the King's Library on
   map D3, whose three 2DEvents rows are the statue, freed and gone
@@ -371,135 +743,7 @@ interoperability and compatibility with a legally purchased copy.
   plates. The executable does the swap and the grant; the engine now
   reads walking in as the deed, with the true precondition filed as
   unknown.
-- **The evpan gamble came up empty, on the record**: the number behind
-  the exe's `evpan%03d` was hunted through every script opcode's
-  argument sets and every numeric column of `2DEvents.txt`, and nothing
-  covers the 39 shipped panels without drowning them in strays — filed
-  as the honest negative, with the outdoor model records and the
-  executable named as the remaining suspects.
-- **The doors slide**: a thrown lever no longer teleports geometry — the
-  door's vertices travel between their shut and open stations at the
-  file's own open and close speeds, read as world units a second (three
-  seconds for Goblinwatch's stone slabs), with collision following the
-  faces while they move.
-- **The interiors play**: the seating chart is in use — each
-  establishment's service screen and its people's talk screens stand on
-  the first frame of its own `Anims*.vid` interior, dimmed to half under
-  the words: Caine at his forge behind the weapon list, the apothecary
-  among their bottles, every guild in its own hall. An install without
-  the Anims archives falls back to the marble panel, honestly.
-- **The backdrop gamble paid in full**: the 2DEvents Picture column's
-  target was recovered from the game's own executable — `MM6.exe`'s
-  EVENTS.CPP string block lists the interior-video names, and read in
-  descending address order from `blcksrch` they number exactly 1..118.
-  Every anchor checks: smithies under the weapon shops, each guild on
-  its school's screen, the P/M/R houses on their own rooms, the Seer in
-  the poor oracle's hut, all twenty dungeon entrances in order. The
-  mapping ships in `data_info --backdrops`; playing the interiors on the
-  service screens is now one join away.
-- **The hourglass turns**: turn-based mode retired its text tag for the
-  game's own `HGLAS` hourglass, standing in the corner readout and
-  stepping through its 80 frames as rounds resolve.
-- **The services take the marble too**: temple, bank, training hall,
-  travel desk and shop all stand `BACKEVT`'s panel on the left with the
-  establishment's name, trade and proprietor written down it, their
-  words beside it and their key legends on the `FOOTER` strip — the last
-  five debug-styled screens retired.
-- **The Misc Special gamble closed in one measurement**: the monster
-  table's last prose column turned out to hold no prose at all — a
-  literal 0 on every one of the 173 rows, vestigial like the Quest
-  column beside it. The whole of `MONSTERS.TXT` is now either read and
-  running or measured empty; `data_info --riders` reproduces the sweep.
-- **Talk wears the game's face**: the conversation screen stands
-  `BACKEVT`'s marble panel on the left with the speaker's own `NPC###`
-  plate on it — the portraits join `NPCdata.txt` by row id, 396 of 398
-  exactly — and the words move beside the panel. The negative is filed
-  too: 2DEvents' Picture column (1..118) indexes neither the 39 shipped
-  `EVPAN` panels nor the 129 named shop videos by any order measured, so
-  everyone talks on the marble until that join closes.
-- **The monsters' spells fly and speak**: a caster's cast — already
-  rolled from the table's own "Spl,Mas,Skil" cell at its written mastery
-  and skill — now flies its school's bolt at the party and plays the
-  spell's own sound, the same two joins the party's casting uses; and a
-  caster with no Miss-column missile can finally cast across the missile
-  band instead of waiting to be cornered. The liches stop swinging fists.
-- **The last monster columns, measured**: `Hst` is hostility — zero on
-  exactly the nine Wimp peasants, four on the other 164; `Rec` is the
-  blow-to-blow recovery, 40..100 read as hundredths of a second; and
-  every one of `Bonus`'s 39 distinct on-hit words now lands on an engine
-  rider — the census found three that used to fall through, so monsters
-  whose word is `Stone`, `Dead` or `Errad` now petrify, kill and
-  eradicate as written. Reproduce with `data_info --riders`.
-- **Party creation in the game's own hall**: `Makeme.pcx` is the whole
-  screen — four marble columns whose oval seats (at the art's own x 17,
-  176, 334, 493) hold the creation portraits, names on their plates, each
-  character's class and rolled numbers down their green slab, the chosen
-  class described along the bottom panel, under the `MAKESKY`/`MAKETOP`
-  band. Same keys as before; the rolls still say they are this engine's.
-- **The maps page, for real**: the globe book no longer apologizes.
-  Outdoors it draws the 128x128 tilemap with every cell in its own ground
-  art's average colour — Sweet Water's roads, lake and mountains read at
-  a glance — and indoors it traces the floor plan from the BLV's own
-  upward faces, with the party's red arrow on both. The cells and floors
-  are the maps' own; the flat-colour reading and the projection are the
-  engine's.
-- **The gamble split down the middle**: whether `Dif 1-5` picks a spawn's
-  A/B/C letter could not be read from the shipped placements — only 17 of
-  the 340 placed actors match an encounter slot at all, noise over five
-  difficulties, filed as the honest negative — but the cross-tab cracked
-  a different unknown on the way: the actor record's variant byte at
-  +0x35 **is** the letter, 1=A 2=B 3=C on 319 of 340, with a shared value
-  15 and three stragglers left honestly open. Reproduce with
-  `ddm_info --variants`.
-- **The bodies take up space**: the monster record's height and radius
-  now govern the world — the party keeps a body's radius away instead of
-  walking through titans, aiming casts a ray against each monster's own
-  cylinder so a dragon is hard to miss and a bat hard to hit, and the Fly
-  column's riders hover one body height up, the record's own number in
-  place of the engine's old constant.
-- **The frame answers the mouse**: M frees the cursor, and the painted
-  furniture works — the shelf's sword book opens the quest journal, the
-  quill the establishment notes, the key the calendar on `TIME_BG`'s own
-  page (the globe's maps page honestly says it is not written yet); the
-  four medallions cast, rest, open the spell book and save; a click on a
-  portrait's oval seat opens that member's sheet. The zones are read off
-  the panels' own art.
-- **The spell book, in its own art**: B opens the `Book` page over the
-  viewport with the game's school tabs down its edge and every known
-  spell wearing its `FIRE004`-style icon — the same school-and-number
-  naming the projectiles fly by. Arrows browse, Enter readies, and the
-  cast key then throws the player's own choice instead of the "best
-  damage wins" heuristic. This install ships no Water icons and only
-  Light's emblem, so those spells stand as their names, honestly.
-- **The monster record, read to the last field**: the 34 silent bytes of
-  `DMONLIST.BIN` gave up their meaning — a height and radius in world
-  units at the front (bats at 56, Dragons at 487, spiders wider than
-  tall), four sound ids stated outright (the Guards' fidget skips an id,
-  refuting the old base-plus-offset reading the engine now no longer
-  uses), a constant 140 whose meaning stays honestly `unknown`, and
-  twenty zeroed bytes of runtime scratch. Reproduce with
-  `sft_info --body`.
-- **The game's own screen furniture**: the main view now sits in the
-  original frame — the border strips, the right column with its windows,
-  book buttons and medallions, the portrait bar whose measured oval seats
-  hold the party's faces with the green hits and blue mana gauges standing
-  in the bar's own grooves, and the footer strip carrying the message
-  line. The two big panels ship as PCX inside the standard container, so
-  the engine grew a PCX reader (see `docs/formats/interface-panels.md`).
-- **The party fires back**: the best damage spell somebody knows flies at
-  what the party aims at, out to the same missile band the monsters shoot
-  across — a bolt in the school's own art (`fire04` is Fire Bolt, and the
-  Water school's prefix is `cold`), the blow landing on arrival at the
-  prose's numbers scaled by the caster's rank, with the `X`-variant burst
-  flashing where it hit.
-- **Nine save slots**: F5 and F9 speak to the current slot, F6 turns to
-  the next and says what it holds — the map's name and the day, read off
-  the save itself — with slot 1 keeping the old single file's name so
-  existing saves survive.
-- **The pack obeys its cursor**: wearing, drinking and mixing all start
-  from the chosen cell when the pack is open — the sell key already did —
-  falling back to the old first-found walk otherwise. Reading scrolls stays
-  a world verb: it casts at what the party aims at.
+
 - **The opening arc, proven**: `evt_info --arc` walks New Sorpigal's first
   hours through the same code the game runs — the letter refused until
   held, the delivery's 1000 gold and topic rotation, the Goblinwatch
@@ -539,93 +783,7 @@ interoperability and compatibility with a legally purchased copy.
   fresh party now begins holding Sulman's letter, as the journal always
   claimed. It also recorded that neither the letter nor the combination
   scroll is ever taken — their events check for them and leave keepsakes.
-- **The Quest column, closed**: the monster table's last unread column is
-  zero on all 173 rows — vestigial. The quest items travel through the
-  event scripts' gives, as the walker already delivers them.
-- **The streets talk back**: T stops any of the monster table's own
-  civilians — the hostility-zero Peasant rows — and a passerby persona
-  assembles from the tables: a name from `npcnames.txt` by the sprite's own
-  gender letter, the Peasant personality's reputation-gated greeting, and
-  the same beg, bribe and threaten levers as anyone indoors, rumors and
-  refusals in the table's wording. The assembly is the engine's; every word
-  is a table's.
-- **The monster table, read to the last column**: the second attack swings
-  at its own Att% (whose 10..30 values betray it as the second's chance
-  despite the header's grouping — a Cobra's poison fangs at 20), the Fly
-  column lifts its bearers off the ground, and Pref aims monsters at the
-  classes its initials name — the Terrible Eye goes for "D,S", the casters.
-  The dozen digit-valued Pref rows are filed unknown.
-- **The casts ring true**: the sound archive names spells by their own
-  `Spells.txt` rows — `04firebolt01`, `31townportal03`, `21fly03` — so every
-  scroll, wand wave, H-cast, portal and beacon now plays its spell's own
-  sound through that join (91 of 99 ids have one). Bows release with
-  `ArchShoot` and blades land with the archive's sword hits, those two picks
-  the engine's own and marked.
-- **Wands cast their charges**: a wand equips as a weapon — "you must equip
-  it as though you were equipping a weapon", the rows' own instruction — and
-  X waves it first: its Mod1 S-number is the spell, its Mod2 the fresh
-  charge count, the generator's rolled charges riding the item through
-  packs and saves. A charge burns per cast; a spent wand says so.
-- **Turn-based combat**: Enter holds the world's breath, the original's own
-  toggle. Time then flows only in rounds a party action spends — a strike,
-  a cast, a scroll — each advancing the fight, the wanderers, the launches
-  and the clock by one engine-own second, everything inside it still running
-  on the tables' numbers. Enter again and time flows free.
-- **The faces react**: the portrait families' 53 frames gave up their
-  meanings to a contact sheet — the green poisoned face, the stone-grey
-  petrified one, the slumped sleeper, the corpse, the wince — and the party
-  strip now wears them: four portraits above the text, each in the frame
-  its condition picks, flinching for half a second when a blow lands. The
-  frame naming is an observation of the shipped art and says so.
-- **The party can lose**: four down means somebody drags them back to the
-  last town — a week gone, the name dented ten points, everyone waking at a
-  single hit point with their conditions shaken off. Every number is the
-  engine's own and says so; the tables never speak of defeat.
-- **The dungeons found their lights**: the section after the BLV decoration
-  block is the level's static lights — 12-byte records of position,
-  brightness (31 on every shipped record) and radius, every point inside
-  its map's own bounds on 48 of 52 maps — and the walker bakes them per
-  face, so Goblinwatch's sconces light their own corners over a dim floor.
-  The falloff curve is the engine's; the lights are the file's. The
-  tree-shaped section after them is logged as the likely BSP, the next lead.
-- **Magic items finally bite**: the generator's rolls ride the items now —
-  through packs, purchases, saves and onto the body — and wearing them
-  grants what the tables say: a standard bonus's own stat column at its
-  rolled strength (the seven attributes, resistances, AC, hit and spell
-  points), and the special bonuses' parsed prose — "+10 to all
-  Resistances", "Adds 6-8 points of Cold damage" rolling apart on every
-  swing and answered by its own element. Names follow their affixes' own
-  shapes: "Longsword of Might", "Vampiric Dagger". What the prose doesn't
-  phrase in numbers stays prose, honestly.
-- **The drawer, emptied**: Lloyd's Beacon now honors its expert and master
-  cells — "3 Beacons", "5 Beacons", decaying in their written days and weeks
-  per point — through a place-or-recall list; the shops' opens/closes
-  columns finally bar the door, a shut counter naming its hours instead of
-  trading; and the lock column joins the trap column on the chests — a
-  locked chest stays shut until the party's best Disarm reaches the map's
-  own number.
-- **Wizard Eye opens the corner automap**, exactly where its prose puts it
-  — "the upper right corner ... while outdoors", an hour per point of
-  skill — showing what each rank cell says: monsters, treasure at expert,
-  points of interest at master. The window's reach and the dot colours are
-  the engine's; the hired Cartographer keeps it lit at expert as their row
-  promises. `--eye` lights it for reproducing.
-- **A journal at last**: J opens the page the walker has been keeping all
-  along — every held quest bit's note in `Quests.txt`'s own words, the
-  honors beneath — and `--journal` opens it from the command line for
-  reproducing.
-- **The fight found its range**: a monster whose Miss column names a
-  missile — Arrow, Fire, Elec, Cold, Pois, Ener, Magic — now attacks from
-  afar, its shot flying as a frame-table sprite (the arrow's own "ARRA", the
-  elements' bolt families; the sprite picks and the shared range are the
-  engine's). A drawn bow — the Missile equip type, the item table's word —
-  answers over the same ground while everyone else needs arm's length.
-- **Torch Light and Lloyd's Beacon**: the torch brightens the indoor lamp
-  for its cell's own hour per point of skill (this renderer has no light
-  radius, so the whole lamp glows — marked as our reading); Lloyd's places
-  one marker at normal rank exactly as its cell writes — cast once to set
-  it, cast again to return and burn it, decaying in an hour per point —
-  both kept in the save.
+
 - **A name the world reacts to**: the party carries reputation and fame,
   and `npcbtb.txt`'s thirteen gated greetings finally gate — the notorious
   get "Oh No! Please don't hurt me", the saintly an honor, the unknown
@@ -634,22 +792,14 @@ interoperability and compatibility with a legally purchased copy.
   and the Pirate's, Gypsy's, Duper's and Burglar's written "one full
   category" of reputation finally costs one while they're kept. The bands
   and prices are the engine's own and say so.
-- **The counter buys back properly**: the pack screen grew a cursor — arrows
-  choose a cell, the line above names the thing and what an open counter
-  would pay, and S sells exactly that, at the offer price bent toward the
-  item's value by the same Merchant reading the buy side uses, never past
-  the value itself.
-- **Beg, bribe and threaten, in their own words**: the three approaches the
-  talk screen has always advertised now work — keys 5, 6 and 7, answered in
-  each personality's own `npcbtb.txt` phrasing, acceptance, refusal and the
-  "I already said no" for pressing twice. A success coaxes a rumor off the
-  news table; the rumor's pick and the fifty-gold bribe are the engine's.
+
 - **The hurt opcode, decoded**: opcode 9 is `[target][element][amount]` —
   the element in the resistance columns' own order, vouched for by the
   Pyramid's six trap rooms sweeping every type, poison in the sewer and at
   Sweet Water's wells, electricity in the Control Center. Cave-ins, trap
   floors and poisoned wells now hurt, answered by each victim's own
   resistance like any blow.
+
 - **The last currency named**: variable type 22 is found gold — the mine's
   "Gold vein" digs, the sewer's stashes, D13's rising piles — `inferred`
   from the finds' own labels, and it is exactly the "gold you find" the
@@ -659,88 +809,20 @@ interoperability and compatibility with a legally purchased copy.
   an 8.8 fixed-point scalar rather than any id, opcode 32's last dozen
   dangle for good, and a dice-shaped opcode 9 on the "Cave-in!" branches is
   logged as the next lead.
-- **Guild doors check their dues**: `Awards.txt` names a membership per
-  school — "Joined the Fire Guild" — and no shipped event sets any of them,
-  so the counters sell what the original's executable sold: the shelves
-  refuse non-members, J signs the roll at an engine-own hundred gold times
-  the guild's own Val, and the membership is worn on the sheet like any
-  honor, saved with the rest.
-- **The cures close the loop**: Cure Poison, Cure Disease, Remove Fear,
-  Awaken, Remove Curse, Cure Weakness, Cure Paralysis and Cure Insanity lift
-  exactly the conditions their first sentences name — in the monster
-  column's own vocabulary, misspellings included — from the first sufferer,
-  or the whole party where Awaken says "all". The H-cast prefers a cure when
-  someone is afflicted, above heals, above smiting.
-- **The travel spells cash in**: Fly grants the engine's existing flight for
-  its rank cell's own minutes per point of skill, outdoors only as its prose
-  insists, and Town Portal behaves exactly as written — a 10% chance per
-  point of Water skill, to "the last town visited" at a normal-rank scroll,
-  with the Gate Master's daily master-rank cast giving the promised choice of
-  destination (P opens the list of towns seen, kept in the save). The Wind
-  Master's daily two hours of Fly lift at dawn. What counts as a town — an
-  outdoor map with counters — is the engine's own reading, and says so.
-- **The chests fight back**: `MapStats.txt`'s "Trap 0-10" column finally
-  gates something — a chest on a trapped map may blast the party for the
-  difficulty's worth of dice, defused outright when the best Disarm Traps
-  reaches the map's own number and dodged at five percent a point of
-  Perception ("increases chance to avoid traps", the table's line). Which
-  chests are trapped, the dice and both scales are the engine's own and say
-  so; the Tinkers, Locksmiths, Scouts and Psychics finally earn their wages.
-- **Loot arrives unknown**: `ITEMS.TXT`'s two unread columns now work —
-  found things above their `ID/Rep/St` difficulty show only their own
-  "Not identified name" and keep their worth hidden, until the party's
-  Identify skill reaches the item's number, a hired Scholar's unlimited eye
-  sees it, or a counter names everything for a tenth of its value (Y at any
-  shop, answered by the merchant table's own Identify line).
+
 - **Promotions, a three-table join**: quest events set "Received Promotion
   to Crusader" awards, `Class.txt` holds the six ladders in row-order triples,
   and each promoted class's own prose prices itself — "an extra two hit
   points and spell points per level". Earning the award steps the matching
   characters up, pays the difference for the levels held, and keeps paying at
   the training halls; Honorary awards stay titles, worn on the sheet.
-- **Skills, read off their own table**: `SKILLDES.TXT` writes what each of
-  its 31 skills does in effect lines — "Skill added to Attack Bonus",
-  "...to Attack Damage", "...to Armor Class", "Skill adjusts shop prices in
-  your favor" — and the engine applies exactly those: weapon points ride the
-  to-hit roll and the damage where granted, armour and shield points join
-  the AC, a school's points are what its spells scale by, and a merchant in
-  the party haggles every counter. The expert and master lines wake at
-  engine-own thresholds and do what they say: stuns and triple blows at
-  odds "equal to skill", the Bow's second arrow, doubled and tripled
-  shields and discounts, faster swords. Points come five a level and are
-  spent on the sheet at an engine-own staircase; the hired Arms Masters,
-  Squires and merchants add their rows' bonuses to the same numbers.
-- **The fight's conditions cut both ways**: Mass Fear, Slow, Paralyze and
-  Charm now do to monsters exactly what their prose says — fear holds their
-  blows and breaks on damage, slow doubles their recovery, paralysis pins
-  them where they stand and cannot retaliate, charm calms until hurt — for
-  the "3 minutes per point of skill" their own descriptions state, read by
-  the same duration parser the buffs use.
+
 - **The honors have a home**: variable type 12 is an `Awards.txt` row on 193
   of 193 uses — Goblinwatch's reward sets 53, "Solved the Goblinwatch
   Combination", naming its own quest — so the character sheet now lists the
   honors the quests bestow, in the table's own words. Type 22 was tried
   against fame and reputation and stays honestly unknown.
-- **A party of your own**: starting the walker now opens on the creation
-  screen — the twelve portrait families, the six base classes of `Class.txt`
-  (its every third heading; the other twelve read as promotions), names from
-  `npcnames.txt`, and each class described in its own prose while you choose.
-  The attribute rolls are this engine's and the screen says so. Every tooling
-  flag skips the door; `--create` forces it open.
-- **The fight finds its voice**: each monster's DMONLIST record names its
-  four-sound `DSOUNDS.BIN` set at +0x08 — equal to the named set's base on 31
-  of 31 monsters whose sound names carry their own table id, a block id on
-  all 173 — so a swing plays that monster's attack sound and a kill its dying
-  one, through the same mixer the campfires and doors already use.
-  Reproduce with `sft_info --sounds`.
-- **Hired help from the streets**: talking to anyone with a trade offers H to
-  hire them at their `npcprof.txt` row's weekly cost, two seats as the
-  original's follower panel gives. Their benefit prose is read literally —
-  teachers' experience percents, guides shaving travel days, healers'
-  daily rounds, cooks making food, smiths mending for free, the Enchanter's
-  elemental wards, dawn casts of Bless and Heroism — and wages fall due
-  every seventh day; an unpaid party walks alone again. The "%17 percent of
-  gold" the prose threatens is in no column of the table, so nobody takes it.
+
 - **The reward types, named by their own prose**: a give-step and the number
   its event speaks sit side by side, and where they match, the word after the
   number names the type — experience (2,000 of it under Goblinwatch's
@@ -768,45 +850,77 @@ interoperability and compatibility with a legally purchased copy.
   outdoor map uses — so all 52 maps now decode exactly rather than by scanning,
   5,776 decorations in full 32-bit coordinates. One map gains six the scan had
   been rejecting. What lies before the block is still undescribed.
-- **Day and night**: outdoors the sky and the sun follow the clock — dark blue
-  before dawn, warm at the edges of the day, blue overhead at noon — and the
-  world is lit by where the sun actually is. **Tab** now marks each
-  establishment open or shut against the hours `2DEvents.txt` gives it, and
-  tells you what the trade inside talks about *today*: `PROFTEXT.txt` is
-  decoded, the largest table in the archive, and all 77 hireable professions
-  resolve with all 539 of their profession-days filled.
-- **Time, and somewhere to sleep**: a clock in the corner counting the hours,
-  the days and the seven weekdays `PROFTEXT.txt` names; **R** rests eight hours
-  and everyone still standing wakes up whole, unless something alive is close
-  enough to object. Each map refills with monsters on the interval its own
-  `MapStats.txt` row gives — 168, 224 or 672 days — and a map that ships
-  spawn points refills the way it filled: new groups rolled at its own
-  points from its own encounter slots, with the placed townspeople left
-  standing. A map of placed monsters stands its fallen back up instead.
-- **Equipment slots**: ten of them, and which one an item goes in is its own
-  `ITEMS.TXT` equip type — weapons, missiles and two-handers to the hand, the
-  rest where the table says. **E** in a pack wears the first thing that can be
-  worn and puts back whatever it replaces. A character now swings what is in
-  their weapon slot rather than whatever happened to be first in the pack, and
-  armour's flat modifier counts toward armour class while a weapon's dice do
-  not.
-- **Loot from kills**: `MONSTERS.TXT`'s treasure column is a format, not a
-  note — a chance, a roll of gold and an item level with a kind — and all 145
-  coded rows parse. A kill pays what its own row says: the gold goes to the
-  purse, and the item is rolled by the same generator that fills chests and
-  shelves, since every kind the codes name is a selector it already takes.
-- **Fighting, with consequences**: a monster flinches into its Wince animation
-  when hit and keeps its Death picture where it fell; the party splits the
-  experience the monster's own row is worth; a character at zero hit points
-  goes down, stops swinging and stops being a target. Every monster carries
-  eight animation names and 1,382 of the 1,384 resolve, so the pictures are the
-  game's own. **Space** strikes whatever you are aiming at within reach, with
-  the weapon that character is carrying — a longsword rolls the `3d3` its own
-  `ITEMS.TXT` row gives — and the monsters strike back on the recovery their
-  rows give, for the damage their rows give, answered by the resistances their
-  rows give. The damage notation parses everywhere it appears: 212 of 212
-  monster attacks and 78 of 78 weapons. What a *character* hits for is not in
-  any table, and is marked as this engine's where it is defined.
+
+- **The quest bank, reachable from the world**: of the faces whose event id
+  no map's own script defines, 66 of 88 name events of `GLOBAL.EVT`, the
+  shared script dense with quest checks and rewards — and using such a face
+  walks the global event. The "unheaded events" mystery also came apart: part
+  was another record framing misread (`OUT.EVT` and kin carry no sequence
+  byte), and the rest are ordinary event bodies that begin with work.
+
+- **Quests that speak and pay**: `GLOBAL.EVT`'s voice was found by content —
+  its letter event's two branches say `npctext.txt` rows 1 and 3, word for
+  word the *"Oh!  The Seal"* payoff and the *"you get no money!"* refusal —
+  which pinned the larger fact that topic id, prose row and global event
+  share one id space, 170 of 298 topics carrying logic. Ask Andover Potbello
+  about The Letter with item 505 in a pack and his event pays 1,000 gold and
+  advances the journal from bit 81 to 82; ask empty-handed and he refuses,
+  in his own words.
+
+- **Quest chains that move on**: opcodes 39 and 40 verify whole against the
+  NPC table — set one of an NPC's three topic slots (132 of 132 uses in
+  range) and move an NPC to an establishment or away (29 of 29). The engine
+  applies the rewrites when the party talks and keeps them in the save, so
+  after the letter is paid for, Andover offers his next topic, not the same
+  letter forever — and a person an event moves is really moved: gone from
+  their counter, standing at the new one when it is on the same map.
+
+
+### The people, and the counters between you
+
+- **The streets talk back**: T stops any of the monster table's own
+  civilians — the hostility-zero Peasant rows — and a passerby persona
+  assembles from the tables: a name from `npcnames.txt` by the sprite's own
+  gender letter, the Peasant personality's reputation-gated greeting, and
+  the same beg, bribe and threaten levers as anyone indoors, rumors and
+  refusals in the table's wording. The assembly is the engine's; every word
+  is a table's.
+
+- **The counter buys back properly**: the pack screen grew a cursor — arrows
+  choose a cell, the line above names the thing and what an open counter
+  would pay, and S sells exactly that, at the offer price bent toward the
+  item's value by the same Merchant reading the buy side uses, never past
+  the value itself.
+
+- **Beg, bribe and threaten, in their own words**: the three approaches the
+  talk screen has always advertised now work — keys 5, 6 and 7, answered in
+  each personality's own `npcbtb.txt` phrasing, acceptance, refusal and the
+  "I already said no" for pressing twice. A success coaxes a rumor off the
+  news table; the rumor's pick and the fifty-gold bribe are the engine's.
+
+- **Guild doors check their dues**: `Awards.txt` names a membership per
+  school — "Joined the Fire Guild" — and no shipped event sets any of them,
+  so the counters sell what the original's executable sold: the shelves
+  refuse non-members, J signs the roll at an engine-own hundred gold times
+  the guild's own Val, and the membership is worn on the sheet like any
+  honor, saved with the rest.
+
+- **A party of your own**: starting the walker now opens on the creation
+  screen — the twelve portrait families, the six base classes of `Class.txt`
+  (its every third heading; the other twelve read as promotions), names from
+  `npcnames.txt`, and each class described in its own prose while you choose.
+  The attribute rolls are this engine's and the screen says so. Every tooling
+  flag skips the door; `--create` forces it open.
+
+- **Hired help from the streets**: talking to anyone with a trade offers H to
+  hire them at their `npcprof.txt` row's weekly cost, two seats as the
+  original's follower panel gives. Their benefit prose is read literally —
+  teachers' experience percents, guides shaving travel days, healers'
+  daily rounds, cooks making food, smiths mending for free, the Enchanter's
+  elemental wards, dawn casts of Bless and Heroism — and wages fall due
+  every seventh day; an unpaid party walks alone again. The "%17 percent of
+  gold" the prose threatens is in no column of the table, so nobody takes it.
+
 - **People you can talk to**: **T** at a counter talks to whoever the NPC
   table places there. Five decoded tables meet and none of it is invented — the
   greeting is their personality's own line from `npcbtb.txt`, what their trade
@@ -821,32 +935,21 @@ interoperability and compatibility with a legally purchased copy.
   price named, and their own trade — so the counter reads "Ordinarily I sell
   things like this Longsword for 50 gold." The codes nobody has read yet stay
   visible instead of being blanked.
+
 - **Shops you can trade with**: **Tab** then a number opens an establishment's
   counter. Its shelves are *generated*, not invented — the row's own
   `"L1 Weap"`-style stock line feeds the random-item generator that reproduces
   the original's item path — and priced by the multiplier the row gives, 1.5 or
   2. The shopkeeper answers out of `Merchant.txt`, 21 of whose 24 lines are
   filled. Selling is this engine's arithmetic and says so.
+
 - **Guilds that sell their school**: the magic guilds' rows write their
   shelves outright — `"Type = Fire, Spells 1-7"` at an Initiate guild,
   `1-11` at an Adept — and the counter now stocks exactly those spells'
   books at the books' own values times the row's `Val`. With books teaching
   and **H** casting what is known, the whole arc is table-fed: buy the
   Fireball book at the Adept Guild of Fire, learn it, and burn something.
-- **The monsters' whole dirty vocabulary**: the on-hit column's 38 values
-  mostly land now — `DrainSP` drains, `Stealx2` cuts the purse, `Agex3` puts
-  years on, `Disease1..3` runs poison's scaffold at half pace, and the three
-  `Brk` words break the slot they name: a broken sword swings as a fist, a
-  broken hauberk counts for nothing, and **F** at any counter mends it all
-  for half value in the merchant table's own Repair words. And the named
-  conditions now bite: the asleep and the paralyzed act for nobody until
-  struck awake, cured or rested; the afraid keep their feet but lose their
-  swing; a character at zero hit points is down, a blow that lands on the
-  downed kills them, and a night's rest wakes the knocked-out at a single
-  hit point while the dead wait for a temple whose row does not say "No
-  Dead". Triggers, levels and the temples' ceilings are the tables';
-  magnitudes, the one-in-five, and the conditions' rules are this engine's,
-  marked `inferred`.
+
 - **Temples that mend for money**: the ten `Temple` rows write their own
   terms — margin notes naming Heal and Donate, `Val` as the price, and a
   service ceiling in the stock cell, from Temple Stone's "All OK" down to
@@ -854,80 +957,210 @@ interoperability and compatibility with a legally purchased copy.
   hit points, spell points, poison — for the row's own price, and shows what
   each house cannot mend, ready for the conditions those words await. What a
   donation earns is this engine's hour of Bless, marked.
-- **Poison, and being knocked out**: the first conditions. The monster
-  table's on-hit column names them — `Poison1x5`, `Uncon` — and the herbs
-  and potions write both ends: Poppysnaps "Set Poison1 condition", Cure
-  Poison and Restoration cure it. A poisoned character loses their poison's
-  level in hit points each game hour, down to the last point but not through
-  it, and the party strip says so. The levels and cures are the tables'; the
-  hourly rate and the one-in-five on-hit chance are this engine's.
-- **Buff scrolls with the sheet's own hours**: the four conditions the
-  potions set exist as spells too, and their rank cells write the duration —
-  "Duration 1 hour + 5 minutes per point of skill" — in phrasing the parser
-  now reads apart. A scroll of Haste, Bless, Heroism or Stone Skin sets the
-  same character condition the potion would, for exactly the written time at
-  the reader's level.
-- **Books that teach, casters that know**: all 99 spell books carry their
-  spell as the same S-number the scrolls use — one book per spell, 99 of 99
-  — and **U** on one follows the USEITEMS header's own rule: the character
-  learns it and the book is spent, or nothing happens if it is known.
-  **H** now casts from what a character actually knows, at the table's cost
-  and the prose's numbers: the best heal they can afford when someone is
-  wounded, else the best damage at what the party aims at. Knowledge rides
-  in the save; that only casters read, and what "best" means, are this
-  engine's.
-- **Monsters that cast**: `MONSTERS.TXT`'s spell column carries everything —
-  `"Fireball,N,5"` is the spell's name, its mastery, and a real skill value,
-  cast as often as the row's own percent says. The name resolves in
-  `Spells.txt` (tolerating the sheet's two typos), the prose's per-skill
-  dice roll at the written skill, and the character's own elemental
-  resistance answers. Fire Archers finally throw Fireballs, with no invented
-  numbers anywhere in the chain.
-- **Fountains and potions that really work**: the temporary bonuses land
-  now — a fountain's "+10 Might temporary" lies on the party, an Energy
-  potion's "Set Temp 7 Stats to 10" on its drinker, Protection's AC and
-  Resistance's elements in the sheet's own amounts, and the timed conditions
-  ("Set Haste to 6 Hrs") run on the clock for exactly their written hours.
-  The sheet shows all of it, a rest ends what lasts until rest, and it all
-  rides in the save. The amounts and hours are the tables'; the until-rest
-  convention and the party-wide reach of a fountain are this engine's.
-- **Spells with the table's own numbers**: the damage and healing in
-  `Spells.txt`'s prose follow few enough phrasings to parse exactly — 25 of
-  99 spells yield their dice, every direct-damage spell and both heals.
-  **X** reads the first spell scroll anyone carries: Fire Bolt rolls its
-  written 1-4 per point of skill at what you aim at, answered by the
-  monster's own elemental resistance, and the paper is spent. **H** lets a
-  caster finally spend spell points — First Aid at the table's cost and
-  amount. Who reads, and level standing in for skill, are this engine's and
-  say so.
+
 - **A bank that keeps your gold**: the six `Bank` rows' margin notes name
   the counter's two verbs — Deposit and Withdraw — and no column pays
   interest, so neither does the vault. The balance rides in the save. The
   town halls were scouted and left alone: no bounty table ships, so bounty
   hunts would be invention.
-- **Ambushes that spring**: opcode 19 named itself against the encounter
-  table — its slot stays within the map's own filled encounter slots on 272
-  of 272 resolvable uses, its variant is the monster triple's own A/B/C, and
-  its count runs to six. Step on the wrong plate and the engine fills the
-  room from the map's own table, the new arrivals joining the fight at full
-  health while everyone else keeps their wounds.
-- **Potions you can drink, from the alchemy's own table**: `USEITEMS.TXT`
-  turned out to hold the herbs and potions with their effects in the
-  designers' prose, their fates — a drunk potion becomes the empty bottle,
-  item 163, exactly as written — and a full mixing matrix where 50 pairs
-  combine and 390 explode in four written-out grades. **U** in a pack drinks
-  the first thing the table knows, applies its cures and says its effect in
-  the table's words; **M** pours the first potion into the second, yielding
-  the matrix's own answer — a new potion, or the graded explosion's fire
-  damage on the mixer. Spell scrolls carry their spell as an S-number in
-  `ITEMS.TXT`, and `Scroll.txt` is the message scrolls' full prose — the
-  Sulman letter is readable data.
+
 - **Training halls that teach**: the ten `Training` rows carry their own
   numbers — `Val` scales the fee, and the first stock cell writes each
   hall's ceiling, `"Max level = 15"` up to `"No Max"` — so the counter
   offers what the sheet says it should: train a character who has earned it,
   for that hall's price, up to that hall's limit. The experience curve and
   what a level grants are this engine's own and say so.
+
+
+### The sound of it
+
+- **Music playback**: the installation's fifteen MP3 tracks, decoded with the
+  public-domain minimp3 (the project's only non-standard decoding dependency)
+  and played through the same SDL3 sink as the sound effects.
+- A reader for the **design data tables** — thirty tab-separated spreadsheets
+  the developers left inside `icons.lod`, holding maps, monsters, items,
+  spells, quests and NPC dialogue. All thirty parse. `MapStats.txt` and
+  `MONSTERS.TXT` have typed views, and both join exactly to data already
+  decoded: the table's 67 map names are precisely the 67 maps in `Games.lod`,
+  and its 173 monsters line up one-to-one with `DMONLIST.BIN`. The walkers now
+  show a map's real name — "Sweet Water", not `OutA1.Odm` — and play the music
+  track the designers assigned it.
+- A decoder for the **sprite frame table** (`DSFT.BIN`) — the 6,455 frames in
+  1,656 animations that turn a name into the pictures to draw, in order, at the
+  right size and in the right colours. Monsters and torches now animate. It
+  also corrected a wrong conclusion: the B and C monster variants were never
+  missing art, they are one picture drawn through three palettes, and going
+  through the table raises monster sprite coverage from 31 of 173 to 173 of 173.
+- A decoder for the **indoor event sections** (`.dlv`), so dungeons are
+  populated: the same actor, loot and chest arrays the outdoor files use, after
+  a shorter prefix. All 52 indoor maps decode — 76 monsters, 219 loot objects
+  and 1,040 chests — with every actor standing inside the level's own geometry
+  and every item id resolving in `ITEMS.TXT`. `starhaven` draws them. The state
+  that follows is partly mapped too: a fixed 200-slot record array, then a
+  region the writer trims to whatever it happened to fill.
+- A decoder for the **sound table** (`DSOUNDS.BIN`) and the **decoration table**
+  (`DDECLIST.BIN`), which together say what a place sounds like: 1,338 of the
+  table's 1,345 names are entries of the already-decoded `Audio.snd`, and the
+  seven decoration types that name an ambient sound all resolve — a campfire to
+  `campfire`, a fountain to `fountain`, a cauldron to `bubbling cauldron01`.
+  Both walkers mix those sounds by distance, so New Sorpigal's fountains and a
+  dungeon's braziers are audible as you approach them.
+- A decoder for the game's **bitmap fonts** and text drawing in the engine.
+  Thirteen of the fourteen `.FNT` entries decode — 225 glyphs each, heights 14
+  to 30 — and the engine draws the map's name in the game's own typeface.
+  `font_info <font> <text>` renders a string as ASCII art, which is how the
+  format was verified.
+
+- **The party found its voice**: the sound archive names its voice lines
+  exactly like the portrait frames — the sheet letter and a two-digit
+  line, a and b takes — so `portrait_entry` is the whole join. Each face
+  now speaks in its own voice when a wound crosses below half, on a
+  kill, waking from rest and reaching a level; which line serves which
+  moment is the executable's knowledge, and the four numbers used are
+  marked as the engine's picks.
+
+- **The world sounds underfoot**: the party's footfalls play the
+  archive's own Walk/Run set keyed by the ground beneath — grass, snow,
+  desert, swamp, water, the stone hall indoors — off the tile art's own
+  names; a landed blow speaks in the weapon's voice (sword, axe, blunt,
+  arrow, light to heavy, by the weapon's own skill group); and the
+  title, frame and camp buttons click with the archive's Click set. Each
+  join is the engine's choice among the archive's names and says so.
+
+- **The casts ring true**: the sound archive names spells by their own
+  `Spells.txt` rows — `04firebolt01`, `31townportal03`, `21fly03` — so every
+  scroll, wand wave, H-cast, portal and beacon now plays its spell's own
+  sound through that join (91 of 99 ids have one). Bows release with
+  `ArchShoot` and blades land with the archive's sword hits, those two picks
+  the engine's own and marked.
+
+- **The fight finds its voice**: each monster's DMONLIST record names its
+  four-sound `DSOUNDS.BIN` set at +0x08 — equal to the named set's base on 31
+  of 31 monsters whose sound names carry their own table id, a block id on
+  all 173 — so a swing plays that monster's attack sound and a kill its dying
+  one, through the same mixer the campfires and doors already use.
+  Reproduce with `sft_info --sounds`.
+
+
+### The record: measurements, closures and honest negatives
+
+- **The loose-ends drawer, emptied and inventoried**: the door block's
+  second count word's high half is closed — it duplicates the vertex
+  count on 795 of 795 doors — while two measurements stay honestly open
+  with their refutations filed: the door attribute word is 1 on exactly
+  41 of 795 doors (no pattern tested fits), and the chest's last u16
+  splits 149/1191 along neither appearance nor contents.
+
+- **The chest grid closed the same way the third grid did**: the 140
+  i16s beside the chest's item slots are zero on all 187,600 cells
+  across the 1,340 shipped chests — runtime loot layout shipped empty.
+  `ddm_info` prints the nonzero count so the claim stays checkable; the
+  chest record now has exactly one unread u16 left.
+
+- **The third grid gamble closed at zero**: the 128x128 grid at 0x80B0
+  — the outdoor format's oldest unknown — ships as all zeroes on every
+  one of the fifteen maps, with the model array starting right behind
+  it: runtime state shipped empty, like the monster records' tails.
+  `odm_info` now prints its nonzero count so the claim stays checkable.
+
+- **The evpan gamble came up empty, on the record**: the number behind
+  the exe's `evpan%03d` was hunted through every script opcode's
+  argument sets and every numeric column of `2DEvents.txt`, and nothing
+  covers the 39 shipped panels without drowning them in strays — filed
+  as the honest negative, with the outdoor model records and the
+  executable named as the remaining suspects.
+
+- **The backdrop gamble paid in full**: the 2DEvents Picture column's
+  target was recovered from the game's own executable — `MM6.exe`'s
+  EVENTS.CPP string block lists the interior-video names, and read in
+  descending address order from `blcksrch` they number exactly 1..118.
+  Every anchor checks: smithies under the weapon shops, each guild on
+  its school's screen, the P/M/R houses on their own rooms, the Seer in
+  the poor oracle's hut, all twenty dungeon entrances in order. The
+  mapping ships in `data_info --backdrops`; playing the interiors on the
+  service screens is now one join away.
+
+- **The Misc Special gamble closed in one measurement**: the monster
+  table's last prose column turned out to hold no prose at all — a
+  literal 0 on every one of the 173 rows, vestigial like the Quest
+  column beside it. The whole of `MONSTERS.TXT` is now either read and
+  running or measured empty; `data_info --riders` reproduces the sweep.
+
+- **The last monster columns, measured**: `Hst` is hostility — zero on
+  exactly the nine Wimp peasants, four on the other 164; `Rec` is the
+  blow-to-blow recovery, 40..100 read as hundredths of a second; and
+  every one of `Bonus`'s 39 distinct on-hit words now lands on an engine
+  rider — the census found three that used to fall through, so monsters
+  whose word is `Stone`, `Dead` or `Errad` now petrify, kill and
+  eradicate as written. Reproduce with `data_info --riders`.
+
+- **The gamble split down the middle**: whether `Dif 1-5` picks a spawn's
+  A/B/C letter could not be read from the shipped placements — only 17 of
+  the 340 placed actors match an encounter slot at all, noise over five
+  difficulties, filed as the honest negative — but the cross-tab cracked
+  a different unknown on the way: the actor record's variant byte at
+  +0x35 **is** the letter, 1=A 2=B 3=C on 319 of 340, with a shared value
+  15 and three stragglers left honestly open. Reproduce with
+  `ddm_info --variants`.
+
+- **The monster record, read to the last field**: the 34 silent bytes of
+  `DMONLIST.BIN` gave up their meaning — a height and radius in world
+  units at the front (bats at 56, Dragons at 487, spiders wider than
+  tall), four sound ids stated outright (the Guards' fidget skips an id,
+  refuting the old base-plus-offset reading the engine now no longer
+  uses), a constant 140 whose meaning stays honestly `unknown`, and
+  twenty zeroed bytes of runtime scratch. Reproduce with
+  `sft_info --body`.
+
+- **The Quest column, closed**: the monster table's last unread column is
+  zero on all 173 rows — vestigial. The quest items travel through the
+  event scripts' gives, as the walker already delivers them.
+
+- **The monster table, read to the last column**: the second attack swings
+  at its own Att% (whose 10..30 values betray it as the second's chance
+  despite the header's grouping — a Cobra's poison fangs at 20), the Fly
+  column lifts its bearers off the ground, and Pref aims monsters at the
+  classes its initials name — the Terrible Eye goes for "D,S", the casters.
+  The dozen digit-valued Pref rows are filed unknown.
+
+- **The drawer, emptied**: Lloyd's Beacon now honors its expert and master
+  cells — "3 Beacons", "5 Beacons", decaying in their written days and weeks
+  per point — through a place-or-recall list; the shops' opens/closes
+  columns finally bar the door, a shut counter naming its hours instead of
+  trading; and the lock column joins the trap column on the chests — a
+  locked chest stays shut until the party's best Disarm reaches the map's
+  own number.
+
+- **Skills, read off their own table**: `SKILLDES.TXT` writes what each of
+  its 31 skills does in effect lines — "Skill added to Attack Bonus",
+  "...to Attack Damage", "...to Armor Class", "Skill adjusts shop prices in
+  your favor" — and the engine applies exactly those: weapon points ride the
+  to-hit roll and the damage where granted, armour and shield points join
+  the AC, a school's points are what its spells scale by, and a merchant in
+  the party haggles every counter. The expert and master lines wake at
+  engine-own thresholds and do what they say: stuns and triple blows at
+  odds "equal to skill", the Bow's second arrow, doubled and tripled
+  shields and discounts, faster swords. Points come five a level and are
+  spent on the sheet at an engine-own staircase; the hired Arms Masters,
+  Squires and merchants add their rows' bonuses to the same numbers.
+
+
+### The machine itself
+
+- **The save file caught up**: the audit found three things the record
+  had outrun — each member's readied spell, the turn-based toggle and
+  the hourglass's count — now appended as new record kinds the old
+  parser skips and the old saves simply lack, round-tripped in the save
+  test. UI cursor state (the sheet's page, the book's tab) stays
+  deliberately unsaved.
+
+- **The portability claim has a witness**: a GitHub Actions workflow
+  runs the README's own three commands — `meson setup`, `ninja`,
+  `meson test` — on macOS, Linux and Windows runners, with a zlib wrap
+  added so Windows builds hermetically alongside the SDL3 and Catch2
+  wraps already in tree. Only the synthetic-fixture tests run there; the
+  game data never leaves the player's machine.
+
 - **Saving**: **F5** writes the game, **F9** brings it back — quest bits and
   event variables, the purse, all four packs cell by cell, worn equipment,
   the party's numbers, the clock, the map and where the party stands on it,
@@ -935,97 +1168,7 @@ interoperability and compatibility with a legally purchased copy.
   on load so the portcullis you raised is still up. The format is this
   engine's own versioned text and says so; it neither reads nor writes the
   original's save files.
-- **The quest bank, reachable from the world**: of the faces whose event id
-  no map's own script defines, 66 of 88 name events of `GLOBAL.EVT`, the
-  shared script dense with quest checks and rewards — and using such a face
-  walks the global event. The "unheaded events" mystery also came apart: part
-  was another record framing misread (`OUT.EVT` and kin carry no sequence
-  byte), and the rest are ordinary event bodies that begin with work.
-- **Quests that speak and pay**: `GLOBAL.EVT`'s voice was found by content —
-  its letter event's two branches say `npctext.txt` rows 1 and 3, word for
-  word the *"Oh!  The Seal"* payoff and the *"you get no money!"* refusal —
-  which pinned the larger fact that topic id, prose row and global event
-  share one id space, 170 of 298 topics carrying logic. Ask Andover Potbello
-  about The Letter with item 505 in a pack and his event pays 1,000 gold and
-  advances the journal from bit 81 to 82; ask empty-handed and he refuses,
-  in his own words.
-- **Quest chains that move on**: opcodes 39 and 40 verify whole against the
-  NPC table — set one of an NPC's three topic slots (132 of 132 uses in
-  range) and move an NPC to an establishment or away (29 of 29). The engine
-  applies the rewrites when the party talks and keeps them in the save, so
-  after the letter is paid for, Andover offers his next topic, not the same
-  letter forever — and a person an event moves is really moved: gone from
-  their counter, standing at the new one when it is on the same map.
-- **Doors that open**: the indoor event files' fixed 200-slot block turned
-  out to be the door array — per door an id, a direction, a distance, two
-  speeds, and id arrays whose total is byte-exact against the size the level
-  declares. The bases equal the shipped vertex on 4,067 of 4,067 across 795
-  doors on the 52 maps, so a door ships shut and opens by sliding its own
-  vertices its own distance. Throw a lever and the portcullis rises, the
-  wall texture flips, and the collision world lets you through.
-- **Coaches and boats you can ride**: the stables' and docks' rows write
-  their routes in the stock columns, the designers' way — destination and
-  area code, departure weekdays, days of travel — and the counter reads them
-  back as a timetable. Ride on a departure day and the fare is paid, the
-  clock advances the route's own days, and the party stands on the
-  destination map. The fare scale and the arrival point are this engine's
-  and say so.
-- **Loot you can pick up, and somewhere to put it**: walk over a thing lying
-  on a map and the first character with room takes it. **I** opens a pack,
-  drawn with the game's own item icons — all 229 of them resolve out of
-  `icons.lod` — on a grid, with what each thing is and what it is worth.
-- **A paperdoll, dressed**: the pack screen stands the character's own doll
-  beside the grid — twelve uniform 112x298 bodies in `icons.lod`, lettered
-  the way the twelve portraits are — and draws what is worn at the
-  `Equip X`/`Equip Y` point `ITEMS.TXT` gives each item. The items place the
-  body itself: every boot's art bottoms out at row 350 and the helms centre
-  on one column, which pins the doll at (504, 52) with the panel flush in
-  the corner. Body armor swaps the torso for its own overlay — chain drapes
-  the shoulders, plate reaches the boots — and a cloak's larger half hangs
-  behind the body. See `docs/formats/paperdoll.md`, and reproduce the
-  measurements with `doll_info`.
-- **A party, and the character sheet**: four characters with the game's own
-  portraits — twelve faces of 53 frames each, found in `icons.lod` — named from
-  `npcnames.txt`, classed from `Class.txt`, and laid out with the field names
-  `stats.txt` itself lists, in its order. **C** opens the sheet and **1**-**4**
-  choose whose. What a character *starts* with is not in any shipped table, so
-  those numbers are this engine's and say so where they are defined.
-- **Monsters that collide**: they no longer walk through walls, buildings,
-  trees or each other, or stand inside the party to attack it — and the party
-  cannot walk through them either. Trees block them
-  by the radius `DDECLIST.BIN` gives each kind — a field that had been unknown,
-  and that no two decorations on a map are ever placed closer together than.
-- **Monsters that move, and that are drawn from the side you see them from**:
-  each wanders near where it started, as far and as fast as its `MONSTERS.TXT`
-  row says, and turns toward you — or away, if it is a Wimp — when you come
-  within range its AI type decides. The frame table's five views turned out to
-  be angles relative to the viewer rather than compass headings, measured by
-  the left-right symmetry of all 1,153 directional frames, so a monster now
-  shows you its front, its profile or its back.
-- **Monsters, spawned the way the map asks for them**: an outdoor map ships no
-  wandering monsters, only places where they appear. Each spawn point names one
-  of the map's three `MapStats.txt` encounter slots, the slot names a monster
-  and how many of it appear, and all 138 filled slots across the 79 maps
-  resolve to a `MONSTERS.TXT` row. All fifteen outdoor maps now populate — 62
-  monsters in Sweet Water, 260 in New Sorpigal — placed on the ground around
-  their points, from a seed fixed by the map so a place always populates the
-  same way.
-- Typed views over **how NPCs react**: `npcbtb.txt` says which of begging,
-  bribing and threatening works on each personality, and how each phrases the
-  twenty-four things it can say. All twelve personalities the professions name
-  are described there, and the file states the matrix three times over — in the
-  column headings, in the three rows, and in which messages a personality has
-  at all — agreeing on all 39 pairs. Plus `GLOBAL.TXT`, the 596 interface
-  strings the original drew on its panels.
-- Typed views over the **journal**: `Quests.txt`, `Awards.txt` and
-  `Autonote.txt` — 512 quest bits, 100 awards and 128 categorised automatic
-  notes. Only 52 quest bits carry player-facing text; the rest are recorded as
-  the blanks they are.
-- Typed views over the **character tables**: `Spells.txt` (99 spells across
-  nine schools, with per-mastery costs and effects), `Class.txt`, `stats.txt`
-  and `SkillDes.txt`. `data_info --spells Fireball` prints one.
-- A portable install/data-path layer (no drive letters, registry, or hardcoded
-  paths).
+
 - **`starhaven`, the engine itself**: `--maps` lists all 67 maps, and naming
   one loads it and renders it as a walkable world — outdoor terrain with its
   models or an indoor level's faces, with the map's music, ambient sound,
@@ -1076,6 +1219,7 @@ The format specs are documented from observed behavior in
 [`docs/formats/event-actors.md`](docs/formats/event-actors.md),
 [`docs/formats/dmonlist.md`](docs/formats/dmonlist.md), and
 [`docs/formats/smacker.md`](docs/formats/smacker.md).
+
 
 ## Build
 
@@ -1313,13 +1457,24 @@ docs/
 29. ~~Decode the BLV face-extra name array.~~ ✓ (this slice)
 30. ~~Gameplay systems from the game's own tables: combat, skills, spells,
     shops, hirelings, promotions, reputation, travel, rest, saves.~~ ✓
-31. The game's own screen furniture: the interface layout and panel art
-    around the 3D view, in place of the engine's overlay.
-32. The rest of the spell book, beyond the buffs, cures and travel spells
-    that are in.
-33. Quest arcs beyond New Sorpigal, proven the same scripted way.
-34. The unread corners: the BLV quad section, `DMONLIST.BIN`'s 34 silent
-    bytes per record, the opcode tail.
+31. ~~The game's own screen furniture: frame, book, maps, calendar,
+    creation hall, sheets, chests, camp, services, talk — the whole
+    interface now wears the shipped art.~~ ✓
+32. ~~The spell book and combat casting, both directions, at the tables'
+    own numbers.~~ ✓
+33. ~~Quest arcs beyond New Sorpigal: the whole main quest and the first
+    side and promotion chains run as a 24-beat regression, and all 58
+    script grantors walk and grant.~~ ✓
+34. ~~The unread corners: `DMONLIST.BIN` read to its last constant, the
+    outdoor third grid and the chest grid measured empty, the chest word
+    and the door count word closed.~~ ✓ (the BLV quad section and a
+    handful of named constants stay honestly open)
+35. The animated remainder: the water's palette rotation, the `sky%02d`
+    selector, the shop videos played in full motion with their sounds.
+36. The exe-side services still unmodelled: the arena counters, the
+    bounty board, the obelisk assembly.
+37. The long tail of side quests, walked into the regression the way
+    Snergle's was.
 
 ## Performance
 
