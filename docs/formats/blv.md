@@ -499,14 +499,52 @@ times on `D01` alone, though they leave no gaps in 9..170), and field
 (`D03` holds 22 lights against a field-2 reach of 171). Reproduce with
 `blv_info <map> --bsp`, which now prints the interval test.
 
+## Binary anchors: the loader names the middle sections
+
+Read-only radare2 reconnaissance of `MM6.exe` (SHA-256 `28d2b83e…`, image base
+`0x400000`) locates the indoor-map loader at `fcn.0048a9e0` (anchored on the
+`.blv` string at `0x4c2d7c`). The loader copies each on-disk section into a
+runtime buffer with a `rep movsd`, and tags every copy with its **source-level
+debug name**. Those names settle what the stride analysis below could only
+guess. `observed`
+
+The loader's array-copy sequence (after the 0x88-byte header and the
+vertex/face arrays) is, in file order:
+
+| Tag | Stride | Reading | Status |
+| --- | ---: | --- | --- |
+| `L.FData` (`0x4c2da0`) | count × 80 | the face records | observed |
+| `L.RData` (`0x4c2d98`) | count × 116 | the room/sector records — the "high-entropy middle" | observed |
+| `L.RLData` (`0x4c2d8c`) | allocator-built (variable) | room links — a variable/linked structure, not a flat copy | inferred |
+| `L.DData` (`0x4c2d84`) | fixed 16,000 bytes | the 200-slot × 80-byte **door array** (see [`event-tables.md`](event-tables.md)) | observed |
+
+So the undecoded middle is **`L.RData` (116-byte room/sector records) followed
+by `L.RLData` (room links)**, and `L.DData` is the door block the event-tables
+analysis already cracked. The "stride-8 / no-stride / stride-28" segmentation
+the data analysis found maps onto these: the 116-byte `RData` records contain
+the stride-8 and stride-28 sub-arrays, and the no-stride run is the
+variable-length `RLData` portion built through the allocator rather than copied
+flat. `inferred`
+
+Each section's count is read as a `u32` immediately before the copy
+(`mov eax,[ebx]; add ebx,4`), and `fcn.00438d20` is called after each as a
+bounds check. The header field `index_block_bytes` at `+0x68` is the sum the
+loader advances by; `+0x6c` and `+0x70` are read later as `i16` pairs in the
+sector-culling child `fcn.0048c3d0`, not as section sizes.
+
+Do not treat the addresses above as stable across MM6 builds; they are pinned
+to the recorded SHA-256.
+
 ## Open questions (next slice)
 
 - The sections between the face extras and the decorations. The sector
   table at the region's front is partly read and the lights turned out to
   live *after* the decorations, so what remains here is the high-entropy
-  middle — plausibly the BSP — and the exact section offsets; locating the
-  decoration array by offset rather than by scanning still depends on
-  them. `unknown`
+  middle. The loader (see "Binary anchors" above) **names** this middle as
+  `L.RData` (116-byte room/sector records) then `L.RLData` (room links), so
+  the section identities are settled; what stays `unknown` is the
+  field-by-field layout of each 116-byte `RData` record and the `RLData`
+  link format.
 
   Sliding-window stride detection over that region on `D03.blv` segments it
   into a **stride-8** run, a high-entropy run with no stride above noise
