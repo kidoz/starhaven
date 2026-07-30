@@ -1463,7 +1463,7 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
                 assets::AssetCache& cache,
                const data::BuildingStatsEntry& shop, const std::vector<game::StockItem>& stock,
                const data::ItemStatsTable& items, const data::MerchantTextTable& words, int gold,
-               const std::string& said) {
+               const std::string& said, int pick) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1478,31 +1478,72 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
                     dim, shadow);
     y += line * 2;
 
+    // The goods themselves, laid out on the room in a grid: each item's
+    // own picture, its price under it, the arrows walking the shelf and
+    // Enter buying what the gold border holds. The grid's spacing is the
+    // engine's own.
     const std::size_t shown = std::min<std::size_t>(stock.size(), 9);
+    auto pixels = scene.framebuffer().color();
+    const auto box = [&](int x0, int y0, int w, int h, render::Color c) {
+        for (int by = y0; by < y0 + h; ++by) {
+            for (int bx = x0; bx < x0 + w; ++bx) {
+                if (by > y0 + 1 && by < y0 + h - 2 && bx > x0 + 1 && bx < x0 + w - 2) {
+                    continue;
+                }
+                if (bx < 8 || bx >= 468 || by < 8 || by >= 352) {
+                    continue;
+                }
+                const auto i =
+                    (static_cast<std::size_t>(by) * kWidth + static_cast<std::size_t>(bx)) * 4;
+                pixels[i] = c.r;
+                pixels[i + 1] = c.g;
+                pixels[i + 2] = c.b;
+            }
+        }
+    };
+    // A rack, not a table: the art hangs at its full length in narrow
+    // slots, the way the game's own shelves overlap their goods.
+    const int pitch = shown > 0 ? std::min<int>(120, 420 / static_cast<int>(shown)) : 0;
     for (std::size_t i = 0; i < shown; ++i) {
         const auto* row = items.at(static_cast<std::size_t>(stock[i].item_id));
         if (row == nullptr) {
             continue;
         }
-        game::draw_text(scene.framebuffer(), font, 190, y,
-                        std::to_string(i + 1) + "  " + data::cp1252_to_utf8(row->name) + "  " +
-                            std::to_string(stock[i].price) + " gold",
+        const int cx = 28 + static_cast<int>(i) * pitch;
+        const auto& picture = cache.icon(row->picture);
+        if (!picture.empty()) {
+            blit(scene.framebuffer(), picture, cx, 64);
+        }
+        game::draw_text(scene.framebuffer(), font, cx, 300 + (static_cast<int>(i) % 2) * 14,
+                        std::to_string(i + 1) + " " + std::to_string(stock[i].price) + "g",
                         stock[i].price <= gold ? white : dim, shadow);
-        y += line;
+        if (static_cast<int>(i) == pick) {
+            box(cx - 4, 58, pitch, 256, render::Color{200, 160, 40, 255});
+        }
+    }
+    if (!stock.empty() && pick >= 0 && static_cast<std::size_t>(pick) < shown) {
+        if (const auto* row = items.at(static_cast<std::size_t>(
+                stock[static_cast<std::size_t>(pick)].item_id));
+            row != nullptr) {
+            game::draw_text(scene.framebuffer(), font, 190, y,
+                            data::cp1252_to_utf8(row->name) + "  " +
+                                std::to_string(stock[static_cast<std::size_t>(pick)].price) +
+                                " gold",
+                            white, shadow);
+        }
     }
     if (stock.empty()) {
         game::draw_text(scene.framebuffer(), font, 190, y, "The shelves are bare.", dim, shadow);
-        y += line;
     }
 
     // The shopkeeper's own words, from Merchant.txt.
     if (!said.empty()) {
-        y += line;
-        game::draw_text(scene.framebuffer(), font, 190, y, said, render::Color{235, 225, 170, 255},
-                        shadow);
+        game::draw_text(scene.framebuffer(), font, 36, 330, said,
+                        render::Color{235, 225, 170, 255}, shadow);
     }
     game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
-                    "1-9 buy, S sell, F repair, T talk, B closes", dim, shadow);
+                    "arrows pick, Enter buys, 1-9 too, S sell, F repair, T talk, B closes", dim,
+                    shadow);
 }
 
 // Somebody in an establishment, and what they have to say.
@@ -2216,6 +2257,7 @@ int main(int argc, char** argv) {
     int party_food = 7;
     int bank_gold = 0;  // what the vault keeps; no table pays interest
     int open_shop = -1;  // an index into shops_here, or none
+    int shop_pick = 0;   // which shelf cell the gold border holds
     std::vector<game::StockItem> shop_stock;
     std::string shop_said;
     std::set<int> opened_chests;  // a chest gives up its contents once
@@ -3906,6 +3948,28 @@ int main(int argc, char** argv) {
                             break;
                         }
                     }
+                }
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
+                       talking_to < 0 && shown_pack < 0 &&
+                       (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT ||
+                        event.key.key == SDLK_UP || event.key.key == SDLK_DOWN ||
+                        event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER)) {
+                // The shelf browsed by eye: arrows walk the grid, Enter
+                // buys what the border holds — through the same digit path.
+                const int count = static_cast<int>(std::min<std::size_t>(shop_stock.size(), 9));
+                if (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) {
+                    if (shop_pick >= 0 && shop_pick < count) {
+                        SDL_Event synthetic{};
+                        synthetic.type = SDL_EVENT_KEY_DOWN;
+                        synthetic.key.key = static_cast<SDL_Keycode>(SDLK_1 + shop_pick);
+                        SDL_PushEvent(&synthetic);
+                    }
+                } else if (count > 0) {
+                    const int step = event.key.key == SDLK_LEFT    ? -1
+                                     : event.key.key == SDLK_RIGHT ? 1
+                                     : event.key.key == SDLK_UP    ? -3
+                                                                   : 3;
+                    shop_pick = ((shop_pick + step) % count + count) % count;
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                        event.key.key <= SDLK_9) {
@@ -6008,7 +6072,7 @@ int main(int argc, char** argv) {
                             game::fare_of(shop), clock, gold, shop_said);
             } else {
                 draw_shop(scene, font, cache, shop, shop_stock, item_stats, merchant_words,
-                          gold, shop_said);
+                          gold, shop_said, shop_pick);
             }
         }
         if (shown_pack >= 0) {

@@ -227,6 +227,11 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The shops show their wares**: the stock list became a rack — each
+  item's own art hanging at full length in the room, prices staggered
+  beneath, the arrows walking a gold border along the shelf and Enter
+  buying what it holds, with the picked piece named above. The digits
+  still work for the impatient.
 - **The sheet and the chest take their art**: the character sheet's
   numbers now sit inside `fr_stats`' own gilded boxes, and an opened
   chest shows its own face — the record's first word turned out to be
