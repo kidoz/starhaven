@@ -227,6 +227,12 @@ interoperability and compatibility with a legally purchased copy.
   exit checks quest bit 54 before its travel step runs. The engine walks
   events through this machine now, so gated doors gate, switches throw once,
   and a quest turn-in takes the item and pays the reward.
+- **The award ledger, audited**: `evt_info --ledger` maps all 86 worded
+  awards to their granting event or to "no script grants this" — 58
+  script-granted, 28 orphans, and the orphans sort themselves: the
+  seventeen guild memberships (counter services, which this engine
+  already grants), the seven arena-and-bounty counters, Archibald's
+  library, and three story honors whose mechanism stays unknown.
 - **The save file caught up**: the audit found three things the record
   had outrun — each member's readied spell, the turn-based toggle and
   the hourglass's count — now appended as new record kinds the old

@@ -1389,6 +1389,63 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
     return 0;
 }
 
+// Audit mode: every award row against every script's gives. Award 35
+// taught the lesson — some honors are granted outside the scripts — so
+// the orphans become a measured list instead of surprises.
+int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    namespace data = starhaven::data;
+
+    data::JournalTable awards;
+    if (data::load_awards(data_dir, awards) != data::GameDataError::None) {
+        std::cerr << "ledger: no Awards.txt\n";
+        return 1;
+    }
+    // award id -> "SCRIPT event N" of its first grantor.
+    std::map<int, std::string> grantor;
+    for (const auto& entry : icons.entries()) {
+        const std::string& name = entry.name;
+        if (name.size() < 4 || (name.substr(name.size() - 4) != ".EVT" &&
+                                name.substr(name.size() - 4) != ".evt")) {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            continue;
+        }
+        for (const auto& step : script.steps()) {
+            if ((step.opcode != world::kOpcodeGive && step.opcode != world::kOpcodeSet) ||
+                step.arguments.size() < 3 || step.arguments[0] != 12) {
+                continue;
+            }
+            const int award = step.arguments[1] | (step.arguments[2] << 8);
+            if (!grantor.contains(award)) {
+                grantor[award] = name + " event " + std::to_string(step.event_id);
+            }
+        }
+    }
+    std::size_t granted = 0, orphans = 0;
+    for (const auto& row : awards.entries()) {
+        if (!row.has_text()) {
+            continue;
+        }
+        const auto it = grantor.find(row.bit);
+        if (it != grantor.end()) {
+            ++granted;
+            std::cout << "  " << row.bit << "  " << it->second << "\n";
+        } else {
+            ++orphans;
+            std::cout << "  " << row.bit << "  NO SCRIPT GRANTS THIS  ("
+                      << starhaven::data::cp1252_to_utf8(row.text) << ")\n";
+        }
+    }
+    std::cout << granted << " awards granted by scripts, " << orphans << " orphans\n";
+    return 0;
+}
+
 // Verification mode: the New Sorpigal opening arc, walked end to end
 // through the same code the game runs. Exits nonzero on the first beat
 // that fails, so it can stand as a regression against a real install.
@@ -1785,6 +1842,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--transitions") {
         return do_transitions(icons, *install / "data");
+    }
+    if (stem == "--ledger") {
+        return do_ledger(icons, *install / "data");
     }
     if (stem == "--asks") {
         return do_asks(icons);

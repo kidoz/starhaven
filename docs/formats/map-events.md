@@ -602,6 +602,19 @@ attack fragments. The working of a door or a lever must be sounded by the
 engine's own choice, which is what this engine does, from the archive's own
 names. `observed` for the sweep; reproduce with `evt_info --soundsweep`.
 
+## The award ledger, audited
+
+Every award row swept against every script's gives (`evt_info --ledger`):
+**58 awards are granted by scripts, 28 by nothing in any event file.**
+The orphans fall into four families that explain themselves: the
+seventeen guild memberships (joined at the guild counter, a service the
+executable — and this engine — performs outside the scripts), the seven
+`%u` counters (bounties, deaths, prison terms, arena ranks — running
+tallies no script could keep), Freed Archibald (see the King's Library
+in [`text-tables.md`](text-tables.md)), and three story honors —
+Returned the Prince, the Bat Guano, the Obelisk Puzzle — whose granting
+mechanism is `unknown`. `observed`
+
 ## Open questions
 
 - The rare tail of the 90 distinct opcodes. Two dozen are named above
