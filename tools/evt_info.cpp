@@ -1585,6 +1585,81 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 11. Albert Newton takes the Hourglass of Time.
+    {
+        game::WalkState state;
+        state.items.push_back(433);
+        const auto outcome = game::walk_event(global, 52, state);
+        const bool ok = outcome.ran && state.experience == 50000 && state.awards.contains(3) &&
+                        std::find(state.items.begin(), state.items.end(), 433) ==
+                            state.items.end() &&
+                        state.npc_topics.at({5, 0}) == 54;
+        if (!beat(ok, "the Hourglass pays 50000 experience and seals award 3")) {
+            return 1;
+        }
+    }
+    // 12. Osric Temper hears the Devil's Post has fallen.
+    {
+        game::WalkState state;
+        state.items.push_back(506);
+        const auto outcome = game::walk_event(global, 62, state);
+        const bool ok = outcome.ran && state.experience == 40000 && state.awards.contains(4) &&
+                        std::find(state.items.begin(), state.items.end(), 506) ==
+                            state.items.end() &&
+                        state.npc_topics.at({6, 0}) == 64;
+        if (!beat(ok, "the Devil's Post proof pays 40000 experience and seals award 4")) {
+            return 1;
+        }
+    }
+    // 13. Anthony Stone takes the Prince of Thieves off the party's hands:
+    //     the check is variable type 214 against 17, and NPCdata.txt row 17
+    //     is the Prince himself — the type reads as "this person follows".
+    {
+        game::WalkState state;
+        state.variables[214] = 17;
+        const auto outcome = game::walk_event(global, 33, state);
+        const bool ok = outcome.ran && state.gold == 10000 && state.experience == 30000 &&
+                        state.awards.contains(5) && state.npc_topics.at({16, 0}) == 34;
+        if (!beat(ok, "the Prince delivered pays 10000 gold, 30000 experience, award 5")) {
+            return 1;
+        }
+    }
+    // 14. Loretta Fleise pays for the stable prices, bit 117's errand.
+    {
+        game::WalkState state;
+        state.bits.insert(117);
+        const auto outcome = game::walk_event(global, 80, state);
+        const bool ok = outcome.ran && state.gold == 25000 && state.experience == 25000 &&
+                        state.awards.contains(6) && state.npc_topics.at({14, 0}) == 81;
+        if (!beat(ok, "the stable prices pay 25000 and 25000 experience, award 6")) {
+            return 1;
+        }
+    }
+    // 15. Erik Von Stromgard's winter ends the moment he is told.
+    {
+        game::WalkState state;
+        const auto outcome = game::walk_event(global, 89, state);
+        const bool ok = outcome.ran && state.experience == 50000 && state.awards.contains(7) &&
+                        state.bits.contains(175) && state.npc_topics.at({15, 0}) == 90;
+        if (!beat(ok, "ending winter pays 50000 experience and seals award 7")) {
+            return 1;
+        }
+    }
+    // 16. The last seal closes the ladder: Humphrey's own event checks the
+    //     whole council — award 32, the exposed traitor, among them — and
+    //     sets bit 167 when every seal is in.
+    {
+        game::WalkState state;
+        state.items.push_back(499);
+        for (const int held : {32, 3, 4, 5, 6, 7}) {
+            state.awards.insert(held);
+        }
+        const auto outcome = game::walk_event(global, 11, state);
+        const bool ok = outcome.ran && state.awards.contains(2) && state.bits.contains(167);
+        if (!beat(ok, "with every seal and the traitor exposed, bit 167 opens the next act")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }

@@ -306,7 +306,13 @@ interoperability and compatibility with a legally purchased copy.
   own words, Regent Humphrey paying 5000 and taking the letter (this
   delivery does take it), his "little detail" opening the first council
   task, and Lord Kilburn's shield closing it for award 2, the first
-  council seal — ten beats, exit-nonzero on any break. Walking the global
+  council seal — and onward through the whole council: Albert Newton's
+  Hourglass, Osric Temper's Devil's Post, the Prince of Thieves handed to
+  Anthony Stone (the check is variable type 214 against 17, and NPCdata
+  row 17 is the Prince himself — "this person follows" is the reading),
+  Loretta Fleise's stable prices, Erik Von Stromgard's winter, and the
+  final ladder that sets bit 167 once every seal and the exposed traitor
+  are in — sixteen beats, exit-nonzero on any break. Walking the global
   bank exposed that message indices were being read one byte wide, fine
   for every map's own strings and wrong past 255; the walk now reads the
   whole index. The audit found the one snag no
