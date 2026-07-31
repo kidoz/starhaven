@@ -1193,6 +1193,12 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **State 16 named: reanimation**: it has exactly one caller anywhere —
+  inside the case for **Reanimate** — and its body restores the hit points
+  at `+0x28` from a stored word at `+0x5c`, which names that field as the
+  actor's full total. Three of the eleven actions are now named (death,
+  hurt, reanimation) plus two families (closing/backing off, approach). State
+  9's body was read and is still not nameable; 5b, 7 and 10 were not reached.
 - **The attack bonus composes — lopsidedly, and that is the finding**: read
   to the getter's return, it is the sheet's ladder applied to *one*
   attribute's spell and gear bonuses plus *another's* stored pair cut by age

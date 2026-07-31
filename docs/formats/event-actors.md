@@ -446,3 +446,26 @@ the earlier scan that filed it under "sets state 1" caught a different write
 in the same body. `0x403b60` compares two pairs of words — `+0x92`/`+0x94`
 against `+0x7e`/`+0x80` — which is the shape of testing one position against
 another. Neither is named. `unknown`
+
+## State 16 named: reanimation
+
+`0x4034f0` has exactly one caller anywhere — `0x429253`, inside the case for
+spell **89, Reanimate** — and its body says the rest. It writes **16** into
+the state word, **5** into the sub-state at `+0xa2`, clears the action timer
+at `+0xa8`, sets a facing at `+0x90` from a table indexed by `word[+0xb6]`,
+and copies **`word[+0x5c]` into `word[+0x28]`** — the hit points. `observed`
+
+A spell whose row reads "Creature gets N hit points per skill point", whose
+case is this action's only caller, and whose action restores the hit points
+from a stored word: **state 16 is a reanimated corpse**, and **`+0x5c` is
+the actor's full hit points**. `observed` for the writes and the caller;
+`inferred` that `+0x5c` is the maximum rather than some other stored total.
+
+### State 9's body
+
+`0x4035e0` calls the pathfinder at `0x4046f0` with the actor's packed handle,
+copies the seven-dword result, and reads `word[+0xba]` to index a facing.
+Consistent with the map's reading of it as the common ending every movement
+falls into, but not enough on its own to name. `unknown`
+
+States 5b, 7 and 10 were not reached this sitting.
