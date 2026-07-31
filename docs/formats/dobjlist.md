@@ -23,11 +23,11 @@ for the inflated block exactly. `observed`
 | --- | ---: | --- | --- | --- |
 | `+0x00` | 32 | char[] | name | observed |
 | `+0x20` | 2 | u16 | object id | observed |
-| `+0x22` | 2 | u16 | radius | inferred |
-| `+0x24` | 2 | u16 | height | inferred |
+| `+0x22` | 2 | u16 | radius | observed | the pick/touch box scan reaches this far |
+| `+0x24` | 2 | u16 | height | observed | fed to the collision probe beside the radius |
 | `+0x26` | 2 | u16 | flags | observed | see the flag bits below |
 | `+0x28` | 2 | u16 | DSFT frame index | observed |
-| `+0x2A` | 2 | u16 | lifetime | inferred |
+| `+0x2A` | 2 | u16 | lifetime | observed | the expiry compare in the per-frame updater |
 | `+0x2C` | 2 | u16 | — | observed | zero in all 232 records |
 | `+0x2E` | 2 | u16 | speed | inferred |
 | `+0x30` | 3 | u8[3] | trail RGB | observed | nonzero on 64 of 232 records |
@@ -58,10 +58,24 @@ every set bit is `0x07fc`. The values that occur, with their counts:
 | `0x0374` | 1 |
 | `0x0574` | 2 |
 
-The bit pattern is regular — bits 2, 3, 4, 5, 6, 7, 8 and 10 recur — but no
-shipped flow distinguishes one flag combination from another, so what each bit
-selects stays `unknown`. `observed` for the set of values, `unknown` for the
-meaning.
+Most of the recurring bits are now traced through `MM6.exe`'s sprite-object
+code — the pick scan, the per-frame lifetime updater, and the indoor
+physics routine:
+
+| Bit | Meaning | Evidence |
+| ---: | --- | --- |
+| `0x02` | intangible: the pick/touch box scan skips the object | the scan tests it before reaching for the radius. `observed` |
+| `0x04` | temporary: the object accumulates elapsed time and expires at the descriptor lifetime | the updater's lifetime block runs only under this bit. `observed` |
+| `0x20` | no gravity: skips the fall-and-land block for level flight | the physics routine branches past landing straight to the collision probe. `observed` |
+| `0x40` | detonates: the impact handler runs on collision or landing, and again at lifetime expiry | tested in both the landing path and the expiry path. `observed` |
+| `0x80` | bounces on landing: vertical speed negated and halved, damped to rest below 10 | the landing path's own arithmetic. `observed` |
+| `0x100` | emits the colored trail at `+0x30` | coincides exactly with a nonzero trail RGB — 64 of 64 records, no exceptions either way. `observed` for the coincidence, `inferred` for the naming |
+
+The value census reads cleanly under these names: the 112 zero-flag records
+are the loot — persistent, tangible, falling, inert — while `0x74`
+(temporary, floating, detonating) is a projectile and `0x174` the same with
+a trail. Bits `0x08`, `0x10` and `0x400` still await a traced test; they
+ride along on most effect records. `unknown`
 
 A map sprite object selects this table by `descriptor_index` and repeats the
 descriptor's object id. This two-field join succeeds for all 129 objects
@@ -83,7 +97,7 @@ whose 52-byte records do not account for the inflated block exactly.
 
 ## Open questions
 
-- Confirm the dimensional, lifetime, speed, and trail-color semantics against
-  individual runtime branches.
-- What each flag bit at `+0x26` selects; the value set is enumerated above, the
-  meanings are not.
+- The speed field at `+0x2E` still lacks a traced runtime branch; radius,
+  height, lifetime, and the trail color are now anchored above.
+- Flag bits `0x08`, `0x10` and `0x400` remain unnamed; the other six
+  recurring bits are traced in the flag table above.
