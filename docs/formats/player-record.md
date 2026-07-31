@@ -96,9 +96,26 @@ sibling — the weapon path at `0x47e810`, which reads the equipped weapon
 slot at `+0x142c`, is the better candidate for the melee bonus and is not
 yet read. `unknown`
 
-## What is still missing
+## The recovery counter, found
 
-The recovery field — the one that would settle the party's swing rate and
-the monster table's `Rec` units — has not been located. The routines mapped
-here do not touch it; the search that failed is recorded in
-[`text-tables.md`](text-tables.md). `unknown`
+**`+0x137c` is the recovery counter**, a `u16`, and it is the field four
+earlier searches missed. Every write to it in the executable is one of
+seven:
+
+- two tick-downs (`0x482c2c`/`0x482c63` and `0x488664`/`0x488693`) that
+  subtract an elapsed amount scaled by **0.01** (the double at
+  `0x4b93f8`) and clamp at zero, setting a global flag at `0x52d29c`
+  when a character comes free;
+- one clear in the party-reset loop at `0x48624c`, which then walks
+  `+0x1380` to `+0x1410` in eight-byte steps — the skill block, cleared
+  beside it;
+- one set from `AI.CPP` (the assertion at `0x405c64` names the file and
+  line 2546) that multiplies its input by **32/15 = 2.1333…** (the double
+  at `0x4b9318`) before storing.
+
+`observed` So a recovery is stored pre-scaled by 32/15 and burned down at
+a hundredth of the elapsed unit. What that elapsed unit counts — frames,
+milliseconds, or the game's own tick — is not yet read, so StarHaven
+keeps its own seconds-based pacing and says so in `combat.hpp`. The
+monster table's `Rec` column feeding this field is the natural next
+question. `unknown`

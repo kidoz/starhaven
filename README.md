@@ -1054,12 +1054,15 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
-- **The recovery trace came up empty, on the record**: the party's
-  one-second swing and the `Rec` column's hundredths stay the engine's
-  own numbers this round. Filed for the next attempt: the monster
-  loader at 0x446d48 has no per-column jump table to read field offsets
-  from, the constant 140 appears as an immediate nowhere in the code,
-  and the two AI clusters hold rolls but no recovery arithmetic.
+- **Recovery, found on the fifth attempt**: approaching from the party's
+  side instead of the monster table's turned up the counter four
+  searches had missed — the `u16` at `+0x137c`, whose every writer in
+  the executable is now catalogued: two tick-downs burning it at a
+  hundredth of the elapsed unit, the party-reset clear (which also
+  showed the skill block runs `+0x1380`..`+0x1410` in eight-byte steps),
+  and one setter in `AI.CPP` that pre-scales its input by 32/15. The
+  elapsed unit itself is still unread, so the engine keeps its own
+  pacing and now cites the field.
 - **The shots use the shot's own bar**: a drawn bow and a monster's
   Miss-column attack now roll against `2 × armour + 30` instead of the
   plain bar, so archery against armour asks for skill exactly the way

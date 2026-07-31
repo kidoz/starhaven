@@ -1019,7 +1019,14 @@ halves, and a large one halves four times at most — a sixteenth, not a
 subtraction. `observed` StarHaven follows this rule, with a dice-free
 expectation kept beside it for tools.
 
-## The recovery system: not yet traced
+## The recovery system: the field is found
+
+**Update.** The counter itself has since been located — the `u16` at
+`+0x137c` of a character, with its set and tick scales read. See
+[`player-record.md`](player-record.md). What follows is the record of the
+search that failed before it, kept because its refutations still stand.
+
+## The recovery system: the earlier dead ends
 
 The party's one-second swing and the monster `Rec` column read as
 hundredths of a second are still the engine's own numbers, and this

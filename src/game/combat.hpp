@@ -78,7 +78,10 @@ inline constexpr float kPartyRecovery = 1.0f;
 
 // The monster table's recovery column is a bare number, 0 to 200-odd, with no
 // unit. Treating it as hundredths of a second puts the slowest monsters at
-// about two seconds between blows. `inferred`
+// about two seconds between blows. `inferred` — and now half-traced: the
+// original's recovery counter is the `u16` at `+0x137c` of a character,
+// stored pre-scaled by 32/15 and burned down at a hundredth of an elapsed
+// unit whose meaning is still unread. See docs/formats/player-record.md.
 inline constexpr float kMonsterRecoveryScale = 0.01f;
 
 // How long a monster shows its flinch before standing again, in seconds. The
