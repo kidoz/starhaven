@@ -1,15 +1,13 @@
 # Monster table (`DMONLIST.BIN`, Might and Magic VI)
 
-Status: **verified; one constant unread.** The table an actor's monster id
+Status: **verified.** The table an actor's monster id
 indexes, giving each monster its name and its animation sprite base names.
 Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the record's name field, the eight animation sprite
-names, the body sizes and the four sound ids. The one field still unread is
-`unknown`, as is how the game draws the B and C variants whose sprites are
-absent.
+Covers the container, the record's name field, default velocity, the eight
+animation sprite names, body sizes, and four sound ids.
 
 ## Source provenance (non-expressive)
 
@@ -39,8 +37,8 @@ which is what pins the record size. `observed`
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 2 | u16 | height | observed | 56..487; see below |
 | +0x02 | 2 | u16 | radius | observed | 40..238 |
-| +0x04 | 2 | u16 | constant | observed | 140 on all 173 records; no read found at any of the loaded table's row consumers — the executable takes the height into the actor record (+0x00), preloads the four sound ids (+0x08), and copies the sprite names (+0x30); like `DCHEST.BIN`'s frame index, this reads as build-tool residue |
-| +0x06 | 2 | — | zero | observed | zero on all 173 |
+| +0x04 | 2 | u16 | default velocity | observed | 140 on all 173; actor preparation normally replaces it from `MONSTERS.TXT` |
+| +0x06 | 2 | — | reserved | observed | unused in MM6 and zero on all 173 |
 | +0x08 | 8 | u16[4] | sound ids | observed | attack, die, charge, fidget; see below |
 | +0x10 | 32 | char[32] | name | observed | e.g. `"ArcherA"`, `"PeasantF1B"` |
 | +0x30 | 80 | char[10][8] | animation sprites | observed | eight base names |
@@ -68,14 +66,14 @@ arithmetic reading held as long as it did. `observed` Reproduce with
 
 ### The body at the record's front
 
-The two u16s at +0x00 are the monster's **height and radius in world
-units**: bats (56) and rats (59) at the bottom of the height range, Titans
+The first three u16s are the monster's **height, radius, and default velocity
+in world units**. Bats (56) and rats (59) sit at the bottom of the height range, Titans
 (474) and Dragons (487) at the top, and spiders wider than they are tall
-(64 by 109). `observed` for the values; that the units are the world's is
-`inferred` from their magnitudes against the maps' own geometry. The u16 at
-+0x04 is **140 on every record** — a constant whose meaning is `unknown` —
-and +0x06 and the 20 bytes at +0x80 are zero throughout, which is what the
-frame table's zeroed runtime fields look like. Reproduce with
+(64 by 109). `observed` for the values; that the body units are the world's is
+`inferred` from their magnitudes against the maps' own geometry. The default
+velocity at +0x04 is **140 on every record** and is normally replaced from
+`MONSTERS.TXT` when an actor is prepared. +0x06 and the 20 bytes at +0x80 are
+zero throughout, which is what the frame table's zeroed runtime fields look like. Reproduce with
 `sft_info --body`.
 
 ### Animation slots
@@ -147,14 +145,15 @@ bat hard to hit — and a flier rides one body height above the ground. The
 readings of radius as personal space and height as the ride are the
 engine's. `inferred`
 
-## Open questions
+## Historical question status
 
-- The constant 140 at +0x04 — 140 on all 173 records. It is **not** a
-  per-monster move speed: that comes from MONSTERS.TXT's `Spd` column (which
-  varies per monster, read into the AI as `monster.speed * kSpeedScale`). A
-  single value shared by a bat and a dragon cannot be a velocity, so 140 is a
-  fixed constant — a structural base or unused — whose meaning this data does
-  not state. `unknown`
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+The 140 word is a serialized default velocity. The loader can seed an actor
+from it, while normal monster preparation replaces velocity from the varying
+`MONSTERS.TXT` `Spd` value. A shared default therefore does not contradict the
+per-monster movement speed.
 
 ## The eight animations are used, not just listed
 

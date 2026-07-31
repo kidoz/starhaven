@@ -29,7 +29,7 @@ for the inflated block exactly. `observed`
 | `+0x28` | 2 | u16 | DSFT frame index | observed |
 | `+0x2A` | 2 | u16 | lifetime | observed | the expiry compare in the per-frame updater |
 | `+0x2C` | 2 | u16 | — | observed | zero in all 232 records |
-| `+0x2E` | 2 | u16 | speed | inferred |
+| `+0x2E` | 2 | u16 | default speed | observed |
 | `+0x30` | 3 | u8[3] | trail RGB | observed | nonzero on 64 of 232 records |
 | `+0x33` | 1 | u8 | padding | observed |
 
@@ -64,18 +64,23 @@ physics routine:
 
 | Bit | Meaning | Evidence |
 | ---: | --- | --- |
+| `0x01` | invisible: no sprite is drawn | compatibility structure and renderer consumer. `observed` |
 | `0x02` | intangible: the pick/touch box scan skips the object | the scan tests it before reaching for the radius. `observed` |
 | `0x04` | temporary: the object accumulates elapsed time and expires at the descriptor lifetime | the updater's lifetime block runs only under this bit. `observed` |
+| `0x08` | lifetime comes from the selected SFT animation | lifetime setup reads the frame group. `observed` |
+| `0x10` | cannot be picked up | pickup consumer rejects the descriptor. `observed` |
 | `0x20` | no gravity: skips the fall-and-land block for level flight | the physics routine branches past landing straight to the collision probe. `observed` |
 | `0x40` | detonates: the impact handler runs on collision or landing, and again at lifetime expiry | tested in both the landing path and the expiry path. `observed` |
 | `0x80` | bounces on landing: vertical speed negated and halved, damped to rest below 10 | the landing path's own arithmetic. `observed` |
 | `0x100` | emits the colored trail at `+0x30` | coincides exactly with a nonzero trail RGB — 64 of 64 records, no exceptions either way. `observed` for the coincidence, `inferred` for the naming |
+| `0x200` | emits a fire trail | effect consumer. `observed` |
+| `0x400` | emits a line trail | effect consumer. `observed` |
 
 The value census reads cleanly under these names: the 112 zero-flag records
 are the loot — persistent, tangible, falling, inert — while `0x74`
 (temporary, floating, detonating) is a projectile and `0x174` the same with
-a trail. Bits `0x08`, `0x10` and `0x400` still await a traced test; they
-ride along on most effect records. `unknown`
+a trail. The remaining bits distinguish animation lifetime, pickup behavior,
+and particle, fire, or line trails.
 
 A map sprite object selects this table by `descriptor_index` and repeats the
 descriptor's object id. This two-field join succeeds for all 129 objects
@@ -95,9 +100,10 @@ these four ids into the detonation routine that damages the party (see
 The decoder rejects a missing 48-byte header, invalid zlib data, and any count
 whose 52-byte records do not account for the inflated block exactly.
 
-## Open questions
+## Historical question status
 
-- The speed field at `+0x2E` still lacks a traced runtime branch; radius,
-  height, lifetime, and the trail color are now anchored above.
-- Flag bits `0x08`, `0x10` and `0x400` remain unnamed; the other six
-  recurring bits are traced in the flag table above.
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+Both questions are closed by the descriptor consumer names and flag table
+above.

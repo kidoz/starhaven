@@ -1,13 +1,12 @@
 # Overlay table (`DOVERLAY.BIN`, Might and Magic VI)
 
-Status: **decoded, layout verified.** A small lookup the engine addresses an
-overlay by. Each claim is tagged `observed`, `inferred`, or `unknown`.
+Status: **decoded, layout corrected and verified.** A small lookup from an
+overlay id and type to a sprite-frame group. Each claim is tagged `observed`,
+`inferred`, or `unknown`.
 
 ## Scope
 
-Covers all of `DOVERLAY.BIN`: the record layout, the id distribution, and the
-scale field. What the engine does with an overlay id is not established from
-the data alone.
+Covers all of `DOVERLAY.BIN`: the record layout and the join to `DSFT.BIN`.
 
 ## Source provenance (non-expressive)
 
@@ -29,27 +28,23 @@ by ninety-six 8-byte records; `4 + 96 × 8 = 772`, the declared length exactly.
 
 | Offset | Size | Type | Field | Status | Notes |
 | --- | ---: | --- | --- | --- | --- |
-| +0x00 | 4 | u32 | id | observed | distinct on all 96; see below |
-| +0x04 | 2 | u16 | scale | observed | stored raw; see below |
-| +0x06 | 2 | u16 | — | observed | zero on all 96 records |
+| +0x00 | 2 | i16 | overlay_id | observed | overlay lookup key |
+| +0x02 | 2 | i16 | overlay_type | observed | overlay behavior/type |
+| +0x04 | 2 | i16 | sft_index | observed | sprite-frame group/index |
+| +0x06 | 2 | i16 | sft_group | observed | loader-resolved group/runtime field |
 
 ## The id
 
-The ids are distinct across the table and run 10 to 11,220. They cluster in
-thousands: 23 sit in 11000..11999, 16 in 10000..10999, 14 in 0..999, then
-between 2 and 9 per thousand-block below that. That shape is consistent with a
-family-and-member id (the high thousands a family, the low hundreds a member),
-but nothing in this table joins it to another to confirm which. `observed` for
-the values, `inferred` for the family reading.
+The earlier `u32 id` combined the adjacent `overlay_id` and `overlay_type`
+words, producing the misleading thousands clusters. Consumers address the
+overlay id/type and resolve `sft_index` through the sprite frame table.
+`observed`
 
-## The scale
+## The former scale reading
 
-The raw u16 takes 34 distinct values. The common band is 486..536; read as
-**8.8 fixed point** that is 1.90 to 2.09 — near a doubling — with a sparser
-upper band at 631..726 (2.47..2.84). One record carries 0. `observed` for the
-stored words; `inferred` for the fixed-point reading. A size multiplier for an
-overlay sprite is the natural reading, and the doubling is what an "oversized
-sprite" looks like, but the data does not name the unit.
+There is no scale field. The values formerly read as 8.8 fixed point are SFT
+indices, which explains why they occupy the same numeric band as sprite-frame
+groups. `observed`
 
 ## Invalid-input behavior
 
@@ -60,8 +55,10 @@ The parser rejects, deterministically and without reading out of bounds:
 - a record count whose 8-byte records do not account for the inflated block
   exactly.
 
-## Open questions
+## Historical question status
 
-- What the `id` joins to — a sprite family and member is the shape, but no
-  shipped table points here to confirm it. `unknown`
-- Whether `scale` is genuinely 8.8 fixed point and what it scales. `inferred`
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+Both questions are closed by splitting the four serialized `i16` fields at
+their actual boundaries.

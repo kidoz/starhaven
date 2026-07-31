@@ -15,9 +15,9 @@ engine reads. It does **not** cover:
 - `Games.lod`, which is the separate live-game-data / chapter LOD with a
   different directory layout (different `lod_type`, games-header variant).
   Handling it is a follow-up slice.
-- The LZ-style compression used for many entries. This slice supports only
-  uncompressed entries and reports compressed entries deterministically as
-  unsupported. Decompression is a follow-up.
+- Entry-specific payload formats. Images and sprites have their own headers;
+  a generic compressed entry instead starts with the zlib envelope described
+  below.
 - MM7/MM8 (76-byte entries, 64-byte names) and Heroes III (92-byte header).
   These are out of scope for MM6 but noted where they diverge.
 
@@ -71,9 +71,10 @@ Entries are stored back-to-back starting at `archive_start`. Entry `i` is at
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 16 | char[16] | name | observed | NUL-padded ASCII |
 | +0x10 | 4 | u32 | addr | observed | offset of this entry's data, **relative to `archive_start`** |
-| +0x14 | 4 | u32 | size_field | observed | **not a reliable stored size** for bitmaps/icons; see below |
-| +0x18 | 4 | u32 | unpacked_size | observed | 0 when the entry is **uncompressed**; non-zero when compressed |
-| +0x1C | 4 | — | unknown | unknown | not needed to locate or size data |
+| +0x14 | 4 | u32 | size_field | observed | authoritative stored byte size |
+| +0x18 | 4 | u32 | reserved | observed | zero in MM6 leaf entries |
+| +0x1C | 2 | u16 | child_count | observed | zero for a leaf entry |
+| +0x1E | 2 | u16 | priority | observed | zero in examined leaf entries; exact directory policy unknown |
 
 ### Absolute data offset
 
@@ -97,13 +98,22 @@ Earlier drafts of this spec tried gap-based sizing; that was incorrect.
 
 ### Compression
 
-An entry is **uncompressed** when `unpacked_size == 0`. Otherwise it is
-compressed (an LZ-style scheme), the decompressed length is `unpacked_size`,
-and the stored (compressed) bytes occupy the gap-derived size above. `observed`.
+Compression is not declared by either trailing directory word. Generic
+compressed payloads carry their own 16-byte envelope:
 
-This slice exposes compressed entries but rejects any attempt to read their
-decoded payload with a clear "unsupported: compressed" status. The raw stored
-bytes can still be located for inspection.
+```text
+u32 version = 91969 (0x00016741)
+char signature[4] = "mvii"
+u32 stored_size
+u32 unpacked_size
+u8 zlib_data[stored_size]
+```
+
+Image and sprite payloads declare compression in their own headers instead.
+All three paths use zlib; there is no LZ algorithm selected by directory
+`+0x18`. `observed` for the MM6 structure, corroborated by the public
+compatibility references linked from the
+[open-question register](../open-questions.md).
 
 ## Invalid-input behavior (required by the engine)
 
@@ -115,12 +125,16 @@ The reader must reject, deterministically and without reading out of bounds:
 - `archive_start` outside `[288, file_size]`;
 - `count` such that the directory table would extend beyond the file;
 - an entry whose `archive_start + addr` exceeds the file size;
-- an entry whose gap-derived size would extend past the file.
+- an entry whose `size_field` would extend past the file;
+- a compressed envelope whose signature or declared bounds are invalid.
 
 The reader reports a structured status; it never throws and never reads past
 the supplied buffer.
 
-## Unknown / open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The meaning of the u32 at entry +0x1C (`unknown`).
 - Whether `size_field` for sprites is authoritative; verify on `SPRITES.LOD`.

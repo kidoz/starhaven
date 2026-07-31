@@ -1,15 +1,13 @@
 # Decoration frame table (`DIFT.BIN`, Might and Magic VI)
 
-Status: **decoded, layout verified.** The glows the torches and braziers wear,
-in the same shape `DSFT.BIN` uses for sprites. Each claim is tagged `observed`,
+Status: **decoded, layout corrected and verified.** This is the frame table for
+icon animations such as decoration glows. Each claim is tagged `observed`,
 `inferred`, or `unknown`.
 
 ## Scope
 
-Covers all of `DIFT.BIN`: the record layout, the group structure, and the
-self-check that ties a group's first frame to its length. The sprite names do
-not resolve directly in `SPRITES.LOD` or `BITMAPS.LOD`; how the engine reaches
-their art is not established here.
+Covers all of `DIFT.BIN`: the record layout, group timing, flags, and the join
+from each icon name to `icons.lod`.
 
 ## Source provenance (non-expressive)
 
@@ -32,46 +30,38 @@ exactly. `observed`
 | Offset | Size | Type | Field | Status | Notes |
 | --- | ---: | --- | --- | --- | --- |
 | +0x00 | 12 | char[12] | group_name | observed | set on a group's first frame; empty after |
-| +0x0C | 12 | char[12] | sprite_name | observed | a per-frame sprite reference |
-| +0x18 | 2 | u16 | flags | observed | 0 or 1 on every shipped frame |
-| +0x1A | 2 | u16 | frame_count | observed | on a group's first frame, equals the group's length |
-| +0x1C | 2 | u16 | duration | observed | per-frame, in the frame tables' shared unit |
-| +0x1E | 2 | u16 | — | observed | zero on every shipped frame |
+| +0x0C | 12 | char[12] | icon_name | observed | a per-frame `icons.lod` reference |
+| +0x18 | 2 | u16 | time | observed | frame duration in 1/16 second |
+| +0x1A | 2 | u16 | total_time | observed | total duration of the group |
+| +0x1C | 2 | u16 | flags | observed | bit 0: another frame; bit 2: group start |
+| +0x1E | 2 | u16 | icon_index | observed | resolved by the loader; runtime field |
 
-This is the `DSFT.BIN` shape (name, sprite, flags, duration) with `frame_count`
-standing in for DSFT's group length. See [`dsft.md`](dsft.md).
+This is the icon counterpart of `DSFT.BIN`; unlike DSFT, its clock is 1/16
+second. See [`dsft.md`](dsft.md).
 
 ## Groups
 
-A record with a non-empty `group_name` starts a group; the records after it, up
-to the next named one, belong to it.
+A record with flag `0x04` starts a group; bit `0x01` says another frame follows.
+The non-empty group name on the first record provides its lookup key.
 
-| Group | Frames | frame_count on first | Sum of durations |
-| --- | ---: | ---: | ---: |
-| *(unnamed, sprite `pending`)* | 1 | 0 | 4 |
-| `glow01` | 6 | 6 | 9 |
-| `glow02` | 6 | 6 | 9 |
-| `glow03` | 6 | 6 | 9 |
-| `glow04` | 6 | 6 | 9 |
-| `glow05` | 6 | 6 | 9 |
-| `fire` | 30 | 30 | 33 |
+| Group | Frames | Sum of times |
+| --- | ---: | ---: |
+| *(ungrouped icon `pending`)* | 1 | 0 |
+| `glow01` | 6 | 6 |
+| `glow02` | 6 | 6 |
+| `glow03` | 6 | 6 |
+| `glow04` | 6 | 6 |
+| `glow05` | 6 | 6 |
+| `fire` | 30 | 30 |
 
-The self-check holds on every named group: **the first frame's `frame_count`
-equals the group's length**, 6 of 6 for the glows and 30 of 30 for `fire`.
-`observed` The leading unnamed group (the `pending` sprite) carries
-`frame_count` 0, which is consistent with a single-frame still rather than a
-breach of the rule.
-
-`flags` is 1 on every frame of the six named groups and 0 on the lone unnamed
-one; `inferred` that bit marks a member of a multi-frame group, though unlike
-DSFT's "another follows" bit it is set on the last frame too.
+The old `frame_count` interpretation was a shifted parse: `+0x1A` is group
+time and `+0x1C` is the flags word. `observed`
 
 ## The sprite names
 
-The frame sprite names — `glow01a`..`glow01f`, `fr1`..`fr30` — are **not** entries
-of `SPRITES.LOD` or `BITMAPS.LOD` (none of the 61 resolves in either). They are
-internal animation references the engine resolves through an indirection this
-table does not itself name. `observed` for the names; `unknown` for the join.
+The frame names — `glow01a`..`glow01f`, `fr1`..`fr30` — are icon resource
+names. They resolve through `icons.lod`; searching only `SPRITES.LOD` and
+`BITMAPS.LOD` created the earlier false open question. `observed`
 
 ## Invalid-input behavior
 
@@ -82,9 +72,10 @@ The parser rejects, deterministically and without reading out of bounds:
 - a record count whose 32-byte records do not account for the inflated block
   exactly.
 
-## Open questions
+## Historical question status
 
-- How the sprite names resolve to art — they are entries of neither LOD.
-  `unknown`
-- The flag bit's exact meaning (it is set on the last frame too, unlike DSFT).
-  `inferred`
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+Both questions are closed by the corrected layout: names select `icons.lod`
+resources, and the flags are the group-start/continuation bits at `+0x1C`.

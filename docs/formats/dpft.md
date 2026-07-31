@@ -1,14 +1,13 @@
 # Portrait frame table (`DPFT.BIN`, Might and Magic VI)
 
-Status: **decoded, layout verified.** Sixty-seven rows of five small numbers,
-with no names to lean on. Each claim is tagged `observed`, `inferred`, or
+Status: **decoded, layout corrected and verified.** Sixty-seven portrait
+animation frame rows. Each claim is tagged `observed`, `inferred`, or
 `unknown`.
 
 ## Scope
 
-Covers all of `DPFT.BIN`: the record layout and the value distribution of each
-field. The table carries no names, so the join to portrait art is `inferred`
-from the values' shape rather than read from a reference.
+Covers all of `DPFT.BIN`: group ids, portrait-frame indices, timing, and group
+flags. [`portraits.md`](portraits.md) covers the expressions those indices draw.
 
 ## Source provenance (non-expressive)
 
@@ -32,23 +31,15 @@ Five little-endian `u16`:
 
 | Offset | Size | Field | Values | Status |
 | --- | ---: | --- | --- | --- |
-| +0x00 | 2 | id | 0..57; 56 distinct | observed |
-| +0x02 | 2 | cell_id | 1..53; tracks id | observed |
-| +0x04 | 2 | width | 1, 2, 4, 8 or 16 | observed |
-| +0x06 | 2 | height | 0, 1, 2, 4, 8, 16 or 26 | observed |
-| +0x08 | 2 | count | 0, 1, 4 or 5 | observed |
+| +0x00 | 2 | group_id | 0..57; animation/expression group | observed |
+| +0x02 | 2 | frame_index | 1..53; portrait texture/expression index | observed |
+| +0x04 | 2 | time | frame duration in 1/32 second | observed |
+| +0x06 | 2 | total_time | total duration of the group | observed |
+| +0x08 | 2 | flags | bit 0: another frame; bit 2: group start | observed |
 
-`width` and `height` take only powers of two (with `height` adding 0 and 26),
-which reads as a size in pixels on a portrait grid; that reading is `inferred`,
-not stated by the data.
-
-### Two shapes of row
-
-Fifty-six rows carry a nonzero `id` (1..57) and a full width/height, and read
-as portrait cells of the named size. The eleven rows with `id = 0` form a
-distinct tail of small records — `cell_id` 1, 25..28, widths 2 or 4, heights 0
-— which reads as a sub-table the `id` distinguishes from the portraits. What
-those zero-id rows select is `unknown`.
+The eleven `group_id = 0` rows are ungrouped/sentinel frames. The former
+`width`, `height`, and `count` names were not pixel measurements; their
+power-of-two-looking values are animation times and flags. `observed`
 
 ## Invalid-input behavior
 
@@ -59,8 +50,9 @@ The parser rejects, deterministically and without reading out of bounds:
 - a record count whose 10-byte records do not account for the inflated block
   exactly.
 
-## Open questions
+## Historical question status
 
-- What `id` joins to — the nameless rows prevent a direct read. `unknown`
-- The eleven `id = 0` rows and what they select. `unknown`
-- Whether `width`/`height` are genuinely pixel sizes. `inferred`
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+All three questions are closed by the corrected frame-table layout above.
