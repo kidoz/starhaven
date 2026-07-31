@@ -1099,6 +1099,15 @@ interoperability and compatibility with a legally purchased copy.
   actually offers: window scale, fullscreen, turn-based, and the two
   switches read from the install's own `MM6.ini`. The frame's third and
   fourth medallions open them.
+- **The doubt settled, and the hit roll closed**: reading the to-hit's
+  three callers decides which side is which — the second argument is
+  always the monster record the armour is read from, so the first is the
+  striker and the getter really is the **attacker's bonus**. The engine
+  now assembles it the original's way: an attribute read raw plus the
+  first skill of the priority order the character holds, weighted by
+  that skill's own percentage. That an attack bonus weighs Plate at 10%
+  and searches armour skills first is odd, and is filed as odd rather
+  than smoothed away.
 - **The area spells strike the crowd**: a damaging spell's reach is now
   read from its own prose — "targets a single monster, but explodes to
   hurt anyone else caught in the blast" and "a large radius surrounding
@@ -1112,10 +1121,8 @@ interoperability and compatibility with a legally purchased copy.
   row 253 + id, skill = row 271 + id), which independently confirms
   every promotion beat: 9→10 is Paladin→Crusader, 7→8 Wizard→Archmage.
   With names attached, the traced percentage table reads Shield 50,
-  Leather 30, Chain 25, Plate 10 — **armour class, not an attack
-  bonus** — so which side of the fight those getters serve is now in
-  question, and the engine's attack bonus is relabelled its own rather
-  than claiming a trace it cannot yet support.
+  Leather 30, Chain 25, Plate 10 — which looked like armour class and
+  put the getters' side in question.
 - **The weapon path confirms the formula from the other side**: the
   getter the to-hit routine uses when a weapon is involved reads the
   equipped weapon slot, then computes exactly as its sibling does —

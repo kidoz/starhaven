@@ -94,14 +94,22 @@ Item 120, Merchant 20. And the priority list at `0x4c276c` is Light,
 Earth, Water, Air, **Dagger**, Fire, Plate, Chain, Leather, Shield,
 Blaster, Mace, Bow, Spear.
 
-**That reads as armour class, not an attack bonus.** The armour skills'
-descending percentages and the presence of Dagger and Spear — the two
-weapons MM6 lets contribute to defence — fit a defensive sum far better
-than an offensive one, which puts the earlier reading of `0x47e270` and
-`0x47e810` in doubt: they may be the armour-class getters the to-hit
-roll asks about the *defender*, not the attacker's bonus. StarHaven
-therefore keeps its own attack bonus and marks it `inferred` rather than
-claiming the traced one. `unknown`
+**The doubt is settled: the getter serves the striker.** Reading the
+to-hit routine's three callers decides it. Each pushes four arguments,
+and in every one the *second* is the monster's runtime record — the same
+548-byte array at `0x56f478` the AI walks — while the routine reads
+armour from that second argument at `+0x60`. The first argument is
+whoever is striking, and it is the object the getter is called on. So
+`0x47e270` and `0x47e810` return the **attacker's bonus**, and StarHaven
+now assembles it their way: an attribute read raw plus the first skill of
+the priority order the character holds, weighted by that skill's own
+percentage. `observed`
+
+What remains odd is filed rather than smoothed over: an attack bonus that
+weighs Plate at 10% and Shield at 50% — and searches armour skills before
+weapons — reads strangely for an offensive number, and the engine follows
+the code rather than the intuition. `unknown` why the table is shaped
+that way.
 
 ## The weapon path, read from the other side
 

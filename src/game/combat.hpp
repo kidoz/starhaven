@@ -506,15 +506,18 @@ public:
         }
         const auto& monster = monsters.entries()[id - 1];
 
-        // Whether it lands, by the original's own rule. The bonus fed to
-        // it is still this engine's own: the getters at `0x47e270` and
-        // `0x47e810` were read, and their skill percentages — Shield 50,
-        // Leather 30, Chain 25, Plate 10 — name them **armour class**
-        // rather than an attack bonus, so which side of the fight they
-        // serve is unsettled. Until that is read, accuracy plus the
-        // skill's own to-hit line stands in. `inferred` See
-        // docs/formats/player-record.md.
-        const int attack = who.attribute(Attribute::Accuracy) + skill.to_hit;
+        // Whether it lands, by the original's own rule — and with the
+        // original's own bonus: reading the to-hit's callers settled that
+        // its second argument is the one struck (its armour is read at
+        // `+0x60`) and the first is the striker, so the getter really is
+        // the attacker's bonus. It sums an attribute read raw with the
+        // first skill of the priority order the character holds, weighted
+        // by that skill's own percentage. `observed`
+        const int attack = traced_attack_bonus(
+            who.attribute(Attribute::Accuracy), [&who](std::string_view name) {
+                const auto it = who.skills.find(std::string(name));
+                return it == who.skills.end() ? 0 : it->second;
+            });
         // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
         // why archery against armour asks for skill; a swing is the plain
         // bar. Which call site passes which kind is the original's;

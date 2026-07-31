@@ -2,10 +2,29 @@
 // around them.
 #include <catch2/catch_test_macros.hpp>
 
+#include <map>
+
 #include "game/skills.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
+
+TEST_CASE("the attack bonus follows the traced priority walk", "[skills]") {
+    // The getter takes the first skill of the priority order the character
+    // holds and weights it: Plate at 10%, Shield at 50%, Bow at 100%.
+    const auto with = [](std::map<std::string, int> held) {
+        return [held](std::string_view name) {
+            const auto it = held.find(std::string(name));
+            return it == held.end() ? 0 : it->second;
+        };
+    };
+    // Plate comes before Shield and Bow in the priority list, and pays 10%.
+    REQUIRE(traced_attack_bonus(10, with({{"Plate", 20}, {"Bow", 20}})) == 10 + 2);
+    // Without Plate, the walk falls through to Bow at its full weight.
+    REQUIRE(traced_attack_bonus(10, with({{"Bow", 20}})) == 10 + 20);
+    // A character with none of the listed skills gets the attribute alone.
+    REQUIRE(traced_attack_bonus(10, with({{"Sword", 30}})) == 10);
+}
 
 TEST_CASE("a skill's effect lines say what it grants", "[skills]") {
     // The table's own phrasings, one per shipped kind.

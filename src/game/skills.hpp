@@ -171,6 +171,40 @@ struct SkillPower {
     return data::school_name(school);
 }
 
+// The executable's own skill numbering, and the two tables the attack
+// bonus is built from. `GLOBAL.TXT` names the skills in a run from row
+// 271, so id 0 is Staff and 23 Repair Item; the percentage table at
+// `0x4c27fc` gives each id its weight, and the priority list at
+// `0x4c276c` is the order the getter searches — it takes the **first
+// skill the character actually has** and scales that one. `observed`
+// See docs/formats/player-record.md.
+inline constexpr std::array<std::string_view, 24> kSkillNames{
+    "Staff",      "Sword",      "Dagger",     "Axe",        "Spear",     "Bow",
+    "Mace",       "Blaster",    "Shield",     "Leather",    "Chain",     "Plate",
+    "Fire",       "Air",        "Water",      "Earth",      "Light",     "Dark",
+    "Spirit",     "Mind",       "Body",       "Identify",   "Merchant",  "Repair"};
+
+inline constexpr std::array<int, 24> kSkillWeights{100, 100, 100, 50,  10,  100, 75,  60,
+                                                   50,  30,  25,  10,  100, 100, 100, 100,
+                                                   100, 100, 100, 100, 100, 120, 20,  120};
+
+inline constexpr std::array<int, 14> kSkillPriority{16, 15, 14, 13, 2, 12, 11, 10, 9, 8, 7, 6, 5, 4};
+
+// The attack bonus the original assembles: an attribute read raw, plus the
+// first skill in the priority order the character holds, weighted by that
+// skill's own percentage. `observed` for the walk and the tables; which
+// attribute stat 4 names is this engine's reading of Accuracy. `inferred`
+template <typename SkillPoints>
+[[nodiscard]] inline int traced_attack_bonus(int accuracy, const SkillPoints& points) {
+    for (const int id : kSkillPriority) {
+        const auto held = points(kSkillNames[static_cast<std::size_t>(id)]);
+        if (held > 0) {
+            return accuracy + held * kSkillWeights[static_cast<std::size_t>(id)] / 100;
+        }
+    }
+    return accuracy;
+}
+
 // What wearing armor costs the swing before skill lifts it: a tenth slower
 // in leather, a fifth in chain, three tenths in plate. The table names the
 // penalty and who lifts it; these sizes are the engine's own. `inferred`
