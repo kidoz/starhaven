@@ -3200,18 +3200,26 @@ int main(int argc, char** argv) {
         // slot 2, Meditation 6 and 7, Power 10 and 11 — with the power the
         // ten-plus ladder computes rather than a bare flag.
         const int rank = game::rank_of(skill);
-        if (spell.id == game::kSpellHaste) {
-            who.buffs.cast(game::CharacterBuff::Haste, until, skill);
-        } else if (spell.id == game::kSpellMeditation) {
+        // The pairs first: Meditation takes Intellect and Personality, Power
+        // takes Might and Endurance, both on the ten-plus ladder.
+        if (spell.id == game::kSpellMeditation || spell.id == 75) {
             const int power = game::ten_plus_ladder(skill, rank);
-            who.buffs.cast(game::CharacterBuff::MeditationIntellect, until, power);
-            who.buffs.cast(game::CharacterBuff::MeditationPersonality, until, power);
+            for (const int slot :
+                 spell.id == game::kSpellMeditation ? game::kMeditationSlots
+                                                    : game::kPowerSlots) {
+                who.buffs.cast(static_cast<std::size_t>(slot), until, power);
+            }
             return true;
-        } else if (spell.id == 75) {  // Power: Might and Endurance
-            const int power = game::body_stat_bonus(skill, rank);
-            who.buffs.cast(game::CharacterBuff::PowerMight, until, power);
-            who.buffs.cast(game::CharacterBuff::PowerEndurance, until, power);
-            return true;
+        }
+        if (const int slot = game::character_slot_of_spell(spell.id); slot >= 0) {
+            // A slot the stat getter reads carries the ten-plus ladder's own
+            // number; the rest carry the skill itself.
+            const bool moves_a_stat = slot >= 4;
+            who.buffs.cast(static_cast<std::size_t>(slot), until,
+                           moves_a_stat ? game::ten_plus_ladder(skill, rank) : skill);
+            if (spell.id != game::kSpellHaste) {
+                return true;
+            }
         }
         if (name == "Haste") {
             who.haste_until = until;
@@ -6410,6 +6418,7 @@ int main(int argc, char** argv) {
             // own stats at their rolled strengths, the specials' parsed
             // prose.
             party[i].gear_attributes.fill(0);
+            std::array<int, game::kAttributeCount> slot_seen{};
             party[i].gear_resistances.fill(0);
             // The party's own protections stand on top of whatever the
             // character carries: the five slots the stat getter reads, in
@@ -6428,6 +6437,14 @@ int main(int argc, char** argv) {
                                      party[i].worn_special[slot]);
                 for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
                     party[i].gear_attributes[a] += power.attributes[a];
+                    // And the character's own buff slot for that attribute,
+                    // if a spell has filled it.
+                    if (const int slot = game::buff_slot_for_stat(static_cast<int>(a));
+                        slot >= 0 && slot_seen[a] == 0) {
+                        party[i].gear_attributes[a] += party[i].buffs.power(
+                            static_cast<std::size_t>(slot), clock.minutes());
+                        slot_seen[a] = 1;
+                    }
                     // And what the executable's own walk over the special
                     // gives that stat, which the prose does not say.
                     party[i].gear_attributes[a] += game::special_stat_bonus(

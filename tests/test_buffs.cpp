@@ -114,3 +114,38 @@ TEST_CASE("a character keeps sixteen slots of its own", "[buffs]") {
     buffs.cast(kCharacterBuffCount + 3, 900, 5);
     REQUIRE(buffs.power(kCharacterBuffCount + 3, 0) == 0);
 }
+
+TEST_CASE("every character spell knows its slot", "[buffs]") {
+    REQUIRE(character_slot_of_spell(46) == static_cast<int>(CharacterBuff::Bless));
+    REQUIRE(character_slot_of_spell(51) == static_cast<int>(CharacterBuff::Heroism));
+    REQUIRE(character_slot_of_spell(5) == static_cast<int>(CharacterBuff::Haste));
+    REQUIRE(character_slot_of_spell(17) == static_cast<int>(CharacterBuff::Shield));
+    REQUIRE(character_slot_of_spell(38) == static_cast<int>(CharacterBuff::StoneSkin));
+    REQUIRE(character_slot_of_spell(48) == static_cast<int>(CharacterBuff::LuckyDay));
+    REQUIRE(character_slot_of_spell(59) == static_cast<int>(CharacterBuff::Precision));
+    REQUIRE(character_slot_of_spell(73) == static_cast<int>(CharacterBuff::Speed));
+    // The two that take a pair are not on the single-slot list.
+    REQUIRE(character_slot_of_spell(56) == -1);
+    REQUIRE(character_slot_of_spell(75) == -1);
+    REQUIRE(kMeditationSlots[0] == 6);
+    REQUIRE(kPowerSlots[1] == 11);
+    // And a damage spell owns nothing here either.
+    REQUIRE(character_slot_of_spell(2) == -1);
+}
+
+TEST_CASE("the attribute slots answer for the stat their spell names", "[buffs]") {
+    // Slots 4..11 are the eight the stat getter reads, in its own order.
+    REQUIRE(kAttributeBuffStat.size() == 8);
+    REQUIRE(buff_slot_for_stat(6) == static_cast<int>(CharacterBuff::LuckyDay));      // Luck
+    REQUIRE(buff_slot_for_stat(1) == static_cast<int>(CharacterBuff::MeditationIntellect));
+    REQUIRE(buff_slot_for_stat(2) == static_cast<int>(CharacterBuff::MeditationPersonality));
+    REQUIRE(buff_slot_for_stat(4) == static_cast<int>(CharacterBuff::Precision));     // Accuracy
+    REQUIRE(buff_slot_for_stat(5) == static_cast<int>(CharacterBuff::Speed));
+    REQUIRE(buff_slot_for_stat(0) == static_cast<int>(CharacterBuff::PowerMight));
+    REQUIRE(buff_slot_for_stat(3) == static_cast<int>(CharacterBuff::PowerEndurance));
+    // The slots below four carry no attribute.
+    REQUIRE(buff_slot_for_stat(99) == -1);
+    for (int slot = 0; slot < 4; ++slot) {
+        REQUIRE(buff_slot_for_stat(slot) != slot);
+    }
+}

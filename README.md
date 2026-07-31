@@ -1143,6 +1143,16 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **All twelve character buff slots, and the ladder finally moves a stat**:
+  every case loads the array's base as an immediate before calling the
+  setter, which gives the whole map at once — Bless 0, Heroism 1, Haste 2,
+  Shield 3, Stone Skin 4, Lucky Day 5, Meditation 6 and 7, Precision 8,
+  Speed 9, Power 10 and 11. Slots 4 to 11 are the eight the stat getter
+  reads, and **every attribute-buffing spell lands on the slot for the
+  attribute its own row names** — Lucky Day on Luck, Precision on Accuracy,
+  Speed on Speed, Meditation on Intellect and Personality, Power on Might
+  and Endurance. Eight independent agreements, and the ten-plus ladder now
+  raises a statistic on the sheet instead of setting a flag.
 - **The open question closed, against the earlier reading**: the script
   variable table names the attribute fields outright — ids 32 to 44 write
   seven pairs of words in the run `+0x16` to `+0x30`, a value and a modifier

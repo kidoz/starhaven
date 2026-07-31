@@ -210,13 +210,84 @@ private:
 inline constexpr std::size_t kCharacterBuffCount = 16;
 inline constexpr int kCharacterBuffBase = 0x1268;
 
+// The whole map, read from the `mov reg, 0x90a1xx` each case loads before
+// its call to the setter — the array's own base plus sixteen bytes a slot.
+// `observed` at the twelve addresses listed beside them.
+//
+// | slot | spell | at |
+// | --- | --- | --- |
+// | 0 | Bless | `0x426759` |
+// | 1 | Heroism | `0x426c96` |
+// | 2 | Haste | `0x4237eb` |
+// | 3 | Shield | `0x4247a3` |
+// | 4 | Stone Skin | `0x4261d1` |
+// | 5 | Lucky Day | `0x426a9b` |
+// | 6, 7 | Meditation | `0x427424`, `0x4274a2` |
+// | 8 | Precision | `0x4276db` |
+// | 9 | Speed | `0x428222` |
+// | 10, 11 | Power | `0x428483`, `0x428501` |
+//
+// Slots 4 through 11 are the eight whose power words the stat getter reads
+// as the attribute bonuses, and every attribute-buffing spell lands on the
+// slot for the attribute its own row names: Lucky Day on Luck, Meditation on
+// Intellect and Personality, Precision on Accuracy, Speed on Speed, Power on
+// Might and Endurance. Two Light spells reach in as well — Day of the Gods
+// writes slot 11 (`0x428add`) and Hour of Power slot 1 (`0x428e0c`).
 enum class CharacterBuff : std::size_t {
+    Bless = 0,
+    Heroism = 1,
     Haste = 2,
+    Shield = 3,
+    StoneSkin = 4,
+    LuckyDay = 5,
     MeditationIntellect = 6,
     MeditationPersonality = 7,
+    Precision = 8,
+    Speed = 9,
     PowerMight = 10,
     PowerEndurance = 11,
 };
+
+// Which slot a spell fills on a character, or none.
+[[nodiscard]] inline constexpr int character_slot_of_spell(int spell_id) noexcept {
+    switch (spell_id) {
+        case 46:
+            return static_cast<int>(CharacterBuff::Bless);
+        case 51:
+            return static_cast<int>(CharacterBuff::Heroism);
+        case 5:
+            return static_cast<int>(CharacterBuff::Haste);
+        case 17:
+            return static_cast<int>(CharacterBuff::Shield);
+        case 38:
+            return static_cast<int>(CharacterBuff::StoneSkin);
+        case 48:
+            return static_cast<int>(CharacterBuff::LuckyDay);
+        case 59:
+            return static_cast<int>(CharacterBuff::Precision);
+        case 73:
+            return static_cast<int>(CharacterBuff::Speed);
+        default:
+            return -1;
+    }
+}
+
+// The two that take a pair, and the attributes their rows name.
+inline constexpr std::array<int, 2> kMeditationSlots{6, 7};
+inline constexpr std::array<int, 2> kPowerSlots{10, 11};
+
+// Which stat id each of the eight attribute slots answers for, by the order
+// the stat getter reads their power words at `+0x12b0 + 16k`. `observed`
+inline constexpr std::array<int, 8> kAttributeBuffStat{9, 6, 1, 2, 4, 5, 0, 3};
+
+[[nodiscard]] inline constexpr int buff_slot_for_stat(int stat) noexcept {
+    for (std::size_t i = 0; i < kAttributeBuffStat.size(); ++i) {
+        if (kAttributeBuffStat[i] == stat) {
+            return static_cast<int>(i) + 4;
+        }
+    }
+    return -1;
+}
 
 // A character's sixteen, the same record as the party's.
 class CharacterBuffs {
