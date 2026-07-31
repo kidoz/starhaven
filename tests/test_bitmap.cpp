@@ -112,13 +112,23 @@ TEST_CASE("uncompressed 2x2 maps each index through the palette", "[bitmap]") {
 }
 
 TEST_CASE("transparency flag makes index 0 fully transparent", "[bitmap]") {
-    auto entry = make_uncompressed_1x1(/*flags*/ 0x0200);
-    // Set the single pixel to index 0.
-    entry[kHeaderSize] = std::byte{0};
+    // Both conventions: 0x0200 marks icons.lod UI art, 0x0001 the world
+    // textures that use index 0 (a perfect 1,085/0 split in BITMAPS.LOD).
+    for (const std::uint32_t flags : {0x0200u, 0x0001u}) {
+        auto entry = make_uncompressed_1x1(flags);
+        // Set the single pixel to index 0.
+        entry[kHeaderSize] = std::byte{0};
 
+        Bitmap b;
+        REQUIRE(decode_bitmap(entry, b) == BitmapError::None);
+        REQUIRE(b.rgba[3] == 0);  // alpha 0
+    }
+    // Unflagged, index 0 stays opaque.
+    auto opaque = make_uncompressed_1x1(/*flags*/ 0);
+    opaque[kHeaderSize] = std::byte{0};
     Bitmap b;
-    REQUIRE(decode_bitmap(entry, b) == BitmapError::None);
-    REQUIRE(b.rgba[3] == 0);  // alpha 0
+    REQUIRE(decode_bitmap(opaque, b) == BitmapError::None);
+    REQUIRE(b.rgba[3] == 255);
 }
 
 TEST_CASE("zlib-compressed pixel data is inflated and decoded", "[bitmap]") {

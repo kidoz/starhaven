@@ -87,29 +87,33 @@ For rendering the base image, the decoder uses only the first `size` bytes.
 ## Palette
 
 After the pixel data (`offset 48 + dataSize`) comes a **768-byte palette**:
-256 entries × 3 bytes (R, G, B), each 0–255. Palette index 0 may be transparent
-when flag `0x0200` is set.
+256 entries × 3 bytes (R, G, B), each 0–255. Palette index 0 is the
+transparent color when flag `0x0200` (UI art) or `0x0001` (world textures)
+is set.
 
 ## Flags
 
+The shipped values are few. `BITMAPS.LOD`'s 1,958 entries carry exactly
+three: `0x13` on 1,085, `0x12` on 607, and `0x0` on the 266 zero-size
+non-image entries. `icons.lod`'s bitmaps carry `0x0`, `0x10`, `0x100`,
+`0x200` and `0x210`. `observed`
+
 | Bit | Meaning | Status |
 | --- | --- | --- |
-| 0x0002 | has mipmaps | observed |
-| 0x0100 | — | unknown |
-| 0x0200 | palette entry 0 is transparent (alpha key); else colorkey | inferred |
-| 0x0400 | — | unknown |
+| 0x0001 | uses palette index 0 — the transparent color. Set on 1,085 of 1,085 world textures whose pixels contain index 0 and on 0 of the 607 that do not: a perfect split. | observed for the split; the transparency reading `inferred` |
+| 0x0002 | a four-level mip chain follows: the pixel data is exactly `size + size/4 + size/16 + size/64` bytes on all 1,692 flagged entries, and the executable's loader stands pointers at those very offsets when it tests the bit. | observed |
+| 0x0010 | set on every real image in both archives; not yet seen tested. | unknown |
+| 0x0100 | `icons.lod` UI art only (233 entries); untraced. | unknown |
+| 0x0200 | `icons.lod` UI art: palette entry 0 is transparent. | inferred |
+| 0x0400 | never on disk — the executable's loader ORs it into the word after loading, a runtime marker. | observed |
 
-A full census of all 1,958 entries: `0x0100` is set on 578 and `0x0400` on
-1,084 (409 carry both, 705 carry neither). The earlier `inferred` readings
-— `0x0100` "not an image (text file?)" and `0x0400` "don't free buffers" —
-are **refuted**: the `0x0100`-only entries (`BRX*`, `HC*`, `bd1ft*`) are real
-bitmaps (wall and floor texture fragments), not text files, and there are no
-non-image entries in this archive. Both bits are common on structural tiling
-textures, but their meaning (mip selection? tiling? cache policy?) is not
-determinable from the names alone and needs the executable. `unknown`
+**This corrects the previous census**, which reported `0x0100` on 578 and
+`0x0400` on 1,084 of the 1,958; neither value occurs in the shipped
+`BITMAPS.LOD` at header offset `0x2C`, and the counts are not reproducible
+against either archive.
 
-This slice treats index 0 as transparent when `0x0200` is set; full colorkey
-handling is deferred.
+The decoder treats index 0 as transparent when `0x0200` (UI art) or
+`0x0001` (world textures) is set.
 
 ## Decoding to RGBA
 
@@ -134,9 +138,7 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 ## Unknown / open questions
 
-- Semantics of flags `0x0100` and `0x0400`. Both are common (578 and 1,084 of
-  1,958 entries) and set on real bitmap textures; the earlier "text file" /
-  "don't free" readings are refuted, and the names do not reveal the meaning.
-  `unknown`
+- What bit `0x0010` selects (present on every real image in both archives)
+  and what `0x0100` marks on `icons.lod` UI art. `unknown`
 - Colorkey (non-index-0 transparency) handling — deferred.
 - Whether `anotherPaletteId` is ever non-zero — not observed.

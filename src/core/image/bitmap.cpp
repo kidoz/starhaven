@@ -86,7 +86,11 @@ BitmapError decode_bitmap_impl(std::span<const std::byte> entry, int cycle_lo, i
     std::array<std::uint8_t, kPaletteSize> palette{};
     std::memcpy(palette.data(), palette_span.data(), kPaletteSize);
 
-    const bool index0_transparent = (flags & 0x0200) != 0;
+    // Two colorkey conventions share the flags word: icons.lod UI art marks
+    // transparency with 0x0200, while BITMAPS.LOD world textures carry
+    // 0x0001 exactly where index-0 pixels exist (1,085 of 1,085 against
+    // 0 of 607). See docs/formats/bitmap.md.
+    const bool index0_transparent = (flags & 0x0200) != 0 || (flags & 0x0001) != 0;
 
     out.width = width;
     out.height = height;

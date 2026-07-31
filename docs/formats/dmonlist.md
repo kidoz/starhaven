@@ -39,7 +39,7 @@ which is what pins the record size. `observed`
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 2 | u16 | height | observed | 56..487; see below |
 | +0x02 | 2 | u16 | radius | observed | 40..238 |
-| +0x04 | 2 | u16 | constant | observed | 140 on all 173 records; meaning `unknown` |
+| +0x04 | 2 | u16 | constant | observed | 140 on all 173 records; no read found at any of the loaded table's row consumers — the executable takes the height into the actor record (+0x00), preloads the four sound ids (+0x08), and copies the sprite names (+0x30); like `DCHEST.BIN`'s frame index, this reads as build-tool residue |
 | +0x06 | 2 | — | zero | observed | zero on all 173 |
 | +0x08 | 8 | u16[4] | sound ids | observed | attack, die, charge, fidget; see below |
 | +0x10 | 32 | char[32] | name | observed | e.g. `"ArcherA"`, `"PeasantF1B"` |

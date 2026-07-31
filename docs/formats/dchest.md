@@ -39,10 +39,12 @@ eight 36-byte records; `4 + 8 × 36 = 292`, the declared length exactly.
 | +0x20 | 2 | u16 | frame_index | observed | constant `0x0a0e` (2574) on all eight records |
 | +0x22 | 2 | u16 | object_id | observed | 1..8, a row of `DOBJLIST.BIN` |
 
-The constant `frame_index` reads as a `DSFT.BIN` frame index (it is below the
-6,455-frame table), but the table never varies it, and what selecting it would
-draw is not established; the engine reaches the art through `object_id`.
-`observed` for the value, `unknown` for a use.
+The constant `frame_index` is settled: **the executable never reads it**.
+The loaded table has exactly two field consumers — the chest screen, which
+reads `object_id` and formats the art name as `"chest%02d"` with it, and
+the unload reset that zeroes the table. Neither the name nor the
+`frame_index` is touched, so `0x0a0e` is residue of whatever tool built
+the table. `observed`
 
 ## The eight rows
 
@@ -71,5 +73,6 @@ The parser rejects, deterministically and without reading out of bounds:
 
 ## Open questions
 
-- What the constant `frame_index` `0x0a0e` selects, if anything — the engine
-  draws the chest through `object_id`. `unknown`
+None. The `frame_index` question closed when the executable's two table
+consumers were traced: the field is written by the table's build tool and
+read by nothing.
