@@ -13,6 +13,7 @@
 // Reproduce with `data_info --backdrops`; see docs/formats/text-tables.md.
 
 #include <array>
+#include <cstdint>
 #include <string_view>
 
 namespace starhaven::game {
@@ -38,6 +39,53 @@ inline constexpr std::array<std::string_view, 118> kInteriorVideos{
     "d02",      "d04",      "d18",      "d19",      "d07",      "d20",
     "d08",      "CstlGood", "d01",      "cd1",      "cd2",      "cd3",
     "circus2",  "statue",   "archloop", "noarchie"};
+
+// The side panel each interior wears, and the sound it hums: the same
+// executable table that names the videos carries both. Its records are 16
+// bytes at `0x4be88c` — byte 0 the `EVPAN###` panel number, the dword at
+// +4 a `DSOUNDS` id where the room has one, the byte at +8 a kind, and
+// the pointer at +12 the video name in exactly the order above. All 52
+// distinct panel numbers the table names ship in `icons.lod`. `observed`
+// Reproduce the join with `data_info --backdrops`.
+inline constexpr std::array<std::uint8_t, 118> kInteriorPanels{
+    4, 22, 13, 23, 10, 14, 42, 30, 7, 36, 14, 12,
+    11, 16, 41, 14, 30, 16, 25, 9, 34, 19, 18, 38,
+    13, 15, 21, 36, 13, 20, 36, 31, 18, 30, 32, 24,
+    49, 24, 49, 20, 49, 17, 33, 55, 6, 33, 15, 49,
+    37, 35, 36, 39, 39, 39, 28, 27, 29, 26, 43, 24,
+    24, 24, 25, 38, 25, 18, 8, 3, 13, 2, 36, 36,
+    1, 15, 9, 41, 30, 24, 22, 36, 13, 40, 44, 45,
+    24, 22, 8, 53, 54, 52, 24, 49, 13, 46, 25, 25,
+    30, 51, 25, 25, 47, 49, 13, 20, 49, 49, 20, 51,
+    49, 19, 14, 49, 25, 49, 36, 55, 55, 55};
+
+inline constexpr std::array<std::uint16_t, 118> kInteriorSounds{
+    500, 505, 506, 507, 501, 502, 503, 516, 517, 518, 513, 514,
+    515, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    175, 530, 20, 297, 358, 552, 550, 549, 548, 551, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 504, 385, 72, 0,
+    533, 534, 535, 519, 520, 521, 510, 509, 508, 511, 512, 332,
+    91, 0, 260, 61, 549, 256, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 545, 546, 547, 532, 532, 532,
+    532, 532, 532, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// The panel a Picture value wears, or 0 when out of the table's reach.
+[[nodiscard]] inline int interior_panel(int picture) noexcept {
+    if (picture < 1 || picture > static_cast<int>(kInteriorPanels.size())) {
+        return 0;
+    }
+    return kInteriorPanels[static_cast<std::size_t>(picture) - 1];
+}
+
+// And the sound it hums, or 0 where the table names none.
+[[nodiscard]] inline int interior_sound(int picture) noexcept {
+    if (picture < 1 || picture > static_cast<int>(kInteriorSounds.size())) {
+        return 0;
+    }
+    return kInteriorSounds[static_cast<std::size_t>(picture) - 1];
+}
 
 // The video a Picture value names, or empty when out of the table's reach.
 [[nodiscard]] inline std::string_view interior_video(int picture) noexcept {

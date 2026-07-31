@@ -1778,6 +1778,15 @@ void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
     } else {
         blit(scene.framebuffer(), cache.icon("BACKEVT"), 16, 40);
     }
+    // The establishment's own side panel over the room, where the
+    // executable's interior table names one — its byte 0, traced.
+    if (shop != nullptr) {
+        if (const int panel = game::interior_panel(shop->picture); panel > 0) {
+            char plate[12];
+            std::snprintf(plate, sizeof(plate), "EVPAN%03d", panel);
+            blit(scene.framebuffer(), cache.icon(plate), 8, 8);
+        }
+    }
     if (npc_id > 0 && npc_id < 1000) {
         char plate[8];
         std::snprintf(plate, sizeof(plate), "NPC%03d", npc_id);

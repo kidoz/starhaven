@@ -294,14 +294,17 @@ halls with the City Council on `CitySpec` and the unused 17 on
 the Archibald screens. `observed` for the strings and the anchors,
 `inferred` for the descending read they pin. Reproduce with
 `data_info --backdrops`. The earlier reading that the column might name
-the `EVPAN###` side panels was wrong — though the same string block's
-`evpan%03d` format shows those, too, are picked by a computed number.
-That number was hunted and not found: no script opcode's argument set
-matches the 39 shipped panel ids (the candidates that cover them are
-dense id spaces covering everything else too), and no numeric column of
-`2DEvents.txt` comes close (the best covers 14 of 39 with strays). The
-likeliest remaining sources are the outdoor model records' unread
-fields or a table in the executable; the feed stays `unknown`.
+the `EVPAN###` side panels was wrong, and the right answer is one step
+further along the same road: the `evpan%03d` format string's only caller
+(`0x43a134`) takes its number from **byte 0 of a 16-byte table at
+`0x4be88c`**, indexed by the same 1..118 Picture value. That table is the
+interior list itself — each record carries the panel number at `+0`, a
+`DSOUNDS` id at `+4` where the room hums, a kind byte at `+8`, and a
+pointer at `+12` to the video name, in exactly the order the string block
+gave. The 52 distinct panel numbers it names all ship in `icons.lod`
+(only `EVPAN005`, `048` and `050` go unused). `observed` So the Picture
+column names three things at once — the room's video, its side panel and
+its sound — and StarHaven now draws the panel and can hum the sound.
 
 ### The King's Library carries the Archibald machinery
 

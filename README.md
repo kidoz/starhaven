@@ -1055,6 +1055,13 @@ interoperability and compatibility with a legally purchased copy.
   loader at 0x446d48 has no per-column jump table to read field offsets
   from, the constant 140 appears as an immediate nowhere in the code,
   and the two AI clusters hold rolls but no recovery arithmetic.
+- **The evpan gamble closed, and paid three ways**: the format string's
+  single caller reads its number from a 16-byte table in the executable
+  — and that table turned out to be the interior list itself, carrying
+  each room's `EVPAN` side panel, its `DSOUNDS` hum and its video name
+  in one record. All 52 panel numbers it names ship. The talk screens
+  now wear each establishment's own authored panel instead of the
+  generic marble, and the sound column is decoded beside it.
 - **The player record, mapped from the traces**: three separate digs kept
   re-deriving the same offsets, so they are now written down —
   `docs/formats/player-record.md` collects the resistance bytes, the
@@ -1191,12 +1198,6 @@ interoperability and compatibility with a legally purchased copy.
   it: runtime state shipped empty, like the monster records' tails.
   `odm_info` now prints its nonzero count so the claim stays checkable.
 
-- **The evpan gamble came up empty, on the record**: the number behind
-  the exe's `evpan%03d` was hunted through every script opcode's
-  argument sets and every numeric column of `2DEvents.txt`, and nothing
-  covers the 39 shipped panels without drowning them in strays — filed
-  as the honest negative, with the outdoor model records and the
-  executable named as the remaining suspects.
 
 - **The backdrop gamble paid in full**: the 2DEvents Picture column's
   target was recovered from the game's own executable — `MM6.exe`'s
