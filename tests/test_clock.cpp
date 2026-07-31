@@ -51,7 +51,22 @@ TEST_CASE("seconds accumulate into whole minutes", "[clock]") {
     for (int frame = 0; frame < 60 * 60; ++frame) {
         clock.advance_seconds(1.0f / 60.0f);
     }
-    REQUIRE(clock.minutes() == 60);
+    // An hour of sitting at sixty frames a second, at the traced rate of
+    // thirty world seconds to the real one: half a world hour.
+    REQUIRE(clock.minutes() == 30);
+}
+
+TEST_CASE("the world runs at the rate the executable measures", "[clock]") {
+    // 128 clock units to the real second, 30/128 world seconds to the unit.
+    REQUIRE(kWorldSecondsPerSecond == 30.0f);
+    REQUIRE(kClockUnitsPerRealSecond * (30.0f / 128.0f) == kWorldSecondsPerSecond);
+    // So a world day takes forty-eight minutes of sitting.
+    GameClock clock{0};
+    for (int second = 0; second < 48 * 60; ++second) {
+        clock.advance_seconds(1.0f);
+    }
+    REQUIRE(clock.day() == 1);
+    REQUIRE(clock.hour() == 0);
 }
 
 TEST_CASE("an establishment's hours are read the way the table writes them", "[clock]") {

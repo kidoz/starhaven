@@ -8,7 +8,8 @@
 // hired NPC something different to say on each of the seven days of the week,
 // and `MapStats.txt` says how many days a map takes to refill with monsters.
 // So there are hours, there is a seven-day week, and there are days that
-// count. How fast they pass is not written down anywhere.
+// count. How fast they pass no table says — but the executable does, and
+// the rate below is now its own rather than this engine's.
 
 #include <array>
 #include <cstdint>
@@ -26,10 +27,18 @@ inline constexpr int kMinutesPerDay = kMinutesPerHour * kHoursPerDay;
 inline constexpr std::array<std::string_view, 7> kWeekdays{
     "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-// How much game time a second of walking about costs. No table says, and the
-// original's own rate is not recorded here; a minute a second makes a day pass
-// in a sitting, which is the only property this engine needs. `inferred`
-inline constexpr float kMinutesPerSecond = 1.0f;
+// How much world time a second of walking about costs, traced. The world
+// clock at `0x908d08` counts in units of which **a real second holds 128**
+// â the sound code at `0x488d79` turns a table of plain seconds into them
+// by multiplying by 128.0 â and the calendar routine at `0x4880a0` turns
+// those units into world seconds by multiplying by the float at `0x4b9374`,
+// **0.234375 = 30/128**, before dividing by 60, 60, 24 and 7. The two
+// together say the world runs at **thirty times real time**: half a world
+// minute a second, a world day in forty-eight minutes of sitting.
+// `observed`
+inline constexpr float kWorldSecondsPerSecond = 30.0f;
+inline constexpr float kClockUnitsPerRealSecond = 128.0f;
+inline constexpr float kMinutesPerSecond = kWorldSecondsPerSecond / 60.0f;
 
 // The party starts on the morning of day one. `inferred`
 inline constexpr std::int64_t kStartMinute = 9 * kMinutesPerHour;

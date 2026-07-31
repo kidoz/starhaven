@@ -1109,6 +1109,12 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The world turns at thirty times real time**: the calendar routine's own
+  arithmetic â 128 clock units to a real second, 30/128 world seconds to a
+  unit â fixes a rate the engine had only ever guessed at. Half a world
+  minute a second: a day now takes forty-eight minutes of playing, and shop
+  hours, the sky's daily re-roll, rest and the day/night turn all keep the
+  original's pace.
 - **A strike costs what the executable says it costs**: the attack-recovery
   routine at `0x481a80` reads a fourteen-word table â a bare fist 100, a
   dagger 60, a sword 90, a staff or axe or bow 100, plate armour another 30
