@@ -14,7 +14,10 @@
 #include "core/data/building_stats.hpp"
 #include "core/data/dice.hpp"
 #include "core/data/game_data.hpp"
+#include "game/clock.hpp"
+#include "game/combat.hpp"
 #include "game/interiors.hpp"
+#include "game/skills.hpp"
 #include "game/player.hpp"
 #include "core/assets/asset_cache.hpp"
 #include "core/world/blv_map.hpp"
@@ -58,6 +61,7 @@ void print_usage(const char* argv0) {
               << "  --awards           Awards.txt\n"
               << "  --autonotes        Autonote.txt\n"
               << "  --encounters       MapStats encounter slots against MONSTERS.TXT\n"
+              << "  --pace             what the traced clock and Rec rates mean in real time\n"
               << "  --dice             damage notation across MONSTERS.TXT and ITEMS.TXT\n"
               << "  --personalities    npcbtb.txt reactions and phrasing\n"
               << "  --proftext [id]    PROFTEXT.txt, what a hire says on each day\n"
@@ -850,6 +854,120 @@ int do_backdrops(const std::filesystem::path& data_dir) {
 // what each holds. A regression net for the data-facing code: it is the
 // only check that touches all 67 maps rather than the handful the tests
 // and the walkthroughs reach.
+// What the traced clock and recovery rates mean in real seconds, measured
+// against the tables that care about time. Nothing here is a simulation: it
+// is arithmetic over `2DEvents.txt`, `MapStats.txt` and `MONSTERS.TXT` at the
+// engine's own constants, so it answers the same way every run.
+int do_pace(const std::filesystem::path& data_dir) {
+    const float real_per_world_minute = 1.0F / game::kMinutesPerSecond;
+    std::cout << "The world clock, at the traced rate\n";
+    std::cout << "  " << game::kWorldSecondsPerSecond
+              << " world seconds a real one; a world minute takes " << real_per_world_minute
+              << " real seconds\n";
+    std::cout << "  a world day takes "
+              << static_cast<double>(game::kMinutesPerDay) * real_per_world_minute / 60.0
+              << " real minutes; a rest of " << game::kRestHours << " hours takes "
+              << static_cast<double>(game::kRestHours * game::kMinutesPerHour) *
+                     real_per_world_minute
+              << " real seconds\n";
+
+    data::BuildingStatsTable shops;
+    if (data::load_building_stats(data_dir, shops) != data::GameDataError::None) {
+        std::cerr << "error: could not load 2DEvents.txt\n";
+        return 1;
+    }
+    int shortest = 24 * 60;
+    int longest = 0;
+    int always = 0;
+    for (const auto& row : shops.entries()) {
+        if (row.opens == row.closes) {
+            ++always;
+            continue;
+        }
+        const int span = row.closes > row.opens ? row.closes - row.opens
+                                                : 24 - row.opens + row.closes;
+        shortest = std::min(shortest, span * 60);
+        longest = std::max(longest, span * 60);
+    }
+    std::cout << "Establishment hours, in real time\n";
+    std::cout << "  " << shops.size() << " counters; the shortest day is "
+              << static_cast<double>(shortest) * real_per_world_minute / 60.0
+              << " real minutes, the longest "
+              << static_cast<double>(longest) * real_per_world_minute / 60.0 << "; " << always
+              << " keep no hours\n";
+
+    data::MapStatsTable maps;
+    if (data::load_map_stats(data_dir, maps) != data::GameDataError::None) {
+        std::cerr << "error: could not load MapStats.txt\n";
+        return 1;
+    }
+    int quickest = 1 << 20;
+    int slowest = 0;
+    for (const auto& row : maps.entries()) {
+        if (row.refill_days <= 0) {
+            continue;
+        }
+        quickest = std::min(quickest, row.refill_days);
+        slowest = std::max(slowest, row.refill_days);
+    }
+    std::cout << "Monsters coming back\n";
+    std::cout << "  MapStats refills between " << quickest << " and " << slowest << " days: "
+              << static_cast<double>(quickest) *
+                     static_cast<double>(game::kMinutesPerDay) * real_per_world_minute / 3600.0
+              << " to "
+              << static_cast<double>(slowest) *
+                     static_cast<double>(game::kMinutesPerDay) * real_per_world_minute / 3600.0
+              << " real hours\n";
+
+    std::cout << "A strike, at sixty Rec points a real second\n";
+    struct Hand {
+        const char* what;
+        int points;
+    };
+    const std::array<Hand, 6> hands{{{"a bare fist", game::kBareHandRecovery},
+                                     {"a dagger", game::gear_recovery("Dagger")},
+                                     {"a sword", game::gear_recovery("Sword")},
+                                     {"a staff, axe or bow", game::gear_recovery("Staff")},
+                                     {"a sword under plate",
+                                      game::gear_recovery("Sword") + game::gear_recovery("Plate")},
+                                     {"a sword under leather", game::gear_recovery("Sword") +
+                                                                   game::gear_recovery("Leather")}}};
+    for (const auto& hand : hands) {
+        std::cout << "  " << hand.what << ": " << hand.points << " points, "
+                  << game::recovery_seconds(hand.points) << " s a blow\n";
+    }
+    for (const int speed : {9, 13, 21, 40, 100}) {
+        const int relief = game::attribute_bonus(speed);
+        const int rec = std::max(0, game::gear_recovery("Sword") - relief);
+        std::cout << "  a sword at Speed " << speed << " (bonus " << relief << "): " << rec
+                  << " points, " << game::recovery_seconds(rec) << " s a blow\n";
+    }
+    const int expert = std::max(0, game::gear_recovery("Sword") - game::attribute_bonus(21) - 8);
+    std::cout << "  a sword at Speed 21 and eight points of Sword, expert: " << expert
+              << " points, " << game::recovery_seconds(expert) << " s a blow\n";
+
+    data::TextTable table;
+    data::MonsterStatsTable monsters;
+    if (data::load_text_table(data_dir, "MONSTERS.TXT", table) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(table, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: could not load MONSTERS.TXT\n";
+        return 1;
+    }
+    int fastest = 1 << 20;
+    int slowest_rec = 0;
+    for (const auto& row : monsters.entries()) {
+        if (row.recovery <= 0) {
+            continue;
+        }
+        fastest = std::min(fastest, row.recovery);
+        slowest_rec = std::max(slowest_rec, row.recovery);
+    }
+    std::cout << "  MONSTERS.TXT Rec runs " << fastest << " to " << slowest_rec << ": "
+              << game::recovery_seconds(fastest) << " to " << game::recovery_seconds(slowest_rec)
+              << " s a blow\n";
+    return 0;
+}
+
 int do_smoke(const std::filesystem::path& data_dir) {
     data::MapStatsTable maps;
     if (data::load_map_stats(data_dir, maps) != data::GameDataError::None) {
@@ -1395,6 +1513,8 @@ int main(int argc, char** argv) {
         return do_backdrops(data_dir);
     if (command == "--smoke")
         return do_smoke(data_dir);
+    if (command == "--pace")
+        return do_pace(data_dir);
     if (command == "--dice")
         return do_dice(data_dir);
     if (command == "--encounters")

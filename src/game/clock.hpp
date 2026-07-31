@@ -64,12 +64,20 @@ public:
         return kWeekdays[static_cast<std::size_t>(day() % 7)];
     }
 
-    // Whether an establishment with these hours is open. A closing hour at or
-    // before the opening one means it is open across midnight — `2DEvents.txt`
-    // has taverns like that.
+    // Whether an establishment with these hours is open. A closing hour
+    // before the opening one means it is open across midnight —
+    // `2DEvents.txt` has taverns like that.
+    //
+    // Equal hours mean **no hours are recorded**, and such a place does not
+    // close. Every one of the 404 rows that carries 0:00-0:00 is a house, a
+    // dungeon or castle mouth, or a place you simply walk into — the City
+    // Council, the Library, the Oracle, the Seer, a hermit's tent — and not
+    // one trading counter among them. Reading equal hours as "shut" locked
+    // the party out of the council and the library for good. `observed` in
+    // the table, reproduced by `data_info --pace`.
     [[nodiscard]] bool open(int opens, int closes) const noexcept {
         if (opens == closes) {
-            return false;
+            return true;
         }
         const int now = hour();
         return closes > opens ? now >= opens && now < closes : now >= opens || now < closes;

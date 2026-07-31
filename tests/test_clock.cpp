@@ -80,7 +80,11 @@ TEST_CASE("an establishment's hours are read the way the table writes them", "[c
     REQUIRE(small_hours.open(20, 4));
     REQUIRE_FALSE(small_hours.open(9, 17));
     // A place that opens and closes at the same hour is never open.
-    REQUIRE_FALSE(noon.open(12, 12));
+    // Equal hours mean the row records none, and such a place never shuts:
+    // the council, the library and every house are written that way.
+    REQUIRE(noon.open(12, 12));
+    REQUIRE(noon.open(0, 0));
+    REQUIRE(GameClock{3 * kMinutesPerHour}.open(0, 0));
 }
 
 TEST_CASE("resting heals everyone standing and moves the clock", "[clock]") {

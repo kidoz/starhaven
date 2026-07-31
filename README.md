@@ -1109,6 +1109,15 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The new pace, walked**: `data_info --pace` now reports what the traced
+  rates mean in real time over the game's own tables — a world day in 48
+  real minutes, shop days between 8 and 42, a bare fist 1⅔ seconds a blow
+  against a dagger's 1, monsters between ⅔ and 1⅔. The 34-beat arc, the
+  58-grantor ledger walk and the 55-map smoke check all still pass, and
+  day and night still look different. The walk did turn up one real defect
+  and it is fixed: 404 rows carry no opening hours at all — every house,
+  dungeon mouth, the City Council, the Library, the Oracle, the Seer — and
+  reading equal hours as "shut" had locked the party out of all of them.
 - **The sheet's attribute curve, found by accident**: finishing the
   attack-recovery routine turned up the descending ladder every attribute
   reads its bonus through — 13 the pivot at nothing, 15 one, 17 two, 19
