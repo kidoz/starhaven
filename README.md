@@ -1109,6 +1109,19 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **What every weapon special actually does**: the game's own table names
+  "of Ice" and prices it and says nothing more. The executable's post-hit
+  walk carries the numbers, and all thirteen are now read and wired — cold
+  3–4, 6–8, 9–12; sparks 2–5, lightning 4–10, thunderbolts 6–15; fire 1–5,
+  flame 2–12, infernos 16–18; poison a flat 5, 8 and 12; of The Dragon
+  10–20, each met by its own resistance column. Vampiric and of Darkness
+  take a fifth of the blow back as health instead, and two artifacts are
+  named by id rather than enchantment: Hades adds twenty, Ares thirty. Found
+  while chasing something else — see below.
+- **A second corrected expectation, recorded as such**: the dispatcher hunted
+  as the projectile-impact handler is nothing of the kind. It switches on a
+  worn item's enchantment after a melee blow, not on an object kind, and
+  where a thrown spell's damage is rolled remains unfound after two attempts.
 - **The clock unit proven from Windows itself**: the two elapsed globals
   that had to be assumed equal turn out to be the same field of two
   instances of one timer class, and the method that fills it samples

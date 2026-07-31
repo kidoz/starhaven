@@ -31,6 +31,7 @@
 #include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/skills.hpp"
+#include "game/weapon_specials.hpp"
 
 namespace starhaven::game {
 
@@ -601,12 +602,48 @@ public:
                                        resistance_to(monster, rider_element));
         }
 
+        // Every worn special the executable's own table answers for: each
+        // rolls its band, is met by the element's own resistance column, and
+        // joins the blow. Two artifacts it names by id add a flat amount,
+        // and the vampiric pair take a fifth of the blow back as health.
+        // See src/game/weapon_specials.hpp.
+        int drained = 0;
+        for (std::size_t slot = 0; slot < kSlotCount; ++slot) {
+            const int worn = who.equipped[slot];
+            if (worn <= 0 || who.equipped_broken[slot]) {
+                continue;
+            }
+            const int special = who.worn_special[slot];
+            if (const auto* extra = special_rider(special); extra != nullptr) {
+                const int rolled =
+                    extra->low + static_cast<int>(random_.next() %
+                                                  static_cast<std::uint64_t>(
+                                                      extra->high - extra->low + 1));
+                damage += after_resistance(
+                    rolled, resistance_to(monster, element_column(extra->element)));
+                flourish = ", " + std::string(extra->name);
+            }
+            if (const int flat = artifact_extra(worn); flat > 0) {
+                damage += flat;
+            }
+            if (special_drains(special, worn)) {
+                drained = 1;
+            }
+        }
+        if (drained > 0) {
+            drained = vampiric_gain(damage);
+        }
+
         // "Chance to stun equal to skill": the stunned lose their next
         // moment — a second on their recovery is the engine's own length.
         if (skill.stun_percent > 0 && alive(actor) &&
             static_cast<int>(random_.next() % 100) < skill.stun_percent) {
             combatants_[actor].recovery += 1.0f;
             flourish += ", stunned";
+        }
+        if (drained > 0) {
+            who.hit_points = std::min(who.max_hit_points, who.hit_points + drained);
+            flourish += ", drinking deep";
         }
         std::string what = land(actor, damage, monster, who.name, items, random_items,
                                 standard_bonuses, special_bonuses);

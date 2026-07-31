@@ -326,6 +326,12 @@ test('body_magic',
   workdir : meson.current_build_dir(),
 )
 
+test('weapon_specials',
+  executable('test_weapon_specials', 'test_weapon_specials.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('hire',
   executable('test_hire', 'test_hire.cpp',
     dependencies : [starhaven_dep, catch2_main]),

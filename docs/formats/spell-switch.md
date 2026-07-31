@@ -162,9 +162,24 @@ what you have readied. Nothing in `SPELLS.TXT` states this partition; the
 byte table is its only source, and StarHaven now carries the list.
 `observed`
 
+## The dispatcher at `0x43102e` was not the spell's — a second correction
+
+Chased on the expectation that it decided a thrown spell's damage, it turned
+out to be something else entirely, and something worth having. It is not
+keyed on an *object* at all: the enclosing loop at `0x430f87` walks the
+**striker's own equipment slots** after a blow lands, and `+0x134` is the
+item record's special-enchantment dword at `+0xc`. So the switch is over
+**weapon enchantments, 4..46**, and each case adds its own damage to the
+target's hit points at `+0x28`. It is written up in full in
+[`weapon-specials.md`](weapon-specials.md).
+
+Where a thrown spell's damage is decided therefore remains open, and the
+honest position is that two guesses at it have now missed.
+
 ## Still unread
 
-- The impact dispatcher at `0x43102e` and its 43 object kinds, which is
-  where the damage of every thrown spell is actually decided. `unknown`
+- Where a thrown spell's damage is rolled. The launcher stamps the
+  projectile with the spell id and the caster's skill and lets it fly; what
+  reads those two back at impact has not been found. `unknown`
 - The other eight schools' own case bodies. The addresses are all in the
   dispatch table; only Body has been read. `unknown`
