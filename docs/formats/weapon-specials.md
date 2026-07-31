@@ -1,7 +1,8 @@
 # Weapon specials (`MM6.exe`, runtime)
 
-Status: **read in full.** Not a file format: this is what the executable does
-with the special enchantment on a piece of gear once a blow has landed. Every
+Status: **read in full, both halves.** Not a file format: this is what the
+executable does with the special enchantment on a piece of gear — after a
+blow lands, and when a stat is asked for. Every
 claim is tagged `observed` (read from an instruction) or `inferred`.
 
 The game's own special-bonus table gives each row a name, a class letter and
@@ -66,6 +67,56 @@ a divide by five — capped at the striker's own maximum. `observed` at
 The routine recognises two weapons before it looks at any enchantment, and
 gives each a flat amount: **415 Hades** twenty points, **416 Ares** thirty.
 `observed` at `0x430fc9` and `0x430fda`.
+
+## Where the other forty-six are applied
+
+Thirteen specials add damage above, and three more had turned up one at a
+time in unrelated routines — "of Recovery" inside the recovery drain, "of
+Swiftness" inside the strike. Whether the rest are scattered the same way or
+gathered into one walk has a clean answer: **both, deliberately.**
+
+**There is one walk**, in the bonused stat getter. At `0x4831df` it steps the
+equipped items, reads each one's special at `+0xc`, and dispatches on ids
+**1..57** through a byte selector at `0x4837b8` into a jump table at
+`0x48376c`. `observed`
+
+**And it handles only eighteen of them.** Ids **3..41 all fall to the
+do-nothing case** — which is exactly the run holding the twelve elemental
+riders, Vampiric, of Recovery and of Darkness, every one of which is answered
+somewhere else. The specials that reach a stat are 1, 2 and the run 42..57,
+and each case is the same three instructions: test which stat is being asked
+for, add a fixed amount, done.
+
+| Id | Name | Adds | To |
+| --- | --- | --- | --- |
+| 1 | of Protection | 10 | stats 10–13, the resistances |
+| 2 | of The Gods | 10 | every attribute, 0–6 |
+| 42 | of Doom | 1 | everything, with no test at all |
+| 43 | of Earth | 10 | Endurance and stat 7 |
+| 44 | of Life | 10 | stat 7 |
+| 45 | Rogues | 5 | Accuracy and Speed |
+| 46 | of The Dragon | 25 | Might |
+| 47 | of The Eclipse | 10 | stat 8 |
+| 48 | of The Golem | 5 | stat 9, and 15 to Endurance |
+| 49 | of The Moon | 10 | Luck and Intellect |
+| 50 | of The Phoenix | 10 | stat 8 |
+| 51 | of The Sky | 10 | Speed, Intellect and stat 8 |
+| 52 | of The Stars | 10 | Endurance and Accuracy |
+| 53 | of The Sun | 10 | Might and Personality |
+| 54 | of The Troll | 15 | Endurance |
+| 55 | of The Unicorn | 15 | Luck |
+| 56 | Warriors | 5 | Might and Endurance |
+| 57 | Wizards | 5 | Intellect and Personality |
+
+`observed` throughout. The stat ids 0..6 are `stats.txt`'s own order —
+Might, Intellect, Personality, Endurance, Accuracy, Speed, Luck — and 10..13
+are the resistances of Protection answers for. Ids 7, 8 and 9 are derived
+numbers this engine has not yet named, so three rows above point at a stat
+without a name. `unknown` for those three.
+
+Nothing in the game's tables carries any of this either: the special-bonus
+rows give a name, a class and a price, and the sheet is left to say what
+changed. StarHaven now adds these on top of the prose it was parsing.
 
 ## How this was found, and what it is not
 

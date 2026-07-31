@@ -35,6 +35,7 @@
 #include "core/world/texture_frame_table.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/body_magic.hpp"
+#include "game/special_stats.hpp"
 #include "game/spell_switch.hpp"
 #include "game/clock.hpp"
 #include "game/fire_dark.hpp"
@@ -6350,6 +6351,10 @@ int main(int argc, char** argv) {
                                      party[i].worn_special[slot]);
                 for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
                     party[i].gear_attributes[a] += power.attributes[a];
+                    // And what the executable's own walk over the special
+                    // gives that stat, which the prose does not say.
+                    party[i].gear_attributes[a] += game::special_stat_bonus(
+                        party[i].worn_special[slot], static_cast<int>(a));
                 }
                 for (std::size_t r = 0; r < data::kResistanceCount; ++r) {
                     party[i].gear_resistances[r] += power.resistances[r];

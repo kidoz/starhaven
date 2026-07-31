@@ -1109,6 +1109,15 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The gamble on the other forty-six specials, answered both ways**: there
+  *is* one walk that applies them — in the bonused stat getter, dispatching
+  on ids 1 to 57 — and it deliberately handles only eighteen. The run 3..41
+  falls to a do-nothing case, which is precisely the run holding the twelve
+  elemental riders, Vampiric, of Recovery and of Darkness, each answered
+  where it matters instead. The eighteen that do reach the sheet are now
+  read and wired: of The Dragon 25 to Might, of The Troll 15 to Endurance,
+  of The Unicorn 15 to Luck, of The Gods 10 to every attribute, of Doom a
+  point to everything with no test at all. The tables say none of it.
 - **The projectile object, laid out — and a third miss, narrowed**: the
   thrown-spell objects live in a thousand 100-byte slots at `0x5c9ad8`, and
   two offsets found from outside the launcher pin the rest: a flags word the

@@ -8,6 +8,7 @@
 #include <array>
 #include <string_view>
 
+#include "game/special_stats.hpp"
 #include "game/weapon_specials.hpp"
 
 using namespace starhaven;
@@ -94,4 +95,46 @@ TEST_CASE("two artifacts are named by id, not by enchantment", "[specials]") {
     REQUIRE(artifact_extra(kAres) == 30);
     REQUIRE(artifact_extra(kMordred) == 0);
     REQUIRE(artifact_extra(1) == 0);
+}
+
+TEST_CASE("only eighteen specials reach the sheet", "[specials]") {
+    // The walk in the stat getter covers ids 1..57 and sends thirty-nine of
+    // them nowhere, because those are handled where they matter instead.
+    REQUIRE(kSpecialStats.size() == 18);
+    for (int id = 3; id <= 41; ++id) {
+        REQUIRE_FALSE(special_reaches_stats(id));
+    }
+    REQUIRE(special_reaches_stats(1));
+    REQUIRE(special_reaches_stats(2));
+    REQUIRE(special_reaches_stats(57));
+    // The damage riders and the drains are exactly the ones left out.
+    REQUIRE_FALSE(special_reaches_stats(4));   // of Cold
+    REQUIRE_FALSE(special_reaches_stats(16));  // Vampiric
+    REQUIRE_FALSE(special_reaches_stats(17));  // of Recovery
+    REQUIRE_FALSE(special_reaches_stats(41));  // of Darkness
+}
+
+TEST_CASE("each stat special answers for its own stats", "[specials]") {
+    // of Protection covers the four resistance ids and nothing else.
+    REQUIRE(special_stat_bonus(1, 10) == 10);
+    REQUIRE(special_stat_bonus(1, 13) == 10);
+    REQUIRE(special_stat_bonus(1, 0) == 0);
+    // of The Gods covers the whole run of seven attributes.
+    for (int stat = 0; stat <= 6; ++stat) {
+        REQUIRE(special_stat_bonus(2, stat) == 10);
+    }
+    REQUIRE(special_stat_bonus(2, 7) == 0);
+    // of Doom adds its point to whatever is asked.
+    REQUIRE(special_stat_bonus(kOfDoom, 0) == 1);
+    REQUIRE(special_stat_bonus(kOfDoom, 12) == 1);
+    // And the named ones land where their names suggest.
+    REQUIRE(special_stat_bonus(46, static_cast<int>(StatId::Might)) == 25);
+    REQUIRE(special_stat_bonus(55, static_cast<int>(StatId::Luck)) == 15);
+    REQUIRE(special_stat_bonus(54, static_cast<int>(StatId::Endurance)) == 15);
+    REQUIRE(special_stat_bonus(56, static_cast<int>(StatId::Might)) == 5);
+    REQUIRE(special_stat_bonus(57, static_cast<int>(StatId::Intellect)) == 5);
+    REQUIRE(special_stat_bonus(45, static_cast<int>(StatId::Speed)) == 5);
+    // A special with no stat gives nothing whatever is asked.
+    REQUIRE(special_stat_bonus(4, 0) == 0);
+    REQUIRE(special_stat_bonus(0, 0) == 0);
 }
