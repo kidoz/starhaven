@@ -301,3 +301,33 @@ TEST_CASE("experience buys levels, and levels buy the class's own numbers", "[pa
     REQUIRE(level_up(cleric) == level_for_experience(10000) - 1);
     REQUIRE(cleric.max_spell_points > 0);
 }
+
+TEST_CASE("what ails a character cuts its numbers", "[party]") {
+    Character who;
+    who.class_name = "Knight";
+    who.hit_points = 10;
+    who.attributes[static_cast<std::size_t>(Attribute::Speed)] = 40;
+    // Well: nothing is cut.
+    REQUIRE(condition_scale(who) == 100);
+    REQUIRE(ailing_attribute(who, Attribute::Speed) == 40);
+    // Poisoned takes a quarter, diseased two fifths.
+    who.poisoned = 1;
+    REQUIRE(worst_condition_of(who) == kConditionPoisoned);
+    REQUIRE(condition_scale(who) == 75);
+    REQUIRE(ailing_attribute(who, Attribute::Speed) == 30);
+    who.diseased = 1;
+    // Diseased outranks poisoned in the priority order, so it wins.
+    REQUIRE(worst_condition_of(who) == kConditionDiseased);
+    REQUIRE(condition_scale(who) == 60);
+    // And death outranks everything.
+    who.hit_points = 0;
+    REQUIRE(worst_condition_of(who) == kConditionDead);
+    // A cut attribute is a smaller bonus, which is how it reaches the class
+    // tables and the recovery.
+    Character hale = who;
+    hale.hit_points = 10;
+    hale.poisoned = 0;
+    hale.diseased = 0;
+    REQUIRE(attribute_bonus(ailing_attribute(hale, Attribute::Speed)) >
+            attribute_bonus(30));
+}

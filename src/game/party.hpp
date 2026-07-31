@@ -25,6 +25,7 @@
 #include "core/data/spell_stats.hpp"
 #include "core/random.hpp"
 #include "game/buffs.hpp"
+#include "game/conditions.hpp"
 
 namespace starhaven::game {
 
@@ -335,6 +336,49 @@ inline constexpr std::array<std::string_view, 18> kClassNames{
     return 0;
 }
 
+// The worst condition a character is carrying, by the executable's own
+// priority order, and the percentage it scales their numbers by. The
+// recovery routine, the hit-point routine and the attack-bonus getter all
+// make this walk and all three scale by what it finds. See
+// src/game/conditions.hpp.
+[[nodiscard]] inline int worst_condition_of(const Character& who) noexcept {
+    return worst_condition([&who](int id) {
+        switch (id) {
+        case kConditionDead:
+            return who.hit_points <= 0;
+        case kConditionEradicated:
+            return who.affliction == "Eradicated";
+        case kConditionStoned:
+            return who.affliction == "Stone" || who.affliction == "Stoned";
+        case kConditionParalyzed:
+            return who.affliction == "Paralyzed";
+        case kConditionAsleep:
+            return who.affliction == "Asleep";
+        case kConditionDiseased:
+            return who.diseased > 0;
+        case kConditionPoisoned:
+            return who.poisoned > 0;
+        case kConditionInsane:
+            return who.affliction == "Insane";
+        case kConditionDrunk:
+            return who.affliction == "Drunk";
+        default:
+            return false;
+        }
+    });
+}
+
+[[nodiscard]] inline int condition_scale(const Character& who) noexcept {
+    return condition_percent(worst_condition_of(who));
+}
+
+// An attribute as a formula sees it: the character's own value, cut by
+// whatever ails them. The routines apply the percentage to the attribute
+// term rather than to the result. `observed`
+[[nodiscard]] inline int ailing_attribute(const Character& who, Attribute which) noexcept {
+    return who.attribute(which) * condition_scale(who) / 100;
+}
+
 // **What a class is worth**, traced. `0x481ea0` builds max hit points and
 // `0x482090` max spell points, and both read the class id at `+0x12` of the
 // character and index two tables with it: one **by class**, holding what a
@@ -438,12 +482,14 @@ inline void level_up_to(Character& c, int level) {
     const int hp_before = c.max_hit_points;
     const int sp_before = c.max_spell_points;
     c.level = level;
-    c.max_hit_points =
-        class_hit_points(c.class_name, c.level, attribute_bonus(c.attribute(Attribute::Endurance)));
+    // Both routines scale their attribute term by the worst condition before
+    // the ladder reads it.
+    c.max_hit_points = class_hit_points(
+        c.class_name, c.level, attribute_bonus(ailing_attribute(c, Attribute::Endurance)));
     c.max_spell_points =
         casts_spells(c.class_name)
             ? class_spell_points(c.class_name, c.level,
-                                 attribute_bonus(c.attribute(Attribute::Personality)))
+                                 attribute_bonus(ailing_attribute(c, Attribute::Personality)))
             : 0;
     c.hit_points += c.max_hit_points - hp_before;
     c.spell_points += c.max_spell_points - sp_before;

@@ -1193,6 +1193,13 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The condition multiplier wired everywhere it belongs**: it was traced in
+  three routines and only the attack bonus used it. Now the recovery's Speed
+  term and the hit-point and spell-point routines' Endurance and Personality
+  terms are all cut by the worst condition before the ladder reads them —
+  which is where the executable applies it, to the attribute term rather than
+  to the result. A poisoned character recovers as though slower and is
+  hardier by three quarters; a drunk one by a tenth.
 - **The gamble paid, and cost a retraction**: what a condition costs is not
   charged on the clock — it is a **percentage multiplier** on the
   character's numbers, applied wherever they are computed. The recovery,

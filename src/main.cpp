@@ -7049,8 +7049,11 @@ int main(int argc, char** argv) {
                         // level of a Sword, Axe or Bow held at expert or
                         // better, and a flat 20 for anything worn "of
                         // Swiftness". The result floors at nothing.
+                        // The routine scales the Speed term by the worst
+                        // condition before the ladder reads it, so a poisoned
+                        // character recovers as though slower.
                         rec_points -= game::attribute_bonus(
-                            party[who].attribute(game::Attribute::Speed));
+                            game::ailing_attribute(party[who], game::Attribute::Speed));
                         if (const auto* held_row = gear_of(game::Slot::Weapon);
                             held_row != nullptr &&
                             game::skill_quickens_attack(held_row->skill_group)) {
