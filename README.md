@@ -1052,6 +1052,14 @@ interoperability and compatibility with a legally purchased copy.
   loader at 0x446d48 has no per-column jump table to read field offsets
   from, the constant 140 appears as an immediate nowhere in the code,
   and the two AI clusters hold rolls but no recovery arithmetic.
+- **The hit roll traced, and the oldest guess retired**: the routine at
+  0x421cb0 — one function above the resistance rule — rolls
+  `rand() % (armour + 2*attack + 30)` against a bar the blow's kind
+  picks (plain `armour+15`, a shot `2*armour+30`, the steep kind half
+  again more). The engine's `50 − AC` is gone from both directions of
+  the fight, and the arithmetic's own consequence is now true here: an
+  unskilled archer cannot touch an armoured target, while a skilled one
+  can.
 - **Resistance traced, and it was never a percentage**: the hunt for the
   hit roll turned up the resistance routine at 0x421dc0 instead, and it
   refutes the engine's oldest combat guess — the element byte answers

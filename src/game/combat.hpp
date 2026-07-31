@@ -147,6 +147,36 @@ enum class MonsterCondition : std::uint8_t { Fear, Slow, Paralyze, Charm };
                            who.gear_resistances[static_cast<std::size_t>(which)];
 }
 
+// Whether a blow lands, traced to the original's own routine at
+// `0x421cb0`: it rolls `rand() % (armour + 2 * attack + 30)` — armour the
+// target's class, attack the striker's bonus — and compares the roll,
+// plus a caller-supplied modifier, against a threshold the blow's kind
+// picks:
+//
+//   kind 2:  (armour + 15) + (armour + 15) / 2   — the steepest bar
+//   kind 3:  2 * armour + 30                      — steeper still with armour
+//   any other kind (4 among them): armour + 15    — the plain bar
+//
+// Landing needs roll plus the modifier to reach the bar. An unarmoured
+// target on the plain bar is hit about half the time however sharp the
+// striker; armour raises kind 2's and kind 3's bars faster than it widens
+// the span, so skill is what buys hits against armour. `observed` for the
+// arithmetic; which caller passes which kind is read from the call sites
+// (spell and missile paths pass 2, 3 and 4), and mapping the party's own
+// swing onto the plain bar is `inferred`.
+enum class BlowKind : std::uint8_t { Steep = 2, Shot = 3, Plain = 4 };
+
+[[nodiscard]] inline bool blow_lands(int armour, int attack, BlowKind kind, int modifier,
+                                     Mm6Random& random) noexcept {
+    const int span = armour + 2 * attack + 30;
+    const int roll = static_cast<int>(random.next() % static_cast<unsigned>(span < 1 ? 1 : span));
+    const int plain = armour + 15;
+    const int threshold = kind == BlowKind::Steep  ? plain + plain / 2
+                          : kind == BlowKind::Shot ? 2 * armour + 30
+                                                   : plain;
+    return roll + modifier >= threshold;
+}
+
 // What a resistance does to a blow, traced to the original's own routine
 // at `0x421dc0`: the resistance is **not** a percentage taken off. The
 // routine reads the target's element byte (the six sit at +0x50..+0x55
@@ -473,11 +503,13 @@ public:
         }
         const auto& monster = monsters.entries()[id - 1];
 
-        // Whether it lands: the character's accuracy against the monster's
-        // armour class, on a hundred. `inferred`
-        const int aim = 50 + attribute_bonus(who.attribute(Attribute::Accuracy)) * 5 +
-                        skill.to_hit - monster.armor_class;
-        if (static_cast<int>(random_.next() % 100) >= aim) {
+        // Whether it lands, by the original's own rule: the character's
+        // attack bonus — accuracy's own bonus plus what the weapon skill's
+        // line adds — against the monster's armour class, as a melee
+        // swing. `observed` for the rule, `inferred` for what fills the
+        // attack bonus, which no table states.
+        const int attack = attribute_bonus(who.attribute(Attribute::Accuracy)) + skill.to_hit;
+        if (!blow_lands(monster.armor_class, attack, BlowKind::Plain, 0, random_)) {
             return who.name + " misses " + monster.name;
         }
 
@@ -765,9 +797,10 @@ private:
             if (dice.empty()) {
                 continue;
             }
-            // Its chance to land, against the character's armour class.
-            const int aim = 50 - target.armor_class;
-            if (static_cast<int>(random_.next() % 100) >= aim) {
+            // And the same rule the other way: the monster's own level
+            // stands in for its attack bonus, which the table does not
+            // state. `inferred` for that reading.
+            if (!blow_lands(target.armor_class, monster.level, BlowKind::Plain, 0, random_)) {
                 return monster.name + " misses " + target.name;
             }
             const int damage =

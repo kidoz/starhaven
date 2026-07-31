@@ -984,6 +984,24 @@ The reader rejects, deterministically and without reading out of bounds:
 A cell request outside the table returns an empty string rather than failing,
 because ragged rows make out-of-range reads normal rather than exceptional.
 
+## Whether a blow lands, traced
+
+The original's to-hit routine sits at `0x421cb0`, one function above the
+resistance rule. It rolls **`rand() % (armour + 2 × attack + 30)`** —
+armour the target's class, attack the striker's bonus — adds a
+caller-supplied modifier, and compares against a bar the blow's kind
+picks: kind 2 wants `(armour + 15) × 1.5`, kind 3 wants `2 × armour + 30`,
+and any other kind wants the plain `armour + 15`. The call sites pass 2,
+3 and 4 from the spell, missile and melee paths. `observed`
+
+Two consequences the old percentage guess missed: an unarmoured target on
+the plain bar is hit about half the time no matter how sharp the striker,
+and a kind-3 shot's bar climbs with armour twice as fast as the span does
+— so against real armour, skill is the only thing that lands an arrow.
+StarHaven now rolls this rule for both directions of the fight; what
+fills the attack bonus is still the engine's reading, since no table
+states it.
+
 ## What a resistance does, traced
 
 The five resistance columns are not percentages. The original's routine at

@@ -173,6 +173,30 @@ TEST_CASE("a monster out of reach hits nobody", "[combat]") {
     REQUIRE(party[0].hit_points == party[0].max_hit_points);
 }
 
+TEST_CASE("a blow lands by the original's own roll", "[combat]") {
+    // Traced to 0x421cb0: roll `rand() % (armour + 2*attack + 30)` and
+    // reach the kind's bar — the plain armour+15, a shot 2*armour+30.
+    Mm6Random random{11};
+    const auto rate = [&](int armour, int attack, BlowKind kind) {
+        int landed = 0;
+        for (int i = 0; i < 2000; ++i) {
+            landed += blow_lands(armour, attack, kind, 0, random) ? 1 : 0;
+        }
+        return landed;
+    };
+    // Unarmoured, unskilled: the span is 30 and the bar 15 — about half.
+    const int even = rate(0, 0, BlowKind::Plain);
+    REQUIRE(even > 800);
+    REQUIRE(even < 1200);
+    // Attack bonus widens the span without moving the melee bar.
+    REQUIRE(rate(0, 20, BlowKind::Plain) > even);
+    // A shot's bar climbs with armour twice as fast as the span, so an
+    // unskilled archer cannot touch an armoured target at all, while a
+    // skilled one still can.
+    REQUIRE(rate(60, 0, BlowKind::Shot) == 0);
+    REQUIRE(rate(60, 60, BlowKind::Shot) > 0);
+}
+
 TEST_CASE("resistance halves by the original's own rolls", "[combat]") {
     // Traced to the routine at 0x421dc0: immunity stops a blow, a zero
     // resistance passes it whole, and any real resistance buys repeated
