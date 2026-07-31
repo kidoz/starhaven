@@ -197,6 +197,22 @@ TEST_CASE("a blow lands by the original's own roll", "[combat]") {
     REQUIRE(rate(60, 60, BlowKind::Shot) > 0);
 }
 
+TEST_CASE("a monster's missile flies on the shot's own bar", "[combat]") {
+    // A shot's bar is 2*armour+30 against a span of armour+2*level+30, so
+    // a low-level archer cannot reach a well-armoured party at all while
+    // its melee neighbour still can.
+    const auto shooters = monsters("3", "0", "1d4", "0", "0", "0", "0");
+    Mm6Random random{5};
+    const auto& row = shooters.entries()[0];
+    int plain = 0, shot = 0;
+    for (int i = 0; i < 500; ++i) {
+        plain += blow_lands(50, row.level, BlowKind::Plain, 0, random) ? 1 : 0;
+        shot += blow_lands(50, row.level, BlowKind::Shot, 0, random) ? 1 : 0;
+    }
+    REQUIRE(plain > 0);
+    REQUIRE(shot == 0);
+}
+
 TEST_CASE("resistance halves by the original's own rolls", "[combat]") {
     // Traced to the routine at 0x421dc0: immunity stops a blow, a zero
     // resistance passes it whole, and any real resistance buys repeated

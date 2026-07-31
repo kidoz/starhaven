@@ -514,7 +514,16 @@ public:
         // so the skill's own to-hit line still stands in for it.
         // `inferred` for that last step.
         const int attack = who.attribute(Attribute::Accuracy) + skill.to_hit;
-        if (!blow_lands(monster.armor_class, attack, BlowKind::Plain, 0, random_)) {
+        // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
+        // why archery against armour asks for skill; a swing is the plain
+        // bar. Which call site passes which kind is the original's;
+        // reading the party's bow as kind 3 is `inferred`.
+        const int held = who.equipped[static_cast<std::size_t>(Slot::Weapon)];
+        const auto* held_row = held > 0 ? items.at(static_cast<std::size_t>(held)) : nullptr;
+        const bool shooting = held_row != nullptr &&
+                              held_row->equip_type == data::ItemEquipType::Missile;
+        if (!blow_lands(monster.armor_class, attack,
+                        shooting ? BlowKind::Shot : BlowKind::Plain, 0, random_)) {
             return who.name + " misses " + monster.name;
         }
 
@@ -804,8 +813,11 @@ private:
             }
             // And the same rule the other way: the monster's own level
             // stands in for its attack bonus, which the table does not
-            // state. `inferred` for that reading.
-            if (!blow_lands(target.armor_class, monster.level, BlowKind::Plain, 0, random_)) {
+            // state, and an attack its Miss column names flies as the
+            // shot's own kind. `inferred` for both readings.
+            const bool flies = !attack.missile.empty() && attack.missile != "0";
+            if (!blow_lands(target.armor_class, monster.level,
+                            flies ? BlowKind::Shot : BlowKind::Plain, 0, random_)) {
                 return monster.name + " misses " + target.name;
             }
             const int damage =

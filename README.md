@@ -1055,6 +1055,11 @@ interoperability and compatibility with a legally purchased copy.
   loader at 0x446d48 has no per-column jump table to read field offsets
   from, the constant 140 appears as an immediate nowhere in the code,
   and the two AI clusters hold rolls but no recovery arithmetic.
+- **The shots use the shot's own bar**: a drawn bow and a monster's
+  Miss-column attack now roll against `2 × armour + 30` instead of the
+  plain bar, so archery against armour asks for skill exactly the way
+  the traced arithmetic says it should — and the spell paths stay on the
+  plain bar, which is what the call sites show.
 - **The attack bonus traced to stat 4**: the base getter's own jump
   table names a field per stat id — the seven attributes in a 16-byte
   run, and the attack bonus among them — so the original adds the
