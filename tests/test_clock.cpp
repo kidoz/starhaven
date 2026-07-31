@@ -169,6 +169,10 @@ TEST_CASE("staying awake wears the party down", "[clock]") {
     // The counter climbs an hour at a time and lays Weak past its second,
     // which is what the time-advance routine's own byte does.
     REQUIRE(kFatigueWeakAfterHours == 2);
+    // The routine increments then tests `cmp al, 1; jbe skip`, so it fires on
+    // the second increment — two hours awake, not three. A sitting confirms
+    // it: Weak lands at world minute 120.
+    REQUIRE(2 * kMinutesPerHour == 120);
     // And the two rolls it gates climb with it, five and ten a point.
     REQUIRE(kFatiguePercentPerHour == 5);
     REQUIRE(kFatigueSecondPercentPerHour == 10);

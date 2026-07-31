@@ -129,7 +129,8 @@ private:
 
 // Staying awake wears the party down. The time-advance routine keeps a byte
 // at `0x908d6c` and **increments it once an hour**; the moment it passes one
-// — so after two hours awake — it walks all four characters and stamps
+// — `inc al; cmp al, 1; jbe skip`, so on the **second** increment and every
+// one after — it walks all four characters and stamps
 // condition slot 1, **Weak**, on any who is not already. The same byte then
 // gates two further rolls each tick, `rand() % 100` against **five times**
 // it and against **ten times** it, which is how the rest of the conditions

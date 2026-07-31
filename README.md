@@ -1193,6 +1193,12 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The fatigue put under the sitting, and it found a bug**: the mechanic
+  went in from a trace and had never been played. A sitting showed Weak
+  landing at world minute **180** where the routine's own
+  `inc al; cmp al, 1; jbe` fires on the **second** increment — an off-by-one
+  in my wiring, not the trace. Fixed; it now lands at minute 120, and the
+  sitting reports the hours awake and when the party first went Weak.
 - **A behaviour named at last: closing and backing off**: states 2, 12 and
   13 open on the same three words and differ in **one constant** — state 2
   offsets a point from the actor's position by **+0.75** of its radius,

@@ -232,6 +232,11 @@ int main(int argc, char** argv) {
     int killed = 0;
     int replies = 0;
     int levels = 0;
+    // The wearing-down the time-advance routine applies: a counter that
+    // climbs an hour at a time and lays Weak past its second.
+    int hours_awake = 0;
+    std::int64_t fatigue_hour = 0;
+    std::int64_t weak_at = -1;
     const std::size_t actors_at_start = session.actors.size();
 
     for (int step = 0; step < steps; ++step) {
@@ -329,6 +334,21 @@ int main(int argc, char** argv) {
             battle.update(dt, session, monsters, spells, party, eye, clock.minutes());
         battle.recruit(session, monsters);
         battle.award(party);
+        if (const std::int64_t hour_now = clock.minutes() / game::kMinutesPerHour;
+            hour_now != fatigue_hour) {
+            hours_awake += static_cast<int>(hour_now - fatigue_hour);
+            fatigue_hour = hour_now;
+            if (hours_awake >= game::kFatigueWeakAfterHours) {
+                for (auto& who : party) {
+                    if (who.affliction.empty() && who.hit_points > 0) {
+                        who.affliction = "Weak";
+                        if (weak_at < 0) {
+                            weak_at = clock.minutes();
+                        }
+                    }
+                }
+            }
+        }
         for (auto& who : party) {
             levels += game::level_up(who);
         }
@@ -370,6 +390,12 @@ int main(int argc, char** argv) {
             std::cout << "  DOWN at world minute " << t.down_at;
         }
         std::cout << "\n";
+    }
+    std::cout << "  awake " << hours_awake << " world hours; ";
+    if (weak_at >= 0) {
+        std::cout << "Weak laid on at world minute " << weak_at << "\n";
+    } else {
+        std::cout << "nobody went Weak\n";
     }
     std::cout << "  " << levels << " levels gained; " << killed << " actors killed; "
               << battle.unclaimed_experience() << " experience, " << battle.take_gold() << " gold\n";

@@ -6506,7 +6506,7 @@ int main(int argc, char** argv) {
             hour_now != fatigue_hour) {
             hours_awake += static_cast<int>(hour_now - fatigue_hour);
             fatigue_hour = hour_now;
-            if (hours_awake > game::kFatigueWeakAfterHours) {
+            if (hours_awake >= game::kFatigueWeakAfterHours) {
                 for (auto& who : party) {
                     if (who.affliction.empty() && who.hit_points > 0) {
                         who.affliction = "Weak";
