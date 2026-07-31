@@ -6508,6 +6508,13 @@ int main(int argc, char** argv) {
             const game::RestResult result =
                 game::rest(party, clock, disturbed, party_food, cost);
             if (result == game::RestResult::Rested) {
+                // A rest ends every spell: the original's own rest routine
+                // walks the party's sixteen slots and each character's
+                // sixteen and expires them all. See src/game/buffs.hpp.
+                party_buffs.clear();
+                for (auto& who : party) {
+                    who.buffs.clear();
+                }
                 speak(party[0], 22);  // line 22: the waking word
                 // What lasts until a rest ends with one, fountains included.
                 for (auto& member : party) {

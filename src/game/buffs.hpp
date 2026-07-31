@@ -28,6 +28,15 @@
 // **Day of Protection writes seven of them in a row** (`0x4296aa` through
 // `0x42978a`), which is what its row means by protecting against everything.
 //
+// **A rest ends every one of them.** The rest routine at `0x42c840` sets a
+// **480-minute** target — eight hours, which is what the interface string
+// "Rest & Heal 8 Hours" says and what this engine had already assumed —
+// snapshots the world clock in three places, and calls `0x484d40`. That
+// routine walks the party's array at `0x908e34` in sixteen-byte steps up to
+// `0x908f34`, then each character's from `+0x1268` for sixteen steps,
+// expiring each slot through `0x44aa60`. `observed` — and a third,
+// independent confirmation of both arrays' base, stride and count.
+//
 // And the stat getter reads the *power* of the first five: stat id 10 is
 // slot 0, 11 slot 2, 12 slot 1, 13 slot 4, 23 slot 3. So the five ids are
 // **Fire, Electricity, Cold, Poison and Magic** — `MONSTERS.TXT`'s own

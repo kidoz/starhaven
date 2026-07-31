@@ -1165,6 +1165,14 @@ interoperability and compatibility with a legally purchased copy.
   modifier + spell bonus + gear bonus**, and the ladder applies to that sum.
   The engine had the variable run starting one too high, so a script raising
   Might raised nothing; both runs now land.
+- **What a rest does, traced**: `0x42c840` sets a **480-minute** target —
+  eight hours, which confirms from the code what the interface string and
+  this engine had both only asserted — snapshots the world clock in three
+  places, and then **clears every buff**. The routine it calls walks the
+  party's sixteen slots and each character's sixteen and expires them all,
+  which is a mechanic the engine did not have and now does. It is also a
+  third, independent confirmation of both buff arrays' base, stride and
+  count, from a routine that had nothing to do with finding them.
 - **The AI cluster, mapped wholesale**: read the way the two failed visits
   concluded it had to be. Thirty-nine functions, of which **seventeen** end
   by putting the actor into a state, and **`0x4017a0`** — the largest, and
