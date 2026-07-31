@@ -3521,6 +3521,25 @@ int main(int argc, char** argv) {
         map_colors_ready = false;
         show_map = false;
         fall_speed = 0.0f;
+        // A door whose attribute word carries bit 0 ships open: the
+        // original's load loop at 0x45556e tests exactly that bit, sets
+        // the state word to open and the travel to full (0x3c00), then
+        // rewrites the attribute to 2. Traced; see
+        // docs/formats/event-tables.md.
+        {
+            bool starts_open = false;
+            for (auto& door : session.doors) {
+                if ((door.attributes & 1) != 0) {
+                    door.open = true;
+                    door.progress = 1.0f;
+                    move_door(door);
+                    starts_open = true;
+                }
+            }
+            if (starts_open) {
+                world::rebuild_indoor_collision(session);
+            }
+        }
         // And what this one remembers, if its Refil Days have not run out
         // (a map that never refills remembers forever).
         if (const auto it = map_memory.find(session.file_name); it != map_memory.end()) {
