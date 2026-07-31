@@ -563,3 +563,34 @@ than assumed.
 The class itself, so far as it is used here: `+0x04` a running flag, `+0x0c`
 the last sample, `+0x10` a saved sample, `+0x1c` the elapsed, forty bytes
 long.
+
+## Conditions: how they begin, and what was not found
+
+Sought: what poison and disease do between being caught and being cured,
+since the engine invents both the damage and the interval. Two things came
+out and the third did not.
+
+**The attribute modifiers are per-tick scratch.** The time-advance routine
+calls `0x484520` on every character each tick, and that routine zeroes the
+odd words of the attribute pairs — `+0x16`, `+0x1a`, `+0x1e`, `+0x22`,
+`+0x26`, `+0x2a`, `+0x2e` — along with the resistance dwords at `+0x38` to
+`+0x58` and three byte runs from `+0x1570`. So the stored value in each pair
+is durable and the modifier beside it is rebuilt from gear and spells every
+frame, which is the other half of the composition settled earlier.
+`observed`
+
+**Conditions begin from fatigue.** In the same per-character pass, the
+routine rolls `rand() % 100` against the byte at **`0x908d6c`** times five,
+and again against it times ten, and on success stamps a condition's 64-bit
+timestamp with the current clock. That byte is **zeroed by the rest
+routine** (`0x42c874`), so it is a fatigue counter that grows while the party
+stays awake and makes conditions steadily likelier — a mechanic the engine
+has no equivalent of. `observed`
+
+**What a condition then does was not found.** The conditions are
+*timestamps*, not counters, so nothing ticks them down and any damage must
+be applied wherever the timestamp is read. The routines that read them —
+`0x47fb60` checks `+0x13f0`/`+0x1400` before healing, and the attack-bonus
+walk tests the run from `+0x1380` — only ever ask whether a condition is
+set, never how long it has been. Where the harm is done is `unknown`, and
+StarHaven's invented drain stays marked as its own.

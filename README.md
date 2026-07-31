@@ -1165,6 +1165,16 @@ interoperability and compatibility with a legally purchased copy.
   modifier + spell bonus + gear bonus**, and the ladder applies to that sum.
   The engine had the variable run starting one too high, so a script raising
   Might raised nothing; both runs now land.
+- **Conditions: how they begin, and an honest miss**: the time-advance rolls
+  `rand() % 100` against a byte at `0x908d6c` — times five, then times ten —
+  and on success stamps a condition's timestamp. That byte is **zeroed by
+  resting**, so it is a fatigue counter that makes sickness likelier the
+  longer the party stays awake, which the engine has no equivalent of. The
+  same pass showed the attribute *modifiers* are cleared every tick and
+  rebuilt from gear and spells, confirming the composition from another
+  angle. What poison and disease actually *do* was not found: conditions are
+  timestamps, and every routine that reads one asks only whether it is set,
+  never how long. The invented drain stays marked as the engine's own.
 - **What a rest does, traced**: `0x42c840` sets a **480-minute** target —
   eight hours, which confirms from the code what the interface string and
   this engine had both only asserted — snapshots the world clock in three
