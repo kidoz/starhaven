@@ -1134,6 +1134,15 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
+- **Shoring up the single-source claim, and a bug fell out**: the
+  weapon-recovery table was checked a second way — every equippable row
+  `ITEMS.TXT` ships, tallied by skill group. The table names twelve groups;
+  the file uses **thirteen**, giving three weapons a "Club" group that is no
+  skill at all. The executable copes because it loads the bare-hand default
+  first and only overwrites it when the skill byte names a row; StarHaven
+  was reading the empty lookup as a recovery of **zero**, which made a club
+  strike instantly. Fixed. The buff slot map came back consistent: no two
+  spells share a slot and none is orphaned.
 - **The character's own buff array**: the routine that clears the party's
   slots clears these too — sixteen 16-byte records at `+0x1268` on every
   character, beside a 28-byte item array at `+0x144`. Which spell takes

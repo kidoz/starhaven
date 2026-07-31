@@ -178,3 +178,16 @@ TEST_CASE("the left hand opens at the line's own rank", "[skills]") {
     REQUIRE_FALSE(skill_power(sword, 6).left_hand);
     REQUIRE(skill_power(sword, 7).left_hand);  // the master line
 }
+
+TEST_CASE("a group the table does not name costs nothing extra", "[skills]") {
+    // ITEMS.TXT ships thirteen skill groups; "Club" is not one of the twelve
+    // the recovery table covers, and reading its zero as a recovery would
+    // make a club strike instantly.
+    REQUIRE(gear_recovery("Club") == 0);
+    REQUIRE(gear_recovery("Misc") == 0);
+    // Which is why the caller keeps the bare-hand default when the lookup
+    // comes back empty.
+    const int held = gear_recovery("Club");
+    const int spent = held > 0 ? held : kBareHandRecovery;
+    REQUIRE(spent == kBareHandRecovery);
+}

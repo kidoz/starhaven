@@ -207,6 +207,14 @@ inline constexpr int kBareHandRecovery = kRecoveryBySkill[0];
 
 // What a piece of gear's skill group costs, or nothing when the group is
 // not one of the twelve the table covers.
+//
+// `ITEMS.TXT` ships **thirteen** groups, not twelve: beside the twelve the
+// skill list names it gives three weapons the group **"Club"**, which is no
+// skill at all. The routine's own shape answers for it — it loads entry 0,
+// the bare-hand 100, and only overwrites when the item's skill byte names a
+// row — so an unknown group leaves the default standing. Callers must do the
+// same and not read a zero as "instant". `observed` for the shape,
+// `observed` for the thirteenth group in the table.
 [[nodiscard]] inline int gear_recovery(std::string_view skill_group) noexcept {
     for (std::size_t i = 0; i < 12; ++i) {
         if (kSkillNames[i] == skill_group) {

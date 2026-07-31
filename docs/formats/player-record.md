@@ -23,6 +23,13 @@ of how much weight they carry:
   high, and a case with a fixed die *count* had been read as a single die.
   All three are corrected, and the roller now distinguishes the four shapes
   the cases actually take.
+- **The buff slot map — confirmed structurally.** Each slot was read from
+  one instruction, so the check is that the map is *consistent*: across the
+  whole executable no two spells write the same slot, no spell writes two
+  unrelated ones, and Day of Protection's seven are exactly seven slots that
+  each also have a single owner. A wrong reading would have shown up as a
+  collision or an orphan and did not. Slots 6 and 7 have a second writer
+  outside the spell dispatcher, which is noted and unread.
 - **The attribute ladder — confirmed overwhelmingly.** The pair at
   `0x4c2860`/`0x4c289c` is referenced from **73 and 37 sites** across dozens
   of routines, not just the recovery one it was found in. It is the game's
@@ -35,14 +42,22 @@ of how much weight they carry:
   Priests ... an extra two hit points and spell points" (2 → 4 and 3 → 5),
   "Arch Mages ... an extra two" (2 → 4 and 3 → 5), "Knights begin with the
   greatest number of hit points" (base 30, the highest of the six).
-- **The weapon-recovery table — the weakest of the four, and it stands.**
-  `0x4c2750` is read from six sites and every one is inside `0x481a80`, so
-  no second routine corroborates it. What does corroborate it is
-  `SkillDes.txt`: daggers are "very quick" and carry the lowest number of
-  any weapon at 60, axes are "rather slow on the attack" and carry the
-  highest at 100, and the three skills whose expert line promises "a quicker
-  attack" are exactly the three the routine tests for. Recorded as the one
-  claim here resting on a single routine.
+- **The weapon-recovery table — the weakest of the four, and it stands,
+  with one hole found.** `0x4c2750` is read from six sites and every one is
+  inside `0x481a80`, so no second routine corroborates it. What does
+  corroborate it is `SkillDes.txt`: daggers are "very quick" and carry the
+  lowest number of any weapon at 60, axes are "rather slow on the attack"
+  and carry the highest at 100, and the three skills whose expert line
+  promises "a quicker attack" are exactly the three the routine tests for.
+
+  Checking it a second way — every equippable row `ITEMS.TXT` ships, tallied
+  by skill group — turned up a real hole. The table names twelve groups; the
+  file uses **thirteen**, giving three weapons the group **"Club"**, which is
+  no skill in the game. The routine copes because of its own shape: it loads
+  entry 0, the bare-hand 100, and only overwrites it when the item's skill
+  byte names a row, so an unknown group leaves the default standing.
+  StarHaven was reading the empty lookup as a recovery of zero, which made a
+  club strike instantly; it now keeps the default, as the routine does.
 
 ## Where the offsets came from
 

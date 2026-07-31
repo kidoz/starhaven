@@ -6938,7 +6938,13 @@ int main(int argc, char** argv) {
                         int rec_points = game::kBareHandRecovery;
                         if (const auto* held_row = gear_of(game::Slot::Weapon);
                             held_row != nullptr && !held_row->skill_group.empty()) {
-                            rec_points = game::gear_recovery(held_row->skill_group);
+                            // A group the table does not name — "Club", which
+                            // ITEMS.TXT gives three weapons — leaves the
+                            // bare-hand default standing, as the routine does.
+                            if (const int cost = game::gear_recovery(held_row->skill_group);
+                                cost > 0) {
+                                rec_points = cost;
+                            }
                         }
                         for (const game::Slot slot : {game::Slot::Armor, game::Slot::Shield}) {
                             const auto* row = gear_of(slot);
