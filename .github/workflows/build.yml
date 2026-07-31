@@ -24,6 +24,20 @@ jobs:
           libxi-dev libxfixes-dev libxss-dev libwayland-dev
           libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libasound2-dev
           libpulse-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev
-      - run: meson setup buildDir
+      # Windows has no system SDL3 or zlib; the wraps in tree build both
+      # from source, and forcing the fallback there keeps the three
+      # runners building the same code rather than whatever each has
+      # lying around. Verified end to end on macOS: clean checkout,
+      # wraps downloaded, SDL3 and zlib compiled, 66 tests green.
+      - name: Configure
+        run: >
+          meson setup buildDir
+          ${{ runner.os == 'Windows' && '--force-fallback-for=sdl3,zlib' || '' }}
       - run: ninja -C buildDir
       - run: meson test -C buildDir --print-errorlogs
+      - name: Keep the logs of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-logs-${{ matrix.os }}
+          path: buildDir/meson-logs/

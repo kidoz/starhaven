@@ -1271,12 +1271,16 @@ interoperability and compatibility with a legally purchased copy.
   test. UI cursor state (the sheet's page, the book's tab) stays
   deliberately unsaved.
 
-- **The portability claim has a witness**: a GitHub Actions workflow
-  runs the README's own three commands — `meson setup`, `ninja`,
-  `meson test` — on macOS, Linux and Windows runners, with a zlib wrap
-  added so Windows builds hermetically alongside the SDL3 and Catch2
-  wraps already in tree. Only the synthetic-fixture tests run there; the
-  game data never leaves the player's machine.
+- **The portability claim has a tested witness**: a GitHub Actions
+  workflow runs the README's own three commands — `meson setup`,
+  `ninja`, `meson test` — on macOS, Linux and Windows runners, and the
+  whole path has now been walked here rather than assumed: a clean
+  clone with nothing but the four wrap files configures, downloads
+  Catch2, builds 327 targets and passes 65 tests; forcing the SDL3 and
+  zlib fallbacks the way a Windows runner will builds both from source
+  and passes 66. Windows now gets that fallback explicitly, and a failed
+  run uploads its meson logs. Only the synthetic-fixture tests run
+  there; the game data never leaves the player's machine.
 
 - **Saving**: **F5** writes the game, **F9** brings it back — quest bits and
   event variables, the purse, all four packs cell by cell, worn equipment,
