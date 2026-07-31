@@ -1109,6 +1109,23 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **Every thrown spell's dice, found at the fourth attempt**: `0x432ad0` is
+  the damage routine — spell id, skill, and a 98-entry switch in which 34
+  spells have a case and the rest return nothing. Flame Arrow 1d8, Fire Bolt
+  skill d4, Fireball skill d6, Incinerate skill d15 + 15, Lightning Bolt
+  skill d8, Harm skill d2 + 8, Sun Ray skill d20 + 20, Dragon Breath skill
+  d25, Ring of Fire skill + 6, Armageddon skill + 50. `SPELLS.TXT` carries
+  none of it. The earlier misses came of reading the collision handler's
+  *monster* branch; the party's spells are the branch below it, and it calls
+  the damage routine in its first four instructions.
+- **A class is worth something again**: the sitting's one complaint is
+  answered. Both the hit-point and spell-point routines read the class id at
+  `+0x12` and index a table by class and another by family — Knight 4 hit
+  points a level against a Champion's 8 and a Cleric's 2, bases of 30, 25
+  and 20, spell points from nothing for the Knight line to five a level for
+  an Archmage. `Class.txt`'s own "an extra two hit points per level" for a
+  Cavalier is the check. A starting party now reads Knight 42, Paladin 28,
+  Archer 28, Cleric 24 rather than four characters at twenty-something.
 - **The gamble on the other forty-six specials, answered both ways**: there
   *is* one walk that applies them — in the bonused stat getter, dispatching
   on ids 1 to 57 — and it deliberately handles only eighteen. The run 3..41

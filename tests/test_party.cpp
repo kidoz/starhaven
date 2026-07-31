@@ -232,3 +232,45 @@ TEST_CASE("the base classes are six and every one is a Class.txt heading shape",
                 kBaseClasses.end());
     }
 }
+
+TEST_CASE("a class is worth its own hit points and spell points", "[party]") {
+    // The eighteen are the executable's own order, three to a family.
+    REQUIRE(kClassNames.size() == 18);
+    REQUIRE(class_id("Knight") == 0);
+    REQUIRE(class_id("Champion") == 2);
+    REQUIRE(class_id("Cleric") == 3);
+    REQUIRE(class_id("Arch Druid") == 17);
+    // Class.txt's own words: a Cavalier gets two hit points a level more
+    // than a Knight.
+    REQUIRE(kClassHitPointsPerLevel[class_id("Cavalier")] -
+                kClassHitPointsPerLevel[class_id("Knight")] ==
+            2);
+    // The bases run by family, and the fighters start hardiest.
+    REQUIRE(kClassBaseHitPoints[0] == 30);
+    REQUIRE(kClassBaseHitPoints[1] == 20);
+    REQUIRE(class_hit_points("Knight", 1, 0) > class_hit_points("Cleric", 1, 0));
+    REQUIRE(class_hit_points("Champion", 1, 0) > class_hit_points("Knight", 1, 0));
+    // A level and a point of Endurance bonus are worth the same thing.
+    REQUIRE(class_hit_points("Knight", 2, 0) == class_hit_points("Knight", 1, 1));
+    // Knights cast nothing at all; the pure casters get the most.
+    REQUIRE(class_spell_points("Knight", 1, 0) == 0);
+    REQUIRE(class_spell_points("Champion", 9, 9) == 0);
+    REQUIRE(class_spell_points("Sorcerer", 1, 0) > class_spell_points("Paladin", 1, 0));
+    REQUIRE(class_spell_points("Archmage", 1, 0) > class_spell_points("Sorcerer", 1, 0));
+    // And an unknown name falls to the first class rather than reading past
+    // the tables.
+    REQUIRE(class_id("Nonesuch") == 0);
+    REQUIRE(class_hit_points("Nonesuch", 1, 0) == class_hit_points("Knight", 1, 0));
+}
+
+TEST_CASE("the starting four are no longer interchangeable", "[party]") {
+    const auto party = make_party(names(), 7);
+    REQUIRE(party[0].max_hit_points > party[3].max_hit_points);  // Knight over Cleric
+    REQUIRE(party[0].max_spell_points == 0);
+    REQUIRE(party[3].max_spell_points > party[1].max_spell_points);  // Cleric over Paladin
+    for (const auto& who : party) {
+        REQUIRE(who.max_hit_points >= 1);
+        REQUIRE(who.hit_points == who.max_hit_points);
+        REQUIRE(who.spell_points == who.max_spell_points);
+    }
+}

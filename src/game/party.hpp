@@ -314,11 +314,72 @@ inline constexpr std::array<std::string_view, 6> kBaseClasses{"Knight", "Cleric"
     return class_name != "Knight";
 }
 
+// All eighteen, in the executable's own order — `GLOBAL.TXT` row 253 plus
+// the id, which is also the order the two class tables below are indexed in.
+// `observed`
+inline constexpr std::array<std::string_view, 18> kClassNames{
+    "Knight",   "Cavalier",    "Champion",     "Cleric", "Priest",        "High Priest",
+    "Sorcerer", "Wizard",      "Archmage",     "Paladin", "Crusader",     "Hero",
+    "Archer",   "Battle Mage", "Warrior Mage", "Druid",  "Greater Druid", "Arch Druid"};
+
+[[nodiscard]] inline int class_id(std::string_view name) noexcept {
+    for (std::size_t i = 0; i < kClassNames.size(); ++i) {
+        if (kClassNames[i] == name) {
+            return static_cast<int>(i);
+        }
+    }
+    return 0;
+}
+
+// **What a class is worth**, traced. `0x481ea0` builds max hit points and
+// `0x482090` max spell points, and both read the class id at `+0x12` of the
+// character and index two tables with it: one **by class**, holding what a
+// level is worth, and one **by class family** — the id divided by three —
+// holding the base. `observed` at `0x4c2640`/`0x4c2630` for hit points and
+// `0x4c2654`/`0x4c2638` for spell points.
+//
+// `Class.txt`'s prose is the check: "Cavaliers enjoy the benefit of an extra
+// two hit points per level" against a Knight, and the table gives Knight 4
+// and Cavalier 6.
+inline constexpr std::array<int, 18> kClassHitPointsPerLevel{4, 6, 8, 2, 3, 4, 2, 3, 4,
+                                                             3, 4, 5, 3, 4, 5, 2, 3, 4};
+inline constexpr std::array<int, 6> kClassBaseHitPoints{30, 20, 20, 25, 25, 20};
+inline constexpr std::array<int, 18> kClassSpellPointsPerLevel{0, 0, 0, 3, 4, 5, 3, 4, 5,
+                                                               1, 2, 3, 1, 2, 3, 3, 4, 5};
+inline constexpr std::array<int, 6> kClassBaseSpellPoints{0, 10, 10, 5, 5, 10};
+
+// The routine's own shape: the base for the family, plus the class's own
+// number for every level and every point of the attribute's bonus. Hit
+// points take Endurance, spell points Personality — the getter asks for
+// stat 3 and stat 2 beside the level at stat 14. `observed`; the further
+// terms it folds in (a stat 7 for hit points, a stat 8 for spell points and
+// a byte at `+0x1578`) are read but not named, and are left out.
+[[nodiscard]] inline int class_hit_points(std::string_view name, int level, int endurance_bonus) {
+    const int id = class_id(name);
+    const int total = kClassBaseHitPoints[static_cast<std::size_t>(id / 3)] +
+                      (level + endurance_bonus) *
+                          kClassHitPointsPerLevel[static_cast<std::size_t>(id)];
+    return total < 1 ? 1 : total;
+}
+
+[[nodiscard]] inline int class_spell_points(std::string_view name, int level,
+                                            int personality_bonus) {
+    const int id = class_id(name);
+    if (kClassSpellPointsPerLevel[static_cast<std::size_t>(id)] == 0) {
+        return 0;
+    }
+    const int total = kClassBaseSpellPoints[static_cast<std::size_t>(id / 3)] +
+                      (level + personality_bonus) *
+                          kClassSpellPointsPerLevel[static_cast<std::size_t>(id)];
+    return total < 0 ? 0 : total;
+}
+
 // Derive what the class and the rolled attributes decide: hit points, spell
 // points, armour and the starting spell. Rerolling a character at creation
 // runs this again; every number is this engine's. `inferred`
 inline void derive_start(Character& c) {
-    c.max_hit_points = 20 + attribute_bonus(c.attribute(Attribute::Endurance)) * 2;
+    c.max_hit_points = class_hit_points(
+        c.class_name, 1, attribute_bonus(c.attribute(Attribute::Endurance)));
     // One weapon skill at one point, by class; which is this engine's
     // reading of the class prose (see skills.hpp for the choices).
     c.skills.clear();
@@ -330,7 +391,8 @@ inline void derive_start(Character& c) {
     c.known_spells.clear();
     c.max_spell_points = 0;
     if (casts_spells(c.class_name)) {
-        c.max_spell_points = 10 + attribute_bonus(c.attribute(Attribute::Intellect)) * 2;
+        c.max_spell_points = class_spell_points(
+            c.class_name, 1, attribute_bonus(c.attribute(Attribute::Personality)));
         // Every caster starts knowing First Aid; the choice of that one
         // spell is this engine's. `inferred`
         c.known_spells.insert(68);

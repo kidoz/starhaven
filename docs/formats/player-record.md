@@ -285,6 +285,42 @@ The sum is floored at zero and returned. `observed` StarHaven now spends
 that on a strike, less the `+0x128c` term and a day-of-week term the routine
 also folds in, both of which are left out rather than guessed at.
 
+## What a class is worth
+
+`0x481ea0` builds max hit points and `0x482090` max spell points, and both
+open the same way: `al = byte [esi + 0x12]`, **the class id**. Each then
+indexes two tables with it — one **by class**, holding what a level is
+worth, and one **by class family**, the id divided by three, holding the
+base.
+
+| | Knight | Cavalier | Champion | Cleric | Priest | High Priest | Sorcerer | Wizard | Archmage |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| hit points a level | 4 | 6 | 8 | 2 | 3 | 4 | 2 | 3 | 4 |
+| spell points a level | 0 | 0 | 0 | 3 | 4 | 5 | 3 | 4 | 5 |
+
+| | Paladin | Crusader | Hero | Archer | Battle Mage | Warrior Mage | Druid | Greater Druid | Arch Druid |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| hit points a level | 3 | 4 | 5 | 3 | 4 | 5 | 2 | 3 | 4 |
+| spell points a level | 1 | 2 | 3 | 1 | 2 | 3 | 3 | 4 | 5 |
+
+The bases, by family: hit points **30** for the Knight line, **25** for
+Paladins and Archers, **20** for Clerics, Sorcerers and Druids; spell points
+**0**, **5**, **5**, **10**, **10**, **10** in the same order. `observed` at
+`0x4c2640`/`0x4c2630` and `0x4c2654`/`0x4c2638`.
+
+`Class.txt`'s prose is the check on the reading: "Cavaliers enjoy the
+benefit of an extra two hit points per level", and the table gives Knight 4
+against Cavalier 6.
+
+The shape is `base + (level + the attribute's bonus) × the class's number`,
+floored at one — hit points asking the getter for stat 3 (Endurance) beside
+stat 14, spell points for stat 2 (Personality). **Stat 14 is the character's
+level**: it is what both routines multiply the class number by, and it is
+the same id the heal and the recovery routine ask for. `observed` Two
+further terms each routine folds in — a stat 7 for hit points, a stat 8 for
+spell points, and a byte at `+0x1578` — are read but not named, and
+StarHaven leaves them out rather than guessing.
+
 ## The attribute curve, found inside the recovery routine
 
 The ladder the Speed term walks is not a recovery table at all: it is **the
