@@ -549,6 +549,19 @@ TEST_CASE("attribute bit 0x80000000 says a face has an extra", "[blv]") {
     REQUIRE(both.invisible());
 }
 
+TEST_CASE("attribute bit 0x20000000 marks pass-through geometry", "[blv]") {
+    // The original's collision and floor lookups skip such faces: a fake
+    // wall is drawn but never touched. See docs/formats/blv.md.
+    BlvFace fake_wall;
+    fake_wall.attributes = 0x20000000u;
+    REQUIRE(fake_wall.ethereal());
+    REQUIRE_FALSE(fake_wall.invisible());
+
+    BlvFace solid;
+    solid.attributes = 0x1100u;
+    REQUIRE_FALSE(solid.ethereal());
+}
+
 TEST_CASE("a texture origin is signed", "[blv]") {
     // The origin is the negation of the face's lowest texture coordinate, so
     // it is negative wherever that coordinate is positive — which is most

@@ -90,6 +90,12 @@ struct BlvFace {
     // Whether a face-extra record describes this face.
     [[nodiscard]] bool has_extra() const noexcept { return (attributes & kBlvFaceHasExtra) != 0; }
 
+    // Attribute bit 0x20000000 marks pass-through geometry: the original's
+    // collision and floor-lookup functions skip such faces at their door,
+    // which is how a fake wall hides a secret passage. Drawn, not touched.
+    // See docs/formats/blv.md.
+    [[nodiscard]] bool ethereal() const noexcept { return (attributes & 0x20000000u) != 0; }
+
     // The plane this face is projected onto for two-dimensional work.
     [[nodiscard]] ProjectionPlane projection() const noexcept {
         return projection_plane(attributes);

@@ -192,17 +192,20 @@ the face's extra record: 5,380 of the 5,560 faces with such a value carry one
 of them, and 147 faces carry one without a value. Close, but not a rule.
 `inferred`
 
-#### Bits still unread
+#### Bits traced through the executable
 
-| Bit | Faces | What is visible |
+Three of the four long-unread bits now have their runtime tests:
+
+| Bit | Faces | Meaning |
 | --- | ---: | --- |
-| 0x10 | 416 | 86% floors, and 90% of them are textured `wtrtyl`, `orwtrtyl`, `swprrf3` — liquid surfaces. But 1,395 faces with those textures do **not** set it, so it is not "this is water". `unknown` |
-| 0x40000 | 2,509 | 82% walls; textures include `tdoord`, `d8dorb`, `d2lgdor` and a family of `bem*` beams. 70% carry an event id. Door-shaped, but fewer than half the faces are door-textured. `unknown` |
-| 0x400000 | 7 | all ceilings, five of them textured `sky_*`. Too few to call. `unknown` |
-| 0x8, 0x1000 | ~29,000 each | accompany the texture origins in the face's extra record (see below) |
-| 0x20000000 | 2,836 | 96% walls, no event ids, no texture pattern. `unknown` |
+| 0x40000 | 2,509 | **a door's face**: the door geometry updater (the function whose own assertion reads `"Door Error… Overflow dividing facet->d by facet->nz"`) recomputes texture coordinates against the door's per-face `delta_u`/`delta_v` arrays only where this bit is set — the bit selects which faces slide their texture with the door's travel. `observed` |
+| 0x400000 | 7 | **the scrolling sky**: the face maps to a render-side flag whose one consumer subtracts `GetTickCount()/8` from the texture offset each frame — the ceiling's sky drifts with real time. `observed` |
+| 0x20000000 | 2,836 | **pass-through**: the point-under-party floor lookup skips such faces, and a face-interaction routine refuses them at its first instruction — geometry that is drawn but never touched, which is how a fake wall hides a secret passage. `observed` |
+| 0x10 | 416 | routed to an **alternate per-vertex draw routine** (the same conversion that maps the sky bit): a distinct render path for these mostly-liquid floors, whose visual behavior is not yet characterized. `observed` for the routing, `unknown` for what it draws differently |
 
-The remaining bits appear on fewer than 120 faces each.
+Bits 0x8 and 0x1000 (~29,000 each) accompany the texture origins in the
+face's extra record (see below). The remaining bits appear on fewer than
+120 faces each.
 
 ## Per-face index arrays
 

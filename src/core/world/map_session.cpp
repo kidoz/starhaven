@@ -280,7 +280,7 @@ void rebuild_indoor_collision(MapSession& out) {
     out.collision = {};
     std::vector<render::Vec3> corners;
     for (const auto& f : out.blv.faces) {
-        if (f.invisible() || f.vertex_count < 3) {
+        if (f.invisible() || f.ethereal() || f.vertex_count < 3) {
             continue;
         }
         corners.clear();
