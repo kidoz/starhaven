@@ -40,12 +40,11 @@ inline constexpr std::array<std::string_view, 118> kInteriorVideos{
     "d08",      "CstlGood", "d01",      "cd1",      "cd2",      "cd3",
     "circus2",  "statue",   "archloop", "noarchie"};
 
-// The side panel each interior wears, and the sound it hums: the same
-// executable table that names the videos carries both. Its records are 16
-// bytes at `0x4be88c` — byte 0 the `EVPAN###` panel number, the dword at
-// +4 a `DSOUNDS` id where the room has one, the byte at +8 a kind, and
-// the pointer at +12 the video name in exactly the order above. All 52
-// distinct panel numbers the table names ship in `icons.lod`. `observed`
+// The side panel each interior wears: the same executable table that
+// names the videos carries it. The records are 16 bytes at `0x4be88c` —
+// byte 0 the `EVPAN###` panel number, a dword at +4, the byte at +8 a
+// kind, and the pointer at +12 the video name in exactly the order
+// above. All 52 distinct panel numbers ship in `icons.lod`. `observed`
 // Reproduce the join with `data_info --backdrops`.
 inline constexpr std::array<std::uint8_t, 118> kInteriorPanels{
     4, 22, 13, 23, 10, 14, 42, 30, 7, 36, 14, 12,
@@ -59,7 +58,13 @@ inline constexpr std::array<std::uint8_t, 118> kInteriorPanels{
     30, 51, 25, 25, 47, 49, 13, 20, 49, 49, 20, 51,
     49, 19, 14, 49, 25, 49, 36, 55, 55, 55};
 
-inline constexpr std::array<std::uint16_t, 118> kInteriorSounds{
+// The dword at +4, kept as measured and read as nothing: it is **not** a
+// `DSOUNDS` id (none of 500, 501, 505, 513, 532, 549 resolves in the
+// sound table) and **not** a `GLOBAL.TXT` row (500 there is "You have
+// %lu gold"). Its values cluster oddly — the shops carry 500..518, the
+// taverns and temples carry ids that read as town names in another
+// table — and what it indexes is `unknown`.
+inline constexpr std::array<std::uint16_t, 118> kInteriorField4{
     500, 505, 506, 507, 501, 502, 503, 516, 517, 518, 513, 514,
     515, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     175, 530, 20, 297, 358, 552, 550, 549, 548, 551, 0, 0,
@@ -77,14 +82,6 @@ inline constexpr std::array<std::uint16_t, 118> kInteriorSounds{
         return 0;
     }
     return kInteriorPanels[static_cast<std::size_t>(picture) - 1];
-}
-
-// And the sound it hums, or 0 where the table names none.
-[[nodiscard]] inline int interior_sound(int picture) noexcept {
-    if (picture < 1 || picture > static_cast<int>(kInteriorSounds.size())) {
-        return 0;
-    }
-    return kInteriorSounds[static_cast<std::size_t>(picture) - 1];
 }
 
 // The video a Picture value names, or empty when out of the table's reach.

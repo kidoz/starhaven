@@ -1067,13 +1067,15 @@ interoperability and compatibility with a legally purchased copy.
   weapon skill at a percentage the weapon's kind picks (100 down to 10,
   a twelve-entry table). The engine now reads accuracy raw; joining the
   percentages to this engine's skill names is the one step left.
-- **The evpan gamble closed, and paid three ways**: the format string's
-  single caller reads its number from a 16-byte table in the executable
-  — and that table turned out to be the interior list itself, carrying
-  each room's `EVPAN` side panel, its `DSOUNDS` hum and its video name
-  in one record. All 52 panel numbers it names ship. The talk screens
-  now wear each establishment's own authored panel instead of the
-  generic marble, and the sound column is decoded beside it.
+- **The evpan gamble closed**: the format string's single caller reads
+  its number from a 16-byte table in the executable — and that table
+  turned out to be the interior list itself, carrying each room's
+  `EVPAN` side panel beside its video name. All 52 panel numbers it
+  names ship, and the talk screens now wear each establishment's own
+  authored panel instead of the generic marble. The record's fourth
+  column was first read as a sound id; the claim is **withdrawn** —
+  none of its values resolves in `DSOUNDS.BIN` or `GLOBAL.TXT`, so the
+  engine plays no hum and the field is filed unknown.
 - **The player record, mapped from the traces**: three separate digs kept
   re-deriving the same offsets, so they are now written down —
   `docs/formats/player-record.md` collects the resistance bytes, the
