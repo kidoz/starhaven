@@ -39,6 +39,8 @@
 #include "game/party.hpp"
 #include "game/player.hpp"
 #include "game/skills.hpp"
+#include "game/spell_damage.hpp"
+#include "game/spell_switch.hpp"
 
 using namespace starhaven;
 
@@ -46,7 +48,8 @@ namespace {
 
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0
-              << " [<map>] [--minutes N] [--seed N] [--fps N] [--still] [--verbose]\n"
+              << " [<map>] [--minutes N] [--seed N] [--fps N]\n"
+              << "          [--still] [--teach] [--no-spells] [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
               << "actors a real map places, for N minutes of world time.\n"
@@ -87,6 +90,8 @@ std::size_t nearest_alive(const world::MapSession& session, const game::Battle& 
 }
 
 struct Tally {
+    int casts = 0;
+    int spell_damage = 0;
     int swings = 0;
     int landed = 0;
     int dealt = 0;
@@ -104,6 +109,8 @@ int main(int argc, char** argv) {
     int fps = 20;
     bool verbose = false;
     bool advance = true;
+    bool casting = true;
+    bool teach = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -113,6 +120,10 @@ int main(int argc, char** argv) {
             seed = static_cast<std::uint32_t>(std::strtoul(argv[++i], nullptr, 10));
         } else if (a == "--fps" && i + 1 < argc) {
             fps = std::max(1, std::atoi(argv[++i]));
+        } else if (a == "--teach") {
+            teach = true;
+        } else if (a == "--no-spells") {
+            casting = false;
         } else if (a == "--still") {
             advance = false;
         } else if (a == "--verbose") {
@@ -165,6 +176,20 @@ int main(int argc, char** argv) {
     }
 
     std::array<game::Character, 4> party = game::make_party(names, seed);
+    if (teach) {
+        // A starting party knows only First Aid, so nothing aimed is ever
+        // cast. These four are the cheapest aimed spells in the game, one
+        // per element, and they put the traced dice under load without
+        // pretending a level-one party would have them.
+        for (auto& who : party) {
+            if (who.max_spell_points <= 0) {
+                continue;
+            }
+            for (const int id : {2, 24, 35, 45}) {
+                who.known_spells.insert(id);
+            }
+        }
+    }
     std::array<game::Pack, 4> packs;
     game::Battle battle;
     battle.reset(session, monsters, seed);
@@ -230,6 +255,42 @@ int main(int argc, char** argv) {
                 nearest_alive(session, battle, eye, game::kPartyReach);
             if (target == game::kNoActor) {
                 continue;
+            }
+            // A caster with points to spend throws its best aimed spell
+            // before reaching for a fist: the traced dice, the spell-point
+            // purse and the aimed list all under load at once. The skill is
+            // a flat five throughout — a stand-in, since a starting party
+            // has one point and the point of the exercise is the dice.
+            if (casting && !party[who].known_spells.empty() && party[who].spell_points > 0) {
+                int chosen = 0;
+                int best = 0;
+                for (const int id : party[who].known_spells) {
+                    const auto* row = spells.at(static_cast<std::size_t>(id));
+                    if (row == nullptr || !game::spell_is_aimed(id) ||
+                        party[who].spell_points < row->cost_normal) {
+                        continue;
+                    }
+                    const int worth = game::roll_spell_damage(id, 5, [] { return 3ULL; });
+                    if (worth > best) {
+                        best = worth;
+                        chosen = id;
+                    }
+                }
+                if (chosen > 0) {
+                    const auto* row = spells.at(static_cast<std::size_t>(chosen));
+                    party[who].spell_points -= row->cost_normal;
+                    data::SpellRange flat;
+                    data::SpellRange scaled;
+                    (void)game::traced_damage_ranges(chosen, 5, flat, scaled);
+                    const int hp_was = battle.health_of(target).first;
+                    battle.smite(target, flat, scaled, 5, row->element, party[who].name, session,
+                                 monsters, items, random_items, standard_bonuses,
+                                 special_bonuses);
+                    ++tally[who].casts;
+                    tally[who].spell_damage += hp_was - battle.health_of(target).first;
+                    recovery[who] = game::recovery_seconds(game::kBareHandRecovery);
+                    continue;
+                }
             }
             const int monster_hp_before = battle.health_of(target).first;
             const std::string said =
@@ -303,7 +364,8 @@ int main(int argc, char** argv) {
         }
         std::cout << ", dealt " << std::setw(5) << t.dealt << ", took " << std::setw(5)
                   << t.taken << ", low " << std::setw(4) << t.low_water << " of "
-                  << party[who].max_hit_points << ", level " << party[who].level << ", xp " << party[who].experience;
+                  << party[who].max_hit_points << ", level " << party[who].level << ", xp " << party[who].experience
+                  << ", cast " << t.casts << " for " << t.spell_damage;
         if (t.down_at >= 0) {
             std::cout << "  DOWN at world minute " << t.down_at;
         }

@@ -1143,6 +1143,13 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **The sitting casts**: `--teach` gives the casters the four cheapest aimed
+  spells and they throw them ahead of a fist, which puts the traced dice, the
+  aimed-spell list and the spell-point purse under load for the first time.
+  The result is consistent: a Cleric with sixteen spell points gets eight
+  casts for thirty damage, which is the ~4 a cast that Flame Arrow, Cold
+  Beam, Magic Arrow and Spirit Arrow average between them, and the Knight
+  with no points casts nothing.
 - **The last four buffs do something**: Bless reaches the to-hit roll,
   Heroism the damage and Stone Skin the armour class, each at the "5 + 1 per
   point of skill" their rows all three state; Shield halves incoming missile
