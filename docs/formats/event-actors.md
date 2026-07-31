@@ -339,3 +339,38 @@ it would mean reading the whole preparation routine, which is a batch of its
 own. The record is not a wall — seven fields came out of the AI alone — but
 it does not yield to the table-outward method the way the player record did.
 `unknown` for the column map.
+
+## The nine unnamed actions, grouped
+
+Reading each action's opening record access does not name them, but it does
+group them, which narrows the next attempt. `observed` for the offsets.
+
+- **States 2, 12 and 13** (`0x404380`, `0x403f80`, `0x404160`) all open on
+  the word at **`+0x7a`**, and state 2 reads **`+0x82`** beside it. Three
+  variants of one thing.
+- **State 1+3** (`0x403b60`) opens on two *pairs* — `+0x92`/`+0x94` against
+  `+0x7e`/`+0x80` — which is the shape of comparing one position with
+  another.
+- **State 4** (death) opens on `+0x34`, the monster's row index, which is
+  what it needs for the death sound. **State 16** opens on `+0xb6`, the same
+  field state 4 reads second. **State 5b** opens on `+0xc4` alone.
+- **States 6b, 9 and 10** read nothing from the record at all and take
+  everything from their arguments.
+
+Names remain `unknown`. What this adds is that the eleven actions are not
+eleven independent behaviours: at least three are one family, and three more
+are argument-driven helpers rather than decisions.
+
+## And a further negative on what a condition costs
+
+The per-character pass inside the time-advance runs **once a real second** —
+gated by a due-time at `0x908ce0` that is advanced by **128 units** each
+time, which is the clock unit confirmed again from a third place. Within
+that pass nothing reads a condition timestamp's *age* and nothing subtracts
+hit points for one.
+
+So a condition's cost is not applied on the clock at all. Two batches have
+now looked for it: the timestamps are only ever tested for being set. If
+being poisoned costs anything in MM6 it is charged somewhere that does not
+walk the party on a timer, and this engine's invented drain stays marked as
+its own. `unknown`, with the search space narrowed to "not the clock".

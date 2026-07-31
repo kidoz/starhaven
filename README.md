@@ -1193,6 +1193,19 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The nine unnamed AI actions, grouped**: reading each action's opening
+  record access does not name them but narrows the next attempt — states 2,
+  12 and 13 all open on the word at `+0x7a` and are one family in three
+  variants; state 1+3 opens on two coordinate *pairs*, the shape of comparing
+  one position with another; and states 6b, 9 and 10 read nothing from the
+  record at all, taking everything from arguments. So the eleven actions are
+  not eleven independent behaviours.
+- **A further negative on what a condition costs**: the per-character pass
+  runs **once a real second**, gated by a due-time advanced by 128 units —
+  the clock unit confirmed from a third place — and within it nothing reads a
+  condition timestamp's age or subtracts hit points for one. Two batches have
+  now looked. A condition's cost is not charged on the clock, and the search
+  space is recorded as narrowed rather than the answer guessed.
 - **The gamble on the monster record: seven fields, but not the column map**:
   reading the AI named the flags dword at `+0x24`, the **hit points at
   `+0x28`**, the row index at `+0x34`, the animation byte at `+0x3e`, the
