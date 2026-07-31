@@ -355,7 +355,7 @@ TEST_CASE("a cure and a barrel land in the outcome, not the variables", "[walk]"
     std::vector<std::uint8_t> payload;
     push_step(payload, 9, 0, kOpcodeGive, typed(3, 10));
     push_step(payload, 9, 1, kOpcodeGive, typed(5, 4));
-    push_step(payload, 9, 2, kOpcodeGive, typed(38, 2));
+    push_step(payload, 9, 2, kOpcodeGive, typed(37, 2));
     push_step(payload, 9, 3, kOpcodeGive, typed(46, 5));
     push_step(payload, 9, 4, kOpcodeEnd, {0});
     const MapScript script = parse(payload);
@@ -364,10 +364,10 @@ TEST_CASE("a cure and a barrel land in the outcome, not the variables", "[walk]"
     const auto outcome = starhaven::game::walk_event(script, 9, state);
     REQUIRE(outcome.healed_hp == 10);
     REQUIRE(outcome.healed_sp == 4);
-    REQUIRE(outcome.stat_gains[6] == 2);    // Luck is the seventh
+    REQUIRE(outcome.stat_gains[6] == 2);    // Luck is variable 37, the seventh
     REQUIRE(outcome.resist_gains[0] == 5);  // Fire is the first
     REQUIRE(outcome.acted());
-    REQUIRE(state.variables.find(38) == state.variables.end());
+    REQUIRE(state.variables.find(37) == state.variables.end());
 }
 
 TEST_CASE("a quest sets an award and a later check wears it", "[walk]") {
@@ -460,4 +460,20 @@ TEST_CASE("a switch disables and re-enables another event", "[walk]") {
     const MapScript script2 = parse(payload2);
     starhaven::game::walk_event(script2, 15, state);
     REQUIRE(!state.disabled_events.contains(33));
+}
+
+TEST_CASE("both attribute runs reach the same seven gains", "[script]") {
+    // 31..37 are the stored values and 38..44 the modifiers beside them; a
+    // script raising either raises the attribute.
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 4, 0, kOpcodeGive, typed(31, 3));   // Might, stored
+    push_step(payload, 4, 1, kOpcodeGive, typed(38, 2));   // Might, modifier
+    push_step(payload, 4, 2, kOpcodeGive, typed(44, 6));   // Luck, modifier
+    push_step(payload, 4, 3, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 4, state);
+    REQUIRE(outcome.stat_gains[0] == 5);
+    REQUIRE(outcome.stat_gains[6] == 6);
+    REQUIRE(outcome.stat_gains[3] == 0);
 }

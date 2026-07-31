@@ -198,7 +198,16 @@ inline constexpr std::uint8_t kVarExperience = 13;
 // adding to variable 8 — which is what a training hall does. `observed`
 inline constexpr std::uint8_t kVarLevel = 8;
 inline constexpr std::uint8_t kVarFood = 23;
-inline constexpr std::uint8_t kVarStatFirst = 32;    // Might .. Luck
+// **The seven attributes are variables 31..37, not 32..38.** The setter's
+// cases write `+0x14`, `+0x18`, `+0x1c`, `+0x20`, `+0x24`, `+0x28` and
+// `+0x2c` for those seven ids, and the next seven — **38..44** — write the
+// odd words between them, which are the attributes' *modifiers*. Two
+// formulas confirm the mapping from the other side: max hit points asks the
+// stat getter for id 3 and reads the stored pair at `+0x20`/`+0x22`, max
+// spell points asks for id 2 and reads `+0x1c`/`+0x1e`. `observed` This
+// engine had the run starting one too high. `0x440de7`..`0x440e94`.
+inline constexpr std::uint8_t kVarStatFirst = 31;         // Might .. Luck
+inline constexpr std::uint8_t kVarStatModFirst = 38;      // their modifiers
 inline constexpr std::uint8_t kVarResistFirst = 46;  // Fire, Elec, Cold, Poison, Magic
 
 // Where an event sends the party.

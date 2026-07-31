@@ -169,13 +169,24 @@ bonus** to a stat, beside `0x482e80`'s gear bonus. The name used in the
 earlier notes is withdrawn, and with it the description of `+0x12b0`..
 `+0x1320` as "the attribute block".
 
-**What this re-opens, and what it does not.** The hit-point and spell-point
-routines add `0x483800(id) + 0x482e80(id)`, which under this reading is spell
-bonus plus gear bonus rather than a base — so how the stored attribute enters
-those formulas is `unknown` again. The class tables, the bases and the
-per-level numbers are untouched by this: they were read from their own tables
-and confirmed five ways from `Class.txt`. Nothing in StarHaven is changed on
-the strength of a relabelling; what changes is what the labels claim.
+**And how the four parts compose, settled.** The re-opened question is
+closed in the same sitting. The stored attributes run from **`+0x14`**, four
+bytes apart, each an even word holding the value and the odd word after it
+holding a modifier — variables **31 to 37** and **38 to 44** respectively,
+which also corrects this engine's own reading of the run as starting at 32.
+The two formulas confirm the mapping from the other side, each reading the
+pair for the stat it asks the getters about: **max hit points** asks for id
+3 and reads `+0x20`/`+0x22`, **max spell points** asks for id 2 and reads
+`+0x1c`/`+0x1e`. `observed`
+
+So an attribute a formula uses is
+
+> **stored value + stored modifier + spell bonus (`0x483800`) + gear bonus
+> (`0x482e80`)**
+
+and the ladder is applied to that sum. Nothing here changes the class tables
+or the per-level numbers, which were read from their own tables and confirmed
+five ways from `Class.txt`.
 
 ## The stat ids, and where each base value lives
 

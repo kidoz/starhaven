@@ -1143,6 +1143,16 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **The attribute question closed, and an off-by-one with it**: the stored
+  attributes run from **`+0x14`**, four bytes apart, each an even word
+  holding the value and the odd word after it a modifier — script variables
+  **31 to 37** and **38 to 44**. Both formulas confirm the mapping from the
+  other side, each reading the pair for the stat it asks the getter about:
+  hit points ask for id 3 and read `+0x20`/`+0x22`, spell points ask for id 2
+  and read `+0x1c`/`+0x1e`. So an attribute is **stored value + stored
+  modifier + spell bonus + gear bonus**, and the ladder applies to that sum.
+  The engine had the variable run starting one too high, so a script raising
+  Might raised nothing; both runs now land.
 - **The gamble: the AI has no switch to find**: three visits have gone
   looking for the monster AI's decision point on the assumption that
   something that large would dispatch through a table, as the spell code and
