@@ -262,6 +262,20 @@ void spawn_from_points(const std::filesystem::path& data_dir, const data::MapSta
 
 }  // namespace
 
+void stand_door(MapSession& session, const MapDoor& door) {
+    const float slide = door.progress * static_cast<float>(door.distance);
+    for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
+        const std::uint16_t vid = door.vertex_ids[i];
+        if (vid >= session.blv.vertices.size()) {
+            continue;
+        }
+        auto& v = session.blv.vertices[vid];
+        v.x = static_cast<std::int16_t>(door.x_base[i] + static_cast<int>(door.dx * slide));
+        v.y = static_cast<std::int16_t>(door.y_base[i] + static_cast<int>(door.dy * slide));
+        v.z = static_cast<std::int16_t>(door.z_base[i] + static_cast<int>(door.dz * slide));
+    }
+}
+
 void rebuild_indoor_collision(MapSession& out) {
     out.collision = {};
     std::vector<render::Vec3> corners;
@@ -359,6 +373,20 @@ void load_placed_things(const lod::GameLodArchive& archive, const std::filesyste
     }
     if (out.indoor()) {
         out.doors = extract_doors(file);
+        // A door whose attribute bit 0 is set begins fully open — the
+        // original's loader stands it at its open position with a
+        // saturated timer before the first frame. The collision world was
+        // built from the shipped shut geometry, so it follows the move.
+        bool doors_stood = false;
+        for (const auto& door : out.doors) {
+            if (door.open) {
+                stand_door(out, door);
+                doors_stood = true;
+            }
+        }
+        if (doors_stood) {
+            rebuild_indoor_collision(out);
+        }
     }
     out.chest_looks = extract_chest_appearances(file);
     out.chest_flags = extract_chest_flags(file);

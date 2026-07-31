@@ -463,6 +463,14 @@ TEST_CASE("an indoor door decodes its record and its id arrays", "[map_event]") 
     REQUIRE(door.x_base == std::vector<std::int16_t>{10, 20});
     REQUIRE(door.z_base == std::vector<std::int16_t>{50, 60});
     REQUIRE_FALSE(door.open);
+
+    // Attribute bit 0 is "starts open": the door stands at its target
+    // from the first frame, the way the original's loader leaves it.
+    put_u32(p, slot + 0x00, 1);
+    const auto reopened = extract_doors(file);
+    REQUIRE(reopened.size() == 1);
+    REQUIRE(reopened[0].open);
+    REQUIRE(reopened[0].progress == 1.0f);
 }
 
 TEST_CASE("a door whose arrays run past the region is dropped", "[map_event]") {

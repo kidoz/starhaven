@@ -96,7 +96,7 @@ this one file. Each 80-byte record is a door:
 
 | Offset | Size | Field | Evidence |
 | --- | --- | --- | --- |
-| +0x00 | u32 | attributes | zero on the doors examined |
+| +0x00 | u32 | attributes | bit 0: starts open; zero on 754 of 795 doors |
 | +0x04 | u32 | id | **the id opcode 15 throws** |
 | +0x08 | u32 | timer/state | zero on disk |
 | +0x0C | 3×i32 | direction, 16.16 | unit axes: (-1,0,0), (0,0,+1)… |
@@ -308,14 +308,20 @@ The decoder rejects an outdoor layout when:
   buffer shipped empty, like the outdoor 968-byte blocks. The "unaligned"
   oddity is simply that **883 is prime**: it is an allocation constant, not a
   `count × stride` array, so no record stride divides it. `observed`
-- The door attribute word is measured across all 795 doors of the 52
-  indoor maps: **zero on 754, one on 41**. What bit 0 marks is `unknown`,
-  and it now carries three refutations: not the door's timbre (the bit-1
-  doors' face textures — walls, floors, ceilings, trims — are shared
-  freely with bit-0 doors), not the travel axis (13 of the 41 move
-  vertically against 475 of the 754), and not one map's quirk, though it
-  concentrates oddly — D07 alone carries 20 of the 41, half its own
-  doors. The second
+- The door attribute word is resolved. Measured across all 795 doors of
+  the 52 indoor maps it is **zero on 754, one on 41**, and bit 0 is
+  **"starts open"**: the executable's indoor loader (the same function
+  that asserts `"No map info for %s found in 'Map Stats.txt'"`) walks the
+  door array and, where bit 0 is set, writes state 1 (open) with the timer
+  saturated at `0x3c00` — the door stands fully open before the first
+  frame. Every other door maps shut to at-target, and every door's
+  attribute word is then overwritten with 2 in memory, a runtime marker.
+  This also explains the vertex census below: the geometry ships at the
+  shut position on 4,067 of 4,067 vertices, and the 41 marked doors are
+  swung open by the loader, not by the file. D07's concentration — 20 of
+  the 41, half its own doors — is level design: half its doorways begin
+  open. `observed` The earlier refutations (not texture, not travel axis,
+  not one map's quirk) stand consistent with this reading. The second
   count word's high half is closed: it **duplicates the vertex count**,
   the low half of the word before it, on 795 of 795 doors. `observed`
   (`ddm_info <map> --doors` prints each door's attribute word.)

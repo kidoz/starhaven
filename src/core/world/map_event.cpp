@@ -282,6 +282,11 @@ std::vector<MapDoor> extract_doors(const MapEventFile& file) {
         }
         MapDoor door;
         door.attributes = u32_at(record + 0x00);
+        // Attribute bit 0 is "starts open": the executable's map loader
+        // stands such a door at its open position with a saturated timer
+        // before the first frame. 41 of the 795 shipped doors set it.
+        door.open = (door.attributes & 1) != 0;
+        door.progress = door.open ? 1.0f : 0.0f;
         door.id = u32_at(record + 0x04);
         door.dx = static_cast<float>(static_cast<std::int32_t>(u32_at(record + 0x0C))) / 65536.0f;
         door.dy = static_cast<float>(static_cast<std::int32_t>(u32_at(record + 0x10))) / 65536.0f;

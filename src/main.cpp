@@ -2899,19 +2899,7 @@ int main(int argc, char** argv) {
     // Stand a door's vertices where its progress says, shared by the slide,
     // a thrown lever and loading a save. The caller rebuilds collision
     // after the last door it moves.
-    const auto move_door = [&](world::MapDoor& door) {
-        for (std::size_t i = 0; i < door.vertex_ids.size(); ++i) {
-            const std::uint16_t vid = door.vertex_ids[i];
-            if (vid >= session.blv.vertices.size()) {
-                continue;
-            }
-            const float slide = door.progress * static_cast<float>(door.distance);
-            auto& v = session.blv.vertices[vid];
-            v.x = static_cast<std::int16_t>(door.x_base[i] + static_cast<int>(door.dx * slide));
-            v.y = static_cast<std::int16_t>(door.y_base[i] + static_cast<int>(door.dy * slide));
-            v.z = static_cast<std::int16_t>(door.z_base[i] + static_cast<int>(door.dz * slide));
-        }
-    };
+    const auto move_door = [&](world::MapDoor& door) { world::stand_door(session, door); };
 
     // Step the open interior one video frame when its time comes: the
     // frame lands in the cache under the video's name, so the service and
@@ -4015,14 +4003,22 @@ int main(int argc, char** argv) {
                     }
                     opened_chests =
                         std::set<int>(state.opened_chests.begin(), state.opened_chests.end());
+                    // The save's open list is the whole door state, so
+                    // first shut everything — including doors that start
+                    // open by their attribute bit — then open the listed.
                     bool doors_moved = false;
+                    for (auto& door : session.doors) {
+                        door.open = false;
+                        door.progress = 0.0f;
+                        move_door(door);
+                        doors_moved = true;
+                    }
                     for (const std::uint32_t id : state.open_doors) {
                         for (auto& door : session.doors) {
                             if (door.id == id) {
                                 door.open = true;
                                 door.progress = 1.0f;
                                 move_door(door);
-                                doors_moved = true;
                                 break;
                             }
                         }

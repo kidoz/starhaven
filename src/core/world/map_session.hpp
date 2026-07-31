@@ -163,7 +163,7 @@ struct MapSession {
 
     // The doors the event file places on an indoor map, with a live open
     // flag per door. Bases are the shut position on 4,067 of 4,067 vertices
-    // across the 52 maps.
+    // across the 52 maps; a door whose attribute bit 0 is set starts open.
     std::vector<MapDoor> doors;
 
     // Shared.
@@ -236,6 +236,10 @@ bool summon_actor(const data::MonsterStatsTable& monsters, assets::AssetCache& c
 // Moving a door's vertices leaves the collision polygons where they were;
 // this is how the world pushes back at the new geometry.
 void rebuild_indoor_collision(MapSession& out);
+
+// Stand a door's vertices where its progress says, 0 shut to 1 open. The
+// caller rebuilds collision after the last door it moves.
+void stand_door(MapSession& session, const MapDoor& door);
 
 // MM6 world space is X/Y-horizontal with Z up; the renderer is Y-up.
 [[nodiscard]] inline render::Vec3 to_render_space(int x, int y, int z) {
