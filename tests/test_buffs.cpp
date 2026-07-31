@@ -87,3 +87,30 @@ TEST_CASE("every named slot says its name", "[buffs]") {
     REQUIRE(buff_name(9).empty());
     REQUIRE(buff_name(15).empty());
 }
+
+TEST_CASE("a character keeps sixteen slots of its own", "[buffs]") {
+    REQUIRE(kCharacterBuffCount == 16);
+    REQUIRE(kCharacterBuffBase == 0x1268);
+    CharacterBuffs buffs;
+    REQUIRE(buffs.power(CharacterBuff::Haste, 0) == 0);
+    buffs.cast(CharacterBuff::Haste, 300, 7);
+    REQUIRE(buffs.power(CharacterBuff::Haste, 299) == 7);
+    REQUIRE(buffs.power(CharacterBuff::Haste, 300) == 0);
+    // Meditation and Power each take two slots, and the pairs are the
+    // attributes their rows name.
+    buffs.cast(CharacterBuff::MeditationIntellect, 300, 16);
+    buffs.cast(CharacterBuff::MeditationPersonality, 300, 16);
+    REQUIRE(buffs.power(CharacterBuff::MeditationIntellect, 0) == 16);
+    REQUIRE(buffs.power(CharacterBuff::MeditationPersonality, 0) == 16);
+    REQUIRE(buffs.power(CharacterBuff::PowerMight, 0) == 0);
+    // The slot numbers are the offsets the cases use, sixteen bytes apart.
+    REQUIRE(kCharacterBuffBase + 16 * static_cast<int>(CharacterBuff::Haste) == 0x1288);
+    REQUIRE(kCharacterBuffBase + 16 * static_cast<int>(CharacterBuff::MeditationIntellect) ==
+            0x12c8);
+    REQUIRE(kCharacterBuffBase + 16 * static_cast<int>(CharacterBuff::PowerEndurance) == 0x1318);
+    buffs.clear();
+    REQUIRE(buffs.power(CharacterBuff::MeditationIntellect, 0) == 0);
+    // Out-of-range slots are refused.
+    buffs.cast(kCharacterBuffCount + 3, 900, 5);
+    REQUIRE(buffs.power(kCharacterBuffCount + 3, 0) == 0);
+}

@@ -24,6 +24,7 @@
 #include "core/data/name_table.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/random.hpp"
+#include "game/buffs.hpp"
 
 namespace starhaven::game {
 
@@ -203,6 +204,9 @@ struct Character {
     std::array<int, data::kResistanceCount> temp_resistances{};
     int temp_armor = 0;
     std::int64_t haste_until = 0;
+    // The sixteen slots the executable keeps on every character; see
+    // src/game/buffs.hpp for which spell takes which.
+    CharacterBuffs buffs;
     std::int64_t bless_until = 0;
     std::int64_t heroism_until = 0;
     std::int64_t stone_skin_until = 0;

@@ -183,6 +183,74 @@ private:
     }
 }
 
+// The character's own array, found the same two ways. `0x47d170` walks the
+// four party records in strides of `0x161c` and clears, for each one, an
+// item array of **28-byte** records at `+0x144` and a buff array of
+// **sixteen 16-byte records at `+0x1268`**. `observed`
+//
+// Which slot a spell takes was read from the `lea ecx, [reg + N]` before its
+// call to the setter, and four of them check out against their own rows:
+//
+// | slot | offset | spell | the row says |
+// | --- | --- | --- | --- |
+// | 2 | `+0x1288` | Haste | — |
+// | 6 | `+0x12c8` | Meditation | "Increases Intellect **and Personality**" |
+// | 7 | `+0x12d8` | Meditation | the second of the pair |
+// | 10 | `+0x1308` | Power | "Increases Might **and Endurance**" |
+// | 11 | `+0x1318` | Power | the second of the pair |
+//
+// **An open question, left open.** The words the stat getter reads for the
+// seven attributes sit at `+0x12b0 + 16k`, which is exactly `+8` of these
+// same records — and slot 6 lines up with Intellect, 7 with Personality, 10
+// with Might and 11 with Endurance, precisely the attributes those two
+// spells name. Either the array is an attribute-bonus array and what
+// `0x483800` returns is a spell bonus rather than a base, or two structures
+// interleave. Four agreements is suggestive and not proof, and after two
+// retractions in recent memory nothing here is rebuilt on it. `unknown`
+inline constexpr std::size_t kCharacterBuffCount = 16;
+inline constexpr int kCharacterBuffBase = 0x1268;
+
+enum class CharacterBuff : std::size_t {
+    Haste = 2,
+    MeditationIntellect = 6,
+    MeditationPersonality = 7,
+    PowerMight = 10,
+    PowerEndurance = 11,
+};
+
+// A character's sixteen, the same record as the party's.
+class CharacterBuffs {
+public:
+    void cast(std::size_t slot, std::int64_t until, int power) noexcept {
+        if (slot < kCharacterBuffCount) {
+            slots_[slot] = {until, power, 0};
+        }
+    }
+
+    void cast(CharacterBuff slot, std::int64_t until, int power) noexcept {
+        cast(static_cast<std::size_t>(slot), until, power);
+    }
+
+    [[nodiscard]] int power(std::size_t slot, std::int64_t now) const noexcept {
+        return slot < kCharacterBuffCount && slots_[slot].until > now ? slots_[slot].power : 0;
+    }
+
+    [[nodiscard]] int power(CharacterBuff slot, std::int64_t now) const noexcept {
+        return power(static_cast<std::size_t>(slot), now);
+    }
+
+    [[nodiscard]] bool active(CharacterBuff slot, std::int64_t now) const noexcept {
+        return power(slot, now) > 0 ||
+               (static_cast<std::size_t>(slot) < kCharacterBuffCount &&
+                slots_[static_cast<std::size_t>(slot)].until > now);
+    }
+
+    void clear() noexcept { slots_ = {}; }
+
+private:
+    std::array<BuffSlot, kCharacterBuffCount> slots_{};
+};
+
 }  // namespace starhaven::game
 
 #endif  // STARHAVEN_GAME_BUFFS_HPP

@@ -1134,6 +1134,17 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
+- **The character's own buff array**: the routine that clears the party's
+  slots clears these too — sixteen 16-byte records at `+0x1268` on every
+  character, beside a 28-byte item array at `+0x144`. Which spell takes
+  which slot came off the `lea` before each call to the setter, and four
+  check out against their own rows: Meditation takes slots 6 and 7, which
+  line up with Intellect and Personality exactly as it says, and Power takes
+  10 and 11, which line up with Might and Endurance. One thing is left
+  explicitly open rather than built on: the attribute words the stat getter
+  reads sit at `+8` of these same records, which may mean the array *is* the
+  attribute-bonus store — four agreements is suggestive, not proof, and
+  after two recent retractions it stays flagged.
 - **The gamble: what a level costs, still unfound — but the shape changed**:
   going at the field instead of the strings turned up exactly **two**
   instructions in the whole executable that write the level, and both are

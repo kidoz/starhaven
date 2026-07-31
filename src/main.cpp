@@ -3196,6 +3196,23 @@ int main(int argc, char** argv) {
             // three at master. The table rounds the base to an hour.
             until = clock.minutes() + game::haste_minutes(skill, game::rank_of(skill));
         }
+        // The character's own slots, where the executable puts them: Haste
+        // slot 2, Meditation 6 and 7, Power 10 and 11 — with the power the
+        // ten-plus ladder computes rather than a bare flag.
+        const int rank = game::rank_of(skill);
+        if (spell.id == game::kSpellHaste) {
+            who.buffs.cast(game::CharacterBuff::Haste, until, skill);
+        } else if (spell.id == game::kSpellMeditation) {
+            const int power = game::ten_plus_ladder(skill, rank);
+            who.buffs.cast(game::CharacterBuff::MeditationIntellect, until, power);
+            who.buffs.cast(game::CharacterBuff::MeditationPersonality, until, power);
+            return true;
+        } else if (spell.id == 75) {  // Power: Might and Endurance
+            const int power = game::body_stat_bonus(skill, rank);
+            who.buffs.cast(game::CharacterBuff::PowerMight, until, power);
+            who.buffs.cast(game::CharacterBuff::PowerEndurance, until, power);
+            return true;
+        }
         if (name == "Haste") {
             who.haste_until = until;
         } else if (name == "Bless") {
