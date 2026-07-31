@@ -1143,6 +1143,17 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **The open question closed, against the earlier reading**: the script
+  variable table names the attribute fields outright — ids 32 to 44 write
+  seven pairs of words in the run `+0x16` to `+0x30`, a value and a modifier
+  each. So the attributes are **nowhere near** `+0x12b0`, which settles what
+  the words there are: the **power fields of the character's buff records**.
+  Meditation landing on Intellect and Personality and Power on Might and
+  Endurance is a consequence, not a coincidence. `0x483800` is therefore not
+  the base getter it was called — it returns a spell bonus — and how the
+  stored attribute enters the hit-point formula is re-opened as unknown. The
+  class tables are untouched by this; they were confirmed five ways from
+  their own prose.
 - **The character's own buff array**: the routine that clears the party's
   slots clears these too — sixteen 16-byte records at `+0x1268` on every
   character, beside a 28-byte item array at `+0x144`. Which spell takes

@@ -110,7 +110,8 @@ identified in the chest trace.
 `0x483800`'s jump table at `0x4838d0` gives one case per id, and the whole
 block reads off at once. It splits four ways. `observed`
 
-- **The attribute run**, eight fields sixteen bytes apart: `+0x12b0` id 9,
+- **The "attribute run"**, eight fields sixteen bytes apart — *now known to
+  be the buff records' power words, not attributes*: `+0x12b0` id 9,
   `+0x12c0` id 6, `+0x12d0` id 1, `+0x12e0` id 2, `+0x12f0` id 4, `+0x1300`
   id 5, `+0x1310` id 0, `+0x1320` id 3. Seven of the eight are the sheet's
   attributes in `stats.txt`'s order — **0 Might, 1 Intellect, 2 Personality,
@@ -142,6 +143,39 @@ So the block splits cleanly: the character's own numbers in the record, the
 party's protections in a buff array outside it, and eight ids that are pure
 derivation. Ids 7, 8 and 9 are named in
 [`weapon-specials.md`](weapon-specials.md).
+
+## The attribute store, settled — and the getter renamed
+
+The question left open when the character's buff array was found is closed,
+and it closed against the earlier reading.
+
+The script-variable table names the attribute fields outright. Variables
+**32 to 37** write `+0x18`, `+0x1c`, `+0x20`, `+0x24`, `+0x28` and `+0x2c`;
+variables **38 to 44** write `+0x16`, `+0x1a`, `+0x1e`, `+0x22`, `+0x26`,
+`+0x2a` and `+0x2e`. So the seven attributes live as **seven pairs of words,
+four bytes apart, in the run `+0x16` to `+0x30`** — a stored value and a
+modifier each — and a map script sets either half by id. `observed` at
+`0x440d7e`..`0x440e94`.
+
+**They are not at `+0x12b0 + 16k`.** Which settles the other half: the words
+the stat getter returns for the attribute ids are the **power fields of the
+character's buff records**, at `+8` of each. Meditation writing slots 6 and 7
+lands on the ids for Intellect and Personality, and Power writing 10 and 11
+lands on Might and Endurance — exactly the attributes their rows name, which
+is now a consequence rather than a coincidence.
+
+**So `0x483800` is not the base getter.** It returns a character's **spell
+bonus** to a stat, beside `0x482e80`'s gear bonus. The name used in the
+earlier notes is withdrawn, and with it the description of `+0x12b0`..
+`+0x1320` as "the attribute block".
+
+**What this re-opens, and what it does not.** The hit-point and spell-point
+routines add `0x483800(id) + 0x482e80(id)`, which under this reading is spell
+bonus plus gear bonus rather than a base — so how the stored attribute enters
+those formulas is `unknown` again. The class tables, the bases and the
+per-level numbers are untouched by this: they were read from their own tables
+and confirmed five ways from `Class.txt`. Nothing in StarHaven is changed on
+the strength of a relabelling; what changes is what the labels claim.
 
 ## The stat ids, and where each base value lives
 

@@ -199,14 +199,14 @@ private:
 // | 10 | `+0x1308` | Power | "Increases Might **and Endurance**" |
 // | 11 | `+0x1318` | Power | the second of the pair |
 //
-// **An open question, left open.** The words the stat getter reads for the
-// seven attributes sit at `+0x12b0 + 16k`, which is exactly `+8` of these
-// same records — and slot 6 lines up with Intellect, 7 with Personality, 10
-// with Might and 11 with Endurance, precisely the attributes those two
-// spells name. Either the array is an attribute-bonus array and what
-// `0x483800` returns is a spell bonus rather than a base, or two structures
-// interleave. Four agreements is suggestive and not proof, and after two
-// retractions in recent memory nothing here is rebuilt on it. `unknown`
+// **The open question is closed: this array *is* the attribute-bonus
+// store.** The script-variable table names the attribute fields outright —
+// variables 32..37 write `+0x18` through `+0x2c` and 38..44 write `+0x16`
+// through `+0x2e`, seven pairs of words four bytes apart — so the stored
+// attributes are nowhere near `+0x12b0`. The words the stat getter reads
+// there are the **power fields of these records**, at `+8` of each, which is
+// why Meditation's slots 6 and 7 land on Intellect and Personality and
+// Power's 10 and 11 on Might and Endurance. `observed`
 inline constexpr std::size_t kCharacterBuffCount = 16;
 inline constexpr int kCharacterBuffBase = 0x1268;
 
