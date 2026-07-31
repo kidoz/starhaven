@@ -1193,6 +1193,17 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The gamble: there is a party record, and it closes at both ends**:
+  tallying every reference into the neighbourhood gives **123 distinct
+  offsets** in one dense run — not scattered globals. The arithmetic settles
+  it: a **708-byte header** at `0x908c70`, then the four 5660-byte character
+  records beginning at `0x908f34`, ending at `0x90e7a4` — which is exactly
+  the bound Power Cure's case loops to. Two independently-found numbers
+  meeting at both ends. Twelve fields are named, including the world clock at
+  `+0x098` (the most-referenced field in the whole data segment, at 239
+  sites), the position triple, the fatigue byte and the buff array; ninety
+  more are recorded with their reference counts so the next sitting can start
+  with the ones that matter.
 - **State 16 named: reanimation**: it has exactly one caller anywhere —
   inside the case for **Reanimate** — and its body restores the hit points
   at `+0x28` from a stored word at `+0x5c`, which names that field as the
