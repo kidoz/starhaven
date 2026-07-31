@@ -1046,6 +1046,9 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **Fullscreen at F11**: the display story closes — windowed at any
+  integer scale, fullscreen at a keystroke, the logical 640x480 and its
+  square pixels kept either way.
 - **The eye joined the globe**: with Wizard Eye lit (or a Cartographer
   hired), the maps page carries the spell's dots at their true places —
   the living in red at rank one, treasure in gold at rank two — on both

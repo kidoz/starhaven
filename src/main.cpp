@@ -107,6 +107,7 @@ void print_usage(const char* argv0) {
               << "  B          open the spell book: tabs by school, Enter readies a spell\n"
               << "             (--map opens the maps page, --title the title screen;\n"
               << "              --scale N sizes the window, default 2)\n"
+              << "  F11        fullscreen on and off\n"
               << "  M          free the cursor: the frame's books, medallions and\n"
               << "             portraits answer clicks; M again returns to the view\n"
               << "  H          cast the readied spell, else the best heal or smite\n"
@@ -2048,6 +2049,7 @@ int main(int argc, char** argv) {
     bool start_title = false;    // --title: hold the title screen for a capture
     bool start_rest = false;     // --rest: open the campfire for a capture
     int window_scale = 2;        // --scale N: the window's integer multiple
+    bool fullscreen = false;     // F11 flips it
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
     int walk_from = -1;      // walk the next event from this sequence, not the top
     int ask_event = -1;      // the event whose question awaits an answer
@@ -3856,6 +3858,11 @@ int main(int argc, char** argv) {
                 pick_up_message = cursor_free ? "The cursor is yours; M returns it to the view"
                                               : "";
                 pick_up_shown = SDL_GetTicks();
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F11) {
+                // Fullscreen, with the integer presentation keeping the
+                // pixels square either way.
+                fullscreen = !fullscreen;
+                SDL_SetWindowFullscreen(window, fullscreen);
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_TAB) {
                 show_directory = !show_directory;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C) {
