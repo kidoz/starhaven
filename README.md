@@ -1134,6 +1134,15 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
+- **The gamble: what a level costs, still unfound — but the shape changed**:
+  going at the field instead of the strings turned up exactly **two**
+  instructions in the whole executable that write the level, and both are
+  the generic "set a character field" and "add to a character field" that
+  map scripts use, capped at 255. **Nothing raises a level automatically.**
+  The only door is a script, which is to say the training hall — so the
+  engine no longer levels the party the moment it earns enough. Experience
+  is banked and spent at a hall, and what a level is worth there now comes
+  from the traced class tables rather than parsed prose.
 - **A verification pass, and it earned its keep**: after two retractions,
   every load-bearing claim was re-checked from an angle it was not derived
   from. **Three of the thirty-four spell dice were wrong** — caught against

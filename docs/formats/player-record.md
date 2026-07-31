@@ -408,12 +408,20 @@ Two further terms each routine folds in — a stat 7 for hit points, a stat 8
 for spell points, and a byte at `+0x1578` — are read but not named, and
 StarHaven leaves them out rather than guessing.
 
-**What a level costs was hunted and not found.** The training hall's two
-lines — "Train to level %d for %d gold" and "You need %d more experience to
-train to level %d" — are fetched by an index the code computes rather than
-pushes, so neither string leads anywhere, and no ladder of experience values
-sits in `.rdata` or `.data` either. StarHaven's triangular staircase,
-1000·L·(L−1)/2, is its own. `inferred`
+**What a level costs was hunted twice and not found — but the hunt changed
+the shape of the answer.** The second attempt went at the field rather than
+the strings: every instruction in the executable that writes the level word
+at `+0x32`. There are **two**, and both are generic — the "set a character
+field" and "add to a character field" that map scripts use, each writing
+whichever of `+0x30`, `+0x32`, `+0x34`, `+0x36` an argument names, and each
+capping at **255**. `observed`
+
+So **nothing raises a level by itself.** No routine watches experience and
+promotes; the only door is a script, which is to say the training hall. That
+is a design fact worth having even though the threshold is still unfound,
+and StarHaven now follows it: experience is banked, and a level is bought at
+a hall or not at all. The triangular staircase it offers at, 1000·L·(L−1)/2,
+remains this engine's own. `inferred`
 
 ## The attribute curve, found inside the recovery routine
 

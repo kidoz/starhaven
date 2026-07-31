@@ -72,13 +72,13 @@ struct TrainingOffer {
 // The level's grant: hit points, and spell points for whoever casts. No
 // table states the gains; these are this engine's own. `inferred`
 inline void train(Character& who) {
+    // A level is bought here and nowhere else: the level word at `+0x32` is
+    // written by exactly two instructions in the whole executable, both of
+    // them the generic "set a character field" and "add to a character
+    // field" that map scripts use, and both capped at 255. **Nothing raises
+    // a level automatically** — the hall is the only door. `observed`
     who.level += 1;
-    who.max_hit_points += 5;
-    who.hit_points = who.max_hit_points;
-    if (who.max_spell_points > 0) {
-        who.max_spell_points += 3;
-        who.spell_points = who.max_spell_points;
-    }
+    level_up_to(who, who.level);
     // Skill points to spend on the sheet; that a level grants five is this
     // engine's own number. `inferred`
     who.skill_points += 5;

@@ -4966,20 +4966,9 @@ int main(int argc, char** argv) {
                         shop_said = "You cannot afford the training.";
                     } else {
                         gold -= offer.cost;
+                        // The class tables carry what the level is worth,
+                        // so the prose no longer needs reading for it.
                         game::train(who);
-                        // A promoted class's own "extra ... per level", on
-                        // this level too.
-                        if (const auto* row = class_descriptions.find(who.class_name);
-                            row != nullptr && !row->text.empty()) {
-                            const game::ClassGains gains =
-                                game::parse_class_gains(row->text.front());
-                            who.max_hit_points += gains.hp_per_level;
-                            who.hit_points = who.max_hit_points;
-                            if (who.max_spell_points > 0) {
-                                who.max_spell_points += gains.sp_per_level;
-                                who.spell_points = who.max_spell_points;
-                            }
-                        }
                         shop_said = who.name + " reaches level " + std::to_string(who.level) + ".";
                         speak(who, 20);  // line 20: the trained word
                     }
@@ -6184,16 +6173,8 @@ int main(int argc, char** argv) {
                 xp_bonus = std::max(xp_bonus, h.benefit.experience_percent);
             }
             battle.award(party, xp_bonus);
-            // And what the experience buys: the class tables say what a
-            // level is worth, so it is spent as soon as it is earned.
-            for (auto& who : party) {
-                if (const int gained = game::level_up(who); gained > 0) {
-                    pick_up_message = who.name + " is now level " +
-                                      std::to_string(who.level) + " with " +
-                                      std::to_string(who.max_hit_points) + " hit points";
-                    pick_up_shown = SDL_GetTicks();
-                }
-            }
+            // The experience is banked and no more: the executable raises
+            // no level by itself, so it is the training hall that spends it.
         }
         // What the kills left: the gold goes to the purse, the items to
         // whichever pack has room, and one line names the lot.

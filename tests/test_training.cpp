@@ -55,11 +55,23 @@ TEST_CASE("an offer knows ready, short, and beyond", "[training]") {
     REQUIRE(training_offer(hall("Max level = 15", 10), who).to_level == 0);
     REQUIRE(training_offer(hall("No Max", 10), who).to_level == 16);
 
-    // Training grants the level and this engine's own gains.
+    // Training grants the level, and what the level is worth now comes from
+    // the class tables rather than a flat number. A Knight with Endurance
+    // at the pivot gets its four.
     who.level = 1;
     who.experience = 1500;
+    who.class_name = "Knight";
+    who.attributes[static_cast<std::size_t>(Attribute::Endurance)] = 13;
+    who.max_hit_points = class_hit_points("Knight", 1, 0);
+    who.hit_points = who.max_hit_points;
+    const int before = who.max_hit_points;
     train(who);
     REQUIRE(who.level == 2);
-    REQUIRE(who.max_hit_points == 35);
-    REQUIRE(who.hit_points == 35);
+    REQUIRE(who.max_hit_points - before == kClassHitPointsPerLevel[class_id("Knight")]);
+    REQUIRE(who.hit_points == who.max_hit_points);
+    // And the wounds a character carries are kept across a level.
+    who.hit_points -= 7;
+    const int wounded = who.max_hit_points - who.hit_points;
+    train(who);
+    REQUIRE(who.max_hit_points - who.hit_points == wounded);
 }

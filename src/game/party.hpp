@@ -428,6 +428,25 @@ inline void derive_start(Character& c) {
 // The wounds a character carries are kept: only the maxima move, and the
 // current values rise by as much as the maxima did. Returns how many levels
 // were gained, for the message line.
+// Set a character to a level and give it what the class tables say that
+// level is worth, keeping whatever wounds are carried.
+inline void level_up_to(Character& c, int level) {
+    const int hp_before = c.max_hit_points;
+    const int sp_before = c.max_spell_points;
+    c.level = level;
+    c.max_hit_points =
+        class_hit_points(c.class_name, c.level, attribute_bonus(c.attribute(Attribute::Endurance)));
+    c.max_spell_points =
+        casts_spells(c.class_name)
+            ? class_spell_points(c.class_name, c.level,
+                                 attribute_bonus(c.attribute(Attribute::Personality)))
+            : 0;
+    c.hit_points += c.max_hit_points - hp_before;
+    c.spell_points += c.max_spell_points - sp_before;
+}
+
+// What experience alone would buy, for the training hall to offer. The
+// executable raises no level on its own, so this only reports.
 inline int level_up(Character& c) {
     const int earned = level_for_experience(c.experience);
     if (earned <= c.level) {
