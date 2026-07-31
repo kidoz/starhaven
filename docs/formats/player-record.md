@@ -113,9 +113,25 @@ seven:
   line 2546) that multiplies its input by **32/15 = 2.1333…** (the double
   at `0x4b9318`) before storing.
 
-`observed` So a recovery is stored pre-scaled by 32/15 and burned down at
-a hundredth of the elapsed unit. What that elapsed unit counts — frames,
-milliseconds, or the game's own tick — is not yet read, so StarHaven
-keeps its own seconds-based pacing and says so in `combat.hpp`. The
-monster table's `Rec` column feeding this field is the natural next
-question. `unknown`
+`observed` Both ends are now read further:
+
+**The setter is the party's own.** The `AI.CPP` site handles a queued
+message whose word at `+0x1c` packs a kind in its low three bits and an
+index above them; kind **4 with index 0..3 is a party member**, and the
+message's second parameter — the dword at `+0x20` — is multiplied by
+**32/15** and stored as that character's recovery. So an action queues
+its own recovery amount and the handler scales it. `observed` The monster
+table's `Rec` column does **not** reach this field; monsters carry their
+own counter elsewhere. `observed` by exclusion — this is the only setter,
+and it writes only to party slots.
+
+**The tick is Haste-aware.** The burn is not a flat elapsed: the routine
+first walks a sixteen-entry effect list on the character and, when it
+finds effect **17**, takes a percentage of **50**; the amount subtracted
+is then `elapsed × percent / 100 + elapsed` — that is, **elapsed × 1.5
+while the effect is on**. `observed` StarHaven now shortens a hasted
+character's recovery by exactly that figure.
+
+What the elapsed unit counts is still unread: the tick has exactly one
+caller (`0x427ea9`, in the time-advance path) which passes an integer
+whose own origin lies further up. `unknown`

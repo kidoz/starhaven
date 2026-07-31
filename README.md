@@ -1060,9 +1060,13 @@ interoperability and compatibility with a legally purchased copy.
   the executable is now catalogued: two tick-downs burning it at a
   hundredth of the elapsed unit, the party-reset clear (which also
   showed the skill block runs `+0x1380`..`+0x1410` in eight-byte steps),
-  and one setter in `AI.CPP` that pre-scales its input by 32/15. The
-  elapsed unit itself is still unread, so the engine keeps its own
-  pacing and now cites the field.
+  and one setter in `AI.CPP` that pre-scales its input by 32/15. Reading
+  further settled two more things: that setter serves **party members
+  only** — a queued message whose kind is 4 and index 0..3 — so the
+  monster table's `Rec` column never reaches this field; and the tick is
+  Haste-aware, burning `elapsed × 1.5` while effect 17 is on the
+  character, which the engine now applies to a hasted swing. The elapsed
+  unit itself is still unread.
 - **The shots use the shot's own bar**: a drawn bow and a monster's
   Miss-column attack now roll against `2 × armour + 30` instead of the
   plain bar, so archery against armour asks for skill exactly the way

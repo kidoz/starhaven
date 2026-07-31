@@ -6677,9 +6677,15 @@ int main(int argc, char** argv) {
                                                          : armor_drag;
                             }
                         }
+                        // Haste burns recovery faster, by the original's own
+                        // figure: its tick subtracts elapsed × (1 + 50/100)
+                        // while the effect is on the character (traced at
+                        // 0x482bfb; see docs/formats/player-record.md).
+                        const float haste =
+                            clock.minutes() < party[who].haste_until ? 1.5f : 1.0f;
                         party_recovery = game::kPartyRecovery *
                                          weapon_skill_of(party[who]).recovery_scale *
-                                         (1.0f + armor_drag);
+                                         (1.0f + armor_drag) / haste;
                     }
                     break;
                 }
