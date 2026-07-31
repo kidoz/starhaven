@@ -1193,6 +1193,18 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The conditions name themselves**: a run of eight-byte timestamps from
+  `+0x1380`, and three independent readings agree on the numbering. The cure
+  spells push the id they lift — Cure Weakness **1**, Cure Poison **6**, Cure
+  Disease **7**. The heal refuses slots **14** and **16**. The AI treats a
+  character as not there at all when any of **2, 12, 13, 14, 15, 16** is set.
+  Those three sets fit one ordering and no other: Cursed, Weak, Asleep,
+  Afraid, Drunk, Insane, Poisoned, Diseased … Paralyzed, Unconscious, Dead,
+  Stoned, Eradicated, Zombie — with poison and disease adjacent because MM6
+  carries a single level of each where later games split them into three.
+  Four ids the ordering does not reach are left nameless rather than guessed.
+  What being poisoned *costs* is still unfound: the slots are timestamps and
+  nothing reads their age.
 - **The AI's decision routine, read**: it opens with a **damage-over-time
   pass** — resistance-checked damage to the hit points at `+0x28`, then the
   **state-4** action if they go negative and **state-8** if they do not. So
