@@ -1193,6 +1193,17 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **An audit of claims named from a fit, and one was wrong**: the
+  load-bearing combat claims were re-derived from their instructions rather
+  than from how their numbers read. The **to-hit roll** came back exact, and
+  so did **immunity at 200**. The **resistance byte order** did not: this
+  project said the six bytes at `+0x50` hold the resistances "in the design
+  table's own order", which was an assumption dressed as a measurement — the
+  routine's jump table shows the mapping is **rotated by two**. Nothing
+  depended on it, since the engine reads resistances from the table's columns
+  by name. The rule it leaves is now written down: `observed` covers what an
+  instruction does; a *name* that follows from how numbers read is
+  `inferred`, however good the fit.
 - **The condition multiplier wired everywhere it belongs**: it was traced in
   three routines and only the attack bonus used it. Now the recovery's Speed
   term and the hit-point and spell-point routines' Endurance and Personality
