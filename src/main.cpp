@@ -35,6 +35,7 @@
 #include "core/world/texture_frame_table.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/body_magic.hpp"
+#include "game/spell_damage.hpp"
 #include "game/special_stats.hpp"
 #include "game/spell_switch.hpp"
 #include "game/clock.hpp"
@@ -5145,8 +5146,15 @@ int main(int argc, char** argv) {
                             read = true;
                             break;
                         }
-                        what = battle.smite(target, effect.damage, effect.damage_per_skill,
-                                            spell_skill_of(party[who], *spell), spell->element,
+                        data::SpellRange wand_flat;
+                        data::SpellRange wand_scaled;
+                        const int wand_skill = spell_skill_of(party[who], *spell);
+                        const bool wand_traced = game::traced_damage_ranges(
+                            spell_id, wand_skill, wand_flat, wand_scaled);
+                        what = battle.smite(target,
+                                            wand_traced ? wand_flat : effect.damage,
+                                            wand_traced ? wand_scaled : effect.damage_per_skill,
+                                            wand_skill, spell->element,
                                             party[who].name, session, monster_stats, item_stats,
                                             random_items, standard_bonuses, special_bonuses);
                     } else if (const auto lays = condition_of(spell_id)) {
@@ -5224,8 +5232,17 @@ int main(int argc, char** argv) {
                                 read = true;  // keep the scroll: nothing was cast
                                 break;
                             }
-                            what = battle.smite(target, effect.damage, effect.damage_per_skill,
-                                                spell_skill_of(party[who], *spell),
+                            // The executable's own dice for this spell, when
+                            // it has a case; the prose only when it does not.
+                            data::SpellRange traced_flat;
+                            data::SpellRange traced_scaled;
+                            const int held_skill = spell_skill_of(party[who], *spell);
+                            const bool traced = game::traced_damage_ranges(
+                                spell_id, held_skill, traced_flat, traced_scaled);
+                            what = battle.smite(target,
+                                                traced ? traced_flat : effect.damage,
+                                                traced ? traced_scaled : effect.damage_per_skill,
+                                                held_skill,
                                                 spell->element, party[who].name, session,
                                                 monster_stats, item_stats, random_items,
                                                 standard_bonuses, special_bonuses);
@@ -5624,6 +5641,13 @@ int main(int argc, char** argv) {
                         shot.target = target;
                         shot.flat = effect.damage;
                         shot.per_skill = effect.damage_per_skill;
+                        // The executable's own dice, where the spell has a case;
+                        // the prose stands where it has none.
+                        if (data::SpellRange f, p;
+                            game::traced_damage_ranges(spell->id, points, f, p)) {
+                            shot.flat = f;
+                            shot.per_skill = p;
+                        }
                         shot.skill = points;
                         shot.element = spell->element;
                         shot.reach = effect.reach;
@@ -5722,6 +5746,12 @@ int main(int argc, char** argv) {
                         shot.target = target;
                         shot.flat = best_effect.damage;
                         shot.per_skill = best_effect.damage_per_skill;
+                        if (data::SpellRange f, p;
+                            game::traced_damage_ranges(best->id, spell_skill_of(caster, *best), f,
+                                                       p)) {
+                            shot.flat = f;
+                            shot.per_skill = p;
+                        }
                         shot.skill = spell_skill_of(caster, *best);
                         shot.element = best->element;
                         shot.reach = best_effect.reach;

@@ -266,25 +266,64 @@ With those two, the launcher's own writes read off:
 | `+0x42` | 4 | **the caster's skill points** | observed |
 | `+0x4a` | 4 | the owner handle | observed |
 
-## And a third refutation, this time a bounded one
+## The damage, found — and two bytes to correct first
 
-The point of laying the object out was to find every instruction that reads
-`+0x3e` and `+0x42` back, and so find where a thrown spell's damage is
-rolled. The search has a definite answer and the answer is negative:
-**nothing in the executable reads either field through an absolute address**,
-and the collision handler at `0x431e5e` resolves the owner and dispatches on
-its kind without touching them.
+The layout above was written off the array base `0x5c9ada`. It is
+**`0x5c9ad8`**: the insert scans for a free word at `+2`, not at `+0`. So
+every offset in that table is two low, and the corrected ones are **flags
+`+0x1a`**, **spell id `+0x40`**, **caster's skill `+0x44`**, a third word at
+**`+0x48`**, and the **owner handle `+0x4c`**.
 
-So the damage is not read back off the projectile at impact in any direct
-way. Unlike the two earlier guesses this narrows rather than wanders: what
-remains to read is the kind-3 branch's own callees — `0x4219b0`, `0x421d50`,
-`0x446c20` and `0x47d5a0` — one of which must carry it. `unknown`, with a
-list.
+That two-byte slip is also why the search for readers came up empty. With
+the right offsets the answer is one instruction: the collision handler's
+**kind-4** branch — the party's own projectiles — opens with
+
+```
+mov edx, [ebp + 0x48]
+mov ecx, [ebp + 0x40]      ; the spell id
+push edx
+mov edx, [ebp + 0x44]      ; the caster's skill
+call 0x432ad0
+```
+
+**`0x432ad0` is the spell-damage routine.** It masks the skill to its low
+six bits, switches on **spell id minus two** through a 98-entry byte
+selector at `0x432f84` into a jump table at `0x432ef8`, and **34 spells have
+a case** while the other 62 share a return of zero. Each case is a few
+instructions in one of three shapes: a lone die, a die rolled once per point
+of skill, or no dice at all and the skill plus a constant. `observed`
+
+The full table lives in `src/game/spell_damage.hpp`. A sample of its shape:
+Flame Arrow **1d8**, Fire Bolt **skill d4**, Fireball **skill d6**,
+Incinerate **skill d15 + 15**, Lightning Bolt **skill d8**, Implosion
+**skill d10 + 10**, Harm **skill d2 + 8**, Sun Ray **skill d20 + 20**,
+Dragon Breath **skill d25**, Ring of Fire **skill + 6**, Armageddon and Dark
+Containment **skill + 50**.
+
+The mapping onto this engine's own strike is exact — a flat part rolled
+once plus a part rolled per point of skill is precisely the shape the cases
+take — so the prose parser is now the fallback rather than the source.
+
+## Why three attempts missed it
+
+Worth recording, because the pattern is the lesson. The first two leapt at
+switches that looked like the right shape and were not. The third laid the
+object out properly but read the collision handler's **kind-3** branch —
+which is a *monster's* missile landing on the party, and rolls a monster's
+attack out of its own table. The party's spells are **kind 4**, forty lines
+further down, and that branch calls the damage routine in its first four
+instructions.
+
+## What the other four routines turned out to be
+
+Named while checking them off, and worth keeping: `0x4219b0` picks a party
+member out of an eight-bit mask; `0x421d50` is a saving throw, rolling
+against the target's level at `+0x35`; `0x446c20` rolls a **monster's**
+attack from the sub-structure at `+0x2c` of its record, which holds a spell
+id at `+0x22` and a packed skill at `+0x23`; and `0x47d5a0` is the general
+"does this character wear an item with special N", walking the sixteen
+anchors. `observed`
 
 ## Still unread
-
-- Where a thrown spell's damage is rolled. The launcher stamps the
-  projectile with the spell id and the caster's skill and lets it fly; what
-  reads those two back at impact has not been found. `unknown`
 - The other eight schools' own case bodies. The addresses are all in the
   dispatch table; only Body has been read. `unknown`

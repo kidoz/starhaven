@@ -332,6 +332,12 @@ test('weapon_specials',
   workdir : meson.current_build_dir(),
 )
 
+test('spell_damage',
+  executable('test_spell_damage', 'test_spell_damage.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('hire',
   executable('test_hire', 'test_hire.cpp',
     dependencies : [starhaven_dep, catch2_main]),
