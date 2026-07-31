@@ -159,16 +159,17 @@ int list_maps(const std::filesystem::path& data_dir) {
 }
 
 // The sky behind the world: the header's own texture where the map names
-// one, and the executable's own fallback — its outdoor loader carries
-// "sky%02d" with "sky01" beside it — where it does not, wrapped as a
-// cylinder around the camera's yaw and dimmed with the daylight. What
-// number feeds the %02d is `unknown`; sky01 is its stated floor. The
-// projection is the engine's. `inferred`
+// one, and the day's rolled sky where it does not — the original's picker
+// at 0x46df60 re-rolls once per game day, 80% from the nine fair skies
+// {1,3,6,7,8,9,12,14,15}, 20% from the seven others {2,5,10,13,16,18,19},
+// its own tables at 0x4c1874/0x4c1898, with "sky01" the fallback. Wrapped
+// as a cylinder around the camera's yaw and dimmed with the daylight; the
+// projection is the engine's. `observed` for the roll and the tables.
 void draw_sky(render::SceneRenderer& scene, assets::AssetCache& cache,
-              const world::MapSession& session, float yaw, float pitch, float level) {
+              const world::MapSession& session, float yaw, float pitch, float level,
+              const std::string& rolled) {
     const std::string name =
-        session.odm.header.sky_name.empty() ? std::string("sky01")
-                                            : session.odm.header.sky_name;
+        session.odm.header.sky_name.empty() ? rolled : session.odm.header.sky_name;
     const render::Texture& sky = cache.bitmap(name);
     if (sky.empty()) {
         return;
@@ -2459,6 +2460,8 @@ int main(int argc, char** argv) {
     int arena_rank = -1;   // -1 no challenge; 0..3 Page..Lord
     Mm6Random arena_random{20260730};
     int water_phase = -1;  // last baked step of the sea's palette ring
+    std::int64_t sky_day = -1;      // the day the sky was last rolled
+    std::string sky_today = "sky01";
     // The bounty board, rebuilt engine-side: the original kept its posting
     // and purse in the executable, so the month's length (28 days), the
     // pick and the level-times-hundred purse are this engine's numbers,
@@ -5754,7 +5757,20 @@ int main(int argc, char** argv) {
         const render::Color sky = session.outdoor() ? game::sky_colour(clock) : indoor_sky;
         scene.begin(camera, sky);
         if (session.outdoor()) {
-            draw_sky(scene, cache, session, camera.yaw, camera.pitch, game::light_level(clock));
+            // The day's sky, rolled the original's way when the day turns.
+            if (clock.day() != sky_day) {
+                sky_day = clock.day();
+                static constexpr std::array<int, 9> kFair{1, 3, 6, 7, 8, 9, 12, 14, 15};
+                static constexpr std::array<int, 7> kOther{2, 5, 10, 13, 16, 18, 19};
+                const int pick = static_cast<int>(misc_random.next() % 100) < 20
+                                     ? kOther[misc_random.next() % kOther.size()]
+                                     : kFair[misc_random.next() % kFair.size()];
+                char rolled_name[8];
+                std::snprintf(rolled_name, sizeof(rolled_name), "sky%02d", pick);
+                sky_today = rolled_name;
+            }
+            draw_sky(scene, cache, session, camera.yaw, camera.pitch, game::light_level(clock),
+                     sky_today);
             draw_outdoor(scene, session, cache, game::sun_direction(clock),
                          game::light_level(clock));
         } else {

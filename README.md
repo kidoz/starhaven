@@ -1046,7 +1046,13 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
-- **Fullscreen at F11**: the display story closes — windowed at any
+- **The sky selector traced to the last die**: the picker at 0x46df60
+  re-rolls the outdoor sky once per game day — 80% from nine fair skies,
+  20% from seven others, two authored tables in the executable, `sky01`
+  the fallback — and the engine now rolls the same way (nineteen skies
+  ship, three of them in neither table, noted). The header-named sky
+  still wins where a map states one.
+- **The chest flag finally leaned**:- **Fullscreen at F11**: the display story closes — windowed at any
   integer scale, fullscreen at a keystroke, the logical 640x480 and its
   square pixels kept either way.
 - **The eye joined the globe**: with Wizard Eye lit (or a Cartographer

@@ -69,7 +69,7 @@ MMExtension struct definitions and confirmed against real maps):
 | 0x00 | 32 | char[32] | name | observed | map name, e.g. `"blank"` |
 | 0x20 | 32 | char[32] | file_name | observed | e.g. `"default.odm"` |
 | 0x40 | 31+1 | char[31]+pad | version | observed | `"MM6 Outdoor v1.11"` + 1 pad byte |
-| 0x60 | 32 | char[] | sky texture name | observed | `plansky2` on `Oute3.odm`, empty on the other fourteen; the exe's outdoor loader holds `sky%02d` with `sky01` beside it, so the fourteen `sky01`..`sky14` panoramas are the sky set and `sky01` the stated floor — what number feeds the `%02d` is `unknown` |
+| 0x60 | 32 | char[] | sky texture name | observed | `plansky2` on `Oute3.odm`, empty on the other fourteen; the executable's picker at `0x46df60` is now read in full: the sky re-rolls **once per game day** — 80% from the nine fair skies {1,3,6,7,8,9,12,14,15}, 20% from the seven others {2,5,10,13,16,18,19}, two authored tables at `0x4c1874`/`0x4c1898`, `sky01` the fallback — and nineteen `sky01`..`sky19` panoramas ship, with 4, 11 and 17 in neither table. `observed` |
 | 0x80 | 32 | char[32] | ground_name | observed | ground tileset, e.g. `"grastyl"` |
 | 0xA0 | 16 | TilesetDef[4] | tilesets | observed | 4 × (i16 group, i16 offset) |
 
