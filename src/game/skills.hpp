@@ -184,11 +184,13 @@ inline constexpr std::array<std::string_view, 24> kSkillNames{
     "Fire",       "Air",        "Water",      "Earth",      "Light",     "Dark",
     "Spirit",     "Mind",       "Body",       "Identify",   "Merchant",  "Repair"};
 
-inline constexpr std::array<int, 24> kSkillWeights{100, 100, 100, 50,  10,  100, 75,  60,
-                                                   50,  30,  25,  10,  100, 100, 100, 100,
-                                                   100, 100, 100, 100, 100, 120, 20,  120};
-
-inline constexpr std::array<int, 14> kSkillPriority{16, 15, 14, 13, 2, 12, 11, 10, 9, 8, 7, 6, 5, 4};
+// **Retracted.** A per-skill percentage table and a fourteen-entry skill
+// priority list stood here, read from `0x4c27fc` and `0x4c276c`. They are
+// neither. The walk that uses them reads a **64-bit value at
+// `+0x1380 + 8 × id` and tests it for non-zero** — a condition timestamp,
+// not a count of skill points — and the order read as condition ids is
+// exactly "worst first". The percentages are per-condition multipliers and
+// live in src/game/conditions.hpp.
 
 // The attack bonus the original assembles: an attribute read raw, plus the
 // first skill in the priority order the character holds, weighted by that
@@ -251,16 +253,15 @@ inline constexpr int kSpecialOfSwiftness = 59;
 inline constexpr int kSwiftItemRelief = 20;
 inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
 
-template <typename SkillPoints>
-[[nodiscard]] inline int traced_attack_bonus(int accuracy, const SkillPoints& points) {
-    for (const int id : kSkillPriority) {
-        const auto held = points(kSkillNames[static_cast<std::size_t>(id)]);
-        if (held > 0) {
-            return accuracy + held * kSkillWeights[static_cast<std::size_t>(id)] / 100;
-        }
-    }
-    return accuracy;
+// The attack bonus, as much of it as survives the retraction: the routine
+// reads the attribute **raw**, not through the sheet's bonus curve, and
+// scales the total by the worst condition's own percentage. What it adds
+// between the two was read as a weighted skill and is `unknown` again.
+// `observed` for the raw attribute and the condition scaling.
+[[nodiscard]] inline int traced_attack_bonus(int accuracy, int condition_percent) noexcept {
+    return accuracy * condition_percent / 100;
 }
+
 
 // What wearing armor costs the swing before skill lifts it: a tenth slower
 // in leather, a fifth in chain, three tenths in plate. The table names the
@@ -278,29 +279,21 @@ template <typename SkillPoints>
     return 0.0f;
 }
 
-// How a merchant's points move a price. The weight is the executable's:
-// `Merchant` is skill id 22, whose entry in the traced percentage table is
-// **20** — a fifth of a point off the price for each point held, where
-// `Identify Item` and `Repair Item` weigh 120. `observed` for the weight;
-// the half-price floor is still the engine's own. `inferred`
+// Haggling and the two counter services. These were weighted by a table
+// that turned out to be about conditions, not skills; the weights are gone,
+// and what is left is the plain reading of each skill's own SKILLDES.TXT
+// line — one percent a point, floored at half price, never below a gold.
+// Every number here is this engine's. `inferred`
 [[nodiscard]] inline int haggled_price(int asking, int merchant_points) noexcept {
-    const int weighted = merchant_points * kSkillWeights[22] / 100;
-    const int percent = weighted > 50 ? 50 : weighted;
-    const int off = asking * percent / 100;
-    const int paid = asking - off;
+    const int percent = merchant_points > 50 ? 50 : merchant_points;
+    const int paid = asking - asking * percent / 100;
     return paid < 1 ? 1 : paid;
 }
 
-// And what the same table says of the two counter services: a point of
-// `Identify Item` or `Repair Item` is worth 120% of itself, so the skills
-// carry further than their raw points. `observed`
-[[nodiscard]] inline int weighted_identify(int points) noexcept {
-    return points * kSkillWeights[21] / 100;
-}
+[[nodiscard]] inline int weighted_identify(int points) noexcept { return points; }
 
-[[nodiscard]] inline int weighted_repair(int points) noexcept {
-    return points * kSkillWeights[23] / 100;
-}
+[[nodiscard]] inline int weighted_repair(int points) noexcept { return points; }
+
 
 }  // namespace starhaven::game
 

@@ -51,3 +51,28 @@ TEST_CASE("every named condition says its name", "[conditions]") {
     REQUIRE(condition_name(8).empty());
     REQUIRE(condition_name(11).empty());
 }
+
+TEST_CASE("a condition scales the character's numbers", "[conditions]") {
+    // The priority order read as condition ids is worst first.
+    REQUIRE(kConditionPriority.size() == 14);
+    REQUIRE(kConditionPriority.front() == kConditionEradicated);
+    REQUIRE(kConditionPriority[2] == kConditionDead);
+    REQUIRE(kConditionPriority.back() == kConditionDrunk);
+    // And the per-condition multiplier is what being ill costs.
+    REQUIRE(condition_percent(kConditionPoisoned) == 75);
+    REQUIRE(condition_percent(kConditionDiseased) == 60);
+    REQUIRE(condition_percent(kConditionDrunk) == 10);
+    REQUIRE(condition_percent(kConditionAfraid) == 50);
+    // The unafflicted and the unlisted pay nothing.
+    REQUIRE(condition_percent(kConditionCursed) == 100);
+    REQUIRE(condition_percent(-1) == 100);
+    REQUIRE(condition_percent(99) == 100);
+    // The walk takes the worst that is set, in the table's own order.
+    const auto held = [](int id) { return id == kConditionPoisoned || id == kConditionDead; };
+    REQUIRE(worst_condition(held) == kConditionDead);
+    const auto only_poison = [](int id) { return id == kConditionPoisoned; };
+    REQUIRE(worst_condition(only_poison) == kConditionPoisoned);
+    const auto none = [](int) { return false; };
+    REQUIRE(worst_condition(none) == -1);
+    REQUIRE(condition_percent(worst_condition(none)) == 100);
+}

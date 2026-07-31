@@ -153,13 +153,9 @@ inline constexpr int kBodyBuffMinutesPerPoint = kMinutesPerHour;
     return spell_id == kSpellPowerCure;
 }
 
-// The condition each cure names, in the executable's own numbering: the
-// cure pushes the id beside its cutoff time. Weak is 1, Poisoned 6,
-// Diseased 7 — the order the character sheet lists them in. `observed`
-// 0x427e1e, 0x4280ac, 0x428327.
-inline constexpr int kConditionWeak = 1;
-inline constexpr int kConditionPoisoned = 6;
-inline constexpr int kConditionDiseased = 7;
+// The condition each cure names is now in src/game/conditions.hpp, where
+// the whole run is numbered — Weak 1, Poisoned 6, Diseased 7, read from
+// these very cases.
 
 // The sound each Body spell speaks with, taken from its own case: the
 // school's voices run from 7000 in tens, one step a spell. `observed`

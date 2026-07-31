@@ -594,3 +594,44 @@ be applied wherever the timestamp is read. The routines that read them —
 walk tests the run from `+0x1380` — only ever ask whether a condition is
 set, never how long it has been. Where the harm is done is `unknown`, and
 StarHaven's invented drain stays marked as its own.
+
+## What a condition costs — found, and a retraction with it
+
+Two batches looked for this on the clock and found nothing, because it is
+not charged over time at all. **A condition is a percentage multiplier on
+the character's numbers**, applied wherever they are computed.
+
+The recovery routine, the hit-point routine and the attack-bonus getter each
+walk a fourteen-entry list at **`0x4c276c`**, reading the **64-bit value at
+`+0x1380 + 8 × id`** for each id in turn and taking the first that is not
+zero — then index a per-condition byte table by that id and scale. `observed`
+
+Read as condition ids, that list is **exactly "worst first"**: Eradicated,
+Stoned, Dead, Unconscious, Asleep, Paralyzed, 11, 10, 9, 8, Diseased,
+Poisoned, Insane, Drunk — which is what `stats.txt` says the sheet's
+Condition row shows. And `0x4c27fc`, indexed by condition id, gives
+**Poisoned 75, Diseased 60, Afraid 50, Drunk 10**, with the four unnamed ids
+at 50, 30, 25 and 10 and everything else at 100.
+
+### The retraction
+
+That list and that table were written up here as a **skill** priority order
+and a table of **per-skill percentages**, with `Identify Item` at 120,
+`Merchant` at 20 and `Repair Item` at 120, and three of this engine's counter
+services were wired on them. All of that is withdrawn.
+
+The instruction settles it and should have settled it the first time: the
+walk reads **eight bytes and ORs the halves to test for non-zero**. A count
+of skill points is a small integer; only a timestamp is read that way. The
+run at `+0x1380` is independently confirmed as the condition run three other
+ways — the cure spells push ids 1, 6 and 7 into it, the heal refuses on 14
+and 16, the AI treats 2, 12, 13, 14, 15 and 16 as absent.
+
+What was built on the misreading is undone: haggling and the two counter
+services are back to one percent a point, marked as this engine's own, and
+the attack bonus keeps only what survives — a raw attribute, scaled by the
+worst condition. What it adds between the two is `unknown` again.
+
+The fit that made the wrong reading persuasive is worth recording as a
+caution: ids 9, 10 and 11 carry 30, 25 and 10, which read beautifully as
+Leather, Chain and Plate descending. It was a coincidence.

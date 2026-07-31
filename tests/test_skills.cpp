@@ -9,22 +9,16 @@
 using namespace starhaven;
 using namespace starhaven::game;
 
-TEST_CASE("the attack bonus follows the traced priority walk", "[skills]") {
-    // The getter takes the first skill of the priority order the character
-    // holds and weights it: Plate at 10%, Shield at 50%, Bow at 100%.
-    const auto with = [](std::map<std::string, int> held) {
-        return [held](std::string_view name) {
-            const auto it = held.find(std::string(name));
-            return it == held.end() ? 0 : it->second;
-        };
-    };
-    // Plate comes before Shield and Bow in the priority list, and pays 10%.
-    REQUIRE(traced_attack_bonus(10, with({{"Plate", 20}, {"Bow", 20}})) == 10 + 2);
-    // Without Plate, the walk falls through to Bow at its full weight.
-    REQUIRE(traced_attack_bonus(10, with({{"Bow", 20}})) == 10 + 20);
-    // A character with none of the listed skills gets the attribute alone.
-    REQUIRE(traced_attack_bonus(10, with({{"Sword", 30}})) == 10);
+TEST_CASE("the attack bonus scales by the worst condition", "[skills]") {
+    // The priority walk this once read as a skill search is a condition
+    // search, so what survives is the raw attribute and the scaling.
+    REQUIRE(traced_attack_bonus(20, 100) == 20);
+    REQUIRE(traced_attack_bonus(20, 75) == 15);   // poisoned
+    REQUIRE(traced_attack_bonus(20, 60) == 12);   // diseased
+    REQUIRE(traced_attack_bonus(20, 10) == 2);    // drunk
+    REQUIRE(traced_attack_bonus(0, 75) == 0);
 }
+
 
 TEST_CASE("a skill's effect lines say what it grants", "[skills]") {
     // The table's own phrasings, one per shipped kind.
@@ -78,18 +72,17 @@ TEST_CASE("the recovery table answers by skill group", "[skills]") {
 TEST_CASE("the staircase and the haggle behave", "[skills]") {
     REQUIRE(raise_cost(1) == 2);
     REQUIRE(raise_cost(4) == 5);
-    // Merchant is skill id 22, weighted 20% by the executable's own table,
-    // so ten points take two off a hundred, not ten. The half-price floor
-    // and the one-gold minimum are still the engine's.
+    // The weights these once carried came from a table that turned out to
+    // be about conditions, not skills, so what is left is the plain one
+    // percent a point, floored at half price, never below a gold — all of
+    // it this engine's own.
     REQUIRE(haggled_price(100, 0) == 100);
-    REQUIRE(haggled_price(100, 10) == 98);
-    REQUIRE(haggled_price(100, 50) == 90);
+    REQUIRE(haggled_price(100, 10) == 90);
+    REQUIRE(haggled_price(100, 50) == 50);
     REQUIRE(haggled_price(100, 500) == 50);
     REQUIRE(haggled_price(1, 50) == 1);
-
-    // And the two counter services carry further than their raw points.
-    REQUIRE(weighted_identify(10) == 12);
-    REQUIRE(weighted_repair(10) == 12);
+    REQUIRE(weighted_identify(10) == 10);
+    REQUIRE(weighted_repair(10) == 10);
 }
 
 TEST_CASE("every base class starts with a weapon skill", "[skills]") {

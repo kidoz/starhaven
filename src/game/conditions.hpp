@@ -103,6 +103,51 @@ inline constexpr std::array<int, 2> kBeyondHealing{kConditionDead, kConditionEra
     }
 }
 
+// **What a condition costs.** Two batches looked for this on the clock and
+// found nothing, because it is not charged over time at all: it is a
+// **percentage multiplier** on the character's numbers, applied wherever
+// they are computed.
+//
+// The routines that compute recovery, hit points and the attack bonus each
+// walk a fourteen-entry priority list at `0x4c276c`, reading the **64-bit
+// timestamp at `+0x1380 + 8 × id`** for each id in turn and taking the first
+// that is set — the worst condition the character is suffering, which is
+// what `stats.txt` says its Condition row shows. They then index a
+// per-condition byte table by that id and scale by it.
+//
+// The order is Eradicated, Stoned, Dead, Unconscious, Asleep, Paralyzed,
+// 11, 10, 9, 8, Diseased, Poisoned, Insane, Drunk — worst first, exactly.
+// `observed` at 0x481d2d, 0x481f64 and 0x47e8xx.
+inline constexpr std::array<int, 14> kConditionPriority{16, 15, 14, 13, 2, 12, 11,
+                                                        10, 9,  8,  7,  6,  5,  4};
+
+// The multiplier each condition applies, as a percentage. `0x4c27fc`,
+// indexed by condition id. **Poisoned costs a quarter and diseased two
+// fifths**; Drunk is the heaviest at ninety per cent off; Afraid halves.
+// The four ids the naming does not reach carry 50, 30, 25 and 10.
+// `observed`
+inline constexpr std::array<int, 18> kConditionPercent{100, 100, 100, 50, 10, 100,
+                                                       75,  60,  50,  30, 25, 10,
+                                                       100, 100, 100, 100, 100, 100};
+
+[[nodiscard]] inline constexpr int condition_percent(int id) noexcept {
+    return id >= 0 && id < static_cast<int>(kConditionPercent.size())
+               ? kConditionPercent[static_cast<std::size_t>(id)]
+               : 100;
+}
+
+// The worst condition a character is suffering, given a predicate that says
+// whether an id is set — the same walk the executable makes.
+template <typename IsSet>
+[[nodiscard]] inline int worst_condition(IsSet&& is_set) {
+    for (const int id : kConditionPriority) {
+        if (is_set(id)) {
+            return id;
+        }
+    }
+    return -1;
+}
+
 }  // namespace starhaven::game
 
 #endif  // STARHAVEN_GAME_CONDITIONS_HPP

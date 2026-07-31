@@ -29,6 +29,7 @@
 #include "core/random.hpp"
 #include "core/world/map_session.hpp"
 #include "game/inventory.hpp"
+#include "game/conditions.hpp"
 #include "game/party.hpp"
 #include "game/skills.hpp"
 #include "game/fire_dark.hpp"
@@ -552,14 +553,16 @@ public:
         // original's own bonus: reading the to-hit's callers settled that
         // its second argument is the one struck (its armour is read at
         // `+0x60`) and the first is the striker, so the getter really is
-        // the attacker's bonus. It sums an attribute read raw with the
-        // first skill of the priority order the character holds, weighted
-        // by that skill's own percentage. `observed`
-        const int attack = traced_attack_bonus(
-            who.attribute(Attribute::Accuracy), [&who](std::string_view name) {
-                const auto it = who.skills.find(std::string(name));
-                return it == who.skills.end() ? 0 : it->second;
-            });
+        // the attacker's bonus. It reads the attribute **raw** and scales
+        // the total by the worst condition the character carries — the walk
+        // once read here as a skill search is a condition search. `observed`
+        const int ailing = worst_condition([&who](int id) {
+            return (id == kConditionPoisoned && who.poisoned > 0) ||
+                   (id == kConditionDiseased && who.diseased > 0) ||
+                   (id == kConditionWeakId && who.affliction == "Weak");
+        });
+        const int attack = traced_attack_bonus(who.attribute(Attribute::Accuracy),
+                                               condition_percent(ailing));
         // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
         // why archery against armour asks for skill; a swing is the plain
         // bar. Which call site passes which kind is the original's;

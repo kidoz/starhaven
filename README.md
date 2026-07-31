@@ -1193,6 +1193,23 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The gamble paid, and cost a retraction**: what a condition costs is not
+  charged on the clock — it is a **percentage multiplier** on the
+  character's numbers, applied wherever they are computed. The recovery,
+  hit-point and attack-bonus routines each walk a fourteen-entry list, take
+  the **worst condition** the character carries, and scale by a per-condition
+  table: **Poisoned 75, Diseased 60, Afraid 50, Drunk 10**.
+  
+  That list and that table were written up here as a *skill* priority order
+  and per-skill percentages, and three counter services were wired on them.
+  Withdrawn. The instruction settles it: the walk reads **eight bytes and ORs
+  the halves** to test for non-zero, which is how you read a timestamp, not a
+  count of skill points — and the run is confirmed as the condition run three
+  other ways. Haggling and the counter services are back to the engine's own
+  one percent a point; the attack bonus keeps only the raw attribute and the
+  condition scaling. The coincidence that made the wrong reading persuasive
+  is recorded: ids 9, 10 and 11 carry 30, 25 and 10, which read beautifully
+  as Leather, Chain and Plate descending.
 - **The fatigue put under the sitting, and it found a bug**: the mechanic
   went in from a trace and had never been played. A sitting showed Weak
   landing at world minute **180** where the routine's own
