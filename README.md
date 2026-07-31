@@ -1165,6 +1165,18 @@ interoperability and compatibility with a legally purchased copy.
   modifier + spell bonus + gear bonus**, and the ladder applies to that sum.
   The engine had the variable run starting one too high, so a script raising
   Might raised nothing; both runs now land.
+- **The AI cluster, mapped wholesale**: read the way the two failed visits
+  concluded it had to be. Thirty-nine functions, of which **seventeen** end
+  by putting the actor into a state, and **`0x4017a0`** — the largest, and
+  the only one entered from outside — calls eleven of them. It is not a
+  switch and never was: a long chain of conditions ending in one call, which
+  is exactly why looking for a dispatch failed twice. Fourteen states are
+  named by the functions that set them, `0x4035e0` is the common ending
+  every movement falls into, and the four actions reachable from outside the
+  cluster are reachable from the spell and impact code in pairs — what
+  happens to a monster that is hit, one for a blow it survives and one for a
+  blow it does not. The map does not name the behaviours; it makes naming
+  them bounded, which is the next batch's work.
 - **The gamble: one behaviour cannot be lifted out either**: following "what
   makes a monster flee" from the state word named three states — **4 acting**
   (paired with 5 recovered by the countdown), **7 moving**, **9 standing** —

@@ -184,3 +184,77 @@ AI must be read wholesale or not at all** — there is neither a dispatch to
 enumerate nor a behaviour that can be isolated. Anyone spending a batch on it
 should plan to read the cluster function by function, and should not expect a
 table. `unknown` for every behaviour.
+
+## The AI cluster, mapped
+
+Read wholesale, as the two failed visits concluded it had to be. The cluster
+`0x401030`..`0x40a000` holds **39 functions**; seventeen of them end by
+putting the actor into a state, and one of the others calls almost all of
+them. `observed` throughout — the map is mechanical, from function bounds,
+the `mov word [reg+0xa0], N` in each body, and a call graph over the whole
+executable.
+
+### The decision routine
+
+**`0x4017a0`** is it — 3904 bytes, the largest in the cluster, entered from
+outside at `0x453b5e` and from nowhere else, and it calls **eleven** of the
+seventeen action functions. It is not a switch and never was: it is a long
+chain of conditions that ends in one call. That is why looking for a
+dispatch failed twice.
+
+It is also the only function in the cluster that calls the resistance
+routine at `0x421dc0`, so a monster's blow is struck from inside it.
+
+### The actions, by the state each leaves behind
+
+| Function | Bytes | State | Called by |
+| --- | --- | --- | --- |
+| `0x4038f0` | 624 | 1 | the decision routine, `0x407460` |
+| `0x403b60` | 1056 | 1 and 3 | the decision routine, `0x407460` |
+| `0x404380` | 512 | 2 | the decision routine, `0x406ef0` |
+| `0x403050` | 1184 | 4 | the decision routine; and four sites outside it |
+| `0x4017a0` | 3904 | 5 | — (the decision routine itself) |
+| `0x405d60` | 1648 | 5 | the decision routine |
+| `0x4063d0` | 928 | 5 | `0x405d60` |
+| `0x407220` | 576 | 5 | `0x405d60` |
+| `0x4026e0` | 640 | 6 | five callers inside the cluster |
+| `0x402960` | 1136 | 6 | the decision routine, `0x407460` |
+| `0x402dd0` | 640 | 7 | the decision routine; and four sites outside |
+| `0x403730` | 448 | 8 | the decision routine; and four sites outside |
+| `0x4035e0` | 336 | 9 | **eight** callers — the common ending |
+| `0x404660` | 1360 | 10 | four sites outside the cluster only |
+| `0x403f80` | 480 | 12 | the decision routine, `0x406ef0` |
+| `0x404160` | 544 | 13 | the decision routine, `0x406ef0` |
+| `0x4034f0` | 240 | 16 | one site outside, `0x429253` |
+
+Fourteen distinct states, then: **1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 16**
+and 0. `0x4035e0` (state 9) is called from eight places and clears the
+velocity triple, which makes it the routine every movement ends in.
+
+### What the outside callers say
+
+Four of the actions are reachable from outside the AI, and where from is the
+strongest evidence about what they mean:
+
+- **State 4** (`0x403050`) and **state 8** (`0x403730`) are both called from
+  the spell code (`0x429946`, `0x429955`) and from the projectile-impact
+  code (`0x4312b3`, `0x431314`, `0x431a97`, `0x43183b`, `0x431942`) — in
+  pairs, a few bytes apart at each site. So they are what *happens to* a
+  monster that is hit: one of the pair for a blow it survives and the other
+  for one it does not. State 8's body sets the animation byte at `+0x3e` to
+  4 and raises bit `0x20000` in the flag dword at `+0x24`. `observed`; which
+  of the two is the death is `inferred` from the pairing and not yet read.
+- **State 7** (`0x402dd0`) is called from the effect applier at `0x432732`
+  and from four sites in `0x461xxx`/`0x462xxx`.
+- **State 10** (`0x404660`) is reached *only* from outside, including from
+  the aiming code at `0x420beb`.
+- **State 16** (`0x4034f0`) has exactly one caller anywhere, in a spell case.
+
+### What this map does not say
+
+It says what the pieces are and how they connect; it does not name the
+behaviours. Which state is fleeing, which is patrolling and which is
+pursuing needs the decision routine's chain of conditions read line by line,
+which is the next batch's work and not this one's. What it does establish is
+that such a reading is now bounded: eleven calls out of one function, each
+to a body under 1.7 kB. `unknown` for the behaviours.
