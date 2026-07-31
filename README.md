@@ -1165,6 +1165,16 @@ interoperability and compatibility with a legally purchased copy.
   modifier + spell bonus + gear bonus**, and the ladder applies to that sum.
   The engine had the variable run starting one too high, so a script raising
   Might raised nothing; both runs now land.
+- **The gamble on item rolling: the premise was half wrong, and the rest
+  stays unfound**: the percentile split — how often a rolled item takes a
+  standard bonus, a special one or neither, per treasure level — turns out to
+  be read from `RNDITEMS.TXT` already, so it was never invented. What *is*
+  invented is the ladder saying which class letter each level may draw from,
+  and that was hunted and not found: no bitmask, no low/high pairs, and the
+  generator routine not located. It is now marked `inferred` where it lives.
+  Three consecutive "find the one routine" searches have now come back empty,
+  and the pattern is recorded: the searches that succeed start from a field or
+  a table and work outward; the ones that fail start from a behaviour.
 - **Conditions: how they begin, and an honest miss**: the time-advance rolls
   `rand() % 100` against a byte at `0x908d6c` — times five, then times ten —
   and on success stamps a condition's timestamp. That byte is **zeroed by

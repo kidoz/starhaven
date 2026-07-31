@@ -716,6 +716,15 @@ const SpecialBonusEntry* SpecialBonusTable::at(std::size_t id) const noexcept {
     return id > 0 && id <= entries_.size() ? &entries_[id - 1] : nullptr;
 }
 
+// Which class letters a treasure level may draw a special bonus from.
+//
+// **This ladder is this engine's own.** The percentile split above it — how
+// often a standard bonus, a special one or neither appears at each level —
+// is read from `RNDITEMS.TXT` and is the table's; only this last step is
+// invented. It was hunted in the executable and not found: no bitmask of
+// four class bits per level and no low/high pair per level sits in either
+// data section, and the generator routine that would hold the comparisons
+// inline was not located. `inferred`
 bool SpecialBonusTable::eligible(const SpecialBonusEntry& entry,
                                  std::size_t treasure_level) noexcept {
     switch (treasure_level) {

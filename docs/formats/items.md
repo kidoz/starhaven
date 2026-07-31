@@ -403,3 +403,32 @@ StarHaven uses a 14 x 9 grid of 32-pixel cells and lets an icon overhang a cell
 by up to 14 pixels before it claims the next one. That threshold is chosen, not
 read: it is what makes all 229 icons fit a pack that size, where rounding up
 outright leaves one that could never be carried. `inferred`
+
+## What the generator takes from the tables, and what it does not
+
+Worth stating plainly, because the two are easy to confuse.
+
+**From the tables.** `RNDITEMS.TXT` carries the percentile split itself —
+three rows giving, per treasure level, how often a rolled item takes a
+standard bonus, a special one, or neither, with a separate row for weapons.
+The engine reads all of it. So "how often does a magic item appear" was never
+invented.
+
+**Not from the tables.** Which *class letter* a special bonus may be drawn
+from at a given treasure level — level 3 from A and B, level 4 from A, B and
+C, level 5 from B, C and D, level 6 from D alone — is this engine's ladder
+and nothing else's. The special-bonus table gives every row a class letter
+and a price and says nothing about levels.
+
+That ladder was hunted in the executable and **not found**: neither a bitmask
+of four class bits per level nor a low/high pair per level sits in either
+data section, and the generator routine that would hold the comparisons
+inline was not located. It stays `inferred`, and is now marked as such where
+it lives.
+
+This is the third consecutive "find the one routine that does X" search to
+come back empty — after the experience threshold and the AI's decision
+switch — and the pattern is worth naming: the searches that have succeeded
+lately all started from a *field* or a *table* and worked outward to the code
+that touches it, while the ones that failed started from a behaviour and went
+looking for the code that implements it.
