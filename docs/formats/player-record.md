@@ -72,6 +72,37 @@ sheet's bonus curve, and a weapon whose skill is worth only 10% barely
 gains from training. `observed` for both tables; which percentage answers
 which of this engine's skill names is not yet joined. `unknown`
 
+## The class and skill numbering, closed
+
+`GLOBAL.TXT` holds both runs, and the executable indexes them by id:
+
+- **Class id = row 253 + id** — Knight 0, Cavalier 1, Champion 2, Cleric
+  3, Priest 4, High Priest 5, Sorcerer 6, Wizard 7, Archmage 8, Paladin
+  9, Crusader 10, Hero 11, Archer 12, Battle Mage 13, Warrior Mage 14,
+  Druid 15, Greater Druid 16, Arch Druid 17. This confirms every
+  promotion beat walked in `evt_info --arc`: 9→10 is Paladin→Crusader,
+  6→7 Sorcerer→Wizard, 7→8 Wizard→Archmage. `observed`
+- **Skill id = row 271 + id** — Staff 0, Sword 1, Dagger 2, Axe 3, Spear
+  4, Bow 5, Mace 6, Blaster 7, Shield 8, Leather 9, Chain 10, Plate 11,
+  the nine schools 12..20, then Identify Item, Merchant, Repair Item.
+  `observed`
+
+With the names in hand, the percentage table at `0x4c27fc` reads:
+Staff/Sword/Dagger/Bow 100, Mace 75, Blaster 60, **Shield 50, Leather
+30, Chain 25, Plate 10**, every school 100, Identify Item and Repair
+Item 120, Merchant 20. And the priority list at `0x4c276c` is Light,
+Earth, Water, Air, **Dagger**, Fire, Plate, Chain, Leather, Shield,
+Blaster, Mace, Bow, Spear.
+
+**That reads as armour class, not an attack bonus.** The armour skills'
+descending percentages and the presence of Dagger and Spear — the two
+weapons MM6 lets contribute to defence — fit a defensive sum far better
+than an offensive one, which puts the earlier reading of `0x47e270` and
+`0x47e810` in doubt: they may be the armour-class getters the to-hit
+roll asks about the *defender*, not the attacker's bonus. StarHaven
+therefore keeps its own attack bonus and marks it `inferred` rather than
+claiming the traced one. `unknown`
+
 ## The weapon path, read from the other side
 
 `0x47e810` is the getter the to-hit routine calls whenever a weapon is

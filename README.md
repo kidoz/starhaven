@@ -1085,6 +1085,15 @@ interoperability and compatibility with a legally purchased copy.
   placeholders): 3,541 placed actors, 1,100 chests, 767 doors, 4,701
   lights, 537 establishments. It exits nonzero on the first map that
   fails, and the workflow runs it wherever a real install is present.
+- **The class and skill numbering closed — and cast a doubt**: both runs
+  live in `GLOBAL.TXT` and the executable indexes them by id (class =
+  row 253 + id, skill = row 271 + id), which independently confirms
+  every promotion beat: 9→10 is Paladin→Crusader, 7→8 Wizard→Archmage.
+  With names attached, the traced percentage table reads Shield 50,
+  Leather 30, Chain 25, Plate 10 — **armour class, not an attack
+  bonus** — so which side of the fight those getters serve is now in
+  question, and the engine's attack bonus is relabelled its own rather
+  than claiming a trace it cannot yet support.
 - **The weapon path confirms the formula from the other side**: the
   getter the to-hit routine uses when a weapon is involved reads the
   equipped weapon slot, then computes exactly as its sibling does —

@@ -506,16 +506,14 @@ public:
         }
         const auto& monster = monsters.entries()[id - 1];
 
-        // Whether it lands, by the original's own rule, with the attack
-        // bonus assembled its way too: the getter at `0x47e270` asks the
-        // stat dispatcher for **stat 4 — an attribute read raw**, not
-        // through the sheet's bonus curve — and adds the weapon skill
-        // scaled by a percentage the weapon's own kind picks (the table
-        // at `0x4c27fc`: 100, 100, 100, 50, 10, 100, 75, 60, 50, 30, 25,
-        // 10). `observed` for the shape; which of the twelve percentages
-        // answers which of this engine's skill names is not yet joined,
-        // so the skill's own to-hit line still stands in for it.
-        // `inferred` for that last step.
+        // Whether it lands, by the original's own rule. The bonus fed to
+        // it is still this engine's own: the getters at `0x47e270` and
+        // `0x47e810` were read, and their skill percentages — Shield 50,
+        // Leather 30, Chain 25, Plate 10 — name them **armour class**
+        // rather than an attack bonus, so which side of the fight they
+        // serve is unsettled. Until that is read, accuracy plus the
+        // skill's own to-hit line stands in. `inferred` See
+        // docs/formats/player-record.md.
         const int attack = who.attribute(Attribute::Accuracy) + skill.to_hit;
         // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
         // why archery against armour asks for skill; a swing is the plain
