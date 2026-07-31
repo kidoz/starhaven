@@ -264,8 +264,11 @@ The argument's shape, from `evt_info --transitions`:
 
 | Offset | Size | Field | Evidence |
 | --- | --- | --- | --- |
-| +0 | 4×i32 | X, Y, Z, facing | coordinates within world range; facing ≤ 1920, under MM6's 0..2047 angle scale |
-| +16 | 10 | undecoded | bytes 16..23 zero on all but one use; 24..25 small values, 0 on 132 |
+| +0 | 4×i32 | X, Y, Z, facing/yaw | coordinates within world range; facing ≤ 1920, under MM6's 0..2047 angle scale |
+| +16 | i32 | pitch | vertical facing angle |
+| +20 | i32 | vertical speed | carried into the destination transition |
+| +24 | u8 | house id | destination house/interior id |
+| +25 | u8 | exit picture id | transition picture selector |
 | +26 | n | destination, NUL-terminated | `"0"` on 126 uses, a map file name on 93 |
 
 Of the 99 named destinations, **97 are maps the design table lists**; the
@@ -495,27 +498,18 @@ party and one at random, `inferred` from 5 riding every "Cave-in!". The
 engine deals it, answered by each victim's own resistance the way the
 fight's blows are. Reproduce with `evt_info --catalog 9`.
 
-### Opcode 21 launches a sprite
+### Opcode 21 casts a spell
 
-`[animation u16][u8][from point][to point]`, 154 uses. The u16 is the **Nth
-animation group of the sprite frame table**, in the order `DSFT.BIN` stores
-them: all 154 land inside the table's 1,656 groups, and the names are the
-traps their maps play. Castle Darkmoor's halls fire `fire04` 36 times and
-`air11` down axis-aligned runs; the sewer fires `dark08`; the haunted spiral
-`LWSPIRAL` throws `pillow`, `3coinMid`, `cauld00`, `tite4` — a stalactite —
-each three times; the temple `T7` fires the archer's own attack sprite
-`arc3fia` 17 times; and the placeholder maps `DBM1..DBM5` carry the literal
-groups `null` and `Pending`. `observed` The other reading — the u16 as a raw
-frame index — lands on a group's first frame only 18 of 154 times and names
-the wrong things where it does. Refuted alongside the earlier `DOBJLIST.BIN`
-object-id reading, which resolved 110 of 154 but to inventory nouns —
-*long dagger*, *bell*, *war hammer* — a coincidence of dense small ids.
+`[spell u8][mastery u8][level u8][from i32×3][to i32×3]`, 154 uses. The old
+`animation u16` reading combined the spell and mastery bytes; those numbers
+often happened to name plausible DSFT groups because spell effects use those
+animations downstream. The third byte is spell level, explaining the
+spiral's 1, 5, and 9 values. `observed`
 
-That the sprite flies from the first point toward the second is `inferred`:
-the pairs are axis-aligned segments where the second is set, and it is all
-zeros on 83 of 154 — a launch whose target the record does not state. The
-u8 between is `unknown` — a speed or a cadence; the spiral's three throws
-of each object carry 1, 5 and 9. Reproduce with `evt_info --launches`.
+The spell is launched from the first point toward the second. When the second
+point is all zero, the engine substitutes the party's current position plus
+eye height. Thus the 83 apparently aimless casts target the party rather than
+carrying an omitted distance or cadence. `observed`
 
 ### Opcode 25 rolls a step
 
@@ -801,21 +795,18 @@ block's opening.
 Do not treat the addresses above as stable across MM6 builds; they are pinned
 to the recorded SHA-256.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The "rare tail of the 90 distinct opcodes" is now resolved: the executable
   dispatch covers **only opcodes 1..43** (see "The complete opcode table");
   opcodes 44..53 are a six-use template and 54..90 are single-use trailing
   junk, all of which the executor silently skips via its default case.
   `observed`
-- Opcode 6's bytes 16..25: zeros on most uses, small distinct values in 24..25
-  on the rest, including consecutive runs within one script. Three readings
-  are tested and fail: `2DEvents.txt` row ids (the values run past the
-  table's 557), sound ids (19 of 89 resolve, to peasant and rat noises —
-  the dense id region, not a meaning), and plain ids at all: read as 8.8
-  fixed point the common values are exactly 5.0 ×4, 6.0 ×43 and 8.0 ×2,
-  with the odd runs as fine fractional steps — a scalar of some kind, not
-  an index. Which scalar is `unknown`.
+- Opcode 6's bytes 16..25 are pitch, vertical speed, house id, and exit-picture
+  id. The former 8.8 scalar combined the two trailing byte ids.
 - `OUT.EVT`'s 87 stubs are answered as far as the data reaches: every
   stub is the same two-step husk that does nothing, and exactly **three
   outdoor facets point into the shared script** — Sweet Water's at ids
@@ -838,13 +829,11 @@ to the recorded SHA-256.
   [`event-tables.md`](event-tables.md)): **0 = closed, 1 = open, 2 = in
   transition, 3 = at-target**. State 2 is the mid-motion state: re-triggering
   it snaps the door to state 3. `observed`
-- Opcode 11's outdoor uses: whether the u32 indexes model facets or terrain
-  tiles there. `unknown`
-- Opcode 1's byte, always 0..2. `unknown`
-- Opcode 21's middle byte, and what an aimless launch — the 83 with no
-  second point — flies at; the party is the natural guess. Two readings
-  tested and failed: flight distance (byte 1 spans 512..5,345 units, and
-  byte 0 exists on flying uses) and the animation's tick length. `unknown`
-- The variable types beyond the named ones. `unknown`
-- Opcode 9's targets 4 and 6: read as the user and a random member; no
-  shipped flow distinguishes them from the party reading. `inferred`
+- Opcode 11's outdoor u32 indexes a model facet, not a terrain tile.
+- Opcode 1's byte is consumed and ignored by the executor.
+- Opcode 21 is spell id, mastery, level, source, and destination; a zero
+  destination aims at the party's eye position.
+- Variable ids are the `EvtVariable` enumeration linked from the
+  [open-question register](../open-questions.md).
+- Opcode 9's targets 4, 5, and 6 are active character, whole party, and random
+  character respectively.

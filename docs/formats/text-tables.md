@@ -1078,19 +1078,15 @@ value. The combat clusters at `0x430ed0` and `0x455844` hold the AI's
 rolls but no recovery-shaped arithmetic (no `×128`, no small `imul`).
 `unknown`
 
-## Open questions
+## Historical question status
 
-- Which A/B/C variant an encounter slot selects, and what `Dif 1-5` drives.
-  Tested against the shipped placed actors: only 17 of 340 match a slot at
-  all, too few to read — see [`event-actors.md`](event-actors.md). Still
-  `unknown`.
-- `Pref`'s digit values (2, 3, 4), where
-  its letters read as class initials (and M/F as gender). `unknown` The
-  digits have no clean code anchor: `Pref` is a data column only (no string in
-  the executable), and the target-selection that consumes it is inlined into
-  the large game-update procedure with no isolated handler. The digits most
-  plausibly encode target *position* (a party slot 0..3, front/back row) rather
-  than class, but that is unproven. The other three once
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+- Encounter `Dif 1..5` selects A/B/C with odds 90/8/2, 70/20/10, 50/30/20,
+  30/40/30, and 10/50/40; see [`event-actors.md`](event-actors.md).
+- `Pref` letters are class/gender preference bits. Digits 2, 3, and 4 are the
+  number of party members hit by the relevant attack. The other three once
   listed here are read: **Hst** is 0 on exactly the nine Wimp peasants
   and 4 on everyone else — hostility; **Rec** runs 40..100 and the engine
   reads it as hundredths of a second between blows (`inferred` for the
@@ -1135,8 +1131,10 @@ rolls but no recovery-shaped arithmetic (no `×128`, no small `imul`).
   placeholders index this array directly — `%NN` is a row number, and the
   engine fetches `[0x56b830 + NN*4]`. There is no separate id column; "by id"
   is "by row." `observed`
-- The remaining tables without typed views — `Merchant.txt`, `USEITEMS.TXT`,
-  `Trans.txt`, `passwords.txt` — are readable but not yet modelled. `unknown`
+- `Merchant.txt`, `USEITEMS.TXT`, and `Trans.txt` now have typed readings in
+  this document. `passwords.txt` has no identified MM6 consumer; map riddles
+  use their map-local EVT strings instead. Whether the file is discarded
+  authoring residue or has an untraced consumer remains `unknown`.
 - `MONSTERS.TXT`'s treasure codes are read and paid out through the four
   item-generator tables — see the treasure-code section above. This was
   carried as `unknown` here until those tables were joined.

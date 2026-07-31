@@ -1,8 +1,8 @@
 # Event actors (`.ddm` / `.dlv`)
 
-Status: **draft, evidence-backed — identity and position only.** Actor records
-are a counted array of 548-byte records, in outdoor and indoor files alike.
-This corrects the former count-less-array interpretation.
+Status: **decoded, evidence-backed.** Actor records are a counted array of
+548-byte records, in outdoor and indoor files alike. This corrects both the
+former count-less-array interpretation and the former `variant` reading.
 
 ## Array
 
@@ -18,9 +18,29 @@ indoor maps they total 76. `observed`
 | --- | ---: | --- | --- | --- |
 | `+0x00` | 32 | char[] | name | observed |
 | `+0x34` | 1 | u8 | `monster_id` | observed |
-| `+0x35` | 1 | u8 | variant | inferred |
+| `+0x35` | 1 | u8 | level | observed |
 | `+0x7E` | 6 | i16[3] | x, y, z | observed |
-| remaining | 510 | bytes | actor state | unknown |
+| `+0x84` | 6 | i16[3] | velocity | observed |
+| `+0x8A` | 2 | i16 | direction | observed |
+| `+0x8C` | 2 | i16 | look angle | observed |
+| `+0x8E` | 2 | i16 | room/sector | observed |
+| `+0x90` | 2 | i16 | current action length | observed |
+| `+0x92` | 6 | i16[3] | start/home position | observed |
+| `+0x98` | 6 | i16[3] | guard position | observed |
+| `+0x9E` | 2 | i16 | guard radius | observed |
+| `+0xA0` | 2 | u16 | AI state | observed |
+| `+0xA2` | 2 | u16 | graphic state | observed |
+| `+0xA4` | 4 | i32 | carried item id/state | observed |
+| `+0xA8` | 4 | i32 | current action time | observed |
+| `+0xAC` | 16 | u16[8] | frame ids | observed |
+| `+0xBC` | 8 | u16[4] | sound ids | observed |
+| `+0xC4` | 224 | bytes | 14 spell buffs | observed |
+| `+0x1A4` | 4 | i32 | group | observed |
+| `+0x1A8` | 4 | i32 | ally | observed |
+| `+0x1AC` | 96 | bytes | eight schedules | observed |
+| `+0x20C` | 4 | object ref | summoner | observed |
+| `+0x210` | 4 | object ref | last attacker | observed |
+| remaining | 16 | bytes | reserved/runtime tail | observed |
 
 ### `monster_id` is 1-based
 
@@ -64,42 +84,38 @@ Actors are exposed only after the complete outdoor section layout validates.
 A caller-supplied limit may cap returned records without changing the decoded
 count.
 
-## The variant byte is the letter
+## Level, variants, and encounter difficulty
 
-The byte at `+0x35` states the monster's A/B/C variant as 1, 2 or 3: on
-**319 of the 340** shipped placed actors it equals the letter its own
-monster id's `DMONLIST` name already ends in — 1 on the A rows, 2 on the
-B rows, 3 on the C rows. `observed` Of the rest, **15 appears 18 times
-across all three letters** — an "any of the three" marker is the natural
-reading, but nothing measured pins it — and three stragglers carry 6, 10
-and 12. `unknown` Reproduce with `ddm_info --variants`.
+The byte at `+0x35` is the monster's level copied from its monster properties,
+not an A/B/C selector. Values 1, 2, and 3 happened to correlate with several
+low-level A/B/C rows; 6, 10, 12, and 15 expose the false premise. `observed`
 
-## What Dif 1-5 does not provably drive
+The outdoor encounter slot already names its M1/M2/M3 monster family.
+`Dif 1..5` selects the random A/B/C tier with these percentages:
 
-The encounter slots' "Dif 1-5" column was tested against the placed
-actors' letters: only **17 of the 340** match any of their map's slot
-pictures — the placed actors are almost all quest specials, not slot
-spawns — and seventeen samples spread over five difficulties read as
-noise (Dif 4: one A, six C). What the column drives remains `unknown`;
-the shipped placements cannot answer it. Reproduce with
-`ddm_info --variants`.
+| Dif | A | B | C |
+| ---: | ---: | ---: | ---: |
+| 1 | 90 | 8 | 2 |
+| 2 | 70 | 20 | 10 |
+| 3 | 50 | 30 | 20 |
+| 4 | 30 | 40 | 30 |
+| 5 | 10 | 50 | 40 |
 
-## Open questions
+The table is read directly by the outdoor encounter spawner. Placed quest
+actors do not need to match those odds because they bypass random encounter
+selection. `observed`
 
-- The remaining actor state and the roles of the repeated position triples.
-- The `variant` byte's value 15, shared by all three letters, and the three
-  stragglers 6, 10 and 12.
-- What `Dif 1-5` drives — the placed actors are too few to say.
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
+
+All three questions are closed by the corrected field layout and the outdoor
+encounter probability table above.
 
 ## What an actor record holds beyond its name and position
 
-The 548-byte record carries **three copies of the position**: at 0x7E, 0x92 and
-0x98. They are identical on **94 of 96** actors across the outdoor maps
-sampled, which is what a current, a previous and a home position look like in a
-file shipped before anything has moved. `inferred`
-
-The 14 bytes between the first copy and the second — 0x84 to 0x91, where a
-velocity and a facing would sit — are **zero on all 96**. `observed` So the
-file has room for which way an actor faces and how fast it is going, and ships
-neither: both are runtime state. An engine that makes monsters move and turn is
-not contradicting the data, and is not reproducing it either.
+The three triples are current, start/home, and guard positions. The bytes
+between them are velocity, direction, look angle, room, and action length.
+They often ship equal or zero because the actor has not moved yet, not because
+their roles are unknowable. `observed`
