@@ -72,6 +72,27 @@ sheet's bonus curve, and a weapon whose skill is worth only 10% barely
 gains from training. `observed` for both tables; which percentage answers
 which of this engine's skill names is not yet joined. `unknown`
 
+## The weapon path, read from the other side
+
+`0x47e810` is the getter the to-hit routine calls whenever a weapon is
+involved, and it confirms the shape read at `0x47e270` rather than
+replacing it: it takes the equipped **weapon slot index at `+0x142c`**,
+reads that slot's item id at `+0x128 + n × 28`, and — for anything but
+the two blaster ids 64 and 65 — computes from the same pair of tables,
+asking the stat dispatcher for **stat 4** (base and bonused) and scaling
+the skill by the byte at `0x4c27fc`. The blaster branch at `0x47e9cc`
+takes a different road: it adds the word at `+0x36` and bands the result
+against a four-entry threshold table at `0x4c2834` — **50, 100, 150,
+65535** — before applying the same percentage. `observed`
+
+The skill chosen is not the weapon's: the helper at `0x482d30` walks the
+same fourteen-entry priority list at `0x4c276c` and returns the **first
+skill the character actually has**, reading each from `+0x1380 + id × 8`.
+So the id puzzle stands — the walk is over a fixed priority order, not a
+weapon-to-skill map — but the formula's shape is now confirmed from both
+callers: **stat 4, plus a skill scaled by a per-skill percentage.**
+`observed`
+
 ## The skill block, and a join that did not land
 
 The attack-bonus getter walks a list of skill ids and reads each one out

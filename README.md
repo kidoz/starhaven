@@ -1072,6 +1072,14 @@ interoperability and compatibility with a legally purchased copy.
   plain bar, so archery against armour asks for skill exactly the way
   the traced arithmetic says it should — and the spell paths stay on the
   plain bar, which is what the call sites show.
+- **The weapon path confirms the formula from the other side**: the
+  getter the to-hit routine uses when a weapon is involved reads the
+  equipped weapon slot, then computes exactly as its sibling does —
+  stat 4 plus a skill scaled by the per-skill percentage — with a
+  separate branch for the two blasters that bands a value against
+  thresholds 50/100/150 first. The skill it scales is the first one the
+  character *has* off a fixed priority list, not the weapon's own, which
+  is why the id-to-name join keeps failing.
 - **The skill-name join came up empty, with a finding beside it**: the
   percentages could not be matched to skill names — the executable's
   priority list interleaves armour skills and magic schools in an order
