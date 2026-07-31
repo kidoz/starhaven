@@ -415,3 +415,34 @@ the sign of a floating-point constant. `observed`
 `+0x7a` is what the offset scales — the actor's own radius, on the evidence
 of how it is used — and `+0x7e`/`+0x80`/`+0x82` are its position triple.
 `inferred` for the names, `observed` for the arithmetic.
+
+## The 6a/6b pair: approach, and a raised aim
+
+The two state-6 actions are near-identical and differ in **one condition**,
+which is the same trick that named closing and backing off.
+
+Both test a flag byte at **`+0x46`** and, when it is set, aim not at the
+party's own height but at **`word[+0x78] + 512`** — five hundred and twelve
+units above it — before handing the point to the pathfinder at `0x4046f0`.
+When the flag is clear both aim at the party's height from `0x908c70`.
+`observed` at `0x402724` and `0x4029ad`.
+
+The only difference: **`0x402960` additionally requires the world kind at
+`0x6107d4` to be 2** before it will use the raised aim. `0x4026e0` does not.
+
+So the pair is one behaviour — approach — in two forms, one of which only
+rises in one kind of world. A flag that lifts an actor's aim half a thousand
+units, gated on being outdoors, is what flying looks like, and
+`MONSTERS.TXT` has a `Fly` column; but that is the shape of the reading, not
+the instruction, so **`+0x46` is `inferred` to be the fly flag** and the
+arithmetic alone is `observed`.
+
+### The 1 / 1+3 pair, attempted
+
+Less conclusive, and recorded as such. `0x4038f0` ends by zeroing the
+velocity triple at `+0x84`, `+0x86`, `+0x88`, setting a facing of **256** at
+`+0x90`, and writing **zero** into the state word — so it is a *stop*, and
+the earlier scan that filed it under "sets state 1" caught a different write
+in the same body. `0x403b60` compares two pairs of words — `+0x92`/`+0x94`
+against `+0x7e`/`+0x80` — which is the shape of testing one position against
+another. Neither is named. `unknown`

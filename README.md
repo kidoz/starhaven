@@ -1193,6 +1193,15 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **Two more AI actions named, by the same trick**: the state-6 pair is
+  near-identical and differs in one condition. Both test a flag at `+0x46`
+  and, when set, aim **512 units above** the party rather than at it; the
+  second additionally requires the world kind to be outdoors first. So the
+  pair is one behaviour — approach — in two forms, one of which only rises
+  outdoors. A flag that lifts an actor's aim half a thousand units, gated on
+  being outdoors, is what flying looks like and `MONSTERS.TXT` has a `Fly`
+  column — but by the rule the audit just wrote down, that name is `inferred`
+  and only the arithmetic is `observed`.
 - **An audit of claims named from a fit, and one was wrong**: the
   load-bearing combat claims were re-derived from their instructions rather
   than from how their numbers read. The **to-hit roll** came back exact, and
