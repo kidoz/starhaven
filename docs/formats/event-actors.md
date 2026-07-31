@@ -151,3 +151,36 @@ not start from the same wrong assumption. `unknown` for the states' meanings.
 Two neighbouring dispatches were identified along the way and are not the
 AI: `0x432750` applies one of ten effects to an actor named by the packed
 handle, and `0x42fb85` is a 170-case dispatch on an unrelated id range.
+
+## Following one behaviour, and why it does not isolate
+
+The follow-up to the "no switch" finding was to pick a single question —
+what makes a monster flee — and follow it from the state word to whatever
+reads it. Three states came out of it, and the question did not.
+
+- **State 4 is acting.** Entered at `0x403094` together with a sub-state 5
+  in the word at `+0xa2`, the action timer at `+0xa8` cleared, and a value
+  read from `+0xb6`. The recovery countdown at `0x401b5d` transitions **4 to
+  5** when the counter lapses, so acting and recovered are a pair.
+- **State 7 is moving.** `0x40302e` sets the velocity words `+0x8a` and
+  `+0x8c` and calls the mover at `0x44c140`.
+- **State 9 is standing.** `0x40365d` clears the velocity triple at `+0x84`,
+  `+0x86` and `+0x88`, sets a facing at `+0x90` from a table, and rolls a
+  five-in-a-hundred chance.
+- The cluster chooses between two behaviours on a **distance of 1024**
+  (`0x402317`), calling `0x402960` when nearer and `0x402b30` when further,
+  both with the same kind argument.
+
+**Fleeing was not found, and the reason is structural.** No state sets a
+facing away from the party, and nothing in the cluster turns a direction by
+a half-circle. The states are *movement* states — acting, moving, standing —
+shared by every behaviour, and what would distinguish fleeing from
+approaching is the target handed to the mover, not the state. So a single
+behaviour cannot be lifted out: the trail runs through the movement code and
+stops.
+
+Taken with the previous finding, the answer for future batches is that **the
+AI must be read wholesale or not at all** — there is neither a dispatch to
+enumerate nor a behaviour that can be isolated. Anyone spending a batch on it
+should plan to read the cluster function by function, and should not expect a
+table. `unknown` for every behaviour.

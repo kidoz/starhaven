@@ -1165,6 +1165,15 @@ interoperability and compatibility with a legally purchased copy.
   modifier + spell bonus + gear bonus**, and the ladder applies to that sum.
   The engine had the variable run starting one too high, so a script raising
   Might raised nothing; both runs now land.
+- **The gamble: one behaviour cannot be lifted out either**: following "what
+  makes a monster flee" from the state word named three states — **4 acting**
+  (paired with 5 recovered by the countdown), **7 moving**, **9 standing** —
+  and a distance of 1024 that picks between two behaviours. But fleeing was
+  not found, and the reason is structural: the states are *movement* states
+  shared by everything, and what would distinguish fleeing from approaching
+  is the target handed to the mover, not the state. Taken with the previous
+  visit, the answer is that the AI must be read **wholesale or not at all**,
+  which is worth knowing before another batch is spent on it.
 - **The gamble: the AI has no switch to find**: three visits have gone
   looking for the monster AI's decision point on the assumption that
   something that large would dispatch through a table, as the spell code and
