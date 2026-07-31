@@ -1085,6 +1085,14 @@ interoperability and compatibility with a legally purchased copy.
   placeholders): 3,541 placed actors, 1,100 chests, 767 doors, 4,701
   lights, 537 establishments. It exits nonzero on the first map that
   fails, and the workflow runs it wherever a real install is present.
+- **The area spells strike the crowd**: a damaging spell's reach is now
+  read from its own prose — "targets a single monster, but explodes to
+  hurt anyone else caught in the blast" and "a large radius surrounding
+  your chosen target" burst around what was aimed at, "all creatures in
+  sight" takes the room, everything else stays a dart — and the blow
+  rolls separately on each victim, answered by its own resistance. The
+  blast's distance is the engine's, since the prose names a blast
+  without measuring it.
 - **The class and skill numbering closed — and cast a doubt**: both runs
   live in `GLOBAL.TXT` and the executable indexes them by id (class =
   row 253 + id, skill = row 271 + id), which independently confirms

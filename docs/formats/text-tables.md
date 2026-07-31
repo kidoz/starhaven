@@ -999,6 +999,20 @@ The reader rejects, deterministically and without reading out of bounds:
 A cell request outside the table returns an empty string rather than failing,
 because ragged rows make out-of-range reads normal rather than exceptional.
 
+## A spell's reach, in its own words
+
+`Spells.txt`'s descriptions divide the damaging spells three ways, and
+the phrases are the designers' own: **"all creatures in sight"** and
+"all monsters in sight" (Inferno, Prismatic Light, Moon Ray, Mass Fear,
+Mass Curse, Dispel Magic) take everything on the map; **"explodes to
+hurt anyone else caught in the blast"**, "a large radius surrounding
+your chosen target", "damage all creatures nearby" and "damages all
+monsters it contacts" (Fireball, Meteor Shower, Death Blossom, Rock
+Blast, Dragon Breath, Ring of Fire) burst around the target; the rest
+name a single victim. `observed` for the phrases, `inferred` for reading
+them as three reaches. The burst's radius is stated nowhere and is the
+engine's own number.
+
 ## Whether a blow lands, traced
 
 The original's to-hit routine sits at `0x421cb0`, one function above the

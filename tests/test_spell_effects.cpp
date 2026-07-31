@@ -63,6 +63,27 @@ TEST_CASE("healing reads from the rank cell first, then the description", "[spel
     REQUIRE(touch.heal.high == 7);
 }
 
+TEST_CASE("a spell's reach is read from its own prose", "[spells]") {
+    // The designers' own words: a single target unless the description
+    // says the blast catches others or names everything in sight.
+    REQUIRE(parse_spell_effect(spell("Does 5 points of damage."), 0).reach ==
+            SpellReach::Single);
+    REQUIRE(parse_spell_effect(
+                spell("targets a single monster, but explodes to hurt anyone else caught in "
+                      "the blast."),
+                0)
+                .reach == SpellReach::Blast);
+    REQUIRE(parse_spell_effect(spell("Summons flaming rocks from the sky in a large radius "
+                                     "surrounding your chosen target."),
+                               0)
+                .reach == SpellReach::Blast);
+    REQUIRE(parse_spell_effect(
+                spell("Inflicts 25 points of damage plus 1 per point of skill on all "
+                      "creatures in sight."),
+                0)
+                .reach == SpellReach::Sight);
+}
+
 TEST_CASE("prose without numbers casts nothing", "[spells]") {
     REQUIRE(parse_spell_effect(spell("Halves damage from incoming ranged attacks."), 0).empty());
     REQUIRE(parse_spell_effect(

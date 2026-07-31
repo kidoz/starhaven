@@ -2797,6 +2797,7 @@ int main(int argc, char** argv) {
         std::string element;
         std::string caster;
         std::string burst;  // the X group, empty when the table has none
+        data::SpellReach reach = data::SpellReach::Single;  // what the prose reaches
     };
     std::vector<SpellShot> spell_shots;
     struct SpellBurst {
@@ -5451,6 +5452,7 @@ int main(int argc, char** argv) {
                         shot.per_skill = effect.damage_per_skill;
                         shot.skill = points;
                         shot.element = spell->element;
+                        shot.reach = effect.reach;
                         shot.caster = caster.name;
                         shot.flight.animation =
                             game::spell_sprite_group(spell->school, spell->number);
@@ -5547,6 +5549,7 @@ int main(int argc, char** argv) {
                         shot.per_skill = best_effect.damage_per_skill;
                         shot.skill = spell_skill_of(caster, *best);
                         shot.element = best->element;
+                        shot.reach = best_effect.reach;
                         shot.caster = caster.name;
                         // A school with no projectile group flies unseen
                         // rather than borrowing another school's art.
@@ -5922,10 +5925,10 @@ int main(int argc, char** argv) {
                     spell_bursts.push_back(
                         {shot.burst, shot.flight.target, SDL_GetTicks() + 400});
                 }
-                if (std::string blow = battle.smite(
+                if (std::string blow = battle.smite_area(
                         shot.target, shot.flat, shot.per_skill, shot.skill, shot.element,
-                        shot.caster, session, monster_stats, item_stats, random_items,
-                        standard_bonuses, special_bonuses);
+                        shot.caster, shot.reach, session, monster_stats, item_stats,
+                        random_items, standard_bonuses, special_bonuses);
                     !blow.empty()) {
                     pick_up_message = std::move(blow);
                     pick_up_shown = SDL_GetTicks();

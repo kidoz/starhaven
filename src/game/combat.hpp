@@ -580,6 +580,55 @@ public:
     // A spell's blow at one monster: the prose's flat part, plus one roll of
     // the scaling part per point of skill, answered by the resistance of the
     // spell's own element.
+    // A spell that reaches past its target: everything alive within the
+    // burst takes the same roll, answered by its own resistance. The
+    // radius is the engine's own — the prose names a blast without
+    // measuring it — and "in sight" is read as the whole map, which is
+    // what the words say. `inferred` for the distance.
+    static constexpr float kBlastRadius = 512.0f;
+
+    std::string smite_area(std::size_t actor, const data::SpellRange& flat,
+                           const data::SpellRange& per_skill, int skill,
+                           std::string_view element, const std::string& caster,
+                           data::SpellReach reach, const world::MapSession& session,
+                           const data::MonsterStatsTable& monsters,
+                           const data::ItemStatsTable& items,
+                           const data::RandomItemTable& random_items,
+                           const data::StandardBonusTable& standard_bonuses,
+                           const data::SpecialBonusTable& special_bonuses) {
+        std::string last = smite(actor, flat, per_skill, skill, element, caster, session,
+                                 monsters, items, random_items, standard_bonuses,
+                                 special_bonuses);
+        if (reach == data::SpellReach::Single || actor >= session.actors.size()) {
+            return last;
+        }
+        const render::Vec3 centre = session.actors[actor].position;
+        std::size_t caught = 0;
+        for (std::size_t i = 0; i < session.actors.size(); ++i) {
+            if (i == actor || !alive(i)) {
+                continue;
+            }
+            if (reach == data::SpellReach::Blast) {
+                const render::Vec3& at = session.actors[i].position;
+                const float dx = at.x - centre.x;
+                const float dy = at.y - centre.y;
+                const float dz = at.z - centre.z;
+                if (dx * dx + dy * dy + dz * dz > kBlastRadius * kBlastRadius) {
+                    continue;
+                }
+            }
+            if (!smite(i, flat, per_skill, skill, element, caster, session, monsters, items,
+                       random_items, standard_bonuses, special_bonuses)
+                     .empty()) {
+                ++caught;
+            }
+        }
+        if (caught > 0) {
+            last += "  (" + std::to_string(caught) + " more caught)";
+        }
+        return last;
+    }
+
     std::string smite(std::size_t actor, const data::SpellRange& flat,
                       const data::SpellRange& per_skill, int skill, std::string_view element,
                       const std::string& caster, const world::MapSession& session,

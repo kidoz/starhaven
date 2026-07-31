@@ -12,6 +12,7 @@
 // parses to an empty effect and stays beyond this slice.
 
 #include <cctype>
+#include <cstdint>
 #include <string_view>
 
 #include "core/data/spell_stats.hpp"
@@ -28,10 +29,18 @@ struct SpellRange {
 
 // What one spell does, as far as its prose states it: a flat part, a part
 // per point of skill, or a healing amount.
+// How wide a damaging spell reaches, by its own prose.
+enum class SpellReach : std::uint8_t {
+    Single,  // "targets a single monster"
+    Blast,   // "explodes to hurt anyone else caught in the blast"
+    Sight,   // "all monsters in sight", "all creatures in sight"
+};
+
 struct SpellEffect {
     SpellRange heal;
     SpellRange damage;            // the flat part
     SpellRange damage_per_skill;  // the part that scales
+    SpellReach reach = SpellReach::Single;
 
     [[nodiscard]] bool empty() const noexcept {
         return heal.empty() && damage.empty() && damage_per_skill.empty();
@@ -142,6 +151,22 @@ namespace detail {
             }
             out.heal = {};
         }
+    }
+
+    // How far it reaches, in the designers' own words: "all monsters in
+    // sight" and "all creatures in sight" name the whole room; "explodes",
+    // "blast", "large radius" and "damage all creatures nearby" name a
+    // burst around what was aimed at; everything else is one target.
+    // `observed` for the phrases, `inferred` for the two-way split.
+    if (find_ignoring_case(text, "in sight") != std::string_view::npos ||
+        find_ignoring_case(text, "in the casters sight") != std::string_view::npos) {
+        out.reach = SpellReach::Sight;
+    } else if (find_ignoring_case(text, "explode") != std::string_view::npos ||
+               find_ignoring_case(text, "blast") != std::string_view::npos ||
+               find_ignoring_case(text, "large radius") != std::string_view::npos ||
+               find_ignoring_case(text, "creatures nearby") != std::string_view::npos ||
+               find_ignoring_case(text, "it contacts") != std::string_view::npos) {
+        out.reach = SpellReach::Blast;
     }
 
     // Damage: a flat part after "does"/"damage is", and a scaling part when
