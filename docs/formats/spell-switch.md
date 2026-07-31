@@ -1,6 +1,6 @@
 # The spell switch (`MM6.exe`, runtime)
 
-Status: **three schools read in full, and the machinery around every case.** Not a file format: this is the
+Status: **six schools read, and the machinery around every case.** Not a file format: this is the
 executable's own per-spell code, reached while chasing the recovery tick.
 Every claim is tagged `observed` (read from an instruction) or `inferred`.
 
@@ -94,16 +94,66 @@ executable's alone:
   their own rows use. So there are two ladders and the choice is per spell.
   StarHaven follows the executable for both. `observed`
 
-## Spirit, in part
+## Spirit, Mind and Light
 
-Read far enough to settle the ladder question and no further, so what is
-here is what is measured. **Lucky Day** (`0x42699c`) grants
-`10 + 2 × points`, `10 + 3` at expert, and reaches the whole party at
-master — the same shape Speed and Power take, and exactly what its row
-says. **Remove Curse**, **Raise Dead** and **Resurrection** are the three
-cures above. The school's remaining seven cases were not decoded to a
-standard worth recording, and are `unknown`; so are Mind's and Light's,
-which this sitting did not reach.
+| Id | Spell | Case | What the case computes |
+| --- | --- | --- | --- |
+| 46 | Bless | `0x4266e4` | `+points`, for **64 min + 5 a point**, 15 at master |
+| 47 | Healing Touch | `0x4268fa` | three branches; the amounts not decoded |
+| 48 | Lucky Day | `0x42698d` | **10 + 2 (expert 3) × points**, party at master |
+| 49 | Remove Curse | `0x426b01` | window **180 / 3600 / 86400 s** a point |
+| 50 | Guardian Angel | `0x426b97` | **3600 s** a point |
+| 51 | Heroism | `0x426c21` | identical to Bless |
+| 52 | Turn Undead | `0x426e16` | **180 × points + 3** |
+| 53 | Raise Dead | `0x427009` | window **180 / 3600 / 86400 s** a point |
+| 54 | Shared Life | `0x4270ea` | **1 / 2 / 3 ×** points |
+| 55 | Resurrection | `0x427275` | window **180 / 10800 / 259200 s** a point |
+| 56 | Meditation | `0x427359` | **10 + 2 (3) × points**, **3600 s** a point |
+| 57 | Remove Fear | `0x427534` | window **180 / 10800 / 259200 s** a point |
+| 59 | Precision | `0x4275cd` | identical to Meditation |
+| 60 | Cure Paralysis | `0x427741` | window **180 / 10800 / 259200 s** a point |
+| 62 | Mass Fear | `0x427819` | **180 × points** |
+| 64 | Cure Insanity | `0x4279fc` | window **180 / 10800 / 259200 s** a point |
+| 66 | Telekinesis | `0x427b38` | **1 / 2 / 3 ×** points |
+| 78 | Create Food | `0x4285f8` | **1 / 2 / 3 ×** points |
+| 79 | Golden Touch | `0x4286bc` | **40 / 60 / 80** percent |
+| 83 | Day of the Gods | `0x428a43` | **2 / 3 / 4 × points + 10**, for **2 / 3 / 4 hours** a point |
+| 88 | Divine Intervention | `0x428fdc` | **1 / 2 / 3** casts a day |
+
+`observed` throughout. Dispel Magic (80), Prismatic Light (84) and Sun Ray
+(87) carry no mastery constants in their cases, and Healing Touch's three
+branches were not decoded; those four are `unknown`.
+
+**Every figure the rows state, the executable matches.** Golden Touch's
+"40% gold value", Divine Intervention's "once per day", Telekinesis'
+"1 point per point of skill", Create Food's "1 day per 10 points",
+Meditation's and Precision's "10 points plus 2 per point" with the party at
+master, Shared Life's "1 hit point per point to the pool", Bless's and
+Heroism's "1 hour + 5 minutes per point" and "+ 15" at master, Day of the
+Gods' "twice skill".
+
+Three things the rows do not carry:
+
+- **The hour a point** that Guardian Angel, Meditation and Precision each
+  last — the same figure Body's and Fire's buffs keep.
+- **The ten** Day of the Gods and Hour of Power add on top of their
+  multiple of the skill.
+- **Bless and Heroism's real base**, sixty-four minutes rather than the hour
+  their rows round to — the same four-minute overrun Haste has.
+
+One number is recorded with a doubt: Hour of Power's case sets 2 and 3 for
+the lower ranks, matching its row, but **12** at master where the row says
+four. What the twelve is for is `unknown`, and nothing has been built on it.
+
+## Which cures use which ladder
+
+With all the timed cures now read, the split is complete. **Remove Curse and
+Raise Dead** use the plain ladder — three minutes, one hour, one day a
+point, exactly their rows. **Cure Weakness, Cure Poison, Cure Disease,
+Remove Fear, Cure Paralysis, Cure Insanity and Resurrection** use the
+three-of-each ladder — three minutes, three hours, three days — where their
+rows say one hour and one day. Seven against two, and the rows are wrong
+about the seven. `observed`
 
 ## What First Aid gave away
 

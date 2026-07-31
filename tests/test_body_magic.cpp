@@ -7,6 +7,7 @@
 #include "game/body_magic.hpp"
 #include "game/fire_dark.hpp"
 #include "game/spell_switch.hpp"
+#include "game/spirit_mind_light.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
@@ -175,4 +176,50 @@ TEST_CASE("a timed cure uses one of two ladders", "[body]") {
     REQUIRE(cure_window_minutes(4, 0, kSpellCureDisease) == 12);
     REQUIRE(cure_uses_plain_ladder(49));
     REQUIRE_FALSE(cure_uses_plain_ladder(55));
+}
+
+TEST_CASE("Spirit, Mind and Light agree with their rows", "[body]") {
+    // The one-two-three ladder four spells share.
+    REQUIRE(by_school_rank(kOneTwoThreeAPoint, 0) == 1);
+    REQUIRE(by_school_rank(kOneTwoThreeAPoint, 2) == 3);
+    // Lucky Day, Meditation and Precision take Speed's and Power's shape.
+    REQUIRE(ten_plus_ladder(5, 0) == 20);
+    REQUIRE(ten_plus_ladder(5, 1) == 25);
+    REQUIRE(ten_plus_ladder(5, 2) == 25);
+    REQUIRE(ten_plus_ladder(5, 0) == body_stat_bonus(5, 0));
+    // Golden Touch and Divine Intervention, straight off their rows.
+    REQUIRE(by_school_rank(kGoldenTouchPercent, 0) == 40);
+    REQUIRE(by_school_rank(kGoldenTouchPercent, 2) == 80);
+    REQUIRE(by_school_rank(kDivineInterventionPerDay, 0) == 1);
+    REQUIRE(by_school_rank(kDivineInterventionPerDay, 2) == 3);
+    // Day of the Gods multiplies by two, three or four — and adds a ten the
+    // row never mentions.
+    REQUIRE(day_of_the_gods(10, 0) == 30);
+    REQUIRE(day_of_the_gods(10, 1) == 40);
+    REQUIRE(day_of_the_gods(10, 2) == 50);
+}
+
+TEST_CASE("Bless and Heroism keep Haste's own base", "[body]") {
+    // Sixty-four minutes, not the hour the rows round to, then five a point
+    // and fifteen at master.
+    REQUIRE(kBlessBaseMinutes == kHasteBaseMinutes);
+    REQUIRE(bless_minutes(0, 0) == 64);
+    REQUIRE(bless_minutes(10, 0) == 114);
+    REQUIRE(bless_minutes(10, 1) == 114);
+    REQUIRE(bless_minutes(10, 2) == 214);
+    // And the hour-a-point buffs are the same figure across every school.
+    REQUIRE(kSchoolBuffMinutesPerPoint == kBodyBuffMinutesPerPoint);
+    REQUIRE(kSchoolBuffMinutesPerPoint == kFireBuffMinutesPerPoint);
+}
+
+TEST_CASE("the two cure ladders sort the whole game's cures", "[body]") {
+    // Only Remove Curse and Raise Dead keep the plain one.
+    for (const int id : {kSpellRemoveCurse, kSpellRaiseDead}) {
+        REQUIRE(cure_uses_plain_ladder(id));
+    }
+    for (const int id : {kSpellCureWeakness, kSpellCurePoison, kSpellCureDisease,
+                         kSpellRemoveFear, kSpellCureParalysis, kSpellCureInsanity,
+                         kSpellResurrection}) {
+        REQUIRE_FALSE(cure_uses_plain_ladder(id));
+    }
 }

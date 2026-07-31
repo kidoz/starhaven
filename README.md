@@ -1109,6 +1109,17 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **Spirit, Mind and Light, finished**: twenty-one more cases, and every
+  figure their rows state the executable matches — Golden Touch's 40/60/80
+  percent, Divine Intervention's one, two and three casts a day,
+  Telekinesis' and Shared Life's and Create Food's one, two and three a
+  point, Meditation's and Precision's ten plus two. Three things the rows
+  never say: the hour a point the buffs run, the ten Day of the Gods adds on
+  top of its multiple, and Bless and Heroism's real sixty-four-minute base.
+  With every timed cure now read the ladder question closes too: seven of
+  the nine forgive three minutes, three hours and three days a point where
+  their rows claim one hour and one day; only Remove Curse and Raise Dead
+  say what they mean.
 - **The stat block read off, and the gamble half paid**: the base getter's
   jump table gives one field per id, and the twenty-three split four ways —
   an eight-field attribute run confirming Might through Luck from the other
