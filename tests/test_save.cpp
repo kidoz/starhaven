@@ -278,3 +278,29 @@ TEST_CASE("a wand's charges ride the save", "[save]") {
     REQUIRE(after.party[0].worn_charges[0] == 37);
     REQUIRE(after.packs[3][0].charges == 12);
 }
+
+TEST_CASE("the buff arrays and the level survive a round trip", "[save]") {
+    SaveState out;
+    out.map_file = "OutE3.Odm";
+    // The party's own slots, and one character's.
+    out.party_buffs.cast(PartyBuff::ProtectionFromFire, 900, 12, 4);
+    out.party_buffs.cast(PartyBuff::WizardEye, 1200, 3, 3);
+    out.party[1].buffs.cast(CharacterBuff::Speed, 700, 22);
+    out.party[1].buffs.cast(CharacterBuff::PowerMight, 700, 25);
+    out.party[2].level = 7;
+    out.party[2].experience = 21000;
+
+    SaveState back;
+    REQUIRE(parse_save(save_text(out), back));
+
+    REQUIRE(back.party_buffs.power(PartyBuff::ProtectionFromFire, 0) == 12);
+    REQUIRE(back.party_buffs.until(static_cast<std::size_t>(PartyBuff::ProtectionFromFire)) == 900);
+    REQUIRE(back.party_buffs.power(PartyBuff::WizardEye, 0) == 3);
+    // An empty slot stays empty rather than arriving as a lapsed one.
+    REQUIRE(back.party_buffs.until(static_cast<std::size_t>(PartyBuff::Fly)) == 0);
+    REQUIRE(back.party[1].buffs.power(CharacterBuff::Speed, 0) == 22);
+    REQUIRE(back.party[1].buffs.power(CharacterBuff::PowerMight, 0) == 25);
+    REQUIRE(back.party[0].buffs.power(CharacterBuff::Speed, 0) == 0);
+    REQUIRE(back.party[2].level == 7);
+    REQUIRE(back.party[2].experience == 21000);
+}

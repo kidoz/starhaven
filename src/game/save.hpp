@@ -91,6 +91,9 @@ struct SaveState {
     };
     std::vector<RememberedMap> remembered;
     std::array<Character, 4> party{};
+    // The party's own sixteen buff slots; each character's sixteen ride
+    // along inside the Character itself.
+    PartyBuffs party_buffs{};
     std::array<std::vector<PackedItem>, 4> packs{};
     std::vector<int> opened_chests;
     std::vector<std::uint32_t> open_doors;
@@ -180,6 +183,14 @@ struct SaveState {
     for (const std::uint32_t door : state.open_doors) {
         out << "door\t" << door << "\n";
     }
+    // The party's own sixteen, before the characters.
+    for (std::size_t slot = 0; slot < kPartyBuffCount; ++slot) {
+        if (state.party_buffs.until(slot) != 0) {
+            out << "partybuff\t" << slot << "\t" << state.party_buffs.until(slot) << "\t"
+                << state.party_buffs.raw_power(slot) << "\t"
+                << state.party_buffs.raw_skill(slot) << "\n";
+        }
+    }
     for (std::size_t i = 0; i < state.party.size(); ++i) {
         const Character& who = state.party[i];
         out << "character\t" << i << "\t" << who.face << "\t" << who.level << "\t"
@@ -224,6 +235,14 @@ struct SaveState {
         }
         for (const auto& [skill, points] : who.skills) {
             out << "skill\t" << i << "\t" << points << "\t" << skill << "\n";
+        }
+        // The character's sixteen buff slots, one record each; an empty slot
+        // is skipped, so a party with no spells up costs nothing.
+        for (std::size_t slot = 0; slot < kCharacterBuffCount; ++slot) {
+            if (who.buffs.until(slot) != 0) {
+                out << "buff\t" << i << "\t" << slot << "\t" << who.buffs.until(slot) << "\t"
+                    << who.buffs.raw_power(slot) << "\n";
+            }
         }
         out << "temps\t" << i << "\t" << who.temp_armor << "\t" << who.haste_until << "\t"
             << who.bless_until << "\t" << who.heroism_until << "\t" << who.stone_skin_until;
@@ -419,6 +438,20 @@ struct SaveState {
                 if (!cell.empty()) {
                     out.party[i].known_spells.insert(std::stoi(cell));
                 }
+            }
+        } else if (kind == "partybuff") {
+            const auto slot = static_cast<std::size_t>(next_int());
+            const std::int64_t until = next_int();
+            const int power = next_int();
+            const int skill = next_int();
+            out.party_buffs.cast(static_cast<int>(slot), until, power, skill);
+        } else if (kind == "buff") {
+            const auto i = static_cast<std::size_t>(next_int());
+            const auto slot = static_cast<std::size_t>(next_int());
+            const std::int64_t until = next_int();
+            const int power = next_int();
+            if (i < out.party.size()) {
+                out.party[i].buffs.cast(slot, until, power);
             }
         } else if (kind == "temps") {
             const auto i = static_cast<std::size_t>(next_int());

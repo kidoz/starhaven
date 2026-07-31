@@ -141,6 +141,18 @@ public:
     [[nodiscard]] const BuffSlot& at(std::size_t slot) const noexcept { return slots_[slot]; }
     [[nodiscard]] BuffSlot& at(std::size_t slot) noexcept { return slots_[slot]; }
 
+    // The stored fields, whatever the clock says — for the save file, which
+    // must write a slot that has not lapsed yet and nothing else.
+    [[nodiscard]] std::int64_t until(std::size_t slot) const noexcept {
+        return slot < kPartyBuffCount ? slots_[slot].until : 0;
+    }
+    [[nodiscard]] int raw_power(std::size_t slot) const noexcept {
+        return slot < kPartyBuffCount ? slots_[slot].power : 0;
+    }
+    [[nodiscard]] int raw_skill(std::size_t slot) const noexcept {
+        return slot < kPartyBuffCount ? slots_[slot].skill : 0;
+    }
+
     // What the protections add to one of the five resistance columns, by the
     // order `MONSTERS.TXT` writes them.
     [[nodiscard]] int resistance(std::size_t column, std::int64_t now) const noexcept {
@@ -314,6 +326,13 @@ public:
         return power(slot, now) > 0 ||
                (static_cast<std::size_t>(slot) < kCharacterBuffCount &&
                 slots_[static_cast<std::size_t>(slot)].until > now);
+    }
+
+    [[nodiscard]] std::int64_t until(std::size_t slot) const noexcept {
+        return slot < kCharacterBuffCount ? slots_[slot].until : 0;
+    }
+    [[nodiscard]] int raw_power(std::size_t slot) const noexcept {
+        return slot < kCharacterBuffCount ? slots_[slot].power : 0;
     }
 
     void clear() noexcept { slots_ = {}; }

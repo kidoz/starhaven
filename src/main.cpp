@@ -4272,6 +4272,7 @@ int main(int argc, char** argv) {
                     state.remembered.push_back(std::move(here));
                 }
                 state.party = party;
+                state.party_buffs = party_buffs;
                 for (std::size_t i = 0; i < packs.size(); ++i) {
                     state.packs[i] = packs[i].items();
                 }
@@ -4384,6 +4385,7 @@ int main(int argc, char** argv) {
                     script_state.npc_places = state.npc_places;
                     script_state.autonotes = state.autonotes;
                     party = state.party;
+                    party_buffs = state.party_buffs;
                     for (std::size_t i = 0; i < packs.size(); ++i) {
                         packs[i].clear();
                         for (const auto& item : state.packs[i]) {

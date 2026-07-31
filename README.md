@@ -1143,6 +1143,11 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **The new work survives a save**: the party's sixteen slots and every
+  character's sixteen now write as their own records — an empty slot costs
+  nothing, so an unbuffed party's file is unchanged — and the level and
+  banked experience were already carried. A sitting or a session no longer
+  throws away three batches of work on reload.
 - **All twelve character buff slots, and the ladder finally moves a stat**:
   every case loads the array's base as an immediate before calling the
   setter, which gives the whole map at once — Bless 0, Heroism 1, Haste 2,
