@@ -1055,6 +1055,14 @@ interoperability and compatibility with a legally purchased copy.
   loader at 0x446d48 has no per-column jump table to read field offsets
   from, the constant 140 appears as an immediate nowhere in the code,
   and the two AI clusters hold rolls but no recovery arithmetic.
+- **The player record, mapped from the traces**: three separate digs kept
+  re-deriving the same offsets, so they are now written down —
+  `docs/formats/player-record.md` collects the resistance bytes, the
+  armour class the to-hit roll reads, the packed skill byte, the
+  equipped-slot arrays with their broken-flag bit, and the stat
+  dispatcher at 0x482e80 whose 23-id jump table shows how any stat is
+  fetched with its bonuses. The recovery field is named as the one thing
+  still missing.
 - **The hit roll traced, and the oldest guess retired**: the routine at
   0x421cb0 — one function above the resistance rule — rolls
   `rand() % (armour + 2*attack + 30)` against a bar the blow's kind

@@ -48,6 +48,7 @@ nav:
       - Texture frame table: formats/dtft.md
       - Interface panels: formats/interface-panels.md
       - Paperdoll: formats/paperdoll.md
+      - The player record: formats/player-record.md
   - Rendering:
       - Software rasterizer: rendering/software-rasterizer.md
       - Terrain coloring: rendering/terrain-coloring.md
