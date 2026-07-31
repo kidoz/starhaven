@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "game/body_magic.hpp"
+#include "game/spell_switch.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
@@ -80,4 +81,39 @@ TEST_CASE("the school's voices step by ten from seven thousand", "[body]") {
     REQUIRE(body_spell_sound(kSpellCurePoison) == 7050);
     REQUIRE(body_spell_sound(kSpellCureDisease) == 7070);
     REQUIRE(body_spell_sound(kSpellPowerCure) == 7100);
+}
+
+TEST_CASE("the executable's own list of aimed spells", "[body]") {
+    // Forty-seven of the ninety-nine are thrown at the world.
+    REQUIRE(kAimedSpells.size() == 47);
+    // Every direct-damage spell.
+    REQUIRE(spell_is_aimed(2));    // Flame Arrow
+    REQUIRE(spell_is_aimed(18));   // Lightning Bolt
+    REQUIRE(spell_is_aimed(70));   // Harm, the Body school's own
+    REQUIRE(spell_is_aimed(97));   // Dragon Breath
+    // And the aimed status spells, which carry no damage at all.
+    REQUIRE(spell_is_aimed(42));   // Turn to Stone
+    REQUIRE(spell_is_aimed(61));   // Charm
+    REQUIRE(spell_is_aimed(81));   // Slow
+    REQUIRE(spell_is_aimed(86));   // Paralyze
+    // The party-facing spells are not on it.
+    REQUIRE_FALSE(spell_is_aimed(kSpellFirstAid));
+    REQUIRE_FALSE(spell_is_aimed(kSpellCureWounds));
+    REQUIRE_FALSE(spell_is_aimed(kSpellSpeed));
+    REQUIRE_FALSE(spell_is_aimed(1));    // Torch Light
+    REQUIRE_FALSE(spell_is_aimed(0));    // no such spell
+    REQUIRE_FALSE(spell_is_aimed(100));  // nor this
+    // The list is sorted and free of repeats, as the byte table it came from.
+    for (std::size_t i = 1; i < kAimedSpells.size(); ++i) {
+        REQUIRE(kAimedSpells[i] > kAimedSpells[i - 1]);
+    }
+}
+
+TEST_CASE("the object handle packs an index over a kind", "[body]") {
+    // A party member is kind 4, an actor kind 3, both shifted up three bits.
+    REQUIRE(packed_handle(0, kHandleKindPartyMember) == 4);
+    REQUIRE(packed_handle(3, kHandleKindPartyMember) == 28);
+    REQUIRE(packed_handle(1, kHandleKindActor) == 11);
+    REQUIRE((packed_handle(17, kHandleKindActor) >> 3) == 17);
+    REQUIRE((packed_handle(17, kHandleKindActor) & 7) == kHandleKindActor);
 }

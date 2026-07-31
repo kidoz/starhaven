@@ -35,6 +35,7 @@
 #include "core/world/texture_frame_table.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/body_magic.hpp"
+#include "game/spell_switch.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
 #include "game/conversation.hpp"
@@ -5582,6 +5583,15 @@ int main(int argc, char** argv) {
                     if (caster.spell_points < cost) {
                         pick_up_message = caster.name + " lacks the spell points for " +
                                           data::cp1252_to_utf8(spell->name);
+                        pick_up_shown = SDL_GetTicks();
+                        cast = true;
+                        break;
+                    }
+                    // The executable keeps its own list of which spells are
+                    // thrown at the world; one of those with nothing in
+                    // reach is not cast at all, and costs nothing.
+                    if (game::spell_is_aimed(spell->id) && target == game::kNoActor) {
+                        pick_up_message = "Nothing in reach to cast at";
                         pick_up_shown = SDL_GetTicks();
                         cast = true;
                         break;
