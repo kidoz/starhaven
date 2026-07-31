@@ -35,6 +35,12 @@ jobs:
           ${{ runner.os == 'Windows' && '--force-fallback-for=sdl3,zlib' || '' }}
       - run: ninja -C buildDir
       - run: meson test -C buildDir --print-errorlogs
+      # The smoke check needs a real install, which no runner has; it is
+      # listed here so the command is on the record beside the ones that
+      # do run. Locally: `data_info --smoke` loads all 55 shipped maps.
+      - name: Whole-install smoke check (skipped without game data)
+        if: ${{ env.STARHAVEN_GAME_DIR != '' }}
+        run: ./buildDir/data_info --smoke
       - name: Keep the logs of a failure
         if: failure()
         uses: actions/upload-artifact@v4

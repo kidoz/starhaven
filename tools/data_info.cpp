@@ -15,6 +15,10 @@
 #include "core/data/dice.hpp"
 #include "core/data/game_data.hpp"
 #include "game/interiors.hpp"
+#include "game/player.hpp"
+#include "core/assets/asset_cache.hpp"
+#include "core/world/blv_map.hpp"
+#include "core/world/map_session.hpp"
 #include "core/data/interface_strings.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
@@ -820,6 +824,50 @@ int do_backdrops(const std::filesystem::path& data_dir) {
     return 0;
 }
 
+// Verification mode: load every map the design table lists, all the way
+// through — geometry, script, actors, chests, doors, lights — and report
+// what each holds. A regression net for the data-facing code: it is the
+// only check that touches all 67 maps rather than the handful the tests
+// and the walkthroughs reach.
+int do_smoke(const std::filesystem::path& data_dir) {
+    data::MapStatsTable maps;
+    if (data::load_map_stats(data_dir, maps) != data::GameDataError::None) {
+        std::cerr << "error: could not read MapStats.txt\n";
+        return 1;
+    }
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    std::size_t loaded = 0, failed = 0, placeholders = 0;
+    std::size_t actors = 0, chests = 0, doors = 0, lights = 0, buildings = 0, scripts = 0;
+    for (const auto& row : maps.entries()) {
+        if (row.placeholder() || row.file_name.empty()) {
+            ++placeholders;
+            continue;
+        }
+        world::MapSession session;
+        const world::MapSessionError e = world::load_map_session(
+            game::resolve_games_lod(), data_dir, row.file_name, cache, session);
+        if (e != world::MapSessionError::None) {
+            ++failed;
+            std::cout << "  FAIL  " << row.file_name << " (" << static_cast<int>(e) << ")\n";
+            continue;
+        }
+        ++loaded;
+        actors += session.actors.size();
+        chests += session.chest_looks.size();
+        doors += session.doors.size();
+        lights += world::extract_lights(session.blv).size();
+        buildings += session.buildings.size();
+        scripts += session.script.steps().empty() ? 0 : 1;
+    }
+    std::cout << loaded << " maps load, " << failed << " fail, " << placeholders
+              << " are the table's own placeholders\n";
+    std::cout << "  " << actors << " placed actors, " << chests << " chests, " << doors
+              << " doors, " << lights << " lights, " << buildings << " establishments, "
+              << scripts << " with scripts\n";
+    return failed == 0 ? 0 : 1;
+}
+
 // Research mode: does every damage cell in either table parse?
 int do_treasure(const std::filesystem::path& data_dir) {
     data::TextTable text;
@@ -1324,6 +1372,8 @@ int main(int argc, char** argv) {
         return do_riders(data_dir);
     if (command == "--backdrops")
         return do_backdrops(data_dir);
+    if (command == "--smoke")
+        return do_smoke(data_dir);
     if (command == "--dice")
         return do_dice(data_dir);
     if (command == "--encounters")

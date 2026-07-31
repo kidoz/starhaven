@@ -1072,6 +1072,13 @@ interoperability and compatibility with a legally purchased copy.
   plain bar, so archery against armour asks for skill exactly the way
   the traced arithmetic says it should — and the spell paths stay on the
   plain bar, which is what the call sites show.
+- **A whole-install smoke check**: `data_info --smoke` loads every map
+  the design table lists — geometry, script, actors, chests, doors,
+  lights, establishments — and reports what each holds. All **55 shipped
+  maps load clean** (the other twelve rows are the table's own
+  placeholders): 3,541 placed actors, 1,100 chests, 767 doors, 4,701
+  lights, 537 establishments. It exits nonzero on the first map that
+  fails, and the workflow runs it wherever a real install is present.
 - **The weapon path confirms the formula from the other side**: the
   getter the to-hit routine uses when a weapon is involved reads the
   equipped weapon slot, then computes exactly as its sibling does —
