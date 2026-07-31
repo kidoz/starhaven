@@ -3406,7 +3406,36 @@ int main(int argc, char** argv) {
     // Leave this map for another, through the same loader the command line
     // uses. What does not survive the trip is exactly what belongs to the old
     // map: its sounds, its shops, its opened chests, its fight.
+    // One map's memory between visits in a session.
+    struct MapMemory {
+        std::set<int> opened_chests;
+        std::vector<std::uint32_t> open_doors;
+        std::vector<std::size_t> dead;
+        std::int64_t remembered_day = 0;
+    };
+    std::map<std::string, MapMemory> map_memory;
+
     const auto open_map = [&](const std::string& name) -> bool {
+        // What the map being left will remember: the fallen, the opened
+        // and the thrown, kept per file the way the original's state
+        // files kept them, and forgotten after its own Refil Days.
+        if (!session.file_name.empty()) {
+            MapMemory& memory = map_memory[session.file_name];
+            memory.opened_chests = opened_chests;
+            memory.open_doors.clear();
+            for (const auto& door : session.doors) {
+                if (door.open) {
+                    memory.open_doors.push_back(door.id);
+                }
+            }
+            memory.dead.clear();
+            for (std::size_t i = 0; i < session.actors.size(); ++i) {
+                if (!battle.alive(i)) {
+                    memory.dead.push_back(i);
+                }
+            }
+            memory.remembered_day = clock.day();
+        }
         world::MapSession next;
         if (world::load_map_session(game::resolve_games_lod(), data_dir, name, cache, next) !=
             world::MapSessionError::None) {
@@ -3447,6 +3476,38 @@ int main(int argc, char** argv) {
         map_colors_ready = false;
         show_map = false;
         fall_speed = 0.0f;
+        // And what this one remembers, if its Refil Days have not run out
+        // (a map that never refills remembers forever).
+        if (const auto it = map_memory.find(session.file_name); it != map_memory.end()) {
+            const bool expired =
+                session.refill_days > 0 &&
+                clock.day() >= it->second.remembered_day + session.refill_days;
+            if (expired) {
+                map_memory.erase(it);
+            } else {
+                opened_chests = it->second.opened_chests;
+                bool doors_restored = false;
+                for (const std::uint32_t id : it->second.open_doors) {
+                    for (auto& door : session.doors) {
+                        if (door.id == id) {
+                            door.open = true;
+                            door.progress = 1.0f;
+                            move_door(door);
+                            doors_restored = true;
+                        }
+                    }
+                }
+                if (doors_restored) {
+                    world::rebuild_indoor_collision(session);
+                }
+                for (const std::size_t i : it->second.dead) {
+                    battle.kill(i);
+                    if (i < shown_kind.size()) {
+                        shown_kind[i] = world::MonsterAnimation::Death;
+                    }
+                }
+            }
+        }
         SDL_SetWindowTitle(window,
                            ("StarHaven - " + session.title() + " (" + session.file_name + ")")
                                .c_str());

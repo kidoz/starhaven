@@ -1046,6 +1046,11 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The world remembers**: travel keeps a per-map memory the way the
+  original's state files did — the fallen stay fallen, opened chests
+  stay open and thrown doors stay thrown when the party returns in the
+  same sitting, each map forgetting on its own `Refil Days` clock (and
+  never, where the table says it never refills).
 - **OUT.EVT unmasked as a null sink**: the shared outdoor script's 87
   stubs are identical do-nothing husks, and exactly three shipped
   facets — two in Sweet Water, one in New Sorpigal — point into it,

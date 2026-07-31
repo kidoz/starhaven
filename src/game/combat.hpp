@@ -279,6 +279,15 @@ public:
     }
 
     // Whether anything on the map is still standing near a point.
+    // Fell an actor without loot or experience: how a map's memory
+    // restores its dead on return.
+    void kill(std::size_t actor) noexcept {
+        if (actor < combatants_.size()) {
+            combatants_[actor].alive = false;
+            combatants_[actor].hit_points = 0;
+        }
+    }
+
     // Whether any monster still stands, for the arena's judge.
     [[nodiscard]] bool anything_alive() const noexcept {
         for (const auto& c : combatants_) {
