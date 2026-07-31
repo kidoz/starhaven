@@ -1046,6 +1046,12 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The recovery trace came up empty, on the record**: the party's
+  one-second swing and the `Rec` column's hundredths stay the engine's
+  own numbers this round. Filed for the next attempt: the monster
+  loader at 0x446d48 has no per-column jump table to read field offsets
+  from, the constant 140 appears as an immediate nowhere in the code,
+  and the two AI clusters hold rolls but no recovery arithmetic.
 - **Resistance traced, and it was never a percentage**: the hunt for the
   hit roll turned up the resistance routine at 0x421dc0 instead, and it
   refutes the engine's oldest combat guess — the element byte answers

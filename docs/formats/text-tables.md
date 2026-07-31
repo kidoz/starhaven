@@ -996,6 +996,23 @@ halves, and a large one halves four times at most — a sixteenth, not a
 subtraction. `observed` StarHaven follows this rule, with a dice-free
 expectation kept beside it for tools.
 
+## The recovery system: not yet traced
+
+The party's one-second swing and the monster `Rec` column read as
+hundredths of a second are still the engine's own numbers, and this
+sitting failed to replace them. What was ruled out on the way, so the
+next attempt starts further along: the monster table's loader is at
+`0x446d48` (the sole reference to the `MONSTERS.TXT` string) and, unlike
+`MapStats.txt`'s parser, it carries **no per-column jump table** — its
+columns are consumed in sequence, so the `Rec` field's runtime offset
+cannot be read off a dispatch table the way the chest's lock column was.
+The constant 140 that fills `DMONLIST.BIN`'s `+0x04` on all 173 records
+appears as an immediate **nowhere** in the executable's code section,
+which argues against it being a default recovery compared or loaded by
+value. The combat clusters at `0x430ed0` and `0x455844` hold the AI's
+rolls but no recovery-shaped arithmetic (no `×128`, no small `imul`).
+`unknown`
+
 ## Open questions
 
 - Which A/B/C variant an encounter slot selects, and what `Dif 1-5` drives.
