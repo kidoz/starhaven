@@ -1193,6 +1193,21 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **A behaviour named at last: closing and backing off**: states 2, 12 and
+  13 open on the same three words and differ in **one constant** — state 2
+  offsets a point from the actor's position by **+0.75** of its radius,
+  states 12 and 13 by **−0.75**, and all three hand it with the party's
+  position to the reachability test. One closes, the others back away. That
+  is the fleeing behaviour two earlier batches hunted and missed, sitting in
+  the sign of a floating-point constant.
+- **And there is no column map, because the columns are never copied**: the
+  hunt for an actor-preparation routine turned up the encounter roll, a
+  display scratch buffer and the array's read/write to file — but no
+  preparation, because the actor carries only a **monster id at `+0x34`** and
+  everything from `MONSTERS.TXT` is looked up through a runtime table at
+  `0x56c1c0`, 72 bytes a row, with the name pointer at `+0x10`. The question
+  retires rather than being answered: what a monster *is* stays in the table,
+  what it is *doing* is the record.
 - **The nine unnamed AI actions, grouped**: reading each action's opening
   record access does not name them but narrows the next attempt — states 2,
   12 and 13 all open on the word at `+0x7a` and are one family in three

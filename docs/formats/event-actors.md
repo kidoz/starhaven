@@ -374,3 +374,44 @@ now looked for it: the timestamps are only ever tested for being set. If
 being poisoned costs anything in MM6 it is charged somewhere that does not
 walk the party on a timer, and this engine's invented drain stays marked as
 its own. `unknown`, with the search space narrowed to "not the clock".
+
+## There is no column map, because the columns are not copied
+
+The plan was to read the actor-preparation routine top to bottom for where
+each `MONSTERS.TXT` column lands in the 548-byte record. Three candidates
+were followed and none of them is that routine: `0x455ed0` is the encounter
+roll, `0x41ce90` copies a record into a **display scratch** at `0x4cb3b8`
+(and writes 7 into its sub-state at `+0xa2`, confirming that field), and
+`0x46cd92` is the array's own **read/write to file**, 548 bytes a record.
+
+The reason there is no such routine is that **the columns never enter the
+record**. The actor carries a **monster id in the byte at `+0x34`**, and
+everything from the table is looked up through it in a runtime table at
+**`0x56c1c0`, 72 bytes a row**, whose `+0x10` is a **pointer to the
+monster's name** — `0x455c8f` computes `72 × id` and runs `repne scasb` over
+what it finds there. Fourteen sites index that table; the AI itself uses it
+for the death sound. `observed`
+
+So the question retires rather than being answered: there is no column map
+to find. What a monster *is* stays in the table; what a monster is *doing*
+is the record.
+
+## A behaviour named: closing and backing off
+
+States 2, 12 and 13 open on the same three words and differ in one constant.
+
+All three build a point from the actor's own position — `+0x7e`, `+0x80`,
+`+0x82` — offset along it by **0.75 × the word at `+0x7a`**, and hand it with
+the party's position to the reachability test at `0x4080c0`.
+
+- **State 2** (`0x4043b7`) multiplies by **+0.75**.
+- **States 12 and 13** (`0x403fab`, `0x40418b`) multiply by **−0.75**.
+
+One offsets toward the party and the others away from it. So **state 2 is
+closing and states 12 and 13 are backing off** — and that is the fleeing
+behaviour two earlier batches went looking for and could not find, sitting in
+the sign of a floating-point constant. `observed`
+
+`+0x7a` is what the offset scales — the actor's own radius, on the evidence
+of how it is used — and `+0x7e`/`+0x80`/`+0x82` are its position triple.
+`inferred` for the names, `observed` for the arithmetic.
