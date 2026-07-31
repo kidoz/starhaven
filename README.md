@@ -1109,6 +1109,12 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The clock unit proven from Windows itself**: the two elapsed globals
+  that had to be assumed equal turn out to be the same field of two
+  instances of one timer class, and the method that fills it samples
+  `GetTickCount()` and keeps `ms × 128 ÷ 1000`. So a clock unit is exactly
+  1/128 of a real second by construction, not by inference, and a monster's
+  `Rec` really does spend at sixty points a second like the party's.
 - **The new pace, walked**: `data_info --pace` now reports what the traced
   rates mean in real time over the game's own tables — a world day in 48
   real minutes, shop days between 8 and 42, a bare fist 1⅔ seconds a blow

@@ -97,9 +97,11 @@ inline constexpr float kRecoveryScale = 1.0f / 60.0f;
 // dword at `+0x6c` of its 548-byte runtime record, filled by the very
 // message handler that fills a character's `+0x137c` (kind 3 with an actor
 // index where kind 4 takes a party slot) and scaled by the same 32/15, then
-// counted down and clamped at zero at `0x401b5d`. `observed`; that its
-// elapsed — the global at `0x4d51c4` — carries the same unit as the world
-// clock's own is `inferred`. See docs/formats/player-record.md.
+// counted down and clamped at zero at `0x401b5d`. Its elapsed — the global
+// at `0x4d51c4` — is the same field of the same timer class as the world
+// clock's own `0x4d519c`, both filled from `GetTickCount()` by the shared
+// method at `0x420ec0`, so the two carry one unit. `observed` throughout.
+// See docs/formats/player-record.md.
 inline constexpr float kMonsterRecoveryScale = kRecoveryScale;
 
 // What a `Rec` value costs in seconds, at the traced rate.

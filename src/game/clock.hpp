@@ -28,9 +28,11 @@ inline constexpr std::array<std::string_view, 7> kWeekdays{
     "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 // How much world time a second of walking about costs, traced. The world
-// clock at `0x908d08` counts in units of which **a real second holds 128**
-// — the sound code at `0x488d79` turns a table of plain seconds into them
-// by multiplying by 128.0 — and the calendar routine at `0x4880a0` turns
+// clock at `0x908d08` counts in units of which **a real second holds 128**:
+// the timer class that measures a frame samples `GetTickCount()` and keeps
+// `ms × 128 / 1000` (`0x420ec0`), and the sound code at `0x488d79` turns a
+// table of plain seconds into the same units by multiplying by 128.0.
+// The calendar routine at `0x4880a0` then turns
 // those units into world seconds by multiplying by the float at `0x4b9374`,
 // **0.234375 = 30/128**, before dividing by 60, 60, 24 and 7. The two
 // together say the world runs at **thirty times real time**: half a world

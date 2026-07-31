@@ -326,10 +326,31 @@ pointer, so no scan keyed on a base register could see it. The field also
 sits below the `+0xe0`..`+0xfc` position-and-velocity band those hunts had
 already catalogued, which is where the searching had concentrated.
 
-**One thing is still short of proof.** The elapsed the countdown subtracts
-is the global at **`0x4d51c4`**, not the `0x4d519c` that advances the world
-clock. The two sit `0x28` apart and are consumed identically — each a plain
-elapsed, subtracted and clamped — so they are taken to carry the same unit,
-and a monster's `Rec` is spent at the same sixty points a second the
-party's is, which is what StarHaven already does. That equality is
-`inferred`; nothing read so far sets one from the other.
+**And the last inference is now a measurement.** The elapsed the countdown
+subtracts is the global at **`0x4d51c4`**, not the `0x4d519c` that advances
+the world clock, and the two were only assumed to agree. They do:
+
+- Neither is written absolutely because both are **fields of an object**.
+  Every absolute reference in the neighbourhood falls on two runs of the
+  same shape, `0x4d5180` and `0x4d51a8` — **`0x28` apart**, each touched at
+  `+0`, `+4`, `+0xc`, `+0x1c` and `+0x24`, and each loaded into `ecx` before
+  a call. `observed`
+- The two share **three methods** — `0x420db0`, `0x420df0` and `0x420ec0` —
+  out of a cluster at `0x420d70`..`0x420f50`. Two instances, one class.
+  `observed`
+- `0x420ec0` is the one that fills the field. It samples
+  **`GetTickCount()`**, shifts it left seven and divides by 1000 — the
+  reciprocal multiply by `0x10624dd3` with a `shr 6` — guards a wrap, and
+  stores `now − last` at **`+0x1c`**, spinning until the difference is
+  positive. `observed`
+
+So the unit is settled twice over: `ms × 128 ÷ 1000` is **exactly 128 units
+to the real second**, which the sound table's `× 128.0` had only implied,
+and the two globals are the same field of the same class filled by the same
+method. **A monster's `Rec` is spent at the same sixty points a real second
+the party's is**, and this engine's reading of it is now `observed` rather
+than assumed.
+
+The class itself, so far as it is used here: `+0x04` a running flag, `+0x0c`
+the last sample, `+0x10` a saved sample, `+0x1c` the elapsed, forty bytes
+long.
