@@ -1085,6 +1085,13 @@ interoperability and compatibility with a legally purchased copy.
   placeholders): 3,541 placed actors, 1,100 chests, 767 doors, 4,701
   lights, 537 establishments. It exits nonzero on the first map that
   fails, and the workflow runs it wherever a real install is present.
+- **The monsters' recovery stayed hidden**: every write into a monster's
+  runtime record across the AI cluster was enumerated and none is a
+  countdown — the large-offset runs are position and velocity (the
+  `+0x84` triple is a velocity scaled by 50), so the monsters' cooldown
+  is either a parallel array keyed by actor index or re-derived each
+  frame from the `Rec` column. The engine keeps its own reading, and the
+  ground covered is on the record.
 - **The last two shipped screens hang**: `QUIKREF`'s five-column frame
   now carries the party at a glance — class, level, the seven
   attributes, hits, spells, armour and skills read across four columns

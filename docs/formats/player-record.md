@@ -187,3 +187,15 @@ character's recovery by exactly that figure.
 What the elapsed unit counts is still unread: the tick has exactly one
 caller (`0x427ea9`, in the time-advance path) which passes an integer
 whose own origin lies further up. `unknown`
+
+**The monsters' own counter was hunted and not found.** Every write into
+a monster's runtime record across the AI cluster (`0x430000`..`0x433000`)
+was enumerated: the fields at `+0xe0`..`+0xfc` are the position and
+velocity triples the mover writes, the bytes at `+0xfe`/`+0xff` are
+flags, and the only other run — `+0x84`, `+0x86`, `+0x88` — is a
+velocity scaled by 50, not a countdown. Nothing recovery-shaped writes
+into the record from the AI, so either the monsters' cooldown lives in a
+parallel array keyed by actor index (the way the door and light state
+do) or the AI re-derives it each frame from `MONSTERS.TXT`'s `Rec`
+column. StarHaven keeps its own hundredths-of-a-second reading in the
+meantime. `unknown`
