@@ -1117,11 +1117,10 @@ interoperability and compatibility with a legally purchased copy.
   party travels, and the fifteenth fragment now earns award 62, the
   puzzle's own honor, placed by the engine the way the library's was.
   Sweet Water's fragment is beat twenty-five of the regression.
-- **The door bit refused a third name**: the timbre gamble came up
-  empty — the 41 bit-1 doors share their face textures freely with the
-  753 plain ones, and the travel axis splits no better — so the bit now
-  carries three filed refutations and one odd fact: D07 alone holds 20
-  of the 41, half its own doors. Still `unknown`, honestly.
+- **The doors that ship open, open**: the attribute bit's traced
+  meaning — the loader tests `attribute & 1` and swings those doors wide
+  before the first frame — is now honored at load, so D07's twenty
+  standing-open doorways stand open here too.
 - **The bounty board opens**: Town Halls post a monthly head — a
   hostile row picked deterministically by the month, the same in every
   hall — the battle now reports its kills, and a taken head claims a
