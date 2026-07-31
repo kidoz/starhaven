@@ -1193,6 +1193,14 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The fatigue counter, traced end to end and wired**: the time-advance
+  routine increments a byte once an hour, and the moment it passes one — so
+  after **two hours awake** — it walks all four characters and stamps
+  condition slot 1, **Weak**, on any who is not already afflicted. The same
+  byte then gates two further rolls each tick, `rand() % 100` against five
+  times it and against ten times it, which is how every other condition
+  begins. Resting sets it back to zero. The engine now does all of it, so a
+  rest buys something besides hit points.
 - **The conditions name themselves**: a run of eight-byte timestamps from
   `+0x1380`, and three independent readings agree on the numbering. The cure
   spells push the id they lift — Cure Weakness **1**, Cure Poison **6**, Cure

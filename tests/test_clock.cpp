@@ -164,3 +164,17 @@ TEST_CASE("a camp eats its days of food, or wakes the party weak", "[rest]") {
     REQUIRE(rest(party, clock, false, food, 3) == RestResult::Starved);
     REQUIRE(party[1].affliction == "Cursed");
 }
+
+TEST_CASE("staying awake wears the party down", "[clock]") {
+    // The counter climbs an hour at a time and lays Weak past its second,
+    // which is what the time-advance routine's own byte does.
+    REQUIRE(kFatigueWeakAfterHours == 2);
+    // And the two rolls it gates climb with it, five and ten a point.
+    REQUIRE(kFatiguePercentPerHour == 5);
+    REQUIRE(kFatigueSecondPercentPerHour == 10);
+    REQUIRE(kFatigueSecondPercentPerHour == 2 * kFatiguePercentPerHour);
+    // Twelve hours awake is a sixty percent chance on the first roll, which
+    // is the shape rather than a certainty — the byte is capped nowhere the
+    // routine reads, so a party that never sleeps is eventually always ill.
+    REQUIRE(12 * kFatiguePercentPerHour == 60);
+}

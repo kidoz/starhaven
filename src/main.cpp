@@ -2544,6 +2544,11 @@ int main(int argc, char** argv) {
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
     // The party's sixteen buff slots, on the executable's own array.
     game::PartyBuffs party_buffs;
+    // How long since the party last slept, in world hours, and the hour it
+    // was last counted at. The original keeps this as a byte and wears the
+    // party down with it; see src/game/clock.hpp.
+    int hours_awake = 0;
+    std::int64_t fatigue_hour = 0;
     // The opening quest's own seed: bit 81's designers' note reads "Set
     // when the party starts", and its journal line is "Show Sulman's letter
     // to Andover Potbello" — so a fresh party begins holding The Letter
@@ -6495,6 +6500,22 @@ int main(int argc, char** argv) {
                 gear_armor + warded;
         }
 
+        // An hour awake is an hour worn: the counter climbs, and past its
+        // second hour it lays Weak on anyone not already afflicted.
+        if (const std::int64_t hour_now = clock.minutes() / game::kMinutesPerHour;
+            hour_now != fatigue_hour) {
+            hours_awake += static_cast<int>(hour_now - fatigue_hour);
+            fatigue_hour = hour_now;
+            if (hours_awake > game::kFatigueWeakAfterHours) {
+                for (auto& who : party) {
+                    if (who.affliction.empty() && who.hit_points > 0) {
+                        who.affliction = "Weak";
+                        who.affliction_minute = clock.minutes();
+                    }
+                }
+            }
+        }
+
         if (want_rest) {
             const bool disturbed =
                 battle.anything_near(session, camera.position, game::kRestDisturbance);
@@ -6515,6 +6536,9 @@ int main(int argc, char** argv) {
                 for (auto& who : party) {
                     who.buffs.clear();
                 }
+                // And the wearing-down starts again from nothing.
+                hours_awake = 0;
+                fatigue_hour = clock.minutes() / game::kMinutesPerHour;
                 speak(party[0], 22);  // line 22: the waking word
                 // What lasts until a rest ends with one, fountains included.
                 for (auto& member : party) {

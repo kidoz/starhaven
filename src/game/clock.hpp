@@ -127,6 +127,17 @@ private:
     double carry_ = 0.0;  // time not yet worth a whole minute
 };
 
+// Staying awake wears the party down. The time-advance routine keeps a byte
+// at `0x908d6c` and **increments it once an hour**; the moment it passes one
+// — so after two hours awake — it walks all four characters and stamps
+// condition slot 1, **Weak**, on any who is not already. The same byte then
+// gates two further rolls each tick, `rand() % 100` against **five times**
+// it and against **ten times** it, which is how the rest of the conditions
+// begin. The rest routine at `0x42c874` sets it back to zero. `observed`
+inline constexpr int kFatigueWeakAfterHours = 2;
+inline constexpr int kFatiguePercentPerHour = 5;
+inline constexpr int kFatigueSecondPercentPerHour = 10;
+
 // How long a rest takes. `inferred`
 inline constexpr int kRestHours = 8;
 
