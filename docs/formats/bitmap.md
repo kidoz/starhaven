@@ -136,7 +136,10 @@ The decoder rejects, deterministically and without reading out of bounds:
 - zlib failure or a decompressed length not matching `decompressedSize`
   (or, when uncompressed, not matching `size`).
 
-## Unknown / open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - What bit `0x0010` selects (present on every real image in both archives)
   and what `0x0100` marks on `icons.lod` UI art. `unknown`

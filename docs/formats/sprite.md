@@ -122,7 +122,10 @@ The decoder rejects, deterministically and without reading out of bounds:
   (when compressed);
 - a line whose `offset + (end - begin)` exceeds the decompressed length.
 
-## Unknown / open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - Exact meaning of `flags`. `unk_0` is `0` on all 299 sampled sprites and
   `emptyBottomLines` is the redundant clear-line count; both are now `observed`

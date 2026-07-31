@@ -50,7 +50,10 @@ The same archive holds the body art the inventory screen dresses:
 How a slot's parts compose, and which piece an equipped item selects, is
 `unknown` — nothing is decoded here beyond the entries existing.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - What the 53 frames of each face are. `unknown`
 - How the paperdoll parts layer, and what indexes them. `unknown`

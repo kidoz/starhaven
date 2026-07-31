@@ -63,7 +63,10 @@ The decoder rejects, deterministically and without reading out of bounds:
 - zlib failure;
 - an inflated length not matching decompressedSize (when nonzero).
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The remaining fields within actor and chest records.
 - The indoor payload's 883-byte prefix is **all zero on every shipped map**

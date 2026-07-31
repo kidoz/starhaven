@@ -151,7 +151,10 @@ A repeated id keeps the first record, so a lookup is deterministic rather than
 dependent on iteration order. An unnamed record is kept in the array but not
 indexed by name.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The engine's exact use of the group field — the category reading is
   `inferred` above (ambient loop / door-impact / UI-effect / voice); whether it

@@ -71,7 +71,10 @@ The parser rejects, deterministically and without reading out of bounds:
 - a record count whose 36-byte records do not account for the inflated block
   exactly.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 None. The `frame_index` question closed when the executable's two table
 consumers were traced: the field is written by the table's build tool and

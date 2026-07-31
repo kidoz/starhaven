@@ -123,7 +123,10 @@ The reader rejects, deterministically and without reading out of bounds:
 - `numItems` such that the file-entry table would extend past the root's data;
 - an entry whose `dataOffset + dataSize` would exceed the root's region.
 
-## Unknown / open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - Meaning of the header `size` field (always 100) and `unk_1[80]` — unused.
 - The internals of `.blv` / `.odm` / `.dlv` / `.ddm` files — deferred to a

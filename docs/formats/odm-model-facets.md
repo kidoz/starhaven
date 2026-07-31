@@ -199,7 +199,10 @@ Because the stream has no offset table, a failure anywhere rejects the whole
 map's geometry rather than yielding a partial decode that would silently
 mis-attribute later models' facets.
 
-## Open questions (next slice)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The unknown spans at +0x10, +0x98 and +0x12F. The three 20-entry i16 arrays
   in the `+0x98` span carry small signed values (0, ±1, ±2, ±3). They are now

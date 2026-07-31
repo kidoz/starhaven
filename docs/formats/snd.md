@@ -120,7 +120,10 @@ Two notes on the tracks:
   `2.mp3` — so discovery sorts numeric stems numerically. `observed`
 - There is no `1.mp3`; the set begins at 2. `observed`
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - Whether any other MM6 edition ships entries with a different wave format.
   `unknown`

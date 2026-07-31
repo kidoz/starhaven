@@ -82,7 +82,10 @@ The decoder rejects, deterministically and without reading out of bounds:
 - a payload too short to hold the model array + first model's vertex_count × 12;
 - a first-model vertex_count that would read past the end of the payload.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 Both questions this document opened are answered in
 [`odm-model-facets.md`](odm-model-facets.md): the facet record is 308 bytes,

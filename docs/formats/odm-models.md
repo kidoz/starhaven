@@ -99,7 +99,10 @@ The decoder rejects, deterministically and without reading out of bounds:
 - a model count whose records would extend past the end of the payload;
 - any individual record field read past the payload end.
 
-## Open questions (next slice)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - ~~The model facet stream that sits between models' vertex arrays.~~ Decoded:
   the record is a fixed 308 bytes and every model's mesh now walks. See

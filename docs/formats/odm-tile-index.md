@@ -138,7 +138,10 @@ The reader rejects, deterministically and without reading out of bounds:
 A tile outside the 128×128 grid is answered with an empty run rather than an
 error: positions at the map's edge ask about neighbours that do not exist.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - What a spawn index above 3 means beyond the slot it wraps onto. `unknown`
 - Whether indoor maps carry an equivalent index; the `.blv` tail remains

@@ -192,7 +192,10 @@ shape; only the terrain pair in slots 0 and 2 varies. The name-based lookup
 that holds on `Outa1.odm` therefore holds on all fifteen — verified by
 decompressing each map's header and reading its tileset block. `observed`
 
-## Open questions (next slice)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - Whether indoor (`.blv`) maps carry an equivalent tile lookup; the `.blv`
   tail remains undescribed (see [`blv.md`](blv.md)). `unknown`

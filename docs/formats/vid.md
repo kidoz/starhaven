@@ -60,7 +60,10 @@ Unlike the `.LOD` readers, this one keeps the file open and reads a single
 entry on demand rather than holding the archive in memory: `Anims2.vid` is
 208 MB and callers want one video at a time.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - Whether any *other* MM6 build ships a `.vid` containing Bink rather than
   Smacker. In this GOG edition all 127 entries begin `"SMK2"` (no `"SMK4"`,

@@ -69,7 +69,10 @@ generator is hermetic — the unit tests need no install.
 So the readability story is unchanged (tile regions are still distinguished by
 color); what changed is that the pixels now travel the real texturing path.
 
-## Open question (still open)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 The tile-index→ground-tile-bitmap mapping, so the terrain can show the actual
 MM6 ground textures instead of type colors. Needs the `MM6.exe` tile-loader

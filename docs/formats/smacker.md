@@ -248,7 +248,10 @@ The decoder rejects, deterministically and without reading out of bounds:
 A bit stream that runs out mid-picture leaves the remaining blocks as they
 were, which is what a run of skip blocks would have done.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The Bink-audio variant. The Bink bit (27) is clear on **all 80 audio tracks**
   across the 127 videos, so no MM6 video uses it; it remains undecoded because

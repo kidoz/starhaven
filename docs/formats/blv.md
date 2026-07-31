@@ -559,7 +559,10 @@ pairs at offsets `0x68..0x72` read by the culler `fcn.0048c3d0` are on the
 Do not treat the addresses above as stable across MM6 builds; they are pinned
 to the recorded SHA-256.
 
-## Open questions (next slice)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The sections between the face extras and the decorations. The sector
   table at the region's front is partly read and the lights turned out to

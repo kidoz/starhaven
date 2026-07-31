@@ -79,7 +79,10 @@ bounds:
 - a decompressed payload shorter than `0x80B0` bytes (cannot hold both grids);
 - this is in addition to the outer-format checks in `odm.md`.
 
-## Unknown / open questions (next slice)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The exact meaning and order of the remaining attribute grids after 0x80B0.
 - The vertex/facet/model geometry section layout (the bulk of the payload).

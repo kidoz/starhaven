@@ -289,7 +289,10 @@ The decoder rejects an outdoor layout when:
 - a following count cannot be read;
 - the bytes after the chest array are not exactly the 256-byte trailer.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The two fixed 968-byte blocks (`0x008`, `0x3D0`) and the 256-byte trailer
   are **entirely zero on every shipped map** (verified across all sampled

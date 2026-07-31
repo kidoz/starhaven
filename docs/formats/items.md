@@ -375,7 +375,10 @@ export STARHAVEN_GAME_DIR=/path/to/MM6
 `ddm_info` reports sprite-object joins, fixed chest items, and placeholder
 counts by class.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - Meanings of flag bits above bit 1 and direct MM6 evidence for `+0x18`.
 - The complete item-type-dependent interpretation of overloaded fields.

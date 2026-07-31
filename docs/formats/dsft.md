@@ -235,7 +235,10 @@ and a sprite drawn on the wrong side is not something the data can contradict.
 
 Reproduce with `sft_info --views`.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The flag bits outside 0x1, 0x4, 0x10 and 0xE000 — including 0x0020, and the
   high bits that appear on 933 frames. `unknown`

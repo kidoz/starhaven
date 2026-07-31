@@ -133,7 +133,10 @@ The parser rejects, deterministically and without reading out of bounds:
 - a version string that is not `"MM6 Outdoor v1.11"` (or, more loosely, not a
   recognized `MM6 Outdoor` form).
 
-## Unknown / open questions (next slice)
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The nested vertex/facet/BSP arrays *inside* each model (each model record
   carries offset/count fields; the model array itself is now decoded — see

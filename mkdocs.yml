@@ -11,6 +11,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Open-question register: open-questions.md
   - File formats:
       - LOD archives: formats/lod.md
       - Games.lod: formats/games-lod.md

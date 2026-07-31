@@ -102,7 +102,10 @@ The decoder rejects, deterministically and without reading out of bounds:
 - a block too small for the metric and offset tables, or a height of zero;
 - a glyph running past the pixel region, or glyphs that do not tile it.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - What `fontpal` is for, and whether the body and outline colours come from it
   or are chosen per call site. StarHaven currently chooses them. `unknown`

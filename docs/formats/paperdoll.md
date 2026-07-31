@@ -120,7 +120,10 @@ armor and drawn on the far side of the body. One garment, one layer in front
 of the doll and one behind. `observed` for the pairs and sizes, `inferred`
 for front/behind.
 
-## Open questions
+## Historical question status
+
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
 - The full drawing order; the engine's — cloak back, body, armor, items in
   slot order — reads right but is its own. `unknown`

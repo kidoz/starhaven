@@ -46,6 +46,10 @@ The format documents distinguish **observed**, **inferred**, and **unknown**
 claims. Specifications are written from compatibility research, and automated
 tests use synthetic fixtures rather than copied game content.
 
+The [open-question register](open-questions.md) gathers every historical
+"Open questions" section, records the answers found, and keeps the remaining
+evidence boundaries in one place.
+
 ## Project
 
 Source code, build instructions, and contribution information are available in
