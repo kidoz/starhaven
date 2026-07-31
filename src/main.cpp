@@ -6812,31 +6812,43 @@ int main(int argc, char** argv) {
                         pick_up_message = std::move(blow);
                         pick_up_shown = SDL_GetTicks();
                         pending_round = turn_based;
-                        // "Skill reduces recovery time", at the engine's own
-                        // percent a point — and worn armor's own penalty on
-                        // top, reduced or eliminated by the armor skill's
-                        // higher lines.
-                        float armor_drag = 0.0f;
-                        const int worn =
-                            party[who].equipped[static_cast<std::size_t>(game::Slot::Armor)];
-                        if (const auto* armor_row =
-                                worn > 0 ? item_stats.at(static_cast<std::size_t>(worn))
-                                         : nullptr;
-                            armor_row != nullptr && !armor_row->skill_group.empty()) {
-                            armor_drag = game::armor_penalty(armor_row->skill_group);
+                        // The original's own recovery, in `Rec` points: the
+                        // table at 0x4c2750 answers for whatever is in hand
+                        // — 100 for a bare fist — and worn armour and a
+                        // held shield add their own entries on top, halved
+                        // by their skill's expert line and gone at master.
+                        // See src/game/skills.hpp.
+                        const auto gear_of = [&](game::Slot slot) -> const data::ItemStatsEntry* {
+                            const auto i = static_cast<std::size_t>(slot);
+                            const int id = party[who].equipped[i];
+                            if (id <= 0 || party[who].equipped_broken[i]) {
+                                return nullptr;
+                            }
+                            return item_stats.at(static_cast<std::size_t>(id));
+                        };
+                        const auto lift_for = [&](const data::ItemStatsEntry& row) {
                             int points = 0;
-                            if (const auto it = party[who].skills.find(armor_row->skill_group);
+                            if (const auto it = party[who].skills.find(row.skill_group);
                                 it != party[who].skills.end()) {
                                 points = it->second;
                             }
-                            if (const auto* skill = skill_table.find(armor_row->skill_group);
-                                skill != nullptr && points > 0) {
-                                const int lift =
-                                    game::skill_power(skill->text, points).armor_penalty_lift;
-                                armor_drag = lift >= 2 ? 0.0f
-                                             : lift == 1 ? armor_drag / 2.0f
-                                                         : armor_drag;
+                            const auto* skill = skill_table.find(row.skill_group);
+                            return skill != nullptr && points > 0
+                                       ? game::skill_power(skill->text, points).armor_penalty_lift
+                                       : 0;
+                        };
+                        int rec_points = game::kBareHandRecovery;
+                        if (const auto* held_row = gear_of(game::Slot::Weapon);
+                            held_row != nullptr && !held_row->skill_group.empty()) {
+                            rec_points = game::gear_recovery(held_row->skill_group);
+                        }
+                        for (const game::Slot slot : {game::Slot::Armor, game::Slot::Shield}) {
+                            const auto* row = gear_of(slot);
+                            if (row == nullptr || row->skill_group.empty()) {
+                                continue;
                             }
+                            rec_points += game::worn_recovery_penalty(
+                                game::gear_recovery(row->skill_group), lift_for(*row));
                         }
                         // The original drains recovery half again as fast for
                         // a character wearing an unbroken item "of Recovery",
@@ -6855,9 +6867,11 @@ int main(int argc, char** argv) {
                         if (clock.minutes() < party[who].haste_until) {
                             haste = game::kOfRecoveryDrain;
                         }
-                        party_recovery = game::kPartyRecovery *
-                                         weapon_skill_of(party[who]).recovery_scale *
-                                         (1.0f + armor_drag) / haste;
+                        // The skill's own "reduces recovery time" line is
+                        // still applied on this engine's curve; the routine's
+                        // Speed and skill terms are read but not yet wired.
+                        party_recovery = game::recovery_seconds(rec_points) *
+                                         weapon_skill_of(party[who]).recovery_scale / haste;
                     }
                     break;
                 }

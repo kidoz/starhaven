@@ -232,7 +232,47 @@ a point of `Rec` costs 32/15 units and 128 units pass a second:
 `128 ÷ 32/15` = **60 points a second**, or half a *world* second a point.
 `observed` StarHaven spends the `Rec` column at that rate.
 
-**The monsters' own counter was hunted and not found.** Every write into
+## Where a strike's own recovery comes from
+
+**`0x481a80` is the attack-recovery routine**, and it answers the amount the
+queued message carries. It takes one flag â whether the blow is a shot â
+and builds a `Rec` number out of a **fourteen-word table at `0x4c2750`**:
+
+| 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 100 | 100 | 90 | 60 | 100 | 80 | 100 | 80 | 30 | 10 | 10 | 20 | 30 | 0 |
+
+The routine loads entry **0** first and keeps it when nothing is in hand, so
+**a bare fist recovers at 100** â 1â seconds at the traced rate. Otherwise
+it indexes by the equipped item's **skill-group byte**, read from the item
+row's `+0x15` in a 40-byte-per-item table at `0x560c14`, at **skill id plus
+one**: Staff 100, Sword 90, Dagger 60, Axe 100, Spear 80, Bow 100, Mace 80,
+Blaster 30, Shield 10, Leather 10, Chain 20, Plate 30. `observed`
+
+What it walks, in order:
+
+- a shot takes the **missile slot at `+0x1430`**; a blow takes the **weapon
+  slot at `+0x142c`**;
+- the **other hand at `+0x1428`** then overrides the number **only when its
+  own is larger** â the slower hand sets the pace;
+- **worn armour at `+0x1434`** adds its own entry on top, and a **shield**
+  in the off hand (equip-type byte `+0x14` of the item row equal to 4) adds
+  its entry too;
+- each of those two is **halved when the wearer's packed skill byte at
+  `+0x5f + id` has bit `0x40`, and dropped to zero on bit `0x80`** â which
+  is exactly `SKILLDES.TXT`'s "Recovery penalty reduced" and "eliminated"
+  lines, now with numbers. Every piece is skipped when its flag byte at
+  `+0x13c` marks it broken. `observed`
+
+StarHaven now spends that much on a strike. Three further terms in the same
+routine are read but not yet wired, and are recorded rather than guessed at:
+a day-of-week term taken from the world clock, the stat-5 (Speed) pair fed
+through a descending ladder of words at `0x4c2860` (500, 400, 350, 300, 275,
+250 â¦ down to 0), and a per-skill percentage byte at `0x4c280e` chosen by
+the same priority walk the attack bonus uses. `unknown` how the three
+combine.
+
+## The monsters' own counter was hunted and not found. Every write into
 a monster's runtime record across the AI cluster (`0x430000`..`0x433000`)
 was enumerated: the fields at `+0xe0`..`+0xfc` are the position and
 velocity triples the mover writes, the bytes at `+0xfe`/`+0xff` are

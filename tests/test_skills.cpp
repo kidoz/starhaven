@@ -50,6 +50,31 @@ TEST_CASE("a skill's effect lines say what it grants", "[skills]") {
     REQUIRE_FALSE(fire.shop_prices);
 }
 
+TEST_CASE("the recovery table answers by skill group", "[skills]") {
+    // The executable's own fourteen words, indexed by skill id plus one.
+    REQUIRE(kBareHandRecovery == 100);
+    REQUIRE(gear_recovery("Staff") == 100);
+    REQUIRE(gear_recovery("Sword") == 90);
+    REQUIRE(gear_recovery("Dagger") == 60);
+    REQUIRE(gear_recovery("Axe") == 100);
+    REQUIRE(gear_recovery("Spear") == 80);
+    REQUIRE(gear_recovery("Bow") == 100);
+    REQUIRE(gear_recovery("Mace") == 80);
+    REQUIRE(gear_recovery("Blaster") == 30);
+    // Armour and the shield: the heavier the slower.
+    REQUIRE(gear_recovery("Shield") == 10);
+    REQUIRE(gear_recovery("Leather") == 10);
+    REQUIRE(gear_recovery("Chain") == 20);
+    REQUIRE(gear_recovery("Plate") == 30);
+    // A school is not gear and carries nothing.
+    REQUIRE(gear_recovery("Fire") == 0);
+    REQUIRE(gear_recovery("") == 0);
+    // The higher lines take the worn penalty back by half, then whole.
+    REQUIRE(worn_recovery_penalty(30, 0) == 30);
+    REQUIRE(worn_recovery_penalty(30, 1) == 15);
+    REQUIRE(worn_recovery_penalty(30, 2) == 0);
+}
+
 TEST_CASE("the staircase and the haggle behave", "[skills]") {
     REQUIRE(raise_cost(1) == 2);
     REQUIRE(raise_cost(4) == 5);

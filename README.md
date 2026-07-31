@@ -1109,6 +1109,12 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **A strike costs what the executable says it costs**: the attack-recovery
+  routine at `0x481a80` reads a fourteen-word table â a bare fist 100, a
+  dagger 60, a sword 90, a staff or axe or bow 100, plate armour another 30
+  on top â with the slower hand setting the pace and the armour skills'
+  higher lines halving then erasing what the armour adds. The party's flat
+  invented second is gone.
 - **Recovery's unit, closed — sixty points a second**: the world clock at
   `0x908d08` counts in units of 1/128 of a real second and turns into a
   calendar by ×30/128, so the world runs at thirty times real time; the

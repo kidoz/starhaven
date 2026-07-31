@@ -194,6 +194,37 @@ inline constexpr std::array<int, 14> kSkillPriority{16, 15, 14, 13, 2, 12, 11, 1
 // first skill in the priority order the character holds, weighted by that
 // skill's own percentage. `observed` for the walk and the tables; which
 // attribute stat 4 names is this engine's reading of Accuracy. `inferred`
+// How long a strike costs, in `Rec` points, by the gear's own skill. The
+// routine at `0x481a80` opens with the word at `0x4c2750` as its default —
+// **100, bare-handed** — and then replaces it with the entry the equipped
+// weapon's skill group names, indexing this fourteen-word table at
+// `0x4c2750` by the skill id plus one. `observed`
+inline constexpr std::array<int, 14> kRecoveryBySkill{100, 100, 90,  60, 100, 80, 100,
+                                                     80,  30,  10, 10,  20, 30,  0};
+
+// With nothing in hand.
+inline constexpr int kBareHandRecovery = kRecoveryBySkill[0];
+
+// What a piece of gear's skill group costs, or nothing when the group is
+// not one of the twelve the table covers.
+[[nodiscard]] inline int gear_recovery(std::string_view skill_group) noexcept {
+    for (std::size_t i = 0; i < 12; ++i) {
+        if (kSkillNames[i] == skill_group) {
+            return kRecoveryBySkill[i + 1];
+        }
+    }
+    return 0;
+}
+
+// Worn armour and a held shield add their own entry on top of the weapon's,
+// and the wearer's skill takes it back: the routine halves it when the
+// packed skill byte has bit `0x40` and drops it entirely on bit `0x80` —
+// which are SKILLDES.TXT's "Recovery penalty reduced" and "eliminated"
+// lines, now with a number behind them. `observed` at 0x481c1e and 0x481c84.
+[[nodiscard]] inline constexpr int worn_recovery_penalty(int base, int lift) noexcept {
+    return lift >= 2 ? 0 : lift == 1 ? base / 2 : base;
+}
+
 template <typename SkillPoints>
 [[nodiscard]] inline int traced_attack_bonus(int accuracy, const SkillPoints& points) {
     for (const int id : kSkillPriority) {
