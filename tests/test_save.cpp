@@ -49,6 +49,8 @@ SaveState full_state() {
     state.packs[0] = {{505, 2, 3, 1, 2}, {66, 0, 0, 2, 2}};
     state.readied = {6, 0, 22, 0};
     state.autonotes = {115, 116};
+    state.remembered.push_back({"D01.blv", 12, {3, 7}, {5, 9}, {0, 4, 11}});
+    state.remembered.push_back({"Oute3.odm", 15, {}, {}, {2}});
     state.turn_based = true;
     state.hourglass_turn = 9;
     return state;
@@ -77,6 +79,15 @@ TEST_CASE("a save round-trips whole", "[save]") {
     REQUIRE(after.turn_based == before.turn_based);
     REQUIRE(after.hourglass_turn == before.hourglass_turn);
     REQUIRE(after.autonotes == before.autonotes);
+    // The maps the party cleared stay cleared across a save.
+    REQUIRE(after.remembered.size() == 2);
+    REQUIRE(after.remembered[0].file == "D01.blv");
+    REQUIRE(after.remembered[0].day == 12);
+    REQUIRE(after.remembered[0].opened_chests == std::set<int>{3, 7});
+    REQUIRE(after.remembered[0].open_doors == std::vector<std::uint32_t>{5, 9});
+    REQUIRE(after.remembered[0].dead == std::vector<std::size_t>{0, 4, 11});
+    REQUIRE(after.remembered[1].file == "Oute3.odm");
+    REQUIRE(after.remembered[1].dead == std::vector<std::size_t>{2});
 
     const Character& who = after.party[0];
     // The name keeps its own hyphen and the class survives beside it.

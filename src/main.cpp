@@ -4030,6 +4030,34 @@ int main(int argc, char** argv) {
                 state.npc_topics = script_state.npc_topics;
                 state.npc_places = script_state.npc_places;
                 state.autonotes = script_state.autonotes;
+                // The maps the party has been away from, plus the one
+                // underfoot: a save should find a cleared dungeon cleared.
+                state.remembered.clear();
+                for (const auto& [file, memory] : map_memory) {
+                    state.remembered.push_back({file, memory.remembered_day,
+                                                memory.opened_chests, memory.open_doors,
+                                                memory.dead});
+                }
+                {
+                    game::SaveState::RememberedMap here;
+                    here.file = session.file_name;
+                    here.day = clock.day();
+                    here.opened_chests = opened_chests;
+                    for (const auto& door : session.doors) {
+                        if (door.open) {
+                            here.open_doors.push_back(door.id);
+                        }
+                    }
+                    for (std::size_t i = 0; i < session.actors.size(); ++i) {
+                        if (!battle.alive(i)) {
+                            here.dead.push_back(i);
+                        }
+                    }
+                    std::erase_if(state.remembered, [&](const auto& m) {
+                        return m.file == here.file;
+                    });
+                    state.remembered.push_back(std::move(here));
+                }
                 state.party = party;
                 for (std::size_t i = 0; i < packs.size(); ++i) {
                     state.packs[i] = packs[i].items();
@@ -4078,8 +4106,17 @@ int main(int argc, char** argv) {
                 std::ifstream file(save_slot_path(save_slot));
                 std::stringstream buffer;
                 buffer << file.rdbuf();
-                if (!file.good() || !game::parse_save(buffer.str(), state) ||
-                    !open_map(state.map_file)) {
+                // The maps' memories are restored before the map opens, so
+                // the one being entered finds its own dead already down.
+                const bool parsed = file.good() && game::parse_save(buffer.str(), state);
+                if (parsed) {
+                    map_memory.clear();
+                    for (const auto& map : state.remembered) {
+                        map_memory[map.file] = {map.opened_chests, map.open_doors, map.dead,
+                                                map.day};
+                    }
+                }
+                if (!parsed || !open_map(state.map_file)) {
                     pick_up_message = "Nothing to load";
                     pick_up_shown = SDL_GetTicks();
                 } else {

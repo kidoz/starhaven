@@ -78,6 +78,18 @@ struct SaveState {
     std::map<std::pair<int, int>, int> npc_topics;
     std::map<int, int> npc_places;
     std::set<int> autonotes;
+
+    // What each map away from the party remembers: its opened chests,
+    // its thrown doors, the actor slots whose monsters fell, and the day
+    // it was left — the refill clock reads that day on return.
+    struct RememberedMap {
+        std::string file;
+        std::int64_t day = 0;
+        std::set<int> opened_chests;
+        std::vector<std::uint32_t> open_doors;
+        std::vector<std::size_t> dead;
+    };
+    std::vector<RememberedMap> remembered;
     std::array<Character, 4> party{};
     std::array<std::vector<PackedItem>, 4> packs{};
     std::vector<int> opened_chests;
@@ -137,6 +149,21 @@ struct SaveState {
     }
     for (const int note : state.autonotes) {
         out << "note\t" << note << "\n";
+    }
+    for (const auto& map : state.remembered) {
+        out << "recall\t" << map.file << "\t" << map.day << "\t" << map.opened_chests.size();
+        for (const int chest : map.opened_chests) {
+            out << "\t" << chest;
+        }
+        out << "\t" << map.open_doors.size();
+        for (const std::uint32_t door : map.open_doors) {
+            out << "\t" << door;
+        }
+        out << "\t" << map.dead.size();
+        for (const std::size_t actor : map.dead) {
+            out << "\t" << actor;
+        }
+        out << "\n";
     }
     for (const auto& [key, value] : state.variables) {
         out << "var\t" << key << "\t" << value << "\n";
@@ -317,6 +344,27 @@ struct SaveState {
             out.hired.push_back(std::move(h));
         } else if (kind == "wageday") {
             out.wage_day = next_int();
+        } else if (kind == "recall") {
+            const auto next_text = [&fields]() {
+                std::string cell;
+                std::getline(fields, cell, '\t');
+                return cell;
+            };
+            SaveState::RememberedMap map;
+            map.file = next_text();
+            map.day = next_int();
+            for (int left = next_int(); left > 0; --left) {
+                map.opened_chests.insert(next_int());
+            }
+            for (int left = next_int(); left > 0; --left) {
+                map.open_doors.push_back(static_cast<std::uint32_t>(next_int()));
+            }
+            for (int left = next_int(); left > 0; --left) {
+                map.dead.push_back(static_cast<std::size_t>(next_int()));
+            }
+            if (!map.file.empty()) {
+                out.remembered.push_back(std::move(map));
+            }
         } else if (kind == "note") {
             out.autonotes.insert(next_int());
         } else if (kind == "bit") {
