@@ -6877,11 +6877,39 @@ int main(int argc, char** argv) {
                         if (clock.minutes() < party[who].haste_until) {
                             haste = game::kOfRecoveryDrain;
                         }
-                        // The skill's own "reduces recovery time" line is
-                        // still applied on this engine's curve; the routine's
-                        // Speed and skill terms are read but not yet wired.
-                        party_recovery = game::recovery_seconds(rec_points) *
-                                         weapon_skill_of(party[who]).recovery_scale / haste;
+                        // What the routine then takes back off the total:
+                        // the Speed bonus off the sheet's own ladder, the
+                        // level of a Sword, Axe or Bow held at expert or
+                        // better, and a flat 20 for anything worn "of
+                        // Swiftness". The result floors at nothing.
+                        rec_points -= game::attribute_bonus(
+                            party[who].attribute(game::Attribute::Speed));
+                        if (const auto* held_row = gear_of(game::Slot::Weapon);
+                            held_row != nullptr &&
+                            game::skill_quickens_attack(held_row->skill_group)) {
+                            if (const auto it = party[who].skills.find(held_row->skill_group);
+                                it != party[who].skills.end() &&
+                                game::rank_of(it->second) >= 1) {
+                                rec_points -= it->second;
+                            }
+                        }
+                        for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
+                            const int id = party[who].equipped[slot];
+                            if (id <= 0 || party[who].equipped_broken[slot]) {
+                                continue;
+                            }
+                            const bool swift =
+                                party[who].worn_special[slot] == game::kSpecialOfSwiftness ||
+                                std::find(game::kSwiftArtifacts.begin(),
+                                          game::kSwiftArtifacts.end(),
+                                          id) != game::kSwiftArtifacts.end();
+                            if (swift) {
+                                rec_points -= game::kSwiftItemRelief;
+                                break;
+                            }
+                        }
+                        rec_points = std::max(0, rec_points);
+                        party_recovery = game::recovery_seconds(rec_points) / haste;
                     }
                     break;
                 }

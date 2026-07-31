@@ -1109,6 +1109,22 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The sheet's attribute curve, found by accident**: finishing the
+  attack-recovery routine turned up the descending ladder every attribute
+  reads its bonus through — 13 the pivot at nothing, 15 one, 17 two, 19
+  three, 21 four, 25 five, 100 eleven, topping out at 30. StarHaven's own
+  guessed curve is gone, which moves hit points, spell points, armour class,
+  melee damage and recovery onto the original's numbers together. The strike
+  now also gives back the Speed bonus, the level of a Sword, Axe or Bow held
+  at expert or better, and a flat 20 for anything worn "of Swiftness".
+- **The spell switch's machinery, and a corrected expectation**: the three
+  case bodies most spells share carry no damage numbers at all — they are one
+  projectile launcher, copied three times, and the damage is decided at
+  impact by a dispatcher keyed on the object's kind. What the sitting did
+  yield: `+0x1418` is the spell-point purse, guarded by a routine that
+  refuses with sound 209; the engine's universal object handle is an index
+  over a three-bit kind; and a complete traced list of the **47 spells that
+  are aimed at the world**, a partition no table states.
 - **The monsters' recovery counter, found after five failed hunts**: it is
   the dword at `+0x6c` of the 548-byte actor record, filled by the same
   queued-message handler that fills a character's — kind 3 with an actor

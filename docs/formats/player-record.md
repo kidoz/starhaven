@@ -264,13 +264,42 @@ What it walks, in order:
   lines, now with numbers. Every piece is skipped when its flag byte at
   `+0x13c` marks it broken. `observed`
 
-StarHaven now spends that much on a strike. Three further terms in the same
-routine are read but not yet wired, and are recorded rather than guessed at:
-a day-of-week term taken from the world clock, the stat-5 (Speed) pair fed
-through a descending ladder of words at `0x4c2860` (500, 400, 350, 300, 275,
-250 … down to 0), and a per-skill percentage byte at `0x4c280e` chosen by
-the same priority walk the attack bonus uses. `unknown` how the three
-combine.
+What the routine then takes back off that total, read to its return at
+`0x481e97`:
+
+- **the Speed bonus**, and the ladder that produces it turned out to be the
+  game's whole attribute curve — see below;
+- **the level of a Sword, Axe or Bow held at expert or better.** The routine
+  tests the item's skill byte against 2, 4 and 6 and, when either rank bit is
+  set in the packed skill byte, subtracts the skill's level outright.
+  `SkillDes.txt` says the same in words for exactly those three: "expert
+  swordsmen gain a quicker attack", "expert axe fighters gain a little more
+  speed on their attacks", "expert archers gain a speed increase";
+- **a flat 20** for a worn item whose special enchantment is **59, "of
+  Swiftness"**, or which is one of two artifacts named by id — **404
+  Merlin** and **405 Percival**;
+- one further term, 25, gated on the dword at `+0x128c`. `unknown` what that
+  field is.
+
+The sum is floored at zero and returned. `observed` StarHaven now spends
+that on a strike, less the `+0x128c` term and a day-of-week term the routine
+also folds in, both of which are left out rather than guessed at.
+
+## The attribute curve, found inside the recovery routine
+
+The ladder the Speed term walks is not a recovery table at all: it is **the
+bonus every attribute reads through**. `0x481dd0` compares the value against
+a descending run of 29 words at **`0x4c2860`** — 500, 400, 350, 300, 275,
+250, 225, 200, 175, 150, 125, 100, 75, 50, 40, 35, 30, 25, 21, 19, 17, 15,
+13, 11, 9, 7, 5, 3, 0 — and takes the signed byte at the matching step of
+**`0x4c289c`** — 30, 25, 20, 19 … 1, 0, −1 … −6.
+
+So **13 is the pivot at no bonus**, 15 gives one, 17 two, 19 three, 21 four,
+25 five, 100 eleven, and 500 or more the maximum 30; below the pivot, 11
+costs one, 9 two, down to a floor of −6. `observed` StarHaven's own guessed
+curve — one point either side of 15, widening by fives — is replaced by
+this, which changes hit points, spell points, armour class, melee damage and
+now recovery all at once.
 
 ## The monsters' counter, found at last
 

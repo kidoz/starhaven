@@ -50,12 +50,34 @@ TEST_CASE("the last four faces are the female ones", "[party]") {
     REQUIRE(face_is_female(kFaceCount - 1));
 }
 
-TEST_CASE("the attribute bonus climbs with the attribute", "[party]") {
+TEST_CASE("the attribute bonus follows the executable's own ladder", "[party]") {
     REQUIRE(attribute_bonus(3) < attribute_bonus(7));
     REQUIRE(attribute_bonus(7) < attribute_bonus(12));
     REQUIRE(attribute_bonus(12) < attribute_bonus(17));
-    REQUIRE(attribute_bonus(17) == 0);
     REQUIRE(attribute_bonus(25) > attribute_bonus(21));
+    // Thirteen is the pivot, and the steps above it are the table's own.
+    REQUIRE(attribute_bonus(13) == 0);
+    REQUIRE(attribute_bonus(15) == 1);
+    REQUIRE(attribute_bonus(17) == 2);
+    REQUIRE(attribute_bonus(19) == 3);
+    REQUIRE(attribute_bonus(21) == 4);
+    REQUIRE(attribute_bonus(25) == 5);
+    REQUIRE(attribute_bonus(100) == 11);
+    // Below it the ladder falls to a floor of minus six, and stops.
+    REQUIRE(attribute_bonus(11) == -1);
+    REQUIRE(attribute_bonus(9) == -2);
+    REQUIRE(attribute_bonus(3) == -5);
+    REQUIRE(attribute_bonus(1) == -6);
+    REQUIRE(attribute_bonus(0) == -6);
+    // And it tops out at thirty, however high the value climbs.
+    REQUIRE(attribute_bonus(500) == 30);
+    REQUIRE(attribute_bonus(5000) == 30);
+    // The two tables are the same length and the ladder never rises.
+    REQUIRE(kAttributeLadder.size() == kAttributeBonus.size());
+    for (std::size_t i = 1; i < kAttributeLadder.size(); ++i) {
+        REQUIRE(kAttributeLadder[i] < kAttributeLadder[i - 1]);
+        REQUIRE(kAttributeBonus[i] < kAttributeBonus[i - 1]);
+    }
 }
 
 TEST_CASE("a starting party is four named characters", "[party]") {

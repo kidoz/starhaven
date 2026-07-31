@@ -225,6 +225,24 @@ inline constexpr int kBareHandRecovery = kRecoveryBySkill[0];
     return lift >= 2 ? 0 : lift == 1 ? base / 2 : base;
 }
 
+// The three weapon skills whose expert line "gains a quicker attack": the
+// routine tests the item's skill byte against 2, 4 and 6 — **Sword, Axe and
+// Bow** — and, when the wearer's packed skill byte carries either of the two
+// rank bits, subtracts that skill's level from the recovery outright. The
+// table's own prose says the same in words: "expert swordsmen gain a quicker
+// attack", "expert axe fighters gain a little more speed", "expert archers
+// gain a speed increase". `observed` at 0x481dfc..0x481e1e.
+[[nodiscard]] inline bool skill_quickens_attack(std::string_view group) noexcept {
+    return group == "Sword" || group == "Axe" || group == "Bow";
+}
+
+// A worn item "of Swiftness" — the special table's row 59 — takes a flat
+// **20** off the recovery, as do the two artifacts the routine names by id,
+// Merlin (404) and Percival (405). `observed` at 0x481e52..0x481e71.
+inline constexpr int kSpecialOfSwiftness = 59;
+inline constexpr int kSwiftItemRelief = 20;
+inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
+
 template <typename SkillPoints>
 [[nodiscard]] inline int traced_attack_bonus(int accuracy, const SkillPoints& points) {
     for (const int id : kSkillPriority) {

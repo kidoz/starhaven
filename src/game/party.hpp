@@ -269,23 +269,32 @@ struct Character {
 }
 
 // How an attribute reads on the sheet: MM6 shows a value and the game applies
-// a bonus derived from it. The bonus table is in the original's executable, so
-// this curve is this engine's — one point either side of 15, widening as the
-// value climbs. `inferred`
+// a bonus derived from it. **The curve is the executable's own**, found in
+// the attack-recovery routine at `0x481dd0`, which walks a descending word
+// ladder at `0x4c2860` until the value reaches an entry and takes the signed
+// byte at the matching step of `0x4c289c`. Both tables are 29 entries and
+// the ladder terminates on zero. So 13 is the pivot at no bonus, 15 gives
+// one, 17 two, 19 three, 21 four, 25 five, and a hundred eleven; below the
+// pivot 11 costs one, 9 two, down to a floor of −6. `observed`
+inline constexpr std::array<int, 29> kAttributeLadder{
+    500, 400, 350, 300, 275, 250, 225, 200, 175, 150, 125, 100, 75, 50, 40,
+    35,  30,  25,  21,  19,  17,  15,  13,  11,  9,   7,   5,   3,  0};
+inline constexpr std::array<int, 29> kAttributeBonus{
+    30, 25, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8,
+    7,  6,  5,  4,  3,  2,  1,  0,  -1, -2, -3, -4, -5, -6};
+
 [[nodiscard]] inline int attribute_bonus(int value) noexcept {
-    if (value < 5) {
-        return -3;
+    if (value >= kAttributeLadder[0]) {
+        return kAttributeBonus[0];
     }
-    if (value < 10) {
-        return -2;
+    std::size_t i = 0;
+    while (kAttributeLadder[i] != 0) {
+        ++i;
+        if (value >= kAttributeLadder[i]) {
+            break;
+        }
     }
-    if (value < 15) {
-        return -1;
-    }
-    if (value < 20) {
-        return 0;
-    }
-    return 1 + (value - 20) / 5;
+    return kAttributeBonus[i];
 }
 
 // The four classes a party starts as. The names are `Class.txt` headings, and
