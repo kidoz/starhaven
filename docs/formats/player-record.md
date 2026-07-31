@@ -75,7 +75,7 @@ of how much weight they carry:
 | --- | --- | --- | --- |
 | `+0x28` | 2 | a word the attack-bonus path adds in | inferred |
 | `+0x36` | 2 | a word the same path adds in | inferred |
-| `+0x50`..`+0x55` | 6 | the five resistances and one more, one byte each, in the design table's own order; **200 or above means immune** | observed |
+| `+0x50`..`+0x55` | 6 | six resistance bytes; **200 or above means immune**. The element id does **not** index them directly — see the audit at the end | observed |
 | `+0x60` | 4 | armour class, as the to-hit roll reads it off the target | observed |
 | `+0x7d` | 1 | packed skill byte: low six bits the level, bit 6 expert, bit 7 master | observed |
 | `+0x128` + n×28 | 4 | the equipped-item ids the trap and attack code walk (`Pendragon` 410, `Hades` 415 are compared here) | observed |
@@ -635,3 +635,37 @@ worst condition. What it adds between the two is `unknown` again.
 The fit that made the wrong reading persuasive is worth recording as a
 caution: ids 9, 10 and 11 carry 30, 25 and 10, which read beautifully as
 Leather, Chain and Plate descending. It was a coincidence.
+
+## An audit of claims named from a fit
+
+Four retractions, the last persuasive because the numbers told a good story
+that turned out to be chance. The failure mode is specific — asserting a
+*name* from how values look rather than from what an instruction does — so
+the load-bearing combat claims were re-derived from their instructions.
+Three results.
+
+**The to-hit roll: exact.** `0x421cb0` reads the target's armour at `+0x60`,
+calls one of the two attack-bonus getters, and rolls
+`rand() % (armour + 2 × attack + 30)`. The bar is `armour + 15` by default
+and `2 × armour + 30` for kind 3. Every part of the earlier reading survives
+unchanged. `observed`
+
+**Immunity at 200: exact.** `0x421dc0` compares the byte against **200** and
+returns zero damage at or above it, for every element. `observed`
+
+**The resistance byte order: wrong, and corrected.** This document said the
+six bytes at `+0x50`..`+0x55` hold the resistances "in the design table's own
+order", which was an assumption dressed as a measurement. The routine's jump
+table settles it, and the mapping is **rotated by two**:
+
+| element id | 0 | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| byte | `+0x54` | `+0x55` | `+0x50` | `+0x51` | `+0x52` | `+0x53` |
+
+`observed` at `0x421dd0`..`0x421e1a`. Nothing in StarHaven depended on it —
+the engine reads resistances from `MONSTERS.TXT`'s columns by name, not from
+this record — so the correction is to the record's description alone.
+
+**The rule this leaves.** A claim may be tagged `observed` only for what an
+instruction does. Where a *name* follows from how the numbers read, the name
+is `inferred` however good the fit, and the two are stated separately.
