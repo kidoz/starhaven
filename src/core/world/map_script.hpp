@@ -188,6 +188,15 @@ inline constexpr std::uint8_t kVarGoldFound = 22;
 inline constexpr std::uint8_t kVarHitPoints = 3;
 inline constexpr std::uint8_t kVarSpellPoints = 5;
 inline constexpr std::uint8_t kVarExperience = 13;
+
+// **Variable 8 is the character's level.** The executable's "set a character
+// field" and "add to a character field" routines dispatch on the variable id
+// through a 225-entry selector at `0x4411c0`, and ids 7, 8, 9, 10 and 11
+// land on the adjacent words `+0x30`, `+0x32`, `+0x34`, `+0x36` and one
+// more. Since those two routines are the **only** instructions in the whole
+// executable that write the level, every level a character gains is a script
+// adding to variable 8 — which is what a training hall does. `observed`
+inline constexpr std::uint8_t kVarLevel = 8;
 inline constexpr std::uint8_t kVarFood = 23;
 inline constexpr std::uint8_t kVarStatFirst = 32;    // Might .. Luck
 inline constexpr std::uint8_t kVarResistFirst = 46;  // Fire, Elec, Cold, Poison, Magic
