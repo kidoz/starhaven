@@ -311,3 +311,31 @@ threshold — before selecting one of the eleven actions. Those inner
 conditions are read but the actions they pick are still only known by their
 state numbers. `unknown` for the remaining nine behaviours; what is settled
 is death, being hurt, the two distance thresholds and the per-tick roll.
+
+## The runtime record, as far as this batch got it
+
+Seven fields fell out of reading the AI, each from an instruction rather
+than from the table. `observed` throughout.
+
+| Offset | Size | Field | Where it was read |
+| --- | --- | --- | --- |
+| `+0x24` | 4 | flags; bit `0x40000` cleared each tick, bit `0x20000` raised on death | `0x4021a3`, `0x40375a` |
+| `+0x28` | 2 | **hit points** | the AI's damage pass, and the weapon-specials walk |
+| `+0x34` | 1 | the monster's own row, indexing a 72-byte-per-monster table at `0x56c1c0` | `0x40193f` |
+| `+0x3e` | 1 | animation, set to 4 by the hurt action | `0x403770` |
+| `+0x47` | 1 | a percentage rolled each tick, returning disposition 1 | `0x421c91` |
+| `+0x4d` | 1 | a percentage rolled each tick, returning disposition 2 | `0x421c6b` |
+| `+0x4e` | 1 | a flag tested inside a disposition branch | `0x4021d4` |
+
+The two percentage bytes are **not** `MONSTERS.TXT` columns — its `Hst` is a
+small integer and `Pref` a letter — so both are runtime values written by
+whatever afflicts the monster.
+
+**Where the table's columns land was not found.** The plan was to work from
+`MONSTERS.TXT` outward, but the routine that prepares an actor assembles the
+record **field by field on the stack** from a large local frame rather than
+copying columns in a loop, so there is no per-column trace to follow. Reading
+it would mean reading the whole preparation routine, which is a batch of its
+own. The record is not a wall — seven fields came out of the AI alone — but
+it does not yield to the table-outward method the way the player record did.
+`unknown` for the column map.

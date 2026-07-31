@@ -1193,6 +1193,15 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The gamble on the monster record: seven fields, but not the column map**:
+  reading the AI named the flags dword at `+0x24`, the **hit points at
+  `+0x28`**, the row index at `+0x34`, the animation byte at `+0x3e`, the
+  disposition flag at `+0x4e` and the two percentage bytes at `+0x47` and
+  `+0x4d`. What did not come out is where `MONSTERS.TXT`'s columns land: the
+  routine that prepares an actor assembles the record **field by field on the
+  stack** rather than copying columns in a loop, so there is no per-column
+  trace to follow and the table-outward method has nothing to grip. Recorded
+  as a batch of its own rather than guessed at.
 - **The fatigue counter, traced end to end and wired**: the time-advance
   routine increments a byte once an hour, and the moment it passes one — so
   after **two hours awake** — it walks all four characters and stamps
