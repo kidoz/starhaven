@@ -235,7 +235,7 @@ a point of `Rec` costs 32/15 units and 128 units pass a second:
 ## Where a strike's own recovery comes from
 
 **`0x481a80` is the attack-recovery routine**, and it answers the amount the
-queued message carries. It takes one flag â whether the blow is a shot â
+queued message carries. It takes one flag — whether the blow is a shot —
 and builds a `Rec` number out of a **fourteen-word table at `0x4c2750`**:
 
 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
@@ -243,7 +243,7 @@ and builds a `Rec` number out of a **fourteen-word table at `0x4c2750`**:
 | 100 | 100 | 90 | 60 | 100 | 80 | 100 | 80 | 30 | 10 | 10 | 20 | 30 | 0 |
 
 The routine loads entry **0** first and keeps it when nothing is in hand, so
-**a bare fist recovers at 100** â 1â seconds at the traced rate. Otherwise
+**a bare fist recovers at 100** — 1⅔ seconds at the traced rate. Otherwise
 it indexes by the equipped item's **skill-group byte**, read from the item
 row's `+0x15` in a 40-byte-per-item table at `0x560c14`, at **skill id plus
 one**: Staff 100, Sword 90, Dagger 60, Axe 100, Spear 80, Bow 100, Mace 80,
@@ -254,12 +254,12 @@ What it walks, in order:
 - a shot takes the **missile slot at `+0x1430`**; a blow takes the **weapon
   slot at `+0x142c`**;
 - the **other hand at `+0x1428`** then overrides the number **only when its
-  own is larger** â the slower hand sets the pace;
+  own is larger** — the slower hand sets the pace;
 - **worn armour at `+0x1434`** adds its own entry on top, and a **shield**
   in the off hand (equip-type byte `+0x14` of the item row equal to 4) adds
   its entry too;
 - each of those two is **halved when the wearer's packed skill byte at
-  `+0x5f + id` has bit `0x40`, and dropped to zero on bit `0x80`** â which
+  `+0x5f + id` has bit `0x40`, and dropped to zero on bit `0x80`** — which
   is exactly `SKILLDES.TXT`'s "Recovery penalty reduced" and "eliminated"
   lines, now with numbers. Every piece is skipped when its flag byte at
   `+0x13c` marks it broken. `observed`
@@ -268,18 +268,39 @@ StarHaven now spends that much on a strike. Three further terms in the same
 routine are read but not yet wired, and are recorded rather than guessed at:
 a day-of-week term taken from the world clock, the stat-5 (Speed) pair fed
 through a descending ladder of words at `0x4c2860` (500, 400, 350, 300, 275,
-250 â¦ down to 0), and a per-skill percentage byte at `0x4c280e` chosen by
+250 … down to 0), and a per-skill percentage byte at `0x4c280e` chosen by
 the same priority walk the attack bonus uses. `unknown` how the three
 combine.
 
-## The monsters' own counter was hunted and not found. Every write into
-a monster's runtime record across the AI cluster (`0x430000`..`0x433000`)
-was enumerated: the fields at `+0xe0`..`+0xfc` are the position and
-velocity triples the mover writes, the bytes at `+0xfe`/`+0xff` are
-flags, and the only other run — `+0x84`, `+0x86`, `+0x88` — is a
-velocity scaled by 50, not a countdown. Nothing recovery-shaped writes
-into the record from the AI, so either the monsters' cooldown lives in a
-parallel array keyed by actor index (the way the door and light state
-do) or the AI re-derives it each frame from `MONSTERS.TXT`'s `Rec`
-column. StarHaven keeps its own hundredths-of-a-second reading in the
-meantime. `unknown`
+## The monsters' counter, found at last
+
+Five hunts failed and the negative stood; it is now retired. **The
+monster's recovery counter is the dword at `+0x6c`** of the 548-byte
+runtime record at `0x56f478`, and it is filled and drained exactly the way
+the party's is.
+
+- **The setter is shared.** The queued-message handler that fills a
+  character's `+0x137c` has a second branch beside it: where **kind 4 with
+  index 0..3** means a party member, **kind 3 with index 0..499** means an
+  actor, and the same parameter is multiplied by the same **32/15** before
+  being stored at `0x56f4e4 + 548 × index` — which is `+0x6c` of the
+  record. `observed` at `0x405cdd`..`0x405cf5`.
+- **The drain is the same shape.** At `0x401b5d`: subtract an elapsed while
+  the counter is above zero, then clamp at zero. The accumulator at `+0xa8`
+  beside it takes the same elapsed added rather than subtracted. `observed`
+
+**Why five hunts missed it.** They enumerated every write into a monster's
+record *from the AI cluster*, and the only write to `+0x6c` does not come
+from there — it comes from the message handler, which addresses the field
+absolutely (`mov [edx*4 + 0x56f4e4], eax`) rather than through a record
+pointer, so no scan keyed on a base register could see it. The field also
+sits below the `+0xe0`..`+0xfc` position-and-velocity band those hunts had
+already catalogued, which is where the searching had concentrated.
+
+**One thing is still short of proof.** The elapsed the countdown subtracts
+is the global at **`0x4d51c4`**, not the `0x4d519c` that advances the world
+clock. The two sit `0x28` apart and are consumed identically — each a plain
+elapsed, subtracted and clamped — so they are taken to carry the same unit,
+and a monster's `Rec` is spent at the same sixty points a second the
+party's is, which is what StarHaven already does. That equality is
+`inferred`; nothing read so far sets one from the other.

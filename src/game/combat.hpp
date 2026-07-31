@@ -92,7 +92,14 @@ inline constexpr float kClockUnitsPerSecond = 128.0f;
 // points a second**. `observed` See docs/formats/player-record.md.
 inline constexpr float kRecoveryScale = 1.0f / 60.0f;
 
-// The same figure under its old name, kept for the monster table's column.
+// The same figure under its old name, kept for the monster table's column —
+// and it is the same counter, not an analogy. A monster's recovery is the
+// dword at `+0x6c` of its 548-byte runtime record, filled by the very
+// message handler that fills a character's `+0x137c` (kind 3 with an actor
+// index where kind 4 takes a party slot) and scaled by the same 32/15, then
+// counted down and clamped at zero at `0x401b5d`. `observed`; that its
+// elapsed — the global at `0x4d51c4` — carries the same unit as the world
+// clock's own is `inferred`. See docs/formats/player-record.md.
 inline constexpr float kMonsterRecoveryScale = kRecoveryScale;
 
 // What a `Rec` value costs in seconds, at the traced rate.

@@ -1109,16 +1109,26 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The monsters' recovery counter, found after five failed hunts**: it is
+  the dword at `+0x6c` of the 548-byte actor record, filled by the same
+  queued-message handler that fills a character's — kind 3 with an actor
+  index where kind 4 takes a party slot — scaled by the same 32/15 and
+  counted down to zero the same way. The earlier hunts missed it because
+  they scanned the AI for writes through a record pointer, and the only
+  write to the field comes from outside the AI and addresses it absolutely.
+  What remains unproven is filed rather than smoothed over: the elapsed it
+  subtracts is a second global, and its equality with the world clock's own
+  is inferred.
 - **The world turns at thirty times real time**: the calendar routine's own
-  arithmetic â 128 clock units to a real second, 30/128 world seconds to a
-  unit â fixes a rate the engine had only ever guessed at. Half a world
+  arithmetic — 128 clock units to a real second, 30/128 world seconds to a
+  unit — fixes a rate the engine had only ever guessed at. Half a world
   minute a second: a day now takes forty-eight minutes of playing, and shop
   hours, the sky's daily re-roll, rest and the day/night turn all keep the
   original's pace.
 - **A strike costs what the executable says it costs**: the attack-recovery
-  routine at `0x481a80` reads a fourteen-word table â a bare fist 100, a
+  routine at `0x481a80` reads a fourteen-word table — a bare fist 100, a
   dagger 60, a sword 90, a staff or axe or bow 100, plate armour another 30
-  on top â with the slower hand setting the pace and the armour skills'
+  on top — with the slower hand setting the pace and the armour skills'
   higher lines halving then erasing what the armour adds. The party's flat
   invented second is gone.
 - **Recovery's unit, closed — sixty points a second**: the world clock at

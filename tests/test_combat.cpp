@@ -73,6 +73,8 @@ TEST_CASE("the Rec column spends at sixty points a second", "[combat]") {
     REQUIRE(game::recovery_seconds(200) < 4.0f);
     // 32/15 units a point against 128 units a second is the whole of it.
     REQUIRE(game::kClockUnitsPerSecond / (32.0f / 15.0f) == Catch::Approx(60.0f));
+    // Monsters keep the counter in the same coin: one handler fills both.
+    REQUIRE(game::kMonsterRecoveryScale == game::kRecoveryScale);
 }
 
 TEST_CASE("a monster starts at the hit points its row gives", "[combat]") {
