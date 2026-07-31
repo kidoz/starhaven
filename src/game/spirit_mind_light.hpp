@@ -68,6 +68,13 @@ inline constexpr std::array<int, 3> kOneTwoThreeAPoint{1, 2, 3};
 // point" and "+ 15 minutes"; the base is the same sixty-four minutes Haste
 // keeps, four more than the hour the prose rounds to. `observed` at
 // 0x4266ff and 0x426c3c.
+// What Bless, Heroism and Stone Skin are worth: their rows all say the same
+// shape, "5 + 1 per point of skill" — to hit, to damage and to armour class
+// respectively. The five is the row's; the per-point part is the skill the
+// slot carries. `observed` in the rows, `inferred` that the case stores the
+// skill and the five is added where it is used.
+inline constexpr int kBlessBase = 5;
+
 inline constexpr int kBlessBaseMinutes = 64;
 
 [[nodiscard]] inline constexpr std::int64_t bless_minutes(int points, int rank) noexcept {

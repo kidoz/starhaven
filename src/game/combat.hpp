@@ -945,8 +945,14 @@ private:
                             flies ? BlowKind::Shot : BlowKind::Plain, 0, random_)) {
                 return monster.name + " misses " + target.name;
             }
-            const int damage =
+            int damage =
                 after_resistance(data::roll(dice, random_), resistance_to(target, attack.type));
+            // "Halves damage from incoming ranged attacks (such as rocks and
+            // arrows)" — Shield, out of the target's own slot 3. Its row
+            // gives the halving and no number, so there is nothing to scale.
+            if (flies && target.buffs.power(CharacterBuff::Shield, now) > 0) {
+                damage = damage / 2;
+            }
             target.hit_points -= damage;
             std::string what =
                 monster.name + " hits " + target.name + " for " + std::to_string(damage);

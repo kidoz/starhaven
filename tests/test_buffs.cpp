@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "game/buffs.hpp"
+#include "game/spirit_mind_light.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
@@ -148,4 +149,25 @@ TEST_CASE("the attribute slots answer for the stat their spell names", "[buffs]"
     for (int slot = 0; slot < 4; ++slot) {
         REQUIRE(buff_slot_for_stat(slot) != slot);
     }
+}
+
+TEST_CASE("the four remaining buffs carry the shape their rows give", "[buffs]") {
+    // Bless, Heroism and Stone Skin all say "5 + 1 per point of skill" — to
+    // hit, to damage, to armour class. The five is the row's.
+    REQUIRE(kBlessBase == 5);
+    CharacterBuffs buffs;
+    buffs.cast(CharacterBuff::Bless, 500, 9);
+    buffs.cast(CharacterBuff::Heroism, 500, 4);
+    buffs.cast(CharacterBuff::StoneSkin, 500, 0);
+    REQUIRE(kBlessBase + buffs.power(CharacterBuff::Bless, 0) == 14);
+    REQUIRE(kBlessBase + buffs.power(CharacterBuff::Heroism, 0) == 9);
+    // A slot at no power gives nothing at all, not the bare five: the caller
+    // only adds the base when the slot is up.
+    REQUIRE(buffs.power(CharacterBuff::StoneSkin, 0) == 0);
+    // Shield carries no number; its row only halves, so the slot is a flag.
+    REQUIRE(buffs.power(CharacterBuff::Shield, 0) == 0);
+    buffs.cast(CharacterBuff::Shield, 500, 1);
+    REQUIRE(buffs.power(CharacterBuff::Shield, 0) > 0);
+    // And all four lapse with the clock like the rest.
+    REQUIRE(buffs.power(CharacterBuff::Bless, 500) == 0);
 }

@@ -6481,10 +6481,18 @@ int main(int argc, char** argv) {
                 }
                 skilled_armor += power_of_skill(row->skill_group, points).armor;
             }
+            // "Increases the armor class of a character by 5 + 1 point per
+            // point of skill in Earth Magic" — Stone Skin, out of slot 4.
+            int warded = 0;
+            if (const int stone =
+                    party[i].buffs.power(game::CharacterBuff::StoneSkin, clock.minutes());
+                stone > 0) {
+                warded = game::kBlessBase + stone;
+            }
             party[i].armor_class =
                 game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
                 game::armour_of(party[i], item_stats) + party[i].temp_armor + skilled_armor +
-                gear_armor;
+                gear_armor + warded;
         }
 
         if (want_rest) {
@@ -6887,11 +6895,26 @@ int main(int argc, char** argv) {
                             rider = game::special_power(*bonus);
                         }
                     }
+                    // Bless and Heroism, out of the character's own slots:
+                    // "a bonus to hit increased by 5 + 1 per point of skill"
+                    // and "increases the damage ... by 5 + 1 point per
+                    // point", which is what their rows say and what the
+                    // slots now carry.
+                    game::SkillPower swung = weapon_skill_of(party[who]);
+                    if (const int blessed = party[who].buffs.power(game::CharacterBuff::Bless,
+                                                                   clock.minutes());
+                        blessed > 0) {
+                        swung.to_hit += game::kBlessBase + blessed;
+                    }
+                    if (const int heroic = party[who].buffs.power(game::CharacterBuff::Heroism,
+                                                                  clock.minutes());
+                        heroic > 0) {
+                        swung.damage += game::kBlessBase + heroic;
+                    }
                     std::string blow =
                         battle.strike(target, party[who], packs[who], session, monster_stats,
                                       item_stats, random_items, standard_bonuses, special_bonuses,
-                                      weapon_skill_of(party[who]), rider.extra_damage,
-                                      rider.damage_element);
+                                      swung, rider.extra_damage, rider.damage_element);
                     if (!blow.empty()) {
                         if (blow.find(" and kills it") != std::string::npos) {
                             speak(party[who], 1);  // line 1: the victor's word

@@ -1143,6 +1143,11 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **The last four buffs do something**: Bless reaches the to-hit roll,
+  Heroism the damage and Stone Skin the armour class, each at the "5 + 1 per
+  point of skill" their rows all three state; Shield halves incoming missile
+  damage, which is the whole of what its row promises. Twelve slots that
+  filled are now twelve buffs that matter.
 - **The attribute question closed, and an off-by-one with it**: the stored
   attributes run from **`+0x14`**, four bytes apart, each an even word
   holding the value and the odd word after it a modifier — script variables
