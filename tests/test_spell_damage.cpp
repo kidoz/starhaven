@@ -5,6 +5,7 @@
 // SPELLS.TXT carries none of them.
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cstdint>
 
 #include "game/spell_damage.hpp"
@@ -43,17 +44,27 @@ TEST_CASE("thirty-four spells have a case and the rest have none", "[spelldmg]")
     REQUIRE_FALSE(spell_rolls_damage(200));
 }
 
-TEST_CASE("a lone die is a lone die whatever the skill", "[spelldmg]") {
-    // Flame Arrow is 1d8: eight at best, one at worst, and skill changes
-    // nothing.
-    REQUIRE(roll_spell_damage(2, 0, Lowest{}) == 1);
-    REQUIRE(roll_spell_damage(2, 30, Lowest{}) == 1);
-    REQUIRE(roll_spell_damage(2, 30, Highest{}) == 8);
-    // Magic Arrow is 1d6 + 3.
-    REQUIRE(roll_spell_damage(35, 9, Lowest{}) == 4);
-    REQUIRE(roll_spell_damage(35, 9, Highest{}) == 9);
-    // Cold Beam is the smallest in the game, 1d3.
-    REQUIRE(roll_spell_damage(24, 9, Highest{}) == 3);
+TEST_CASE("the unscaled spells match the bands their rows print", "[spelldmg]") {
+    // Every one of these is stated in words by SPELLS.TXT, which is what
+    // caught three of them being one point high the first time round.
+    struct Band {
+        int spell;
+        int low;
+        int high;
+    };
+    const std::array<Band, 5> bands{{
+        {2, 1, 8},    // Flame Arrow  "1-8 points"
+        {13, 2, 6},   // Static Charge "2-6 points"
+        {24, 2, 6},   // Cold Beam    "2-6 points"
+        {35, 3, 8},   // Magic Arrow  "3-8 points"
+        {45, 1, 6},   // Spirit Arrow "1-6 points"
+    }};
+    for (const auto& band : bands) {
+        REQUIRE(roll_spell_damage(band.spell, 0, Lowest{}) == band.low);
+        REQUIRE(roll_spell_damage(band.spell, 30, Lowest{}) == band.low);
+        REQUIRE(roll_spell_damage(band.spell, 0, Highest{}) == band.high);
+        REQUIRE(roll_spell_damage(band.spell, 30, Highest{}) == band.high);
+    }
 }
 
 TEST_CASE("the skill-scaled spells roll one die a point", "[spelldmg]") {
@@ -94,6 +105,10 @@ TEST_CASE("the ranges say the same thing the dice do", "[spelldmg]") {
     REQUIRE(flat.low == 1);
     REQUIRE(flat.high == 8);
     REQUIRE(scaled.empty());
+    // Magic Arrow's band is three to eight, not four to nine.
+    REQUIRE(traced_damage_ranges(35, 7, flat, scaled));
+    REQUIRE(flat.low == 3);
+    REQUIRE(flat.high == 8);
     // skill + 6: a fixed flat, nothing rolled.
     REQUIRE(traced_damage_ranges(7, 7, flat, scaled));
     REQUIRE(flat.low == 13);

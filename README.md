@@ -1134,6 +1134,17 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
+- **A verification pass, and it earned its keep**: after two retractions,
+  every load-bearing claim was re-checked from an angle it was not derived
+  from. **Three of the thirty-four spell dice were wrong** — caught against
+  the bands `SPELLS.TXT` prints in words, and traced to two misread case
+  shapes; Static Charge, Cold Beam and Magic Arrow are corrected and the
+  roller now distinguishes all four forms. The attribute ladder came back
+  confirmed overwhelmingly (73 reference sites, not the one it was found
+  in), the class tables five ways from `Class.txt`'s own prose, and the
+  weapon-recovery table is flagged as the one claim resting on a single
+  routine — corroborated only by `SkillDes.txt` calling daggers quick and
+  axes slow, which its numbers match.
 - **The spell switch, finished**: the last four cases close. Healing Touch
   is 2d3 plus one, three or five — its row's 3–7, 5–9, 7–11 exactly. Dispel
   Magic and Prismatic Light really do take nothing from their rank. And Sun

@@ -7,6 +7,43 @@ re-deriving the same offsets, and because the fields StarHaven still guesses
 at — recovery, the attack bonus's parts — will be found here. Each claim is
 tagged `observed` (read from an instruction) or `inferred`.
 
+## A verification pass, and what it caught
+
+After two retractions in one sitting, the load-bearing claims were each
+re-checked from an angle they were not derived from. The results, in order
+of how much weight they carry:
+
+- **The spell dice — three of thirty-four were wrong.** Checked against the
+  bands `SPELLS.TXT` prints in words, which the tracing had not used.
+  Flame Arrow's "1-8", Lightning Bolt's "1-8 per point", Harm's "8 plus 1-2
+  per point", Sun Ray's "20 plus 1-20", Dragon Breath's "1-25 per point" all
+  matched. **Static Charge, Cold Beam and Magic Arrow did not**, and the
+  cause was a decoding error in two forms: a case that computes
+  `flat + rand() % sides` had been read as `flat + 1d(sides)`, one point
+  high, and a case with a fixed die *count* had been read as a single die.
+  All three are corrected, and the roller now distinguishes the four shapes
+  the cases actually take.
+- **The attribute ladder — confirmed overwhelmingly.** The pair at
+  `0x4c2860`/`0x4c289c` is referenced from **73 and 37 sites** across dozens
+  of routines, not just the recovery one it was found in. It is the game's
+  universal parameter curve beyond doubt.
+- **The class tables — confirmed five ways from the prose.** `0x4c2640` is
+  read from ten sites, `0x4c2654` from four, so neither is a one-routine
+  reading. And `Class.txt` states five checkable things, all of which hold:
+  "Champions enjoy the benefit of an extra four hit points per level"
+  (Knight 4 → Champion 8), "Cavaliers ... an extra two" (4 → 6), "High
+  Priests ... an extra two hit points and spell points" (2 → 4 and 3 → 5),
+  "Arch Mages ... an extra two" (2 → 4 and 3 → 5), "Knights begin with the
+  greatest number of hit points" (base 30, the highest of the six).
+- **The weapon-recovery table — the weakest of the four, and it stands.**
+  `0x4c2750` is read from six sites and every one is inside `0x481a80`, so
+  no second routine corroborates it. What does corroborate it is
+  `SkillDes.txt`: daggers are "very quick" and carry the lowest number of
+  any weapon at 60, axes are "rather slow on the attack" and carry the
+  highest at 100, and the three skills whose expert line promises "a quicker
+  attack" are exactly the three the routine tests for. Recorded as the one
+  claim here resting on a single routine.
+
 ## Where the offsets came from
 
 | Routine | What it does | Documented in |

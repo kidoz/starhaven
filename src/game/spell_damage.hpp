@@ -26,54 +26,58 @@
 
 namespace starhaven::game {
 
-// One spell's damage. When `sides` is zero the spell rolls nothing and is
-// worth `skill + flat`; otherwise it rolls `sides`-sided dice, one of them
-// unless `by_skill`, in which case the caster's skill says how many, and
-// adds `flat` on top.
+// One spell's damage. The cases take four shapes and the field says which:
+//
+// - `sides == 0` — no dice at all; the spell is worth `skill + flat`.
+// - `dice == -1` — one die per point of skill, plus `flat`.
+// - `dice == 0` — **one zero-based roll**: `flat + rand() % sides`, so the
+//   band runs `flat` to `flat + sides - 1`. This is the form that was misread
+//   first time round, as `flat + 1d(sides)`, and it is one point high.
+// - `dice == n` — that many dice of one to `sides`, plus `flat`.
 struct SpellDamage {
     int spell = 0;
-    int sides = 0;
-    bool by_skill = false;
+    int dice = 0;   // -1 the caster's skill, 0 one zero-based roll, n that many
+    int sides = 0;  // 0 when the spell rolls nothing at all
     int flat = 0;
 };
 
 // All thirty-four, in spell order. `observed` case by case from `0x432af2`
 // through `0x432eec`.
 inline constexpr std::array<SpellDamage, 34> kSpellDamage{{
-    {2, 8, false, 0},      // Flame Arrow      1d8
-    {4, 4, true, 0},       // Fire Bolt        skill d4
-    {6, 6, true, 0},       // Fireball         skill d6
-    {7, 0, false, 6},      // Ring of Fire     skill + 6
-    {8, 3, true, 4},       // Fire Blast       skill d3 + 4
-    {9, 0, false, 8},      // Meteor Shower    skill + 8
-    {10, 0, false, 12},    // Inferno          skill + 12
-    {11, 15, true, 15},    // Incinerate       skill d15 + 15
-    {13, 5, false, 2},     // Static Charge    1d5 + 2
-    {15, 0, false, 2},     // Sparks           skill + 2
-    {18, 8, true, 0},      // Lightning Bolt   skill d8
-    {20, 10, true, 10},    // Implosion        skill d10 + 10
-    {22, 0, false, 20},    // Starburst        skill + 20
-    {24, 3, false, 0},     // Cold Beam        1d3
-    {26, 2, true, 2},      // Poison Spray     skill d2 + 2
-    {28, 7, true, 0},      // Ice Bolt         skill d7
-    {30, 9, true, 9},      // Acid Burst       skill d9 + 9
-    {32, 2, true, 12},     // Ice Blast        skill d2 + 12
-    {35, 6, false, 3},     // Magic Arrow      1d6 + 3
-    {37, 3, true, 5},      // Deadly Swarm     skill d3 + 5
-    {39, 5, true, 0},      // Blades           skill d5
-    {41, 8, true, 0},      // Rock Blast       skill d8
-    {43, 0, false, 20},    // Death Blossom    skill + 20
-    {45, 6, false, 0},     // Spirit Arrow     1d6
-    {58, 2, true, 5},      // Mind Blast       skill d2 + 5
-    {65, 12, true, 12},    // Psychic Shock    skill d12 + 12
-    {70, 2, true, 8},      // Harm             skill d2 + 8
-    {76, 5, true, 30},     // Flying Fist      skill d5 + 30
-    {82, 16, true, 16},    // Destroy Undead   skill d16 + 16
-    {84, 0, false, 25},    // Prismatic Light  skill + 25
-    {87, 20, true, 20},    // Sun Ray          skill d20 + 20
-    {90, 10, true, 25},    // Toxic Cloud      skill d10 + 25
-    {92, 6, true, 6},      // Shrapmetal       skill d6 + 6
-    {97, 25, true, 0},     // Dragon Breath    skill d25
+    {2, 1, 8, 0},      // Flame Arrow      1d8, "1-8 points"
+    {4, -1, 4, 0},     // Fire Bolt        skill d4
+    {6, -1, 6, 0},     // Fireball         skill d6
+    {7, 0, 0, 6},      // Ring of Fire     skill + 6
+    {8, -1, 3, 4},     // Fire Blast       skill d3 + 4
+    {9, 0, 0, 8},      // Meteor Shower    skill + 8
+    {10, 0, 0, 12},    // Inferno          skill + 12
+    {11, -1, 15, 15},  // Incinerate       skill d15 + 15
+    {13, 0, 5, 2},     // Static Charge    2..6, "2-6 points"
+    {15, 0, 0, 2},     // Sparks           skill + 2
+    {18, -1, 8, 0},    // Lightning Bolt   skill d8, "1-8 per point"
+    {20, -1, 10, 10},  // Implosion        skill d10 + 10
+    {22, 0, 0, 20},    // Starburst        skill + 20
+    {24, 2, 3, 0},     // Cold Beam        2d3, "2-6 points"
+    {26, -1, 2, 2},    // Poison Spray     skill d2 + 2, "2 plus 1-2 per point"
+    {28, -1, 7, 0},    // Ice Bolt         skill d7
+    {30, -1, 9, 9},    // Acid Burst       skill d9 + 9
+    {32, -1, 2, 12},   // Ice Blast        skill d2 + 12
+    {35, 0, 6, 3},     // Magic Arrow      3..8, "3-8 points"
+    {37, -1, 3, 5},    // Deadly Swarm     skill d3 + 5, "5 plus 1-3 per point"
+    {39, -1, 5, 0},    // Blades           skill d5
+    {41, -1, 8, 0},    // Rock Blast       skill d8
+    {43, 0, 0, 20},    // Death Blossom    skill + 20
+    {45, 1, 6, 0},     // Spirit Arrow     1d6, "1-6 points"
+    {58, -1, 2, 5},    // Mind Blast       skill d2 + 5, "5 plus 1-2 per point"
+    {65, -1, 12, 12},  // Psychic Shock    skill d12 + 12
+    {70, -1, 2, 8},    // Harm             skill d2 + 8, "8 plus 1-2 per point"
+    {76, -1, 5, 30},   // Flying Fist      skill d5 + 30
+    {82, -1, 16, 16},  // Destroy Undead   skill d16 + 16
+    {84, 0, 0, 25},    // Prismatic Light  skill + 25
+    {87, -1, 20, 20},  // Sun Ray          skill d20 + 20, "20 plus 1-20 per point"
+    {90, -1, 10, 25},  // Toxic Cloud      skill d10 + 25
+    {92, -1, 6, 6},    // Shrapmetal       skill d6 + 6
+    {97, -1, 25, 0},   // Dragon Breath    skill d25, "1-25 per point"
 }};
 
 // Armageddon and Dark Containment share the last case, `skill + 50`. They
@@ -108,10 +112,14 @@ template <typename Next>
     if (row->sides <= 0) {
         return skill + row->flat;
     }
-    const int dice = row->by_skill ? (skill < 0 ? 0 : skill) : 1;
+    const auto sides = static_cast<std::uint64_t>(row->sides);
+    if (row->dice == 0) {
+        return row->flat + static_cast<int>(next() % sides);
+    }
+    const int count = row->dice < 0 ? (skill < 0 ? 0 : skill) : row->dice;
     int total = row->flat;
-    for (int i = 0; i < dice; ++i) {
-        total += static_cast<int>(next() % static_cast<std::uint64_t>(row->sides)) + 1;
+    for (int i = 0; i < count; ++i) {
+        total += static_cast<int>(next() % sides) + 1;
     }
     return total;
 }
@@ -137,12 +145,18 @@ template <typename Next>
         flat = {skill + row->flat, skill + row->flat};
         return true;
     }
-    if (row->by_skill) {
+    if (row->dice < 0) {
         flat = {row->flat, row->flat};
         per_skill = {1, row->sides};
         return true;
     }
-    flat = {row->flat + 1, row->flat + row->sides};
+    if (row->dice == 0) {
+        flat = {row->flat, row->flat + row->sides - 1};
+        return true;
+    }
+    // Several fixed dice, flattened to their band: the engine's roller takes
+    // a range, and only Cold Beam's 2d3 uses this form.
+    flat = {row->flat + row->dice, row->flat + row->dice * row->sides};
     return true;
 }
 
