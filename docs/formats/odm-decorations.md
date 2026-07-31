@@ -48,11 +48,16 @@ and the name array equal `4 + count × 28` for all 15. `observed`
 
 | Offset | Size | Type | Field | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| +0x00 | 4 | u32 | kind | observed | index into `DDECLIST.BIN` |
+| +0x00 | 2 | u16 | kind | observed | index into `DDECLIST.BIN` |
+| +0x02 | 2 | u16 | flags | observed | touch/monster/object triggers, map visibility, chest, invisible, obelisk chest |
 | +0x04 | 4 | i32 | x | observed | world position |
 | +0x08 | 4 | i32 | y | observed | |
 | +0x0C | 4 | i32 | z | observed | elevation |
-| +0x10 | 12 | — | unknown | unknown | zero in every observed record |
+| +0x10 | 4 | i32 | direction | observed | MM6 angle |
+| +0x14 | 2 | i16 | event_variable | observed | persistent decoration variable |
+| +0x16 | 2 | u16 | event_id | observed | normal event |
+| +0x18 | 2 | i16 | trigger_radius | observed | proximity trigger distance |
+| +0x1A | 2 | i16 | direction_degrees | observed | used when direction is zero |
 
 Coordinates are 32-bit, as with model meshes, and every one of the 6,210
 observed positions lies inside the 65,536-unit world. `observed`
@@ -74,17 +79,37 @@ header, a zlib stream, then a `u32` count and 230 fixed 80-byte records.
 | --- | --- | --- | --- | --- | --- |
 | +0x00 | 32 | char[32] | name | observed | matches the map's name array |
 | +0x20 | 32 | char[32] | group | observed | e.g. `"tree"`, `"cactus"`, `"test"` |
-| +0x40 | 2 | u16 | — | observed | zero on all 230 records |
-| +0x42 | 2 | u16 | radius | observed | collision radius: 96 for trees, 52 for cacti (see below) |
-| +0x44 | 2 | u16 | extent | observed | a second size dimension; a radius/height pair with `+0x42` (see below) |
-| +0x46 | 2 | u16 | light | inferred | 256 on the six torches, 16 on `Pending!`, else 0 — a light-source flag |
+| +0x40 | 2 | i16 | type | observed | decoration type/category |
+| +0x42 | 2 | u16 | height | observed | collision cylinder height |
+| +0x44 | 2 | i16 | radius | observed | collision cylinder radius |
+| +0x46 | 2 | i16 | light_radius | observed | radius of emitted light |
 | +0x48 | 2 | u16 | sprite_frame | observed | the `DSFT.BIN` frame index of this decoration's art (see below) |
-| +0x4A | 2 | u16 | — | unknown | nonzero on five records (32 on `Party Start`, 64 on `Shp`, 8 on three torches) |
+| +0x4A | 2 | u16 | flags | observed | rendering, collision, flicker, fire/smoke, and dawn/dusk sound bits |
 | +0x4C | 2 | u16 | sound id | observed | an ambient sound, resolved through `DSOUNDS.BIN` |
-| +0x4E | 2 | u16 | — | observed | zero on all 230 records |
+| +0x4E | 2 | u16 | padding | observed | zero on all 230 records |
 
 A decoration's `kind` indexes this table, and the record's name matches the
 map's own name array in **726 of 727** entries on `Outa1.odm`. `observed`
+
+### Descriptor flags at `+0x4A`
+
+| Bit | Meaning |
+| ---: | --- |
+| `0x001` | does not block movement |
+| `0x002` | do not draw |
+| `0x004` | slow flicker |
+| `0x008` | medium flicker |
+| `0x010` | fast flicker |
+| `0x020` | marker |
+| `0x040` | slow animation loop |
+| `0x080` | emit fire |
+| `0x100` | play sound at dawn |
+| `0x200` | play sound at dusk |
+| `0x400` | emit smoke |
+
+These meanings explain the five nonzero shipped values directly: torches
+flicker, `Party Start` is a marker, and `Shp` uses the slow-loop flag.
+`observed`
 
 ### Ambient sound
 
@@ -117,22 +142,17 @@ The evidence is direct, over all 230 records:
 first marked the field as an id — is now seen to be three consecutive
 `DSFT.BIN` group-start frames. `observed`
 
-## The size pair: `+0x42` and `+0x44`
+## Collision size: `+0x42` and `+0x44`
 
-`+0x42` is the collision radius (96 for trees, 52 for cacti; the variation
-between kinds is what the layout respects — see the radius note below). `+0x44`
-is a second size dimension, a radius/height pair with it: the ship carries 378
-(its full footprint), torches 7–8 (thin), plates 16 (flat and low), stalactites
-64, trees 52–96. `observed` for the values; that one is a horizontal radius and
-the other a vertical extent is `inferred` from how they vary by kind, not stated
-by the data.
+`+0x42` is the collision-cylinder height and `+0x44` its radius. Collision and
+chest placement consumers use them directly. `observed`
 
-## `+0x46` marks a light source
+## `+0x46` is light radius
 
 256 is set on exactly the six torches (`Torch`, `torchnf`, `TorcH2`,
 `nwtrchnf`, `SkullTorch`, `Torch01`) and 16 on the `Pending!` placeholder; every
-other record is 0. Torches are the only decorations that emit dynamic light, so
-the field reads as a light-source flag. `inferred`
+other record is 0. The renderer adds a stationary light with this radius.
+`observed`
 
 ## Rendering
 
@@ -141,19 +161,18 @@ palette the sprite header names. `observed`
 
 Two caveats:
 
-- **Not every name resolves.** On `Outa1.odm`, `tree27`/`tree28`/`tree29`,
+- **Not every decoration name resolves directly.** On `Outa1.odm`, `tree27`/`tree28`/`tree29`,
   `stump5a` and `ped06` exist in `SPRITES.LOD`, but `Cactus24`, `Cactus25`,
   `Cactus27`, `Rock03`, `Rock05` and `uacrwn` do not, under any casing. Those
-  cover 115 of the map's 727 placements. The sprite frame table does not
-  rescue them either — none of the `Cactus*` names is one of its 1,656 groups —
-  so where that art lives is still `unknown`.
+  cover 115 of the map's 727 placements. The name is descriptive, not the
+  lookup key: `DDECLIST +0x48` selects the SFT group which resolves the art.
 - **The world size of a sprite is partly stated.** Neither the record nor the
   `DDECLIST` entry gives one, but the decoration name is usually an animation
   name, and the sprite frame table carries a per-sprite multiplier: `tree01` is
   2.1, `tree27` is 1.0, `ped01` is 0.7 (see [`dsft.md`](dsft.md)). That fixes
-  the sizes relative to each other. The absolute factor is still nowhere in the
-  data; the renderer multiplies by 4, calibrated by eye against the models.
-  `inferred`
+  the sizes relative to each other. The original passes that frame scale
+  directly to billboard projection; an extra eye-calibrated factor is not a
+  format field. `observed`
 
 ## Invalid-input behavior
 
@@ -162,41 +181,12 @@ The decoder rejects, deterministically and without reading out of bounds:
 - a payload that cannot hold the model array or a model's geometry;
 - a decoration count whose records or names would extend past the payload.
 
-## Open questions
+## Historical question status
 
-- The `DDECLIST` field at `+0x4A`, nonzero on only five records (32 on
-  `Party Start`, 64 on `Shp`, 8 on three torches). `unknown`
-- The 12 unknown bytes at the end of each record. `unknown`
-- Where the missing sprites live. `unknown`
-- The correct world scale for a decoration sprite. `unknown`
-- The ~110 KB that follows the decoration array in every outdoor payload.
-  `unknown`
+> Audited in the [open-question register](../open-questions.md); the register
+> supersedes unresolved hypotheses below.
 
-  Two models are ruled out rather than untried. A **joint stride search** —
-  requiring one sequence of count-prefixed sections to advance all 15 maps from
-  their own start to their own end, over strides 1..256 to depth 10 — finds
-  **nothing**. A **linear model** of the span over the decoration and model
-  counts has no integer solution.
-
-  The reason both fail is visible in the spans themselves: they run 102,888 to
-  116,610 bytes, a spread of 13.3%, across maps whose geometry differs roughly
-  tenfold. **About 103 KB is present regardless of map size and at most 13.7 KB
-  varies**, so the region is dominated by fixed-size structures and cannot be
-  described by count-driven sections at all. `observed`
-
-  The header's three 128×128 grids show the format is willing to store large
-  fixed tables, which is the obvious thing to test next.
-
-## The field at +0x42 is a radius
-
-`DDECLIST.BIN`'s `+0x42` is 96 for trees and 52 for cacti, and it behaves like
-the room a decoration takes up: across the near pairs of decorations on a map,
-**none is ever placed closer than the sum of the two values** — 0 of 1,737 on
-Sweet Water and 0 of 2,001 on New Sorpigal — while giving every kind the same
-96 does produce violations (8 on New Sorpigal, 15 on Goblinwatch). It is the
-*variation* between kinds that the layout respects, which a constant cannot
-explain. `observed`
-
-The engine uses it as the collision radius for monsters walking past.
-`observed` for the field being a radius (the placement analysis above), `unknown`
-only for the absolute unit.
+All five questions are closed: `+0x4A` is the decoration flag word; the placed
+record tail is direction and event state; art and scale come through the SFT
+id; and the following region is the terrain/spatial index documented in
+[`odm-tile-index.md`](odm-tile-index.md).
