@@ -53,6 +53,40 @@ item's id at `+0x128` and its bonus word at `+0x144` grant. That is the
 same walk the Disarm getter performs, which is how "of Thievery" was
 identified in the chest trace.
 
+## The stat block, read straight off the base getter
+
+`0x483800`'s jump table at `0x4838d0` gives one case per id, and the whole
+block reads off at once. It splits four ways. `observed`
+
+- **The attribute run**, eight fields sixteen bytes apart: `+0x12b0` id 9,
+  `+0x12c0` id 6, `+0x12d0` id 1, `+0x12e0` id 2, `+0x12f0` id 4, `+0x1300`
+  id 5, `+0x1310` id 0, `+0x1320` id 3. Seven of the eight are the sheet's
+  attributes in `stats.txt`'s order — **0 Might, 1 Intellect, 2 Personality,
+  3 Endurance, 4 Accuracy, 5 Speed, 6 Luck** — which the routines confirm
+  from the other side: hit points ask for 3, spell points for 2, recovery
+  and armour for 5, the attack bonus for 4. **Id 9 is an eighth field in the
+  same block with no name.** `unknown`
+- **The resistances, and they are the party's rather than the character's.**
+  Ids 10, 12, 11, 13 and 23 read five *globals* at `0x908e3c`, `0x908e4c`,
+  `0x908e5c`, `0x908e6c` and `0x908e7c` — sixteen bytes apart, one block,
+  outside the player record entirely. That "of Protection" adds ten to ids
+  10..13 and nothing to 23 is the confirmation: four of the five elements
+  and not the fifth.
+- **A pair of stored words**: ids 15 and 19 both read `+0x1270`, and id 16
+  reads `+0x1280`.
+- **Eight ids with no base at all.** Ids 7, 8, 14, 17, 18, 20, 21 and 22
+  fall to the common `ret` with zero in `eax`, so whatever they are worth is
+  built entirely by the bonused getter from gear and level. **Id 14 is the
+  character's level** — both the hit-point and spell-point routines multiply
+  their class number by it — and the rest are unnamed.
+
+So the gamble half paid. The resistance block is named and its home moved
+out of the player record; the attribute run is confirmed from two sides; and
+the three specials that point at ids 7, 8 and 9 still point at numbers with
+no names, which was the risk. Those three rows in
+[`weapon-specials.md`](weapon-specials.md) stay `unknown`, and nothing more
+has been hung on them.
+
 ## The stat ids, and where each base value lives
 
 `0x483800` is the *base* getter beside `0x482e80`'s bonused one, and its

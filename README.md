@@ -1109,6 +1109,15 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The stat block read off, and the gamble half paid**: the base getter's
+  jump table gives one field per id, and the twenty-three split four ways —
+  an eight-field attribute run confirming Might through Luck from the other
+  side, a **five-entry resistance block that turns out to be the party's and
+  not the character's**, a stored pair, and eight ids with no base at all
+  that the bonused getter builds from gear and level (one of them the
+  character's level). What did not pay: the three specials pointing at ids
+  7, 8 and 9 still point at numbers with no names, so those rows stay
+  `unknown` rather than acquiring a guess.
 - **Every thrown spell's dice, found at the fourth attempt**: `0x432ad0` is
   the damage routine — spell id, skill, and a 98-entry switch in which 34
   spells have a case and the rest return nothing. Flame Arrow 1d8, Fire Bolt
