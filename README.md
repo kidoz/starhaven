@@ -1193,6 +1193,13 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The attack bonus composes — lopsidedly, and that is the finding**: read
+  to the getter's return, it is the sheet's ladder applied to *one*
+  attribute's spell and gear bonuses plus *another's* stored pair cut by age
+  and condition, then stat 15's three contributions and a byte at `+0x1570`.
+  The mixture is not a misreading: the two anchors that fix the stored run —
+  hit points ask id 3 and read `+0x20`, spell points ask id 2 and read
+  `+0x1c` — put the pair it reads one stat away from the one it asks about.
 - **Age wired**: the three curves now reach the numbers they band. A
   character's Endurance term is cut to three quarters past fifty for hit
   points, where the recovery and attack curves hold until a hundred; past a

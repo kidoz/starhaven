@@ -253,13 +253,25 @@ inline constexpr int kSpecialOfSwiftness = 59;
 inline constexpr int kSwiftItemRelief = 20;
 inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
 
-// The attack bonus, as much of it as survives the retraction: the routine
-// reads the attribute **raw**, not through the sheet's bonus curve, and
-// scales the total by the worst condition's own percentage. What it adds
-// between the two was read as a weighted skill and is `unknown` again.
-// `observed` for the raw attribute and the condition scaling.
-[[nodiscard]] inline int traced_attack_bonus(int accuracy, int condition_percent) noexcept {
-    return accuracy * condition_percent / 100;
+// The attack bonus, read to the getter's return at `0x47e403`. Its shape:
+//
+//   ladder( stat4's spell bonus + stat4's gear bonus
+//           + stored[+0x28] × age% × condition% + stored[+0x2a] )
+//   + stat15's award, spell and gear contributions
+//   + the byte at `+0x1570`
+//
+// where `ladder` is the sheet's own attribute curve. `observed` at
+// `0x47e354`..`0x47e3fd`.
+//
+// **It is lopsided, and that is the finding.** The getter asks the two bonus
+// getters for stat **4** but reads the *stored* pair at `+0x28`/`+0x2a`,
+// which by the two anchors that fix the stored run — max hit points asks id
+// 3 and reads `+0x20`, max spell points asks id 2 and reads `+0x1c` — is
+// stat **5**'s. So it mixes one attribute's bonuses with another's stored
+// value. `observed` for the mixture; that the two are Accuracy and Speed is
+// `inferred` from `stats.txt`'s order.
+[[nodiscard]] inline int traced_attack_bonus(int accuracy_bonus, int aged_ailed_speed) noexcept {
+    return accuracy_bonus + aged_ailed_speed;
 }
 
 

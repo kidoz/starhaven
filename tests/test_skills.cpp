@@ -9,14 +9,16 @@
 using namespace starhaven;
 using namespace starhaven::game;
 
-TEST_CASE("the attack bonus scales by the worst condition", "[skills]") {
-    // The priority walk this once read as a skill search is a condition
-    // search, so what survives is the raw attribute and the scaling.
-    REQUIRE(traced_attack_bonus(20, 100) == 20);
-    REQUIRE(traced_attack_bonus(20, 75) == 15);   // poisoned
-    REQUIRE(traced_attack_bonus(20, 60) == 12);   // diseased
-    REQUIRE(traced_attack_bonus(20, 10) == 2);    // drunk
-    REQUIRE(traced_attack_bonus(0, 75) == 0);
+TEST_CASE("the attack bonus mixes two attributes", "[skills]") {
+    // The getter asks the bonus getters for one stat and reads the stored
+    // pair of another, and sums them before the ladder.
+    REQUIRE(traced_attack_bonus(0, 0) == 0);
+    REQUIRE(traced_attack_bonus(5, 30) == 35);
+    REQUIRE(traced_attack_bonus(0, 30) == 30);
+    REQUIRE(traced_attack_bonus(5, 0) == 5);
+    // Cutting the stored term cuts the total, which is how age and
+    // condition reach the roll.
+    REQUIRE(traced_attack_bonus(5, 30 * 75 / 100) == 27);
 }
 
 

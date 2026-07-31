@@ -707,8 +707,20 @@ hundred and fifty a character keeps a tenth of all three. `observed` for the
 bands and the curves; `inferred` that the banded number is age, from the
 arithmetic and that row rather than from a routine that names it.
 
-**What is still open.** The getter uses stat 4's *bonuses* — `0x483800` and
-`0x482e80`, the spell and gear getters — beside the *stored* Speed at
-`+0x28`, and does not read stored Accuracy at `+0x24` in the stretch read.
-Why the two attributes enter differently is `unknown`, and StarHaven's
-attack bonus keeps only the parts that are settled.
+**And how it composes, settled.** Read to the getter's return at
+`0x47e403`, the whole of it is:
+
+> ladder( stat 4's spell bonus + stat 4's gear bonus + stored `+0x28` ×
+> age% × condition% + stored `+0x2a` ) + stat 15's award, spell and gear
+> contributions + the byte at `+0x1570`
+
+`observed` at `0x47e354`..`0x47e3fd`, where `ladder` is the sheet's own
+attribute curve.
+
+**It really is lopsided.** The getter asks the bonus getters for stat **4**
+and reads the *stored* pair at `+0x28`/`+0x2a` — which the two anchors fixing
+the stored run make stat **5**'s, since max hit points asks id 3 and reads
+`+0x20` and max spell points asks id 2 and reads `+0x1c`. So one attribute's
+bonuses are summed with another's stored value. That is what the
+instructions do; that the two are Accuracy and Speed is `inferred` from
+`stats.txt`'s order rather than from anything that names them.
