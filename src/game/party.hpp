@@ -405,8 +405,16 @@ inline constexpr std::array<int, 4> kAgeRecoveryPercent{100, 100, 40, 10};
 }
 
 // An attribute as a formula sees it: the character's own value, cut by
-// whatever ails them. The routines apply the percentage to the attribute
-// term rather than to the result. `observed`
+// whatever ails them and by the years they carry. The routines apply both
+// percentages to the attribute term rather than to the result, and each
+// routine has its own age curve. `observed`
+[[nodiscard]] inline int ailing_attribute(const Character& who, Attribute which,
+                                          const std::array<int, 4>& age_curve) noexcept {
+    const int value = who.attribute(which) * condition_scale(who) / 100;
+    return value * age_percent(age_curve, who.age) / 100;
+}
+
+// The same, for a caller that only cares what ails them.
 [[nodiscard]] inline int ailing_attribute(const Character& who, Attribute which) noexcept {
     return who.attribute(which) * condition_scale(who) / 100;
 }
@@ -516,12 +524,15 @@ inline void level_up_to(Character& c, int level) {
     c.level = level;
     // Both routines scale their attribute term by the worst condition before
     // the ladder reads it.
-    c.max_hit_points = class_hit_points(
-        c.class_name, c.level, attribute_bonus(ailing_attribute(c, Attribute::Endurance)));
+    c.max_hit_points =
+        class_hit_points(c.class_name, c.level,
+                         attribute_bonus(ailing_attribute(c, Attribute::Endurance,
+                                                          kAgeHitPointPercent)));
     c.max_spell_points =
         casts_spells(c.class_name)
             ? class_spell_points(c.class_name, c.level,
-                                 attribute_bonus(ailing_attribute(c, Attribute::Personality)))
+                                 attribute_bonus(ailing_attribute(
+                                     c, Attribute::Personality, kAgeHitPointPercent)))
             : 0;
     c.hit_points += c.max_hit_points - hp_before;
     c.spell_points += c.max_spell_points - sp_before;

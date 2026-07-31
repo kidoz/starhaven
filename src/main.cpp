@@ -7052,8 +7052,8 @@ int main(int argc, char** argv) {
                         // The routine scales the Speed term by the worst
                         // condition before the ladder reads it, so a poisoned
                         // character recovers as though slower.
-                        rec_points -= game::attribute_bonus(
-                            game::ailing_attribute(party[who], game::Attribute::Speed));
+                        rec_points -= game::attribute_bonus(game::ailing_attribute(
+                            party[who], game::Attribute::Speed, game::kAgeRecoveryPercent));
                         if (const auto* held_row = gear_of(game::Slot::Weapon);
                             held_row != nullptr &&
                             game::skill_quickens_attack(held_row->skill_group)) {

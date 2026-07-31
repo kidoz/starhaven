@@ -1193,6 +1193,13 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **Age wired**: the three curves now reach the numbers they band. A
+  character's Endurance term is cut to three quarters past fifty for hit
+  points, where the recovery and attack curves hold until a hundred; past a
+  hundred and fifty all three keep a tenth. Age and condition compound, each
+  applied to the attribute term rather than the result, which is where the
+  executable applies them. A level bought at sixty is now worth less than one
+  bought at twenty.
 - **The gamble: the middle term is age — and it retires two old unknowns**:
   reading the attack-bonus getter from the top shows it turn the world clock
   into years, add a stored word, subtract a party word, add **1165**, band

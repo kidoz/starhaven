@@ -354,3 +354,30 @@ TEST_CASE("age bands and their three curves", "[party]") {
         REQUIRE(age_percent(curve, 20) == 100);
     }
 }
+
+TEST_CASE("the years reach the numbers", "[party]") {
+    Character young;
+    young.class_name = "Knight";
+    young.hit_points = 10;
+    young.age = 20;
+    young.attributes[static_cast<std::size_t>(Attribute::Endurance)] = 40;
+    Character old = young;
+    old.age = 60;
+    Character ancient = young;
+    ancient.age = 200;
+    // Hit points feel fifty; the other two curves do not.
+    REQUIRE(ailing_attribute(young, Attribute::Endurance, kAgeHitPointPercent) == 40);
+    REQUIRE(ailing_attribute(old, Attribute::Endurance, kAgeHitPointPercent) == 30);
+    REQUIRE(ailing_attribute(old, Attribute::Endurance, kAgeRecoveryPercent) == 40);
+    REQUIRE(ailing_attribute(ancient, Attribute::Endurance, kAgeHitPointPercent) == 4);
+    // Age and condition compound, each on the attribute term.
+    old.poisoned = 1;
+    REQUIRE(ailing_attribute(old, Attribute::Endurance, kAgeHitPointPercent) == 22);
+    // And a level bought at sixty is worth less than one bought at twenty.
+    Character a = young;
+    Character b = old;
+    b.poisoned = 0;
+    level_up_to(a, 5);
+    level_up_to(b, 5);
+    REQUIRE(a.max_hit_points > b.max_hit_points);
+}

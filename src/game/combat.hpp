@@ -556,8 +556,9 @@ public:
         // the attacker's bonus. It reads the attribute **raw** and scales
         // the total by the worst condition the character carries — the walk
         // once read here as a skill search is a condition search. `observed`
-        const int attack = traced_attack_bonus(who.attribute(Attribute::Accuracy),
-                                               condition_scale(who));
+        const int aged = who.attribute(Attribute::Accuracy) *
+                         age_percent(kAgeAttackPercent, who.age) / 100;
+        const int attack = traced_attack_bonus(aged, condition_scale(who));
         // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
         // why archery against armour asks for skill; a swing is the plain
         // bar. Which call site passes which kind is the original's;
