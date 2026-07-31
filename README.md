@@ -1099,6 +1099,16 @@ interoperability and compatibility with a legally purchased copy.
   actually offers: window scale, fullscreen, turn-based, and the two
   switches read from the install's own `MM6.ini`. The frame's third and
   fourth medallions open them.
+- **A school of spells read out of the executable, not its prose**: the spell
+  queue dispatches on a 102-entry jump table at `0x429c74`, one case body per
+  `SPELLS.TXT` id, each entered with the caster's skill points and mastery.
+  All eleven Body cases are now read: First Aid's flat 5/7/10, Cure Wounds'
+  2 a point plus five, Power Cure's 2 a point plus ten across the whole
+  party, Speed's and Power's 10 plus 2 (3 at expert) with master widening
+  the reach. Six of those the table's words confirm exactly; two it never
+  states — the buffs last an hour a point, and the timed cures forgive three
+  minutes, three hours and three days a point, where the prose claims one
+  hour and one day.
 - **Recovery's unit, closed — sixty points a second**: the world clock at
   `0x908d08` counts in units of 1/128 of a real second and turns into a
   calendar by ×30/128, so the world runs at thirty times real time; the

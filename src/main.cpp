@@ -34,6 +34,7 @@
 #include "core/world/monster_spawn.hpp"
 #include "core/world/texture_frame_table.hpp"
 #include "game/ambient_mixer.hpp"
+#include "game/body_magic.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
 #include "game/conversation.hpp"
@@ -3200,17 +3201,43 @@ int main(int argc, char** argv) {
     // Stone and Eradicated stay a temple's business, the cures' own prose
     // sending them there. Returns the message, or nothing when nobody
     // suffers what this spell lifts.
+    // What a healing cast gives. Three of Body's spells have their amounts
+    // read straight out of the executable's spell switch — First Aid's flat
+    // 5/7/10, Cure Wounds' 2 a point plus five, Power Cure's 2 a point plus
+    // ten over the whole party — and everything else still answers to the
+    // table's prose. See src/game/body_magic.hpp.
+    const auto heal_amount = [](const data::SpellStatsEntry& spell,
+                                const data::SpellEffect& effect, int points, int rank) {
+        const int traced = game::traced_heal(spell.id, points, rank);
+        return traced > 0 ? traced : std::max(1, effect.heal.low);
+    };
+    const auto pour_heal = [&party](int spell_id, int amount, std::size_t worst) -> std::string {
+        if (!game::heal_reaches_party(spell_id)) {
+            party[worst].hit_points =
+                std::min(party[worst].max_hit_points, party[worst].hit_points + amount);
+            return party[worst].name;
+        }
+        for (auto& member : party) {
+            if (member.hit_points > 0) {
+                member.hit_points =
+                    std::min(member.max_hit_points, member.hit_points + amount);
+            }
+        }
+        return "the whole party";
+    };
+
     const auto cure_with = [&](const data::SpellStatsEntry& spell,
                                int school_points) -> std::string {
         const data::SpellCure cure = data::parse_spell_cure(spell);
         if (cure.empty()) {
             return {};
         }
-        // "If you cast this spell in time": the window grows with skill.
-        // An hour of grace per point of the school is the engine's own
-        // scale; past it, the prose sends you to a temple, and so does this.
+        // "If you cast this spell in time": the window is the executable's
+        // own ladder, three minutes a point at normal rank, three hours at
+        // expert and three days at master. Past it the prose sends you to a
+        // temple, and so does this. See src/game/body_magic.hpp.
         const std::int64_t window =
-            static_cast<std::int64_t>(std::max(1, school_points)) * game::kMinutesPerHour;
+            game::cure_window_minutes(school_points, game::rank_of(school_points));
         const std::int64_t now = clock.minutes();
         std::string cured;
         bool too_late = false;
@@ -5159,7 +5186,8 @@ int main(int argc, char** argv) {
                         }
                         const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
                         std::string what;
-                        if (!effect.heal.empty()) {
+                        if (!effect.heal.empty() ||
+                            game::traced_heal(spell_id, 0, 0) > 0) {
                             // The most wounded standing character drinks it in.
                             std::size_t worst = who;
                             int missing = -1;
@@ -5170,13 +5198,13 @@ int main(int argc, char** argv) {
                                     worst = i;
                                 }
                             }
-                            const int amount = effect.heal.low;
                             speak(party[worst], 24);  // line 24: the drink's word
-                            party[worst].hit_points =
-                                std::min(party[worst].max_hit_points,
-                                         party[worst].hit_points + amount);
+                            // A scroll casts at no skill and normal rank, so
+                            // the traced spells give their floor.
+                            const std::string mended =
+                                pour_heal(spell_id, heal_amount(*spell, effect, 0, 0), worst);
                             what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) + ": " + party[worst].name +
+                                   data::cp1252_to_utf8(row->name) + ": " + mended +
                                    " is healed";
                         } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
                             const std::size_t target =
@@ -5559,15 +5587,13 @@ int main(int argc, char** argv) {
                         break;
                     }
                     const data::SpellEffect effect = data::parse_spell_effect(*spell, rank);
-                    if (!effect.heal.empty()) {
+                    if (!effect.heal.empty() || game::traced_heal(spell->id, points, rank) > 0) {
                         caster.spell_points -= cost;
                         ambient.play_spell(spell->id);
-                        party[worst].hit_points =
-                            std::min(party[worst].max_hit_points,
-                                     party[worst].hit_points + std::max(1, effect.heal.low));
+                        const std::string mended = pour_heal(
+                            spell->id, heal_amount(*spell, effect, points, rank), worst);
                         pick_up_message = caster.name + " casts " +
-                                          data::cp1252_to_utf8(spell->name) + " on " +
-                                          party[worst].name;
+                                          data::cp1252_to_utf8(spell->name) + " on " + mended;
                     } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
                         if (target == game::kNoActor) {
                             pick_up_message = "Nothing in reach to cast at";
@@ -5664,12 +5690,13 @@ int main(int argc, char** argv) {
                     if (wounded) {
                         caster.spell_points -= best->cost_normal;
                         ambient.play_spell(best->id);
-                        party[worst].hit_points =
-                            std::min(party[worst].max_hit_points,
-                                     party[worst].hit_points + std::max(1, best_effect.heal.low));
+                        const int held = spell_skill_of(caster, *best);
+                        const std::string mended =
+                            pour_heal(best->id,
+                                      heal_amount(*best, best_effect, held, game::rank_of(held)),
+                                      worst);
                         pick_up_message = caster.name + " casts " +
-                                          data::cp1252_to_utf8(best->name) + " on " +
-                                          party[worst].name;
+                                          data::cp1252_to_utf8(best->name) + " on " + mended;
                     } else if (target != game::kNoActor) {
                         caster.spell_points -= best->cost_normal;
                         ambient.play_spell(best->id);
