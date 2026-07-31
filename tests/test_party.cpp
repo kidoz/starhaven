@@ -331,3 +331,26 @@ TEST_CASE("what ails a character cuts its numbers", "[party]") {
     REQUIRE(attribute_bonus(ailing_attribute(hale, Attribute::Speed)) >
             attribute_bonus(30));
 }
+
+TEST_CASE("age bands and their three curves", "[party]") {
+    // {50, 100, 150} against a four-entry row.
+    REQUIRE(age_band(20) == 0);
+    REQUIRE(age_band(49) == 0);
+    REQUIRE(age_band(50) == 1);
+    REQUIRE(age_band(99) == 1);
+    REQUIRE(age_band(100) == 2);
+    REQUIRE(age_band(150) == 3);
+    REQUIRE(age_band(900) == 3);
+    // Hit points feel age first: three quarters at fifty where the other two
+    // are untouched until a hundred.
+    REQUIRE(age_percent(kAgeHitPointPercent, 60) == 75);
+    REQUIRE(age_percent(kAgeAttackPercent, 60) == 100);
+    REQUIRE(age_percent(kAgeRecoveryPercent, 60) == 100);
+    // Past a hundred all three fall together, and past a hundred and fifty
+    // a character keeps a tenth.
+    for (const auto& curve : {kAgeHitPointPercent, kAgeAttackPercent, kAgeRecoveryPercent}) {
+        REQUIRE(age_percent(curve, 120) == 40);
+        REQUIRE(age_percent(curve, 200) == 10);
+        REQUIRE(age_percent(curve, 20) == 100);
+    }
+}

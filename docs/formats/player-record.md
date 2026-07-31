@@ -669,3 +669,46 @@ this record — so the correction is to the record's description alone.
 **The rule this leaves.** A claim may be tagged `observed` only for what an
 instruction does. Where a *name* follows from how the numbers read, the name
 is `inferred` however good the fit, and the two are stated separately.
+
+## The attack bonus's middle term: age
+
+The retraction re-opened what the attack-bonus getter adds between the raw
+attribute and the condition scaling. Reading `0x47e270` from the top answers
+it, and answers two older questions with it.
+
+The getter, in order:
+
+1. Turns the world clock into years, adds the word at **`+0x36`**, subtracts
+   the party word at **`+0x141c`**, and adds **1165**.
+2. Bands that against `{50, 100, 150, 65535}` at `0x4c2834`, taking a
+   percentage from the four-byte row at `0x4c2854`.
+3. Walks the condition priority list and takes the worst set.
+4. Asks the two getters for stat **4**.
+5. Multiplies the word at **`+0x28`** — the stored **Speed** — by the band's
+   percentage, and adds it.
+
+**That banded term is age.** It is the same arithmetic the recovery routine
+and the max-hit-point routine perform, and this project recorded it twice as
+an unexplained "day-of-week" contribution taken off the clock. It is not: a
+count of years plus **1165**, banded at fifty, a hundred and a hundred and
+fifty, with the percentage falling as it climbs — and `stats.txt` has an Age
+row that says exactly what such a number would be for.
+
+The three curves differ, and sensibly:
+
+| band | under 50 | 50–99 | 100–149 | 150+ |
+| --- | --- | --- | --- | --- |
+| hit points (`0x4c2850`) | 100 | **75** | 40 | 10 |
+| attack bonus (`0x4c2854`) | 100 | 100 | 40 | 10 |
+| recovery (`0x4c2858`) | 100 | 100 | 40 | 10 |
+
+Hit points feel age first; the other two hold until a hundred; past a
+hundred and fifty a character keeps a tenth of all three. `observed` for the
+bands and the curves; `inferred` that the banded number is age, from the
+arithmetic and that row rather than from a routine that names it.
+
+**What is still open.** The getter uses stat 4's *bonuses* — `0x483800` and
+`0x482e80`, the spell and gear getters — beside the *stored* Speed at
+`+0x28`, and does not read stored Accuracy at `+0x24` in the stretch read.
+Why the two attributes enter differently is `unknown`, and StarHaven's
+attack bonus keeps only the parts that are settled.

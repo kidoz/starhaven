@@ -1193,6 +1193,16 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The gamble: the middle term is age — and it retires two old unknowns**:
+  reading the attack-bonus getter from the top shows it turn the world clock
+  into years, add a stored word, subtract a party word, add **1165**, band
+  the result at `{50, 100, 150}` and take a percentage. That banded term is
+  the one this project twice filed as an unexplained "day-of-week"
+  contribution in the recovery and hit-point routines. It is **age**, and the
+  three curves differ sensibly: hit points fall to three quarters at fifty
+  where the other two hold until a hundred, and past a hundred and fifty a
+  character keeps a tenth of all three. What stays open is why the getter
+  uses Accuracy's *bonuses* beside Speed's *stored* value.
 - **Two more AI actions named, by the same trick**: the state-6 pair is
   near-identical and differs in one condition. Both test a flag at `+0x46`
   and, when set, aim **512 units above** the party rather than at it; the

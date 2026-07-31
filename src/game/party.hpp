@@ -336,6 +336,38 @@ inline constexpr std::array<std::string_view, 18> kClassNames{
     return 0;
 }
 
+// **Age**, and what it costs. Three routines — the attack bonus, max hit
+// points and recovery — each build a number from the world clock's year,
+// the word at `+0x36`, the party word at `+0x141c` and a constant **1165**,
+// then band it against `{50, 100, 150, 65535}` at `0x4c2834` and take a
+// percentage from a four-byte row. `observed` at `0x47e2e8`, `0x481f3a` and
+// `0x481d03`.
+//
+// That is the term this project recorded twice as an unexplained
+// "day-of-week" contribution. It is not: a count of years plus 1165 — the
+// year `stats.txt`'s own Age row is about — banded at fifty, a hundred and
+// a hundred and fifty, with the percentage falling as it climbs. `inferred`
+// that it is age, from the arithmetic and that row; `observed` for the
+// bands and the curves.
+inline constexpr std::array<int, 3> kAgeBands{50, 100, 150};
+inline constexpr std::array<int, 4> kAgeHitPointPercent{100, 75, 40, 10};
+inline constexpr std::array<int, 4> kAgeAttackPercent{100, 100, 40, 10};
+inline constexpr std::array<int, 4> kAgeRecoveryPercent{100, 100, 40, 10};
+
+[[nodiscard]] inline constexpr int age_band(int years) noexcept {
+    for (std::size_t i = 0; i < kAgeBands.size(); ++i) {
+        if (years < kAgeBands[i]) {
+            return static_cast<int>(i);
+        }
+    }
+    return 3;
+}
+
+[[nodiscard]] inline constexpr int age_percent(const std::array<int, 4>& curve,
+                                               int years) noexcept {
+    return curve[static_cast<std::size_t>(age_band(years))];
+}
+
 // The worst condition a character is carrying, by the executable's own
 // priority order, and the percentage it scales their numbers by. The
 // recovery routine, the hit-point routine and the attack-bonus getter all
