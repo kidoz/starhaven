@@ -432,10 +432,21 @@ whichever of `+0x30`, `+0x32`, `+0x34`, `+0x36` an argument names, and each
 capping at **255**. `observed`
 
 So **nothing raises a level by itself.** No routine watches experience and
-promotes; the only door is a script, which is to say the training hall. That
-is a design fact worth having even though the threshold is still unfound,
-and StarHaven now follows it: experience is banked, and a level is bought at
-a hall or not at all. The triangular staircase it offers at, 1000·L·(L−1)/2,
+promotes; the only door is a script, which is to say the training hall.
+StarHaven follows that: experience is banked, and a level is bought at a hall
+or not at all.
+
+A third attempt went one step further and named the door. Both routines
+dispatch on a **script variable id**, through a 225-entry selector at
+`0x4411c0`, and ids **7, 8, 9, 10 and 11** land on `+0x30`, `+0x32`,
+`+0x34`, `+0x36` and one more. So the level is **script variable 8**, beside
+experience at 13, and a level is gained by a script adding to it. `observed`
+
+The threshold itself is still unfound, and three approaches have now missed
+it — the strings are fetched by a computed index, no ladder of experience
+values sits in the data, and the field is written only by a generic script
+verb that carries no condition. It is recorded as absent from what can be
+read, and the triangular staircase StarHaven offers at, 1000·L·(L−1)/2,
 remains this engine's own. `inferred`
 
 ## The attribute curve, found inside the recovery routine
