@@ -3414,7 +3414,9 @@ int main(int argc, char** argv) {
                 best = std::max(best, it->second);
             }
         }
-        return best >= row.id_rep_st;
+        // A point of Identify Item is worth 120% of itself, by the
+        // executable's own weight for skill id 21.
+        return game::weighted_identify(best) >= row.id_rep_st;
     };
 
     // The pack verbs act on the chosen cell first when a pack is open,
@@ -4556,6 +4558,18 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
+                // What the smith asks, less what the party's own Repair
+                // Item skill saves — weighted 120% by the executable's
+                // table for skill id 23, one percent off the bill a point.
+                int repair_points = 0;
+                for (const auto& member : party) {
+                    if (const auto it = member.skills.find("Repair");
+                        it != member.skills.end()) {
+                        repair_points = std::max(repair_points, it->second);
+                    }
+                }
+                const int repair_off =
+                    std::min(50, game::weighted_repair(repair_points));
                 int bill = 0;
                 for (const auto& member : party) {
                     for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
@@ -4566,6 +4580,7 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
+                bill -= bill * repair_off / 100;
                 if (mended > 0 && bill == 0) {
                     shop_said = "Your followers see to the repairs.";
                 } else

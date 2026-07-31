@@ -1013,6 +1013,17 @@ name a single victim. `observed` for the phrases, `inferred` for reading
 them as three reaches. The burst's radius is stated nowhere and is the
 engine's own number.
 
+## The skills' own weights
+
+The executable weighs each skill by a percentage before spending it —
+the table at `0x4c27fc`, indexed by the skill id `GLOBAL.TXT` names from
+row 271. Beside the weapon and armour entries it settles three services
+this engine had been pricing by guess: **Merchant 20**, **Identify Item
+120**, **Repair Item 120**. So a merchant's point is worth a fifth of a
+percent off a price, while a point of Identify or Repair carries a fifth
+further than its face. `observed` StarHaven spends all three at those
+weights.
+
 ## Whether a blow lands, traced
 
 The original's to-hit routine sits at `0x421cb0`, one function above the

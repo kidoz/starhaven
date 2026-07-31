@@ -1099,6 +1099,13 @@ interoperability and compatibility with a legally purchased copy.
   actually offers: window scale, fullscreen, turn-based, and the two
   switches read from the install's own `MM6.ini`. The frame's third and
   fourth medallions open them.
+- **The counters answer to the executable's numbers**: the same traced
+  table weighs the three services the engine used to price by guess —
+  Merchant at 20% (so ten points take two off a hundred, not ten),
+  Identify Item and Repair Item at 120% (a point carries further than
+  itself). Haggling, whether loot arrives known, and the smith's bill
+  all read those weights now; only the half-price floor stays the
+  engine's own.
 - **The doubt settled, and the hit roll closed**: reading the to-hit's
   three callers decides which side is which — the second argument is
   always the monster record the armour is read from, so the first is the

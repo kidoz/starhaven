@@ -221,14 +221,28 @@ template <typename SkillPoints>
     return 0.0f;
 }
 
-// How a merchant's points move a price: one percent per point in the
-// party's favor, to at most half. The table says only "in your favor"; the
-// rate and the floor are the engine's own. `inferred`
+// How a merchant's points move a price. The weight is the executable's:
+// `Merchant` is skill id 22, whose entry in the traced percentage table is
+// **20** — a fifth of a point off the price for each point held, where
+// `Identify Item` and `Repair Item` weigh 120. `observed` for the weight;
+// the half-price floor is still the engine's own. `inferred`
 [[nodiscard]] inline int haggled_price(int asking, int merchant_points) noexcept {
-    const int percent = merchant_points > 50 ? 50 : merchant_points;
+    const int weighted = merchant_points * kSkillWeights[22] / 100;
+    const int percent = weighted > 50 ? 50 : weighted;
     const int off = asking * percent / 100;
     const int paid = asking - off;
     return paid < 1 ? 1 : paid;
+}
+
+// And what the same table says of the two counter services: a point of
+// `Identify Item` or `Repair Item` is worth 120% of itself, so the skills
+// carry further than their raw points. `observed`
+[[nodiscard]] inline int weighted_identify(int points) noexcept {
+    return points * kSkillWeights[21] / 100;
+}
+
+[[nodiscard]] inline int weighted_repair(int points) noexcept {
+    return points * kSkillWeights[23] / 100;
 }
 
 }  // namespace starhaven::game

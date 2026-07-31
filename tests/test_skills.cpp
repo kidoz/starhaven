@@ -53,11 +53,18 @@ TEST_CASE("a skill's effect lines say what it grants", "[skills]") {
 TEST_CASE("the staircase and the haggle behave", "[skills]") {
     REQUIRE(raise_cost(1) == 2);
     REQUIRE(raise_cost(4) == 5);
-    // One percent a point, floored at half price, never below one gold.
+    // Merchant is skill id 22, weighted 20% by the executable's own table,
+    // so ten points take two off a hundred, not ten. The half-price floor
+    // and the one-gold minimum are still the engine's.
     REQUIRE(haggled_price(100, 0) == 100);
-    REQUIRE(haggled_price(100, 10) == 90);
-    REQUIRE(haggled_price(100, 80) == 50);
+    REQUIRE(haggled_price(100, 10) == 98);
+    REQUIRE(haggled_price(100, 50) == 90);
+    REQUIRE(haggled_price(100, 500) == 50);
     REQUIRE(haggled_price(1, 50) == 1);
+
+    // And the two counter services carry further than their raw points.
+    REQUIRE(weighted_identify(10) == 12);
+    REQUIRE(weighted_repair(10) == 12);
 }
 
 TEST_CASE("every base class starts with a weapon skill", "[skills]") {
