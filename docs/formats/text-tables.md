@@ -308,6 +308,16 @@ either — what it indexes is `unknown`. The 52 distinct panel numbers it names 
 column names two things at once — the room's video and its side panel —
 and StarHaven draws both.
 
+The record's kind byte at `+8` was tested against `2DEvents.txt`'s own
+type column: **17 of the 32 kinds seen speak for exactly one type** — the
+nine magic guilds, the stables, the temples, the boats, the jail — while
+most of the rest are one type plus a stray or two, and three broad
+buckets hold the houses (kinds 15 and 29) and the entrances (kind 25).
+The reading: the byte is the **interior's own category**, which an
+establishment may borrow across (a magic shop shipping with a smithy's
+room), not a second copy of the type column. `observed` Reproduce with
+`data_info --backdrops`.
+
 ### The King's Library carries the Archibald machinery
 
 Award 35, "Freed Archibald", is granted by **no script**: a sweep of all

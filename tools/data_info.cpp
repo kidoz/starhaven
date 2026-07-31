@@ -813,6 +813,27 @@ int do_backdrops(const std::filesystem::path& data_dir) {
             ++out_of_range;
         }
     }
+    // And the interior record's kind byte against those same types: how
+    // often a kind speaks for exactly one establishment type.
+    std::map<int, std::map<std::string, int>> by_kind;
+    for (std::size_t r = 0; r < table.row_count(); ++r) {
+        if (table.cell_int(r, 0) <= 0) {
+            continue;
+        }
+        const int picture = table.cell_int(r, 4);
+        if (picture < 1 || picture > static_cast<int>(game::kInteriorKinds.size())) {
+            continue;
+        }
+        ++by_kind[game::kInteriorKinds[static_cast<std::size_t>(picture) - 1]]
+                 [std::string(table.cell(r, 2))];
+    }
+    std::size_t exact = 0;
+    for (const auto& [kind, types] : by_kind) {
+        exact += types.size() == 1 ? 1 : 0;
+    }
+    std::cout << by_kind.size() << " interior kinds seen; " << exact
+              << " speak for exactly one establishment type\n";
+
     for (const auto& [type, interiors] : by_type) {
         std::cout << "  " << type << ":";
         for (const auto& name : interiors) {

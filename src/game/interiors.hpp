@@ -76,6 +76,26 @@ inline constexpr std::array<std::uint16_t, 118> kInteriorField4{
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
+// The record's kind byte at `+8`: the room's own category. Measured
+// against `2DEvents.txt`'s type column, 17 of the 32 kinds seen speak
+// for exactly one establishment type — the nine guilds, the stables,
+// temples, boats, the jail — while the rest are dominated by one type
+// with a stray or two, which is an establishment borrowing another
+// category's room, and three broad buckets hold the houses and the
+// entrances. `observed` So it is the interior's category, not the
+// establishment's type. Reproduce with `data_info --backdrops`.
+inline constexpr std::array<std::uint8_t, 118> kInteriorKinds{
+    0, 1, 1, 1, 3, 3, 3, 3, 3, 3, 4, 4,
+    4, 19, 19, 19, 19, 19, 20, 20, 20, 20, 20, 20,
+    21, 21, 21, 21, 21, 21, 23, 23, 23, 23, 29, 25,
+    25, 25, 25, 25, 25, 26, 26, 32, 22, 27, 28, 31,
+    17, 17, 17, 18, 18, 18, 5, 8, 6, 7, 14, 12,
+    13, 16, 9, 10, 11, 15, 29, 29, 29, 29, 29, 29,
+    29, 29, 29, 29, 29, 29, 2, 2, 2, 30, 30, 30,
+    30, 30, 30, 25, 25, 25, 25, 25, 25, 25, 25, 25,
+    25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25,
+    25, 25, 24, 25, 25, 25, 25, 32, 29, 29};
+
 // The panel a Picture value wears, or 0 when out of the table's reach.
 [[nodiscard]] inline int interior_panel(int picture) noexcept {
     if (picture < 1 || picture > static_cast<int>(kInteriorPanels.size())) {

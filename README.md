@@ -1072,6 +1072,12 @@ interoperability and compatibility with a legally purchased copy.
   plain bar, so archery against armour asks for skill exactly the way
   the traced arithmetic says it should — and the spell paths stay on the
   plain bar, which is what the call sites show.
+- **The kind byte read as the room's category**: the gamble half-paid —
+  17 of the 32 kinds in the interior table speak for exactly one
+  establishment type (the nine guilds, stables, temples, boats, jail),
+  but the rest carry strays and three broad buckets hold the houses and
+  entrances, so the byte classifies the *room*, not the establishment.
+  The census ships in `data_info --backdrops`.
 - **A whole-install smoke check**: `data_info --smoke` loads every map
   the design table lists — geometry, script, actors, chests, doors,
   lights, establishments — and reports what each holds. All **55 shipped
