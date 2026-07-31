@@ -1109,6 +1109,16 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The projectile object, laid out — and a third miss, narrowed**: the
+  thrown-spell objects live in a thousand 100-byte slots at `0x5c9ad8`, and
+  two offsets found from outside the launcher pin the rest: a flags word the
+  AI clears across the array, and the owner handle the collision handler
+  unpacks into a kind and an index. That fixes the spell id at `+0x3e` and
+  the caster's skill at `+0x42`. Searching for everything that reads those
+  two back gives a definite negative — nothing does, absolutely, and the
+  collision handler never touches them — so where a spell's damage is rolled
+  is still unfound, but the remaining search is now four named routines
+  rather than the whole executable.
 - **Fire and Dark out of the switch, beside Body**: thirteen more cases read,
   and the table's words match the executable on all eleven figures it
   states — Fire Blast's 3/5/7 shots, Meteor Shower's 8/12/16 meteors,

@@ -235,6 +235,52 @@ target's hit points at `+0x28`. It is written up in full in
 Where a thrown spell's damage is decided therefore remains open, and the
 honest position is that two guesses at it have now missed.
 
+## The projectile object, laid out
+
+The launcher's spawn tail hands its block to `0x42a730`, which is the
+insert: the objects live in an array at **`0x5c9ad8`**, **100 bytes** a
+record, **1000** of them, ending at `0x5e217a`. A free slot is a zero word
+at `+2`; the routine takes the first, copies the record in and returns its
+index, or −1 when the array is full or the scan runs off the end.
+`observed`
+
+Two offsets fix the base from outside the launcher, which is what makes the
+rest trustworthy rather than counted-off-by-eye:
+
+- **`+0x18` is a flags word.** The AI clears bit 2 of it across the whole
+  array at `0x405c1e`, striding by the same 100.
+- **`+0x4a` is the owner handle.** The collision handler at `0x431e64`
+  reads `[index × 100 + 0x5c9b24]`, takes `& 7` as the kind and `>> 3` as
+  the index, and branches: **kind 3** multiplies by 548 into the actor
+  record, kinds 2 and 4 go elsewhere. That is the same packed handle the
+  launcher writes and the recovery queue unpacks.
+
+With those two, the launcher's own writes read off:
+
+| Offset | Size | Field | Status |
+| --- | --- | --- | --- |
+| `+0x00` | 2 | the sprite's index in the descriptor list | observed |
+| `+0x02` | 4 each | position, from the party globals | observed |
+| `+0x18` | 2 | flags | observed |
+| `+0x3e` | 4 | **the spell id** | observed |
+| `+0x42` | 4 | **the caster's skill points** | observed |
+| `+0x4a` | 4 | the owner handle | observed |
+
+## And a third refutation, this time a bounded one
+
+The point of laying the object out was to find every instruction that reads
+`+0x3e` and `+0x42` back, and so find where a thrown spell's damage is
+rolled. The search has a definite answer and the answer is negative:
+**nothing in the executable reads either field through an absolute address**,
+and the collision handler at `0x431e5e` resolves the owner and dispatches on
+its kind without touching them.
+
+So the damage is not read back off the projectile at impact in any direct
+way. Unlike the two earlier guesses this narrows rather than wanders: what
+remains to read is the kind-3 branch's own callees — `0x4219b0`, `0x421d50`,
+`0x446c20` and `0x47d5a0` — one of which must carry it. `unknown`, with a
+list.
+
 ## Still unread
 
 - Where a thrown spell's damage is rolled. The launcher stamps the
