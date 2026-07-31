@@ -173,12 +173,26 @@ TEST_CASE("a monster out of reach hits nobody", "[combat]") {
     REQUIRE(party[0].hit_points == party[0].max_hit_points);
 }
 
-TEST_CASE("immunity stops a blow entirely", "[combat]") {
+TEST_CASE("resistance halves by the original's own rolls", "[combat]") {
+    // Traced to the routine at 0x421dc0: immunity stops a blow, a zero
+    // resistance passes it whole, and any real resistance buys repeated
+    // halvings — up to four, each on a `rand() % (resistance + 30)` that
+    // lands 30 or above. The dice-free overload returns the expectation,
+    // so it falls monotonically with the resistance.
     REQUIRE(after_resistance(10, data::kResistanceImmune) == 0);
     REQUIRE(after_resistance(10, 0) == 10);
-    REQUIRE(after_resistance(10, 50) == 5);
-    // A resisted blow still stings: rounding must not reach zero by itself.
-    REQUIRE(after_resistance(1, 90) == 1);
+    REQUIRE(after_resistance(100, 50) < 100);
+    REQUIRE(after_resistance(100, 100) < after_resistance(100, 50));
+
+    // And with dice in hand: a high resistance halves four times at most,
+    // never below a sixteenth, and 200 or more is immune outright.
+    Mm6Random random{7};
+    for (int i = 0; i < 50; ++i) {
+        const int through = after_resistance(160, 150, random);
+        REQUIRE(through >= 10);
+        REQUIRE(through <= 160);
+    }
+    REQUIRE(after_resistance(10, data::kResistanceImmune, random) == 0);
 }
 
 TEST_CASE("an attack is answered by the resistance of its own type", "[combat]") {

@@ -1046,6 +1046,13 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **Resistance traced, and it was never a percentage**: the hunt for the
+  hit roll turned up the resistance routine at 0x421dc0 instead, and it
+  refutes the engine's oldest combat guess — the element byte answers
+  immune at 200, and otherwise the blow is halved up to four times, each
+  halving bought by a `rand() % (resistance + 30)` landing 30 or above.
+  The engine now rolls exactly that, and the old percentage test is
+  replaced by one asserting the traced rule.
 - **The sky selector traced to the last die**: the picker at 0x46df60
   re-rolls the outdoor sky once per game day — 80% from nine fair skies,
   20% from seven others, two authored tables in the executable, `sky01`

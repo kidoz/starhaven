@@ -984,6 +984,18 @@ The reader rejects, deterministically and without reading out of bounds:
 A cell request outside the table returns an empty string rather than failing,
 because ragged rows make out-of-range reads normal rather than exceptional.
 
+## What a resistance does, traced
+
+The five resistance columns are not percentages. The original's routine at
+`0x421dc0` reads the target's element byte — the six sit at `+0x50`..`+0x55`
+of the record in the table's own order — answers **immune at 200 or above**
+(what the "Imm" cells compile to), and otherwise rolls **up to four times**:
+each roll is `rand() % (resistance + 30)`, and while the roll lands **30 or
+above** the damage is halved again. A resistance of zero therefore never
+halves, and a large one halves four times at most — a sixteenth, not a
+subtraction. `observed` StarHaven follows this rule, with a dice-free
+expectation kept beside it for tools.
+
 ## Open questions
 
 - Which A/B/C variant an encounter slot selects, and what `Dif 1-5` drives.

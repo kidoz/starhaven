@@ -147,17 +147,47 @@ enum class MonsterCondition : std::uint8_t { Fear, Slow, Paralyze, Charm };
                            who.gear_resistances[static_cast<std::size_t>(which)];
 }
 
-// What a resistance does to a blow: none of it gets through if the target is
-// immune, and otherwise the percentage is taken off. `inferred`
-[[nodiscard]] inline int after_resistance(int damage, int resistance) noexcept {
-    if (resistance == data::kResistanceImmune) {
+// What a resistance does to a blow, traced to the original's own routine
+// at `0x421dc0`: the resistance is **not** a percentage taken off. The
+// routine reads the target's element byte (the six sit at +0x50..+0x55
+// of the record, in the table's own order), answers **immune at 200 or
+// more** — which is what the table's "Imm" cells compile to — and
+// otherwise rolls up to four times: each roll is `rand() % (resistance +
+// 30)`, and while the roll lands **30 or above** the damage is halved
+// again. So resistance buys repeated halvings by chance, four at most,
+// and a resistance of zero still halves on most rolls. `observed`
+[[nodiscard]] inline int after_resistance(int damage, int resistance, Mm6Random& random) noexcept {
+    // The table's "Imm" cells parse to kResistanceImmune (-1); the
+    // original's own immunity is its byte reaching 200, the same thing
+    // said two ways.
+    if (resistance == data::kResistanceImmune || resistance >= 200) {
         return 0;
     }
-    if (resistance <= 0) {
-        return damage;
+    const auto span = static_cast<unsigned>((resistance < 0 ? 0 : resistance) + 30);
+    for (int tries = 0; tries < 4; ++tries) {
+        if (static_cast<int>(random.next() % span) < 30) {
+            break;
+        }
+        damage /= 2;
     }
-    const int through = damage - damage * resistance / 100;
-    return through < 1 ? 1 : through;
+    return damage;
+}
+
+// The same, where no dice are at hand: the expected outcome of the four
+// rolls, kept for the tools and tests that want a number rather than a
+// throw. `inferred` from the traced rule above.
+[[nodiscard]] inline int after_resistance(int damage, int resistance) noexcept {
+    if (resistance == data::kResistanceImmune || resistance >= 200) {
+        return 0;
+    }
+    const int span = (resistance < 0 ? 0 : resistance) + 30;
+    // The chance a single roll lands 30 or above, in percent.
+    const int halve_percent = span <= 30 ? 0 : (span - 30) * 100 / span;
+    int expected = damage * 100;
+    for (int tries = 0; tries < 4; ++tries) {
+        expected = expected - expected * halve_percent / 200;
+    }
+    return expected / 100;
 }
 
 // The dice a character swings for: whatever is in their weapon slot, or a
