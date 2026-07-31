@@ -1109,6 +1109,19 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **The engine can now be played without a window**: `sitting` makes a
+  party, opens a real map, and steps the world loop against the actors that
+  map places — reporting what a starting character is, how often it swings,
+  what it deals and takes, and when it falls. It was built to settle whether
+  the traced attribute ladder had broken anything, and it says the ladder
+  holds: level one comes out at 20–24 hit points, 10–12 spell points, armour
+  class 0–3, one blow every 1.7 seconds — which is the traced recovery
+  arriving where the trace predicted — and 52–84% of blows landing. On the
+  game's own opening map a bare-handed party kills 35 things while standing
+  its ground, and dies after 28 if it walks into everything on the map.
+  What the sitting does expose is unrelated to the curve and pre-existing:
+  class plays no part in hit points or spell points, which the engine's own
+  formula never made it do.
 - **What every weapon special actually does**: the game's own table names
   "of Ice" and prices it and says nothing more. The executable's post-hit
   walk carries the numbers, and all thirteen are now read and wired — cold

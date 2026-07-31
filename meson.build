@@ -183,6 +183,13 @@ executable('data_info', 'tools/data_info.cpp',
   install : true,
 )
 
+# Headless sitting: plays the world loop against a real map's actors and
+# reports what a starting character is and what a fight does to it.
+executable('sitting', 'tools/sitting.cpp',
+  dependencies : starhaven_dep,
+  install : true,
+)
+
 # Sprite-frame-table inspector: reads DSFT.BIN and verifies its joins.
 executable('sft_info', 'tools/sft_info.cpp',
   dependencies : starhaven_dep,
