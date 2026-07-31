@@ -769,11 +769,14 @@ interoperability and compatibility with a legally purchased copy.
   the whole main quest from Sulman's letter to the last explosion — and
   the first side chain beside it: Avinril Smythers setting the hunt for
   Snergle and the dwarf king's axe paying 20000 experience for award 37,
-  the template for putting every side quest under the same regression —
+  the template for putting every side quest under the same regression,
+  and four more walked behind it — the Candelabra, Andrew's Harp, the
+  Pearl of Putrescence and the Wicked Crystal, each asserting its own
+  event's gold, experience and honor —
   and two promotions walked the same way: the Crusader and Wizard events
   proved that variable type 2 is the character's class id, checked
   against the qualifying rung and rewritten to the next one beside the
-  promotion's own award. Twenty-four beats, exit-nonzero on any break. One honest gap: no script in any event file
+  promotion's own award. Thirty beats, exit-nonzero on any break. One honest gap: no script in any event file
   grants award 35, "Freed Archibald" — wherever the game bestows it, it
   is not in the scripts. Walking the global
   bank exposed that message indices were being read one byte wide, fine

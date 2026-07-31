@@ -1962,6 +1962,49 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 27..30. Four side chains the ledger points at, walked the way
+    //         Snergle's was: each takes its token and pays its own purse.
+    {
+        struct SideQuest {
+            std::uint16_t event;
+            int item;
+            int award;
+            int gold;
+            int experience;
+            const char* what;
+        };
+        // The Candelabra (449), Andrew's Harp (479) and the Pearl of
+        // Putrescence (458), each read off its own event's gives.
+        static constexpr std::array<SideQuest, 3> kFetches{
+            {{297, 449, 39, 1000, 2000,
+              "the Candelabra pays 1000 gold, 2000 experience, award 39"},
+             {304, 479, 40, 5000, 10000,
+              "Andrew's Harp pays 5000 gold, 10000 experience, award 40"},
+             {341, 458, 51, 0, 5000,
+              "the Pearl of Putrescence pays 5000 experience and seals award 51"}}};
+        for (const auto& quest : kFetches) {
+            game::WalkState state;
+            state.items.push_back(quest.item);
+            const auto outcome = game::walk_event(global, quest.event, state);
+            const bool ok = outcome.ran && state.awards.contains(quest.award) &&
+                            state.gold == quest.gold && state.experience == quest.experience &&
+                            std::find(state.items.begin(), state.items.end(), quest.item) ==
+                                state.items.end();
+            if (!beat(ok, quest.what)) {
+                return 1;
+            }
+        }
+        // The Wicked Crystal is a bit, not a token: bit 21 held earns
+        // award 45 and the Mist mayor's own reward.
+        game::WalkState crystal;
+        crystal.bits.insert(21);
+        const auto outcome = game::walk_event(global, 316, crystal);
+        if (!beat(outcome.ran && crystal.awards.contains(45) && crystal.gold == 3000 &&
+                      crystal.experience == 10000,
+                  "the Wicked Crystal destroyed pays 3000 gold, 10000 experience, award 45")) {
+            return 1;
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }
