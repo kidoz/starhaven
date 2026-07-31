@@ -1134,15 +1134,19 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
-- **The stat block read off, and the gamble half paid**: the base getter's
-  jump table gives one field per id, and the twenty-three split four ways —
-  an eight-field attribute run confirming Might through Luck from the other
-  side, a **five-entry resistance block that turns out to be the party's and
-  not the character's**, a stored pair, and eight ids with no base at all
-  that the bonused getter builds from gear and level (one of them the
-  character's level). What did not pay: the three specials pointing at ids
-  7, 8 and 9 still point at numbers with no names, so those rows stay
-  `unknown` rather than acquiring a guess.
+- **Whose resistances? Neither — a retraction and a better answer**: the
+  five globals the stat getter reads were written up last time as the
+  party's resistance store, which was wrong. The routine that clears them
+  gives the shape away: sixteen records of sixteen bytes, each an expiry, a
+  power and a skill — **the party's spell-buff array**, and the five ids
+  read the power of the five "Protection from" spells. A character's own
+  resistances are still the six bytes at `+0x50`, so this engine had the
+  shape right all along.
+- **The stat block read off**: the base getter's jump table gives one field
+  per id, and the twenty-three split four ways — an eight-field attribute
+  run confirming Might through Luck from the other side, the five buff
+  powers above, a stored pair, and eight ids with no base at all that the
+  bonused getter builds from gear.
 - **Every thrown spell's dice, found at the fourth attempt**: `0x432ad0` is
   the damage routine — spell id, skill, and a 98-entry switch in which 34
   spells have a case and the rest return nothing. Flame Arrow 1d8, Fire Bolt

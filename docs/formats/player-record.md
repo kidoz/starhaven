@@ -66,12 +66,18 @@ block reads off at once. It splits four ways. `observed`
   from the other side: hit points ask for 3, spell points for 2, recovery
   and armour for 5, the attack bonus for 4. **Id 9 is an eighth field in the
   same block with no name.** `unknown`
-- **The resistances, and they are the party's rather than the character's.**
-  Ids 10, 12, 11, 13 and 23 read five *globals* at `0x908e3c`, `0x908e4c`,
-  `0x908e5c`, `0x908e6c` and `0x908e7c` — sixteen bytes apart, one block,
-  outside the player record entirely. That "of Protection" adds ten to ids
-  10..13 and nothing to 23 is the confirmation: four of the five elements
-  and not the fifth.
+- **Five globals, and they are not resistances — the earlier reading is
+  retracted.** Ids 10, 12, 11, 13 and 23 read five words at `0x908e3c`,
+  `0x908e4c`, `0x908e5c`, `0x908e6c` and `0x908e7c`, sixteen bytes apart,
+  and last time this was written up as the party's resistance store. It is
+  not. `0x47d170` clears the whole block and shows its shape: **sixteen
+  records of sixteen bytes** starting at `0x908e34`, each an eight-byte
+  expiry, a **power** word at `+8`, a skill word at `+0xa` and two flag
+  bytes. That is the party's **spell-buff array**, and the five ids read the
+  *power* of its first five slots — the five "Protection from" spells. A
+  character's own resistances are still the six bytes at `+0x50`, exactly
+  where the chest trace found them, so this engine's per-character
+  resistances were right all along. `observed`
 - **A pair of stored words**: ids 15 and 19 both read `+0x1270`, and id 16
   reads `+0x1280`.
 - **Eight ids with no base at all.** Ids 7, 8, 14, 17, 18, 20, 21 and 22
@@ -80,12 +86,10 @@ block reads off at once. It splits four ways. `observed`
   character's level** — both the hit-point and spell-point routines multiply
   their class number by it — and the rest are unnamed.
 
-So the gamble half paid. The resistance block is named and its home moved
-out of the player record; the attribute run is confirmed from two sides; and
-the three specials that point at ids 7, 8 and 9 still point at numbers with
-no names, which was the risk. Those three rows in
-[`weapon-specials.md`](weapon-specials.md) stay `unknown`, and nothing more
-has been hung on them.
+So the block splits cleanly: the character's own numbers in the record, the
+party's protections in a buff array outside it, and eight ids that are pure
+derivation. Ids 7, 8 and 9 are named in
+[`weapon-specials.md`](weapon-specials.md).
 
 ## The stat ids, and where each base value lives
 

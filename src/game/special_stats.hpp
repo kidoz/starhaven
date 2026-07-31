@@ -28,7 +28,7 @@ namespace starhaven::game {
 
 // The stat ids the getter dispatches on, in `stats.txt`'s own order for the
 // seven attributes. Ids 10..13 are the resistances "of Protection" answers
-// for; 7, 8 and 9 are derived numbers this engine has not yet named.
+// for; 7, 8 and 9 are named below.
 enum class StatId : int {
     Might = 0,
     Intellect = 1,
