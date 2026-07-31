@@ -1193,6 +1193,16 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The AI's decision routine, read**: it opens with a **damage-over-time
+  pass** — resistance-checked damage to the hit points at `+0x28`, then the
+  **state-4** action if they go negative and **state-8** if they do not. So
+  **state 4 is death and state 8 is being hurt**, which is why the spell and
+  impact code call the two a few bytes apart everywhere. Then, per actor: if
+  the distance reaches **5120** it idles — that is the awareness range — and
+  otherwise a routine rolls **two percentage bytes** on the actor to pick one
+  of three dispositions. That last is a different shape from this engine's:
+  the original rolls a monster's condition **every tick**, so an afflicted
+  monster wavers, where the engine holds a timer with a fixed effect.
 - **The AI cluster, mapped wholesale**: read the way the two failed visits
   concluded it had to be. Thirty-nine functions, of which **seventeen** end
   by putting the actor into a state, and **`0x4017a0`** — the largest, and

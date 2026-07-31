@@ -258,3 +258,56 @@ pursuing needs the decision routine's chain of conditions read line by line,
 which is the next batch's work and not this one's. What it does establish is
 that such a reading is now bounded: eleven calls out of one function, each
 to a body under 1.7 kB. `unknown` for the behaviours.
+
+## The decision routine, read
+
+`0x4017a0` line by line, as far as its structure goes. `observed` throughout.
+
+### First, a damage pass
+
+The routine opens by walking the actor array in strides of 548 and applying
+damage over time: for each actor it calls the **resistance routine**
+(`0x421dc0`) against the record at `+0x00`, subtracts the result from the
+**hit points at `+0x28`**, and then branches on the sign:
+
+- hit points now **negative** → call the **state-4** action, then play a
+  sound chosen by the monster's own row through a 72-byte-per-monster table
+  at `0x56c1c0` indexed by the byte at `+0x34`;
+- still positive → call the **state-8** action.
+
+So **state 4 is death and state 8 is being hurt** — which also explains why
+the spell and impact code call the two a few bytes apart at every site: the
+blow that kills takes one and the blow that lands takes the other.
+
+### Then, per actor
+
+1. A flag bit is cleared in the dword at `+0x24`.
+2. Whether the **recovery counter at `+0x6c`** has reached zero is computed
+   once and kept — "ready to act".
+3. **If the distance is 5120 or more the actor idles.** That is the AI's
+   awareness range, and it is a hard cut before anything else is considered.
+4. Within range, `0x421c50` decides the actor's disposition, and the routine
+   switches on its three-way answer.
+
+### The disposition is a roll, not a state
+
+`0x421c50` reads **two percentage bytes** off the actor and rolls against
+each in turn: `rand() % 100` against the byte at **`+0x4d`** returns **2**,
+otherwise the same against **`+0x47`** returns **1**, otherwise **0**.
+Neither byte comes from `MONSTERS.TXT` — its `Hst` column is a small integer
+and `Pref` is a letter — so both are runtime values, set by whatever afflicts
+a monster.
+
+That is a different shape from this engine's, which holds fear and charm as
+timers with a fixed effect while they last. In the original a monster rolls
+its condition **every tick**, so an afflicted monster wavers rather than
+being wholly one thing.
+
+### Within a disposition
+
+Each of the three branches then tests a flag byte at `+0x4e`, whether the
+recovery has lapsed, and the distance again — **1024** is the second
+threshold — before selecting one of the eleven actions. Those inner
+conditions are read but the actions they pick are still only known by their
+state numbers. `unknown` for the remaining nine behaviours; what is settled
+is death, being hurt, the two distance thresholds and the per-tick roll.

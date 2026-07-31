@@ -50,6 +50,13 @@ inline constexpr float kPartyReach = kMeleeRange;
 // distance is the engine's own. `inferred`
 inline constexpr float kMissileRange = 2048.0f;
 
+// How far a monster notices anything at all. The AI's decision routine cuts
+// out before considering anything else when the distance reaches **5120**,
+// and uses **1024** as its second threshold within that. `observed` at
+// 0x4021a3 and 0x402317; see docs/formats/event-actors.md.
+inline constexpr float kAwarenessRange = 5120.0f;
+inline constexpr float kCloseRange = 1024.0f;
+
 // Whether any of a monster's two attacks is a missile: the Miss column's
 // "0" means none.
 [[nodiscard]] inline bool has_missile(const data::MonsterStatsEntry& monster) noexcept {
