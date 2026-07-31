@@ -6811,12 +6811,23 @@ int main(int argc, char** argv) {
                                                          : armor_drag;
                             }
                         }
-                        // Haste burns recovery faster, by the original's own
-                        // figure: its tick subtracts elapsed × (1 + 50/100)
-                        // while the effect is on the character (traced at
-                        // 0x482bfb; see docs/formats/player-record.md).
-                        const float haste =
-                            clock.minutes() < party[who].haste_until ? 1.5f : 1.0f;
+                        // The original drains recovery half again as fast for
+                        // a character wearing an unbroken item "of Recovery",
+                        // the special table's row 17 — traced at 0x488605.
+                        // Haste keeps the same figure as this engine's own
+                        // reading of the spell.
+                        float haste = 1.0f;
+                        for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
+                            if (party[who].equipped[slot] > 0 &&
+                                !party[who].equipped_broken[slot] &&
+                                party[who].worn_special[slot] == game::kSpecialOfRecovery) {
+                                haste = game::kOfRecoveryDrain;
+                                break;
+                            }
+                        }
+                        if (clock.minutes() < party[who].haste_until) {
+                            haste = game::kOfRecoveryDrain;
+                        }
                         party_recovery = game::kPartyRecovery *
                                          weapon_skill_of(party[who]).recovery_scale *
                                          (1.0f + armor_drag) / haste;

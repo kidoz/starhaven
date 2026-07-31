@@ -76,13 +76,37 @@ inline constexpr int kBareHandSides = 3;
 // How long between a character's blows, in seconds. `inferred`
 inline constexpr float kPartyRecovery = 1.0f;
 
-// The monster table's recovery column is a bare number, 0 to 200-odd, with no
-// unit. Treating it as hundredths of a second puts the slowest monsters at
-// about two seconds between blows. `inferred` — and now half-traced: the
-// original's recovery counter is the `u16` at `+0x137c` of a character,
-// stored pre-scaled by 32/15 and burned down at a hundredth of an elapsed
-// unit whose meaning is still unread. See docs/formats/player-record.md.
-inline constexpr float kMonsterRecoveryScale = 0.01f;
+// The world clock's own unit, traced. The time-advance routine at `0x4880a0`
+// adds the frame's elapsed to the 64-bit counter at `0x908d08` and makes a
+// calendar of it by multiplying by 30/128 (the float at `0x4b9374`) before
+// dividing by 60, 60, 24 and 7 — so a unit is 30/128 of a world second. A
+// real second is 128 of them: the sound code at `0x488d79` turns a table of
+// plain seconds into units by multiplying by 128.0. The world therefore runs
+// at thirty times real time. `observed`
+inline constexpr float kClockUnitsPerSecond = 128.0f;
+
+// One point of the `Rec` column, in real seconds. The counter at `+0x137c`
+// is set from a queued amount times 32/15 (the double at `0x4b9318`) and
+// drained by the frame's own clock units inside that same time-advance
+// routine. 128 units a second over 32/15 units a point is exactly **sixty
+// points a second**. `observed` See docs/formats/player-record.md.
+inline constexpr float kRecoveryScale = 1.0f / 60.0f;
+
+// The same figure under its old name, kept for the monster table's column.
+inline constexpr float kMonsterRecoveryScale = kRecoveryScale;
+
+// What a `Rec` value costs in seconds, at the traced rate.
+[[nodiscard]] inline constexpr float recovery_seconds(int rec) noexcept {
+    return static_cast<float>(rec) * kRecoveryScale;
+}
+
+// The special bonus that drains recovery half again as fast: row 17 of the
+// game's own special table, **"of Recovery"**. The drain walks the sixteen
+// equipment anchors at `+0x1428`, skips whatever the flag byte at `+0x13c`
+// marks broken, and takes 50% when a worn item's special id at `+0xc` is
+// this. `observed` at `0x488605`..`0x488635`.
+inline constexpr int kSpecialOfRecovery = 17;
+inline constexpr float kOfRecoveryDrain = 1.5f;
 
 // How long a monster shows its flinch before standing again, in seconds. The
 // frame table gives each group a length, but not in any unit this engine has
@@ -708,8 +732,7 @@ public:
                 continue;
             }
             // Slow "doubles the recovery rate of a single monster".
-            c.recovery = static_cast<float>(monster.recovery) * kMonsterRecoveryScale *
-                         (c.slowed > 0.0f ? 2.0f : 1.0f);
+            c.recovery = recovery_seconds(monster.recovery) * (c.slowed > 0.0f ? 2.0f : 1.0f);
 
             cast_id_ = 0;
             if (std::string what = swing(monster, spells, party, now); !what.empty()) {

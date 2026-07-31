@@ -185,16 +185,52 @@ table's `Rec` column does **not** reach this field; monsters carry their
 own counter elsewhere. `observed` by exclusion — this is the only setter,
 and it writes only to party slots.
 
-**The tick is Haste-aware.** The burn is not a flat elapsed: the routine
-first walks a sixteen-entry effect list on the character and, when it
-finds effect **17**, takes a percentage of **50**; the amount subtracted
-is then `elapsed × percent / 100 + elapsed` — that is, **elapsed × 1.5
-while the effect is on**. `observed` StarHaven now shortens a hasted
-character's recovery by exactly that figure.
+**What speeds the burn is an item, not a spell — the earlier reading is
+retracted.** The routine does not walk an effect list. It walks the
+**sixteen equipment anchors at `+0x1428`**, and for each one that holds an
+item it skips the piece when the flag byte at `+0x13c + 28n` has bit 1
+(broken) and otherwise compares the item's dword at **`+0xc`** — the
+special-enchantment id, in a 28-byte item record whose id sits at `+0`,
+enchantment at `+4`, strength at `+8`, special at `+0xc`, charges at
+`+0x10` and flags at `+0x14`. The value it wants is **17**, which the
+game's own special-bonus table names **"of Recovery"** (class B, value
+200). When such a piece is worn the burn takes a percentage of **50**, so
+the amount subtracted is `elapsed × 50 / 100 + elapsed` — **elapsed ×
+1.5**. `observed` The earlier claim that this was effect 17 / Haste was
+wrong and is withdrawn; StarHaven now drains at 1.5 for a worn "of
+Recovery" and keeps the Haste spell on the same figure as its own
+extension.
 
-What the elapsed unit counts is still unread: the tick has exactly one
-caller (`0x427ea9`, in the time-advance path) which passes an integer
-whose own origin lies further up. `unknown`
+## The elapsed unit, closed
+
+**A point of `Rec` is one sixtieth of a real second.** Three measurements
+close it.
+
+*The tick's caller was misread, and that too is retracted.* `0x482bb0` is
+not the per-frame drain: its only caller is `0x427ea9`, which sits in the
+spell-queue processor's jump table at `0x429c74` as case 67 — spell id
+68, **First Aid**, whose block plays sound 7010, heals 5/7/10 by mastery
+and then calls it. The real per-frame drain is the *same code inlined*, at
+`0x4885d7`..`0x488693`, inside the time-advance routine at **`0x4880a0`**.
+`observed`
+
+*That routine names the unit.* It adds the dword at `0x4d519c` — the
+frame's elapsed — to the 64-bit world clock at `0x908d08`, then makes a
+calendar of the clock by multiplying it by the float at `0x4b9374`,
+**0.234375 = 30/128**, and dividing the result by 60, 60, 24 and 7 for
+minutes, hours, days and weeks. A second of *real* time is **128 units**:
+the sound code at `0x488d79` turns a table of plain seconds
+(0.0, 0.11, 0.22 … at `0x4be38c`) into the same units by multiplying by
+128.0, and an animation timer at `0x48f5fd` reloads with `0x80`. So one
+unit is 1/128 of a real second, the world clock runs at **thirty times
+real time**, and the drain subtracts exactly the units the clock gained
+— halved first when bit 2 of the byte at `0x908dec` is set. `observed`
+
+*The setter's constant then does the arithmetic.* A queued amount is
+multiplied by **32/15** (the double at `0x4b9318`) before it is stored, so
+a point of `Rec` costs 32/15 units and 128 units pass a second:
+`128 ÷ 32/15` = **60 points a second**, or half a *world* second a point.
+`observed` StarHaven spends the `Rec` column at that rate.
 
 **The monsters' own counter was hunted and not found.** Every write into
 a monster's runtime record across the AI cluster (`0x430000`..`0x433000`)

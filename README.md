@@ -1099,6 +1099,15 @@ interoperability and compatibility with a legally purchased copy.
   actually offers: window scale, fullscreen, turn-based, and the two
   switches read from the install's own `MM6.ini`. The frame's third and
   fourth medallions open them.
+- **Recovery's unit, closed — sixty points a second**: the world clock at
+  `0x908d08` counts in units of 1/128 of a real second and turns into a
+  calendar by ×30/128, so the world runs at thirty times real time; the
+  recovery counter is drained by exactly those units and filled at 32/15 of
+  a `Rec` point, which puts a point at 1/60 of a second. Two earlier
+  readings are withdrawn with it: the drain's 1.5× belongs to a worn item
+  "of Recovery" (the special table's row 17), not to a Haste effect, and the
+  routine at `0x482bb0` is First Aid's copy of the drain, not the
+  time-advance path's.
 - **The counters answer to the executable's numbers**: the same traced
   table weighs the three services the engine used to price by guess —
   Merchant at 20% (so ten points take two off a hundred, not ten),

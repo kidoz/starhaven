@@ -1,6 +1,7 @@
 // Tests for hitting things and being hit.
 //
 // Hermetic: the monster and item rows and the session are built by hand.
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
@@ -62,6 +63,17 @@ Character fighter() {
 }
 
 }  // namespace
+
+TEST_CASE("the Rec column spends at sixty points a second", "[combat]") {
+    // Traced: the counter is set from a queued amount times 32/15 and drained
+    // by the world clock's own units, of which a real second holds 128.
+    REQUIRE(game::recovery_seconds(60) == Catch::Approx(1.0f));
+    REQUIRE(game::recovery_seconds(0) == 0.0f);
+    // The slowest rows in MONSTERS.TXT sit near 200, so under four seconds.
+    REQUIRE(game::recovery_seconds(200) < 4.0f);
+    // 32/15 units a point against 128 units a second is the whole of it.
+    REQUIRE(game::kClockUnitsPerSecond / (32.0f / 15.0f) == Catch::Approx(60.0f));
+}
 
 TEST_CASE("a monster starts at the hit points its row gives", "[combat]") {
     const auto session = with_monster({0, 0, 0});
