@@ -1085,6 +1085,13 @@ interoperability and compatibility with a legally purchased copy.
   placeholders): 3,541 placed actors, 1,100 chests, 767 doors, 4,701
   lights, 537 establishments. It exits nonzero on the first map that
   fails, and the workflow runs it wherever a real install is present.
+- **The last two shipped screens hang**: `QUIKREF`'s five-column frame
+  now carries the party at a glance — class, level, the seven
+  attributes, hits, spells, armour and skills read across four columns
+  the art's own borders measure — and `Options` states what the engine
+  actually offers: window scale, fullscreen, turn-based, and the two
+  switches read from the install's own `MM6.ini`. The frame's third and
+  fourth medallions open them.
 - **The area spells strike the crowd**: a damaging spell's reach is now
   read from its own prose — "targets a single monster, but explodes to
   hurt anyone else caught in the blast" and "a large radius surrounding

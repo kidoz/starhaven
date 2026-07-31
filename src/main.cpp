@@ -740,6 +740,112 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
 void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
                const data::ItemStatsTable& items, const game::Character& who);
 
+// The quick reference: the game's own `QUIKREF` frame, whose five columns
+// the art measures for us — a label column at x 17..80 and the four
+// characters at 86, 180, 274 and 368 — with the party read across at a
+// glance. `observed` for the columns, `inferred` for which rows to show.
+void draw_quick_reference(render::SceneRenderer& scene, const image::Font& font,
+                          assets::AssetCache& cache,
+                          const std::array<game::Character, 4>& party,
+                          const data::DescriptionTable& stats, int gold, int food) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 5);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 5);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 5);
+        }
+    }
+    blit(scene.framebuffer(), cache.icon("QUIKREF"), 8, 8);
+    const render::Color white{230, 230, 230, 255};
+    const render::Color dim{175, 175, 175, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 2;
+    constexpr std::array<int, 4> kColumns{86 + 12, 180 + 12, 274 + 12, 368 + 12};
+
+    game::draw_text(scene.framebuffer(), font, 26, 26, "Quick reference", white, shadow);
+    for (std::size_t i = 0; i < party.size(); ++i) {
+        game::draw_text(scene.framebuffer(), font, 8 + kColumns[i], 52, party[i].name, white,
+                        shadow);
+    }
+    int y = 72;
+    const auto row = [&](const std::string& label, auto value) {
+        game::draw_text(scene.framebuffer(), font, 26, y, label, dim, shadow);
+        for (std::size_t i = 0; i < party.size(); ++i) {
+            game::draw_text(scene.framebuffer(), font, 8 + kColumns[i], y, value(party[i]),
+                            white, shadow);
+        }
+        y += line;
+    };
+    row("Class", [](const game::Character& who) { return who.class_name; });
+    row("Level", [](const game::Character& who) { return std::to_string(who.level); });
+    for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
+        row(std::string(game::stat_label(stats, a)).substr(0, 8),
+            [a](const game::Character& who) {
+                return std::to_string(who.attribute(static_cast<game::Attribute>(a)));
+            });
+    }
+    row("Hits", [](const game::Character& who) {
+        return std::to_string(who.hit_points) + "/" + std::to_string(who.max_hit_points);
+    });
+    row("Spells", [](const game::Character& who) {
+        return std::to_string(who.spell_points) + "/" + std::to_string(who.max_spell_points);
+    });
+    row("Armour", [](const game::Character& who) { return std::to_string(who.armor_class); });
+    row("Skills", [](const game::Character& who) { return std::to_string(who.skills.size()); });
+    game::draw_text(scene.framebuffer(), font, 26, 326,
+                    std::to_string(gold) + " gold, " + std::to_string(food) +
+                        " food     (any key closes)",
+                    dim, shadow);
+}
+
+// The options the engine actually has to offer, on the game's own panel.
+void draw_options(render::SceneRenderer& scene, const image::Font& font,
+                  assets::AssetCache& cache, int scale, bool fullscreen, bool turn_based,
+                  bool always_run, bool loud_music) {
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    auto pixels = scene.framebuffer().color();
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            const auto i = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+            pixels[i] = static_cast<std::uint8_t>(pixels[i] / 5);
+            pixels[i + 1] = static_cast<std::uint8_t>(pixels[i + 1] / 5);
+            pixels[i + 2] = static_cast<std::uint8_t>(pixels[i + 2] / 5);
+        }
+    }
+    blit(scene.framebuffer(), cache.icon("Options"), 8, 8);
+    const render::Color white{235, 230, 205, 255};
+    const render::Color dim{190, 185, 165, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    const int line = font.height() + 4;
+    int y = 40;
+    game::draw_text(scene.framebuffer(), font, 34, y, "Options", white, shadow);
+    y += line * 2;
+    const auto say = [&](const std::string& text, bool on) {
+        game::draw_text(scene.framebuffer(), font, 34, y, text + (on ? "  on" : "  off"), white,
+                        shadow);
+        y += line;
+    };
+    game::draw_text(scene.framebuffer(), font, 34, y,
+                    "Window scale  " + std::to_string(scale) + "x   (--scale N)", white, shadow);
+    y += line;
+    say("Fullscreen    (F11)", fullscreen);
+    say("Turn-based    (Enter)", turn_based);
+    y += line;
+    game::draw_text(scene.framebuffer(), font, 34, y, "From the install's own MM6.ini:", dim,
+                    shadow);
+    y += line;
+    say("  AlwaysRun", always_run);
+    say("  LoudMusic", loud_music);
+    game::draw_text(scene.framebuffer(), font, 34, 320, "any key closes", dim, shadow);
+}
+
 // The character sheet, on the game's own four pages: fr_stats, fr_skill,
 // fr_inven and fr_award each frame what their name says, and the arrows
 // turn between them. The fields keep the design tables' own names.
@@ -2058,6 +2164,7 @@ int main(int argc, char** argv) {
     bool start_map = false;      // --map: open the maps page at once
     bool start_title = false;    // --title: hold the title screen for a capture
     bool start_rest = false;     // --rest: open the campfire for a capture
+    bool start_quickref = false;  // --quickref: open the party at a glance
     int window_scale = 2;        // --scale N: the window's integer multiple
     bool fullscreen = false;     // F11 flips it
     bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
@@ -2103,6 +2210,8 @@ int main(int argc, char** argv) {
             start_title = true;
         } else if (a == "--rest") {
             start_rest = true;
+        } else if (a == "--quickref") {
+            start_quickref = true;
         } else if (a == "--scale" && i + 1 < argc) {
             window_scale = std::clamp(std::atoi(argv[++i]), 1, 6);
         } else if (a == "--eye") {
@@ -2462,6 +2571,8 @@ int main(int argc, char** argv) {
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
     int sheet_page = 0;  // which of the sheet's four framed pages shows
     int journal_page = 0;  // 0 the quests, 1 the chronicle
+    bool show_quickref = start_quickref;
+    bool show_options = false;
     // The arena's tournament, rebuilt engine-side: the original kept its
     // waves and purses in the executable, so every number here — the four
     // ranks' level bands, counts and prizes — is this engine's own and
@@ -3755,6 +3866,11 @@ int main(int argc, char** argv) {
                 } else {
                     arena_rank = -1;
                 }
+            } else if ((show_quickref || show_options) &&
+                       (event.type == SDL_EVENT_KEY_DOWN ||
+                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+                show_quickref = false;
+                show_options = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN && chest_art >= 0) {
                 chest_art = -1;
             } else if (event.type == SDL_EVENT_KEY_DOWN && book_member >= 0) {
@@ -5748,9 +5864,9 @@ int main(int argc, char** argv) {
                     } else if (seal == 1) {
                         push_key(SDLK_R);
                     } else if (seal == 2) {
-                        push_key(SDLK_B);
+                        show_quickref = true;
                     } else {
-                        push_key(SDLK_F5);
+                        show_options = true;
                     }
                 } else if (my >= 361 && my < 440 && mx >= 22 && mx < 440) {
                     const int seat = (mx - 22) / 113;
@@ -6941,6 +7057,13 @@ int main(int argc, char** argv) {
                             [](const auto& h) { return h.benefit.wizard_eye; });
             draw_map_page(scene, session, camera.position, camera.forward(), map_tile_colors,
                           map_colors_ready, eye_now ? std::max(eye_rank, 1) : 0, battle);
+        }
+        if (show_quickref) {
+            draw_quick_reference(scene, font, cache, party, stat_descriptions, gold, party_food);
+        }
+        if (show_options) {
+            draw_options(scene, font, cache, window_scale, fullscreen, turn_based,
+                         ini_always_run, ini_loud_music);
         }
         if (rest_screen && font.glyph_count() > 0) {
             // The camp: restmain's own panel, its three button slots worn
