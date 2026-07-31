@@ -38,6 +38,8 @@
 #include "game/spell_damage.hpp"
 #include "game/special_stats.hpp"
 #include "game/spell_switch.hpp"
+#include "game/buffs.hpp"
+#include "game/spirit_mind_light.hpp"
 #include "game/clock.hpp"
 #include "game/fire_dark.hpp"
 #include "game/combat.hpp"
@@ -2540,6 +2542,8 @@ int main(int argc, char** argv) {
     data::DescriptionTable skill_table;
     (void)data::load_descriptions(data_dir, "SkillDes.txt", skill_table);
     std::array<game::Character, 4> party = game::make_party(given_names, 1);
+    // The party's sixteen buff slots, on the executable's own array.
+    game::PartyBuffs party_buffs;
     // The opening quest's own seed: bit 81's designers' note reads "Set
     // when the party starts", and its journal line is "Show Sulman's letter
     // to Andover Potbello" — so a fresh party begins holding The Letter
@@ -3152,6 +3156,35 @@ int main(int argc, char** argv) {
     // states — with the reader's level standing in for the skill. `inferred`
     const auto apply_buff = [&](const data::SpellStatsEntry& spell, game::Character& who,
                                 int skill) -> bool {
+        // The party's own buff array first: a spell that owns one of the
+        // sixteen slots fills it with the power and the hours its case
+        // computes, and nothing else needs to know. See src/game/buffs.hpp.
+        if (const int slot = game::buff_slot_of_spell(spell.id); slot >= 0) {
+            const int rank = game::rank_of(skill);
+            const std::int64_t lasts =
+                clock.minutes() +
+                static_cast<std::int64_t>(std::max(1, skill)) * game::kSchoolBuffMinutesPerPoint;
+            // A protection's power is one, two or three a point by rank;
+            // the others carry the skill itself.
+            const bool shields = slot <= static_cast<int>(game::PartyBuff::ProtectionFromPoison);
+            party_buffs.cast(slot, lasts, shields ? game::fire_shield(skill, rank) : skill,
+                             skill);
+            return true;
+        }
+        if (spell.id == game::kSpellDayOfProtection) {
+            // "Protects the party from everything": its case fills seven
+            // slots in a row, at two, three or four times the skill plus ten.
+            const int rank = game::rank_of(skill);
+            const int power = game::day_of_the_gods(skill, rank);
+            const std::int64_t lasts =
+                clock.minutes() + static_cast<std::int64_t>(std::max(1, skill)) *
+                                      game::by_school_rank(game::kDayOfTheGodsHours, rank) *
+                                      game::kMinutesPerHour;
+            for (const int slot : game::kDayOfProtectionSlots) {
+                party_buffs.cast(slot, lasts, power, skill);
+            }
+            return true;
+        }
         const data::SpellDuration duration = data::parse_spell_duration(spell, 0);
         if (duration.empty()) {
             return false;
@@ -6380,6 +6413,12 @@ int main(int argc, char** argv) {
             // prose.
             party[i].gear_attributes.fill(0);
             party[i].gear_resistances.fill(0);
+            // The party's own protections stand on top of whatever the
+            // character carries: the five slots the stat getter reads, in
+            // MONSTERS.TXT's own column order.
+            for (std::size_t r = 0; r < data::kResistanceCount; ++r) {
+                party[i].gear_resistances[r] += party_buffs.resistance(r, clock.minutes());
+            }
             int gear_armor = 0;
             for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {
                 if (party[i].equipped[slot] <= 0 || party[i].equipped_broken[slot]) {

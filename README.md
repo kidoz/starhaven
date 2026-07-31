@@ -1134,6 +1134,17 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
+- **The party's spell buffs, on the executable's own array**: sixteen slots
+  of sixteen bytes, and which spell owns which slot read off the `mov ecx`
+  before each call to the setter — Protection from Fire slot 0, Cold 1,
+  Electricity 2, Magic 3, Poison 4, then Water Walk, Fly, Guardian Angel,
+  Wizard Eye and Torch Light. **Day of Protection writes seven of them in a
+  row**, which is what its row means. Three batches of traced powers and
+  durations finally have somewhere to go: the protections now actually
+  protect, at one, two or three a point for an hour a point, and the five
+  resistance columns they answer are Fire, Electricity, Cold, Poison and
+  Magic — `MONSTERS.TXT`'s own order, confirmed by "of Protection" reaching
+  four of the five and not magic.
 - **Whose resistances? Neither — a retraction and a better answer**: the
   five globals the stat getter reads were written up last time as the
   party's resistance store, which was wrong. The routine that clears them
