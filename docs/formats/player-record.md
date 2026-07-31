@@ -53,6 +53,25 @@ item's id at `+0x128` and its bonus word at `+0x144` grant. That is the
 same walk the Disarm getter performs, which is how "of Thievery" was
 identified in the chest trace.
 
+## The stat ids, and where each base value lives
+
+`0x483800` is the *base* getter beside `0x482e80`'s bonused one, and its
+own 24-entry jump table at `0x4838d0` names a field per id. Eight of them
+land on a 16-byte-spaced run — `+0x12b0`, `+0x12c0`, `+0x12d0`, `+0x12e0`,
+`+0x12f0`, `+0x1300`, `+0x1310`, `+0x1320` for ids 9, 6, 1, 2, 4, 5, 0 and
+3 — which is the attribute block; two more sit at `+0x1270` (ids 15 and
+19) and `+0x1280` (id 16). `observed`
+
+**The attack bonus is stat 4.** The getter at `0x47e270` asks both the
+base and bonused routines for id 4 and then adds the weapon skill scaled
+by a percentage: the weapon's kind selects a skill id through the table
+at `0x4c276c` (16, 15, 14, 13, 2, 12) and that skill's percentage comes
+from the byte table at `0x4c27fc` — 100, 100, 100, 50, 10, 100, 75, 60,
+50, 30, 25, 10. So the attribute contributes **raw**, not through the
+sheet's bonus curve, and a weapon whose skill is worth only 10% barely
+gains from training. `observed` for both tables; which percentage answers
+which of this engine's skill names is not yet joined. `unknown`
+
 ## What is still missing
 
 The recovery field — the one that would settle the party's swing rate and

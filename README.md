@@ -1055,6 +1055,13 @@ interoperability and compatibility with a legally purchased copy.
   loader at 0x446d48 has no per-column jump table to read field offsets
   from, the constant 140 appears as an immediate nowhere in the code,
   and the two AI clusters hold rolls but no recovery arithmetic.
+- **The attack bonus traced to stat 4**: the base getter's own jump
+  table names a field per stat id — the seven attributes in a 16-byte
+  run, and the attack bonus among them — so the original adds the
+  attribute **raw**, not through the sheet's bonus curve, then adds the
+  weapon skill at a percentage the weapon's kind picks (100 down to 10,
+  a twelve-entry table). The engine now reads accuracy raw; joining the
+  percentages to this engine's skill names is the one step left.
 - **The evpan gamble closed, and paid three ways**: the format string's
   single caller reads its number from a 16-byte table in the executable
   — and that table turned out to be the interior list itself, carrying

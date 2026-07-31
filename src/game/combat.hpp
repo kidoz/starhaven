@@ -503,12 +503,17 @@ public:
         }
         const auto& monster = monsters.entries()[id - 1];
 
-        // Whether it lands, by the original's own rule: the character's
-        // attack bonus — accuracy's own bonus plus what the weapon skill's
-        // line adds — against the monster's armour class, as a melee
-        // swing. `observed` for the rule, `inferred` for what fills the
-        // attack bonus, which no table states.
-        const int attack = attribute_bonus(who.attribute(Attribute::Accuracy)) + skill.to_hit;
+        // Whether it lands, by the original's own rule, with the attack
+        // bonus assembled its way too: the getter at `0x47e270` asks the
+        // stat dispatcher for **stat 4 — an attribute read raw**, not
+        // through the sheet's bonus curve — and adds the weapon skill
+        // scaled by a percentage the weapon's own kind picks (the table
+        // at `0x4c27fc`: 100, 100, 100, 50, 10, 100, 75, 60, 50, 30, 25,
+        // 10). `observed` for the shape; which of the twelve percentages
+        // answers which of this engine's skill names is not yet joined,
+        // so the skill's own to-hit line still stands in for it.
+        // `inferred` for that last step.
+        const int attack = who.attribute(Attribute::Accuracy) + skill.to_hit;
         if (!blow_lands(monster.armor_class, attack, BlowKind::Plain, 0, random_)) {
             return who.name + " misses " + monster.name;
         }
