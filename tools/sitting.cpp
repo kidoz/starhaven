@@ -58,9 +58,13 @@ void print_usage(const char* argv0) {
               << "Set STARHAVEN_GAME_DIR to the install directory.\n";
 }
 
-// The nearest living actor, or none.
+// The nearest living actor within `reach`, or none. The reach matters: the
+// game gives the party the same 400 units the monsters' own melee uses, and
+// an earlier version of this harness let the party strike at any distance —
+// which made it look as though the monsters never fought back, when in fact
+// the party was simply hitting things that could not reach it.
 std::size_t nearest_alive(const world::MapSession& session, const game::Battle& battle,
-                          const render::Vec3& eye) {
+                          const render::Vec3& eye, float reach = 0.0F) {
     std::size_t best = game::kNoActor;
     float closest = 0.0F;
     for (std::size_t i = 0; i < session.actors.size(); ++i) {
@@ -71,6 +75,9 @@ std::size_t nearest_alive(const world::MapSession& session, const game::Battle& 
                              session.actors[i].position.y - eye.y,
                              session.actors[i].position.z - eye.z};
         const float range = d.x * d.x + d.y * d.y + d.z * d.z;
+        if (reach > 0.0F && range > reach * reach) {
+            continue;
+        }
         if (best == game::kNoActor || range < closest) {
             best = i;
             closest = range;
@@ -219,7 +226,8 @@ int main(int argc, char** argv) {
             if (party[who].hit_points <= 0 || recovery[who] > 0.0F) {
                 continue;
             }
-            const std::size_t target = nearest_alive(session, battle, eye);
+            const std::size_t target =
+                nearest_alive(session, battle, eye, game::kPartyReach);
             if (target == game::kNoActor) {
                 continue;
             }
