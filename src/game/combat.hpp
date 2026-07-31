@@ -31,6 +31,7 @@
 #include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/skills.hpp"
+#include "game/fire_dark.hpp"
 #include "game/weapon_specials.hpp"
 
 namespace starhaven::game {
@@ -655,10 +656,12 @@ public:
     // spell's own element.
     // A spell that reaches past its target: everything alive within the
     // burst takes the same roll, answered by its own resistance. The
-    // radius is the engine's own — the prose names a blast without
-    // measuring it — and "in sight" is read as the whole map, which is
-    // what the words say. `inferred` for the distance.
-    static constexpr float kBlastRadius = 512.0f;
+    // radius is **measured**: Ring of Fire's case sets 512 at normal rank
+    // and 1024 above it, which is the only blast the executable puts a
+    // number on, and it is taken as the shape of all of them. "In sight"
+    // is read as the whole map, which is what the words say. `observed`
+    // for the 512; `inferred` that other blasts share it.
+    static constexpr float kBlastRadius = static_cast<float>(kRingOfFireRadius[0]);
 
     std::string smite_area(std::size_t actor, const data::SpellRange& flat,
                            const data::SpellRange& per_skill, int skill,

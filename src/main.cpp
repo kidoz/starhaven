@@ -37,6 +37,7 @@
 #include "game/body_magic.hpp"
 #include "game/spell_switch.hpp"
 #include "game/clock.hpp"
+#include "game/fire_dark.hpp"
 #include "game/combat.hpp"
 #include "game/conversation.hpp"
 #include "game/daylight.hpp"
@@ -3153,8 +3154,13 @@ int main(int argc, char** argv) {
         if (duration.empty()) {
             return false;
         }
-        const std::int64_t until = clock.minutes() + duration.minutes(skill);
+        std::int64_t until = clock.minutes() + duration.minutes(skill);
         const std::string name = data::cp1252_to_utf8(spell.name);
+        if (spell.id == game::kSpellHaste) {
+            // Haste's own case: sixty-four minutes and a minute a point,
+            // three at master. The table rounds the base to an hour.
+            until = clock.minutes() + game::haste_minutes(skill, game::rank_of(skill));
+        }
         if (name == "Haste") {
             who.haste_until = until;
         } else if (name == "Bless") {

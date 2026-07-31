@@ -1,6 +1,6 @@
 # The spell switch (`MM6.exe`, runtime)
 
-Status: **one school read in full, and the machinery around every case.** Not a file format: this is the
+Status: **three schools read in full, and the machinery around every case.** Not a file format: this is the
 executable's own per-spell code, reached while chasing the recovery tick.
 Every claim is tagged `observed` (read from an instruction) or `inferred`.
 
@@ -161,6 +161,65 @@ click — so the predicate is what decides whether clicking on the world fires
 what you have readied. Nothing in `SPELLS.TXT` states this partition; the
 byte table is its only source, and StarHaven now carries the list.
 `observed`
+
+## The Fire school, spells 1..11
+
+| Id | Spell | Case | What the case computes |
+| --- | --- | --- | --- |
+| 1 | Torch Light | `0x423021` | brightness **2 / 3 / 4**, for **3600 s** a point |
+| 2 | Flame Arrow | `0x4230e1` | the shared launcher |
+| 3 | Protection from Fire | `0x4236e3` | **1 / 2 / 3** resistance a point, for 3600 s a point |
+| 4 | Fire Bolt | `0x4230e1` | the shared launcher |
+| 5 | Haste | `0x42379f` | **(points + 64) × 60 s**, and **3840 + 180 × points** at master |
+| 6 | Fireball | `0x4230e1` | the shared launcher |
+| 7 | Ring of Fire | `0x42398e` | radius **512**, and **1024** at expert and master |
+| 8 | Fire Blast | `0x423b4f` | **3 / 5 / 7** shots |
+| 9 | Meteor Shower | `0x423d39` | **8 / 12 / 16** meteors |
+| 10 | Inferno | `0x424142` | no number; it branches on where the party is |
+| 11 | Incinerate | `0x4230e1` | the shared launcher |
+
+## The Dark school, spells 89..99
+
+| Id | Spell | Case | What the case computes |
+| --- | --- | --- | --- |
+| 89 | Reanimate | `0x429104` | **10 / 20 / 30** hit points a point |
+| 90 | Toxic Cloud | `0x42322d` | the shared launcher |
+| 91 | Mass Curse | `0x42928b` | **120 / 180 / 240 s** a point |
+| 92 | Shrapmetal | `0x429445` | **3 / 5 / 7** fragments |
+| 93 | Shrinking Ray | `0x423492` | the shared launcher |
+| 94 | Day of Protection | `0x4295fe` | everything cast at **2 / 3 / 4 ×** the skill |
+| 95 | Finger of Death | `0x423492` | the shared launcher |
+| 96 | Moon Ray | `0x4297a1` | no number; it branches on where the party is |
+| 97 | Dragon Breath | `0x4230e1` | the shared launcher |
+| 98 | Armageddon | `0x4299e1` | **1 / 2 / 3** casts a day, counted at `+0x1619` |
+| 99 | Dark Containment | `0x4230e1` | the shared launcher |
+
+`observed` throughout.
+
+### What the two schools confirm, and what they add
+
+`SPELLS.TXT` states a figure for eleven of the thirteen cases that have one,
+and the executable agrees with **every one**: Fire Blast's three, five and
+seven shots, Meteor Shower's eight, twelve and sixteen meteors, Shrapmetal's
+three, five and seven fragments, Reanimate's ten, twenty and thirty hit
+points a point, Mass Curse's two, three and four minutes a point, Day of
+Protection's two, three and four times skill, Armageddon's one, two and
+three casts a day, Torch Light's and Protection from Fire's hour a point,
+and Protection from Fire's one, two and three points of resistance.
+
+Three numbers the prose does not carry:
+
+- **Torch Light's brightness.** "Brighter light" and "brightest light" are
+  **3** and **4** against a normal **2**. `observed`
+- **Ring of Fire's radius.** "Small radius of effect around party" is
+  **512** of the world's units, and "larger radius" is **1024** — the only
+  blast the executable measures, and the number this engine had already
+  guessed at for every blast. `observed`
+- **Haste's true base.** Both lower ranks compute `(points + 64) × 60`
+  seconds and master `3840 + 180 × points`, so the base is **sixty-four
+  minutes** where the table says "1 hour", and the step is a minute a point
+  below master and three at it — which is exactly what the prose says apart
+  from the four extra minutes. `observed`
 
 ## The dispatcher at `0x43102e` was not the spell's — a second correction
 

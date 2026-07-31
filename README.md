@@ -1109,6 +1109,16 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **Fire and Dark out of the switch, beside Body**: thirteen more cases read,
+  and the table's words match the executable on all eleven figures it
+  states — Fire Blast's 3/5/7 shots, Meteor Shower's 8/12/16 meteors,
+  Shrapmetal's 3/5/7 fragments, Reanimate's 10/20/30 a point, Mass Curse's
+  2/3/4 minutes, Day of Protection's 2/3/4×, Armageddon's one, two and three
+  casts a day. Three numbers it never gives are now measured: Torch Light's
+  "brighter" and "brightest" are 3 and 4, Ring of Fire's "small radius" is
+  512 world units and its "larger" 1024, and Haste's base is sixty-four
+  minutes rather than the hour the prose rounds it to. The blast radius the
+  engine had guessed at turns out to have been right.
 - **The engine can now be played without a window**: `sitting` makes a
   party, opens a real map, and steps the world loop against the actors that
   map places — reporting what a starting character is, how often it swings,

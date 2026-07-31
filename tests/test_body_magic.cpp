@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "game/body_magic.hpp"
+#include "game/fire_dark.hpp"
 #include "game/spell_switch.hpp"
 
 using namespace starhaven;
@@ -116,4 +117,45 @@ TEST_CASE("the object handle packs an index over a kind", "[body]") {
     REQUIRE(packed_handle(1, kHandleKindActor) == 11);
     REQUIRE((packed_handle(17, kHandleKindActor) >> 3) == 17);
     REQUIRE((packed_handle(17, kHandleKindActor) & 7) == kHandleKindActor);
+}
+
+TEST_CASE("Fire and Dark agree with the prose where it speaks", "[body]") {
+    // The volleys, all three counted in the table's own words.
+    REQUIRE(by_rank(kFireBlastShots, 0) == 3);
+    REQUIRE(by_rank(kFireBlastShots, 2) == 7);
+    REQUIRE(by_rank(kMeteorShowerMeteors, 0) == 8);
+    REQUIRE(by_rank(kMeteorShowerMeteors, 1) == 12);
+    REQUIRE(by_rank(kMeteorShowerMeteors, 2) == 16);
+    REQUIRE(by_rank(kShrapmetalFragments, 1) == 5);
+    // Reanimate, Mass Curse, Day of Protection and Armageddon.
+    REQUIRE(by_rank(kReanimatePerPoint, 0) == 10);
+    REQUIRE(by_rank(kReanimatePerPoint, 2) == 30);
+    REQUIRE(by_rank(kMassCurseMinutesPerPoint, 0) == 2);
+    REQUIRE(by_rank(kMassCurseMinutesPerPoint, 2) == 4);
+    REQUIRE(by_rank(kDayOfProtectionMultiple, 1) == 3);
+    REQUIRE(by_rank(kArmageddonPerDay, 0) == 1);
+    REQUIRE(by_rank(kArmageddonPerDay, 2) == 3);
+    // Protection from Fire matches its poison counterpart exactly.
+    REQUIRE(fire_shield(6, 0) == poison_shield(6, 0));
+    REQUIRE(fire_shield(6, 2) == poison_shield(6, 2));
+}
+
+TEST_CASE("Fire and Dark carry numbers the prose never gives", "[body]") {
+    // Torch Light's "brighter" and "brightest" are 3 and 4.
+    REQUIRE(by_rank(kTorchBrightness, 0) == 2);
+    REQUIRE(by_rank(kTorchBrightness, 2) == 4);
+    // Ring of Fire's "small" and "larger" radius are measured.
+    REQUIRE(by_rank(kRingOfFireRadius, 0) == 512);
+    REQUIRE(by_rank(kRingOfFireRadius, 1) == 1024);
+    REQUIRE(by_rank(kRingOfFireRadius, 2) == 1024);
+    // Haste's base is sixty-four minutes, not the hour the table rounds to,
+    // and the step is one a point below master and three at it.
+    REQUIRE(kHasteBaseMinutes == 64);
+    REQUIRE(haste_minutes(0, 0) == 64);
+    REQUIRE(haste_minutes(10, 0) == 74);
+    REQUIRE(haste_minutes(10, 1) == 74);
+    REQUIRE(haste_minutes(10, 2) == 94);
+    // Every ladder clamps rather than reading past its ends.
+    REQUIRE(by_rank(kTorchBrightness, -5) == 2);
+    REQUIRE(by_rank(kTorchBrightness, 99) == 4);
 }
