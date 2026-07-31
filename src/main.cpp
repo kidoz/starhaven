@@ -3245,8 +3245,8 @@ int main(int argc, char** argv) {
         // own ladder, three minutes a point at normal rank, three hours at
         // expert and three days at master. Past it the prose sends you to a
         // temple, and so does this. See src/game/body_magic.hpp.
-        const std::int64_t window =
-            game::cure_window_minutes(school_points, game::rank_of(school_points));
+        const std::int64_t window = game::cure_window_minutes(
+            school_points, game::rank_of(school_points), spell.id);
         const std::int64_t now = clock.minutes();
         std::string cured;
         bool too_late = false;

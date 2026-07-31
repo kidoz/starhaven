@@ -86,8 +86,24 @@ executable's alone:
   three hours, three days a point**. The prose agrees at normal ("3 minutes
   per point of skill") and under-states the two above it, calling them "1
   hour" and "1 day" where the code grants three of each. The same ladder
-  appears outside the school — Mind's Cure Insanity at `0x427a05` — so it
-  belongs to every timed cure. StarHaven follows the executable. `observed`
+  appears in Mind's Cure Insanity at `0x427a05` and Spirit's Resurrection at
+  `0x427282`. **It does not belong to every timed cure**, which is a
+  narrowing of what was first written here: Spirit's Remove Curse
+  (`0x426b0e`) and Raise Dead (`0x427016`) multiply by **180, 3600 and
+  86400** instead — three minutes, one hour, one day, exactly the words
+  their own rows use. So there are two ladders and the choice is per spell.
+  StarHaven follows the executable for both. `observed`
+
+## Spirit, in part
+
+Read far enough to settle the ladder question and no further, so what is
+here is what is measured. **Lucky Day** (`0x42699c`) grants
+`10 + 2 × points`, `10 + 3` at expert, and reaches the whole party at
+master — the same shape Speed and Power take, and exactly what its row
+says. **Remove Curse**, **Raise Dead** and **Resurrection** are the three
+cures above. The school's remaining seven cases were not decoded to a
+standard worth recording, and are `unknown`; so are Mind's and Light's,
+which this sitting did not reach.
 
 ## What First Aid gave away
 

@@ -54,10 +54,27 @@ inline constexpr std::array<int, 3> kCureWindowMinutes{
     3, 3 * kMinutesPerHour, 3 * kMinutesPerDay};
 
 // What a rank's cure window is worth, in game minutes, at `points`.
-[[nodiscard]] inline constexpr std::int64_t cure_window_minutes(int points, int rank) noexcept {
+// **And it is not one ladder — the earlier reading is narrowed.** Spirit's
+// Remove Curse (`0x426b0e`) and Raise Dead (`0x427016`) multiply by **180,
+// 3600 and 86400** seconds: three minutes, one hour, one day, exactly the
+// words their rows use. Body's three cures, Mind's Cure Insanity and
+// Spirit's Resurrection (`0x427282`) multiply by 180, 10800 and 259200 —
+// three of each unit. So a timed cure uses one of two ladders, and which
+// one is per spell rather than per school. `observed`
+inline constexpr std::array<int, 3> kPlainCureWindowMinutes{3, kMinutesPerHour, kMinutesPerDay};
+
+// The spells measured on the plain ladder: Remove Curse and Raise Dead.
+[[nodiscard]] inline constexpr bool cure_uses_plain_ladder(int spell_id) noexcept {
+    return spell_id == 49 || spell_id == 53;
+}
+
+[[nodiscard]] inline constexpr std::int64_t cure_window_minutes(int points, int rank,
+                                                                int spell_id = 0) noexcept {
     const int held = points < 1 ? 1 : points;
     const int band = rank < 0 ? 0 : rank > 2 ? 2 : rank;
-    return static_cast<std::int64_t>(held) * kCureWindowMinutes[static_cast<std::size_t>(band)];
+    const auto& ladder =
+        cure_uses_plain_ladder(spell_id) ? kPlainCureWindowMinutes : kCureWindowMinutes;
+    return static_cast<std::int64_t>(held) * ladder[static_cast<std::size_t>(band)];
 }
 
 // First Aid heals a flat 5, 7 or 10 by rank and takes no account of skill —

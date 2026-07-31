@@ -159,3 +159,20 @@ TEST_CASE("Fire and Dark carry numbers the prose never gives", "[body]") {
     REQUIRE(by_rank(kTorchBrightness, -5) == 2);
     REQUIRE(by_rank(kTorchBrightness, 99) == 4);
 }
+
+TEST_CASE("a timed cure uses one of two ladders", "[body]") {
+    // Body's three, Mind's Cure Insanity and Spirit's Resurrection forgive
+    // three of each unit a point.
+    REQUIRE(cure_window_minutes(1, 1, kSpellCurePoison) == 180);
+    REQUIRE(cure_window_minutes(1, 2, 55) == 4320);
+    // Remove Curse and Raise Dead forgive exactly what their rows say.
+    REQUIRE(cure_window_minutes(1, 1, 49) == 60);
+    REQUIRE(cure_window_minutes(1, 2, 49) == 1440);
+    REQUIRE(cure_window_minutes(1, 1, 53) == 60);
+    REQUIRE(cure_window_minutes(1, 2, 53) == 1440);
+    // Both ladders agree at normal rank, three minutes a point.
+    REQUIRE(cure_window_minutes(4, 0, 49) == 12);
+    REQUIRE(cure_window_minutes(4, 0, kSpellCureDisease) == 12);
+    REQUIRE(cure_uses_plain_ladder(49));
+    REQUIRE_FALSE(cure_uses_plain_ladder(55));
+}
