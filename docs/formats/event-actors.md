@@ -119,3 +119,35 @@ The three triples are current, start/home, and guard positions. The bytes
 between them are velocity, direction, look angle, room, and action length.
 They often ship equal or zero because the actor has not moved yet, not because
 their roles are unknowable. `observed`
+
+## The AI, visited a third time — and there is no switch to find
+
+Three sittings have gone looking for the monster AI's decision point, on the
+assumption that a body of code that large would dispatch through a table the
+way the spell code and the special-bonus code do. **It does not**, and that
+is the finding.
+
+What is there:
+
+- **The AI state is the word at `+0xa0`** of the 548-byte actor record. The
+  states written across the cluster are **0, 4, 5, 6, 7, 8, 9 and 16**.
+  `observed`
+- The recovery countdown at `0x401b5d` — the same routine that drains the
+  `Rec` counter at `+0x6c` — **transitions state 4 to state 5** when the
+  counter reaches zero, clearing `+0x90` and `+0xa8` with it. So "recovered"
+  is a state change, not just a number reaching zero. `observed`
+- Several states are treated as one group: at `0x401e13` the code tests
+  `+0xa0` against 6, 0, 1 and 9 and takes the same branch for all four, and
+  state 8 joins them when the byte at `+0x46` is set. `observed`
+
+What is not there is a dispatch. The cluster branches on the state with
+scattered comparisons — `cmp word [reg+0xa0], N` at two dozen sites — rather
+than through a selector and a jump table, so there is no single place that
+decides what a monster does. Reading the AI would mean reading the whole
+cluster, function by function, and not one table. That is why two earlier
+visits and this one all came away empty, and it is recorded so a fourth does
+not start from the same wrong assumption. `unknown` for the states' meanings.
+
+Two neighbouring dispatches were identified along the way and are not the
+AI: `0x432750` applies one of ten effects to an actor named by the packed
+handle, and `0x42fb85` is a 170-case dispatch on an unrelated id range.

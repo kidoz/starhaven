@@ -1143,6 +1143,16 @@ interoperability and compatibility with a legally purchased copy.
   was reading the empty lookup as a recovery of **zero**, which made a club
   strike instantly. Fixed. The buff slot map came back consistent: no two
   spells share a slot and none is orphaned.
+- **The gamble: the AI has no switch to find**: three visits have gone
+  looking for the monster AI's decision point on the assumption that
+  something that large would dispatch through a table, as the spell code and
+  the special-bonus code do. It does not, and that is the finding — the
+  cluster branches on a state word with two dozen scattered comparisons and
+  no selector anywhere. What did come out: **the AI state is the word at
+  `+0xa0`**, its states are 0, 4, 5, 6, 7, 8, 9 and 16, and the recovery
+  countdown transitions **4 to 5** when the counter lapses, so "recovered" is
+  a state change rather than just a number reaching zero. Recorded so a
+  fourth visit does not start from the same wrong assumption.
 - **The new work survives a save**: the party's sixteen slots and every
   character's sixteen now write as their own records — an empty slot costs
   nothing, so an unbuffed party's file is unchanged — and the level and
