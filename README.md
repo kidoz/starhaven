@@ -776,7 +776,12 @@ interoperability and compatibility with a legally purchased copy.
   and two promotions walked the same way: the Crusader and Wizard events
   proved that variable type 2 is the character's class id, checked
   against the qualifying rung and rewritten to the next one beside the
-  promotion's own award. Thirty beats, exit-nonzero on any break. One honest gap: no script in any event file
+  promotion's own award — and now all six lords' ladders, each with its
+  token, its qualifying class and both branches: the promotion award for
+  those who qualify, the honorary one for those who cannot. Reading them
+  settled the branch order too — passing the check promotes and gives
+  the lower award, falling through gives the honorary. Thirty-four
+  beats, exit-nonzero on any break. One honest gap: no script in any event file
   grants award 35, "Freed Archibald" — wherever the game bestows it, it
   is not in the scripts. Walking the global
   bank exposed that message indices were being read one byte wide, fine

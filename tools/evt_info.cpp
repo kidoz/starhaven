@@ -2005,6 +2005,50 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             return 1;
         }
     }
+    // 31..34. The other four ladders, so no class's promotion breaks
+    //         unnoticed: each promotes its qualifying class one rung and
+    //         hands the honorary award to everyone else.
+    {
+        struct Ladder {
+            std::uint16_t event;
+            int token;       // the deed's proof, where the lord asks for one
+            int qualifying;  // the class the check names
+            int promoted;    // the rung it becomes
+            int award;       // the promotion's own honor
+            int honorary;    // and the honor for those who cannot take it
+            const char* what;
+        };
+        static constexpr std::array<Ladder, 4> kLadders{
+            {{16, 455, 10, 11, 10, 11,
+              "the Dragon Claw ladder promotes class 10 to 11 for award 10, honours with 11"},
+             {60, 457, 7, 8, 14, 15,
+              "the Crystal of Terrax ladder promotes class 7 to 8 for award 14"},
+             {69, 0, 0, 1, 16, 17, "the fifth lord's ladder promotes class 0 to 1 for award 16"},
+             {71, 508, 1, 2, 18, 19,
+              "the Discharge Papers ladder promotes class 1 to 2 for award 18"}}};
+        for (const auto& ladder : kLadders) {
+            game::WalkState able;
+            able.variables[214] = 11;
+            if (ladder.token != 0) {
+                able.items.push_back(ladder.token);
+            }
+            able.variables[2] = ladder.qualifying;
+            const auto promoted = game::walk_event(global, ladder.event, able);
+            game::WalkState other;
+            other.variables[214] = 11;
+            if (ladder.token != 0) {
+                other.items.push_back(ladder.token);
+            }
+            other.variables[2] = ladder.qualifying + 500;  // a class that cannot
+            const auto honored = game::walk_event(global, ladder.event, other);
+            const bool ok = promoted.ran && able.awards.contains(ladder.award) &&
+                            able.variables[2] == ladder.promoted && honored.ran &&
+                            other.awards.contains(ladder.honorary);
+            if (!beat(ok, ladder.what)) {
+                return 1;
+            }
+        }
+    }
     std::cout << passed << " beats of the opening arc hold\n";
     return 0;
 }

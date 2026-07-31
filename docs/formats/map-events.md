@@ -380,6 +380,13 @@ the given value, the word after it names the type. Reproduce with
   bit 82's, the notes wording exactly the stages their events speak.
   `observed` for the Seer's ladder, `inferred` for the rest; verified in
   `evt_info --arc`.
+- **A promotion event's two branches**: passing the class check jumps to
+  the promotion — the class is set one rung up and the *lower* of the
+  pair's two awards is given — while falling through gives the higher,
+  the honorary one. `Awards.txt` names them in exactly that order
+  ("Received Promotion to Hero" at 10, "...to Honorary Hero" at 11), and
+  all six ladders follow the shape. `observed`, verified in
+  `evt_info --arc`.
 - **Type 2 is the character's class id, checked by equality**: the
   promotion events check it against the qualifying class and set it to
   the next rung — equality, not at-least, or their honorary branches
