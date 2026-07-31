@@ -1109,6 +1109,12 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **Stats 7, 8 and 9 named**: not from a display routine, so it is marked
+  inferred — but four things agree. `stats.txt`'s rows after Luck are Hit
+  Points, Armor Class and Spell Points; the hit-point routine folds in 7 and
+  the spell-point routine 8; "of Life" and "of Earth" give 7; "of The Golem"
+  gives 9 beside fifteen Endurance. Three special rows that pointed at
+  nothing now point at something.
 - **Levels, and a retraction**: the party now spends what it earns — a
   sitting reaches level two and a Knight gains exactly the four hit points
   its class table promises, a Cleric two. Finding where the level lives also

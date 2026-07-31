@@ -110,9 +110,19 @@ for, add a fixed amount, done.
 
 `observed` throughout. The stat ids 0..6 are `stats.txt`'s own order —
 Might, Intellect, Personality, Endurance, Accuracy, Speed, Luck — and 10..13
-are the resistances of Protection answers for. Ids 7, 8 and 9 are derived
-numbers this engine has not yet named, so three rows above point at a stat
-without a name. `unknown` for those three.
+are the resistances of Protection answers for.
+
+**Ids 7, 8 and 9 are now named, from four agreeing directions.**
+`stats.txt`'s next three rows after Luck are Hit Points, Armor Class and
+Spell Points, and the numbering continues into them; which of the three
+takes which id is settled by what uses them. The max-hit-point routine folds
+in stat **7** and the max-spell-point routine stat **8**. "of Life" and "of
+Earth" give 7, which is what those names should give. "of The Eclipse", "of
+The Phoenix" and "of The Sky" give 8. And "of The Golem" gives 9 beside
+fifteen points of Endurance, which is what an armoured thing should give.
+So **7 is Hit Points, 8 is Spell Points, 9 is Armor Class**. `inferred` —
+strongly, from four independent alignments, but no routine that names them
+on the sheet has been read.
 
 Nothing in the game's tables carries any of this either: the special-bonus
 rows give a name, a class and a price, and the sheet is left to say what

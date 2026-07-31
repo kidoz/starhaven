@@ -37,6 +37,16 @@ enum class StatId : int {
     Accuracy = 4,
     Speed = 5,
     Luck = 6,
+    // The next three follow `stats.txt`'s own row order, and four separate
+    // things agree: the max-hit-point routine folds in **7** and the
+    // max-spell-point routine **8**; "of Life" and "of Earth" give 7, which
+    // is what a name like that should give; "of The Eclipse", "of The
+    // Phoenix" and "of The Sky" give 8; and "of The Golem" gives 9 beside
+    // fifteen Endurance, which is what an armoured thing should give.
+    // `inferred` — no display routine has been read that names them.
+    HitPoints = 7,
+    SpellPoints = 8,
+    ArmorClass = 9,
 };
 
 // One special's contribution: the stats it answers for and what it adds.
@@ -53,8 +63,8 @@ inline constexpr std::array<SpecialStat, 18> kSpecialStats{{
     {1, 10, {10, 11, 12, 13}, "of Protection"},
     {2, 10, {0, 1, 2, 3}, "of The Gods"},  // and 4, 5, 6: the whole run 0..6
     {42, 1, {-1, -1, -1, -1}, "of Doom"},  // every stat, unconditionally
-    {43, 10, {3, 7, -1, -1}, "of Earth"},
-    {44, 10, {7, -1, -1, -1}, "of Life"},
+    {43, 10, {3, 7, -1, -1}, "of Earth"},  // Endurance and hit points
+    {44, 10, {7, -1, -1, -1}, "of Life"},  // hit points
     {45, 5, {4, 5, -1, -1}, "Rogues"},
     {46, 25, {0, -1, -1, -1}, "of The Dragon"},
     {47, 10, {8, -1, -1, -1}, "of The Eclipse"},
