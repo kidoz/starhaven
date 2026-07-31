@@ -1154,6 +1154,14 @@ interoperability and compatibility with a legally purchased copy.
   reads sit at `+8` of these same records, which may mean the array *is* the
   attribute-bonus store — four agreements is suggestive, not proof, and
   after two recent retractions it stays flagged.
+- **The gamble, third attempt: the threshold stops being hunted**: what the
+  attempt yielded is the door's name. Both routines that write the level
+  dispatch on a **script variable id**, and ids 7 to 11 land on the adjacent
+  words — so the level is **script variable 8**, beside experience at 13,
+  and every level gained is a script adding to it. The threshold itself has
+  now escaped three approaches: the strings are fetched by a computed index,
+  the data holds no ladder, and the field's only writer is a generic verb
+  carrying no condition. Recorded as absent from what can be read.
 - **The gamble: what a level costs, still unfound — but the shape changed**:
   going at the field instead of the strings turned up exactly **two**
   instructions in the whole executable that write the level, and both are
