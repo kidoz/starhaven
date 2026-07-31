@@ -1,6 +1,6 @@
 # The spell switch (`MM6.exe`, runtime)
 
-Status: **six schools read, and the machinery around every case.** Not a file format: this is the
+Status: **every case read, and the machinery around them.** Not a file format: this is the
 executable's own per-spell code, reached while chasing the recovery tick.
 Every claim is tagged `observed` (read from an instruction) or `inferred`.
 
@@ -120,9 +120,29 @@ executable's alone:
 | 83 | Day of the Gods | `0x428a43` | **2 / 3 / 4 × points + 10**, for **2 / 3 / 4 hours** a point |
 | 88 | Divine Intervention | `0x428fdc` | **1 / 2 / 3** casts a day |
 
-`observed` throughout. Dispel Magic (80), Prismatic Light (84) and Sun Ray
-(87) carry no mastery constants in their cases, and Healing Touch's three
-branches were not decoded; those four are `unknown`.
+`observed` throughout.
+
+### The last four, closed
+
+- **Healing Touch** rolls **2d3** through the general dice routine at
+  `0x4454b0` and adds **1, 3 or 5** by rank — three to seven, five to nine,
+  seven to eleven, exactly its row.
+- **Dispel Magic** and **Prismatic Light** genuinely take no number from
+  their rank. Both spend the cost and spawn through `0x45be00`, and their
+  rows only ever spoke about recovery and radius.
+- **Sun Ray** and **Moon Ray** take no number either — what their cases
+  carry is a **condition**. Both read the world-kind global at `0x6107d4`
+  and the hour: Sun Ray refuses in one world kind outright and in the other
+  outside **05:00 to 21:00**; Moon Ray refuses inside exactly that band. One
+  is a daylight spell and the other a night one, and no row says so.
+- **Hour of Power's twelve** is settled. Its case sets 2, 3 and 12 by rank,
+  multiplies the skill by it, and builds two *durations* from the product —
+  `(skill × n + 64) × 60` seconds and `skill × n × 300`. So the ladder is a
+  length, not a power, and the "four times skill" its row promises is not
+  computed here at all. Where that lives is `unknown`.
+
+So the switch is finished: every case either has its numbers written down or
+is recorded as carrying none.
 
 **Every figure the rows state, the executable matches.** Golden Touch's
 "40% gold value", Divine Intervention's "once per day", Telekinesis'

@@ -101,12 +101,40 @@ inline constexpr std::array<int, 3> kGoldenTouchPercent{40, 60, 80};
 // as Armageddon may. `observed` at 0x428fe5.
 inline constexpr std::array<int, 3> kDivineInterventionPerDay{1, 2, 3};
 
-// Healing Touch heals three to seven, five to nine, seven to eleven by rank —
-// the one spell in the three schools whose row gives a band rather than a
-// formula. `observed` from its row; the case was not decoded to the point of
-// confirming it, so this is `inferred` from the prose alone.
+// Healing Touch rolls **2d3** through the general dice routine at
+// `0x4454b0` and adds **1, 3 or 5** by rank — so three to seven, five to
+// nine, seven to eleven, which is exactly what its row says. `observed` at
+// 0x426903..0x42693b.
+inline constexpr int kHealingTouchDice = 2;
+inline constexpr int kHealingTouchSides = 3;
+inline constexpr std::array<int, 3> kHealingTouchAdd{1, 3, 5};
 inline constexpr std::array<int, 3> kHealingTouchLow{3, 5, 7};
 inline constexpr std::array<int, 3> kHealingTouchHigh{7, 9, 11};
+
+// Sun Ray and Moon Ray take no number from their rank at all. What their
+// cases carry instead is a **condition**: both read the world-kind global at
+// `0x6107d4` and the hour, and Sun Ray refuses in one kind outright and in
+// the other outside **05:00 to 21:00**, while Moon Ray refuses inside
+// exactly that band. So one is a daylight spell and the other a night one,
+// which no row states. `observed` at 0x423323 and 0x4297a1.
+inline constexpr int kDaylightFirstHour = 5;
+inline constexpr int kDaylightLastHour = 21;
+
+[[nodiscard]] inline constexpr bool sun_ray_shines(int hour) noexcept {
+    return hour >= kDaylightFirstHour && hour < kDaylightLastHour;
+}
+
+[[nodiscard]] inline constexpr bool moon_ray_shines(int hour) noexcept {
+    return !sun_ray_shines(hour);
+}
+
+// Hour of Power's master rung, settled. Its case sets 2, 3 and **12** by
+// rank and multiplies the skill by it — but what it builds from the product
+// is two *durations*, `(skill × n + 64) × 60` seconds and `skill × n × 300`,
+// not a power. So the ladder is a length, and the "four times skill" its row
+// promises is not computed here at all. `observed` at 0x428daf..0x428df6;
+// `unknown` where the row's multiple lives.
+inline constexpr std::array<int, 3> kHourOfPowerLadder{2, 3, 12};
 
 [[nodiscard]] inline constexpr int by_school_rank(const std::array<int, 3>& ladder,
                                                   int rank) noexcept {

@@ -1134,6 +1134,14 @@ interoperability and compatibility with a legally purchased copy.
   the nine forgive three minutes, three hours and three days a point where
   their rows claim one hour and one day; only Remove Curse and Raise Dead
   say what they mean.
+- **The spell switch, finished**: the last four cases close. Healing Touch
+  is 2d3 plus one, three or five — its row's 3–7, 5–9, 7–11 exactly. Dispel
+  Magic and Prismatic Light really do take nothing from their rank. And Sun
+  Ray and Moon Ray carry a **condition** rather than a number: both read the
+  world kind and the hour, and Sun Ray refuses outside 05:00–21:00 while
+  Moon Ray refuses inside it — a daylight spell and a night one, which no
+  row mentions. Hour of Power's odd twelve turned out to be a duration
+  multiplier, not the power its row describes.
 - **The party's spell buffs, on the executable's own array**: sixteen slots
   of sixteen bytes, and which spell owns which slot read off the `mov ecx`
   before each call to the setter — Protection from Fire slot 0, Cold 1,

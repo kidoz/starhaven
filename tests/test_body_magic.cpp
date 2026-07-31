@@ -223,3 +223,23 @@ TEST_CASE("the two cure ladders sort the whole game's cures", "[body]") {
         REQUIRE_FALSE(cure_uses_plain_ladder(id));
     }
 }
+
+TEST_CASE("the last four cases close", "[body]") {
+    // Healing Touch's band is 2d3 plus one, three or five.
+    REQUIRE(kHealingTouchDice * 1 + kHealingTouchAdd[0] == kHealingTouchLow[0]);
+    REQUIRE(kHealingTouchDice * kHealingTouchSides + kHealingTouchAdd[0] ==
+            kHealingTouchHigh[0]);
+    REQUIRE(kHealingTouchDice * 1 + kHealingTouchAdd[2] == kHealingTouchLow[2]);
+    REQUIRE(kHealingTouchDice * kHealingTouchSides + kHealingTouchAdd[2] ==
+            kHealingTouchHigh[2]);
+    // Sun Ray by day, Moon Ray by night, and they never both shine.
+    REQUIRE(sun_ray_shines(12));
+    REQUIRE(sun_ray_shines(5));
+    REQUIRE_FALSE(sun_ray_shines(21));
+    REQUIRE_FALSE(sun_ray_shines(3));
+    for (int hour = 0; hour < 24; ++hour) {
+        REQUIRE(sun_ray_shines(hour) != moon_ray_shines(hour));
+    }
+    // And Hour of Power's ladder is a length, twelve at master.
+    REQUIRE(by_school_rank(kHourOfPowerLadder, 2) == 12);
+}
