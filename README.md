@@ -1046,6 +1046,10 @@ interoperability and compatibility with a legally purchased copy.
 
 ### The record: measurements, closures and honest negatives
 
+- **The eye joined the globe**: with Wizard Eye lit (or a Cartographer
+  hired), the maps page carries the spell's dots at their true places —
+  the living in red at rank one, treasure in gold at rank two — on both
+  the outdoor render and the indoor plan.
 - **The world remembers**: travel keeps a per-map memory the way the
   original's state files did — the fallen stay fallen, opened chests
   stay open and thrown doors stay thrown when the party returns in the

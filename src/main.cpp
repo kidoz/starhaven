@@ -551,9 +551,40 @@ void draw_book(render::SceneRenderer& scene, const image::Font& font, assets::As
 // plan traced from the BLV's upward faces — the cells and floors are the
 // maps' own; the projection, the flat-colour reading and the party's
 // arrow are the engine's. North is up, the way the wizard's eye draws.
+// The eye's dots on the globe, by the ranks the spell's own words grant:
+// monsters first, then treasure, then points of interest — here the map's
+// event faces stand in for the points. The colours are the engine's.
+template <typename ToScreen, typename Put>
+void draw_map_eyes(const world::MapSession& session, const game::Battle& battle, int eye_rank,
+                   const ToScreen& to_screen, const Put& put) {
+    if (eye_rank < 1) {
+        return;
+    }
+    const auto dot = [&](const render::Vec3& at, render::Color colour) {
+        int x = 0, y = 0;
+        to_screen(at, x, y);
+        for (int oy = -1; oy <= 1; ++oy) {
+            for (int ox = -1; ox <= 1; ++ox) {
+                put(x + ox, y + oy, colour);
+            }
+        }
+    };
+    for (std::size_t i = 0; i < session.actors.size(); ++i) {
+        if (battle.alive(i)) {
+            dot(session.actors[i].position, {200, 60, 50, 255});
+        }
+    }
+    if (eye_rank >= 2) {
+        for (const auto& object : session.objects) {
+            dot(object.position, {220, 200, 80, 255});
+        }
+    }
+}
+
 void draw_map_page(render::SceneRenderer& scene, const world::MapSession& session,
                    const render::Vec3& party, const render::Vec3& forward,
-                   std::array<render::Color, 256>& tile_colors, bool& colors_ready) {
+                   std::array<render::Color, 256>& tile_colors, bool& colors_ready,
+                   int eye_rank, const game::Battle& battle) {
     auto pixels = scene.framebuffer().color();
     const auto put = [&](int x, int y, render::Color c) {
         if (x < 8 || x >= 468 || y < 8 || y >= 352) {
@@ -636,6 +667,14 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
         }
         const render::TerrainScale scale{};
         const float half = (dim - 1) * scale.cell_size * 0.5f;
+        const auto to_screen = [&](const render::Vec3& at, int& sx, int& sy) {
+            sx = left + static_cast<int>((at.x + half) / scale.cell_size *
+                                         static_cast<float>(kCell));
+            sy = top + static_cast<int>((static_cast<float>(dim) - 1.0f -
+                                         (at.z + half) / scale.cell_size) *
+                                        static_cast<float>(kCell));
+        };
+        draw_map_eyes(session, battle, eye_rank, to_screen, put);
         px = static_cast<float>(left) + (party.x + half) / scale.cell_size * kCell;
         py = static_cast<float>(top) +
              (static_cast<float>(dim) - 1.0f - (party.z + half) / scale.cell_size) * kCell;
@@ -672,6 +711,7 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
                 line(x0, y0, x1, y1, {150, 140, 110, 255});
             }
         }
+        draw_map_eyes(session, battle, eye_rank, place, put);
         int ix = 0, iy = 0;
         place(party, ix, iy);
         px = static_cast<float>(ix);
@@ -6798,8 +6838,12 @@ int main(int argc, char** argv) {
                       readied[static_cast<std::size_t>(book_member)], points);
         }
         if (show_map) {
+            const bool eye_now =
+                clock.minutes() < eye_until ||
+                std::any_of(hirelings.begin(), hirelings.end(),
+                            [](const auto& h) { return h.benefit.wizard_eye; });
             draw_map_page(scene, session, camera.position, camera.forward(), map_tile_colors,
-                          map_colors_ready);
+                          map_colors_ready, eye_now ? std::max(eye_rank, 1) : 0, battle);
         }
         if (rest_screen && font.glyph_count() > 0) {
             // The camp: restmain's own panel, its three button slots worn
