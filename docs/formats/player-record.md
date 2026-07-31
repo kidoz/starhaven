@@ -72,6 +72,30 @@ sheet's bonus curve, and a weapon whose skill is worth only 10% barely
 gains from training. `observed` for both tables; which percentage answers
 which of this engine's skill names is not yet joined. `unknown`
 
+## The skill block, and a join that did not land
+
+The attack-bonus getter walks a list of skill ids and reads each one out
+of the character at **`+0x1380 + id × 8`** — so the skills are an
+eight-byte-per-skill block, not the single packed byte the chest trace
+found at `+0x7d` (that byte is the acting character's Disarm, copied for
+the check). `observed`
+
+Two tables drive the walk: a fourteen-entry priority list at `0x4c276c`
+holding ids `16, 15, 14, 13, 2, 12, 11, 10, 9, 8, 7, 6, 5, 4` — the first
+one the character actually has wins, with id 17 as the fallback — and a
+per-skill percentage table at `0x4c27fc`: `100, 100, 100, 50, 10, 100,
+75, 60, 50, 30, 25, 10, 100 ×8, 120, 20, 120`. `observed`
+
+**The join to skill names failed.** Read against `SkillDes.txt`'s rows
+either 0- or 1-based, the priority list interleaves armour skills and
+magic schools in an order no weapon-bonus reading explains (1-based it
+begins Earth, Water, Air, Fire, Sword; 0-based Spirit, Earth, Water, Air,
+Dagger). Either the executable numbers its skills by a third order, or
+this getter is not the melee attack bonus at all but its armour-class
+sibling — the weapon path at `0x47e810`, which reads the equipped weapon
+slot at `+0x142c`, is the better candidate for the melee bonus and is not
+yet read. `unknown`
+
 ## What is still missing
 
 The recovery field — the one that would settle the party's swing rate and

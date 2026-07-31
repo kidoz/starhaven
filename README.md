@@ -1060,6 +1060,13 @@ interoperability and compatibility with a legally purchased copy.
   plain bar, so archery against armour asks for skill exactly the way
   the traced arithmetic says it should — and the spell paths stay on the
   plain bar, which is what the call sites show.
+- **The skill-name join came up empty, with a finding beside it**: the
+  percentages could not be matched to skill names — the executable's
+  priority list interleaves armour skills and magic schools in an order
+  no reading of `SkillDes.txt` explains, and the getter may prove to be
+  the armour-class sibling rather than the melee bonus. What the attempt
+  did settle: the character's skills live at `+0x1380` in eight-byte
+  records, and both driving tables are transcribed in the record doc.
 - **The attack bonus traced to stat 4**: the base getter's own jump
   table names a field per stat id — the seven attributes in a 16-byte
   run, and the attack bonus among them — so the original adds the
