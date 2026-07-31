@@ -346,14 +346,33 @@ Paladins and Archers, **20** for Clerics, Sorcerers and Druids; spell points
 benefit of an extra two hit points per level", and the table gives Knight 4
 against Cavalier 6.
 
-The shape is `base + (level + the attribute's bonus) × the class's number`,
-floored at one — hit points asking the getter for stat 3 (Endurance) beside
-stat 14, spell points for stat 2 (Personality). **Stat 14 is the character's
-level**: it is what both routines multiply the class number by, and it is
-the same id the heal and the recovery routine ask for. `observed` Two
-further terms each routine folds in — a stat 7 for hit points, a stat 8 for
-spell points, and a byte at `+0x1578` — are read but not named, and
+The shape is `base + (the effective level + the attribute's bonus) × the
+class's number`, floored at one — hit points asking the getter for stat 3
+(Endurance), spell points for stat 2 (Personality).
+
+**Correction: stat 14 is not the level.** That was written here last and it
+is wrong. Reading the bonused getter's case for id 14 (`0x48332e`) settles
+it: the id has no stored base at all, and its case walks the sixteen
+equipment anchors adding **five for a worn item whose special is 25, "of
+Power"**, and nothing else. So stat 14 is a gear bonus.
+
+**The level is the word at `+0x32`.** What the two routines multiply the
+class number by is `stat 14 + word[+0x32] + word[+0x34]`, and the same three
+are summed at `0x487daa` and `0x484e1a`. So `+0x32` is the stored level,
+`+0x34` a modifier laid on top of it, and stat 14 the gear's contribution —
+which makes an item "of Power" worth five levels of hit points and spell
+points. `observed`
+
+Two further terms each routine folds in — a stat 7 for hit points, a stat 8
+for spell points, and a byte at `+0x1578` — are read but not named, and
 StarHaven leaves them out rather than guessing.
+
+**What a level costs was hunted and not found.** The training hall's two
+lines — "Train to level %d for %d gold" and "You need %d more experience to
+train to level %d" — are fetched by an index the code computes rather than
+pushes, so neither string leads anywhere, and no ladder of experience values
+sits in `.rdata` or `.data` either. StarHaven's triangular staircase,
+1000·L·(L−1)/2, is its own. `inferred`
 
 ## The attribute curve, found inside the recovery routine
 

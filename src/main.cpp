@@ -6151,6 +6151,16 @@ int main(int argc, char** argv) {
                 xp_bonus = std::max(xp_bonus, h.benefit.experience_percent);
             }
             battle.award(party, xp_bonus);
+            // And what the experience buys: the class tables say what a
+            // level is worth, so it is spent as soon as it is earned.
+            for (auto& who : party) {
+                if (const int gained = game::level_up(who); gained > 0) {
+                    pick_up_message = who.name + " is now level " +
+                                      std::to_string(who.level) + " with " +
+                                      std::to_string(who.max_hit_points) + " hit points";
+                    pick_up_shown = SDL_GetTicks();
+                }
+            }
         }
         // What the kills left: the gold goes to the purse, the items to
         // whichever pack has room, and one line names the lot.

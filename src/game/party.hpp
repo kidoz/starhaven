@@ -362,6 +362,27 @@ inline constexpr std::array<int, 6> kClassBaseSpellPoints{0, 10, 10, 5, 5, 10};
     return total < 1 ? 1 : total;
 }
 
+// What a level costs in experience. The executable's own threshold was
+// hunted and not found: the training hall's two lines ("Train to level %d
+// for %d gold", "You need %d more experience to train to level %d") are
+// fetched by an index the code computes rather than pushes, and no ladder of
+// experience values sits in the data either. So this staircase — a thousand
+// times the triangular number, which puts level two at 1000 and level ten at
+// 45000 — is **this engine's own**. `inferred`
+inline constexpr int kExperienceStep = 1000;
+
+[[nodiscard]] inline constexpr int experience_for_level(int level) noexcept {
+    return level < 2 ? 0 : kExperienceStep * (level - 1) * level / 2;
+}
+
+[[nodiscard]] inline constexpr int level_for_experience(int experience) noexcept {
+    int level = 1;
+    while (level < 200 && experience >= experience_for_level(level + 1)) {
+        ++level;
+    }
+    return level;
+}
+
 [[nodiscard]] inline int class_spell_points(std::string_view name, int level,
                                             int personality_bonus) {
     const int id = class_id(name);
@@ -400,6 +421,36 @@ inline void derive_start(Character& c) {
     c.spell_points = c.max_spell_points;
     c.armor_class = attribute_bonus(c.attribute(Attribute::Speed));
     c.skill_points = 0;
+}
+
+// Take whatever experience has been earned and raise the character to the
+// level it buys, recomputing what the class tables say that level is worth.
+// The wounds a character carries are kept: only the maxima move, and the
+// current values rise by as much as the maxima did. Returns how many levels
+// were gained, for the message line.
+inline int level_up(Character& c) {
+    const int earned = level_for_experience(c.experience);
+    if (earned <= c.level) {
+        return 0;
+    }
+    const int gained = earned - c.level;
+    const int hp_before = c.max_hit_points;
+    const int sp_before = c.max_spell_points;
+    c.level = earned;
+    c.max_hit_points =
+        class_hit_points(c.class_name, c.level, attribute_bonus(c.attribute(Attribute::Endurance)));
+    c.max_spell_points =
+        casts_spells(c.class_name)
+            ? class_spell_points(c.class_name, c.level,
+                                 attribute_bonus(c.attribute(Attribute::Personality)))
+            : 0;
+    c.hit_points += c.max_hit_points - hp_before;
+    c.spell_points += c.max_spell_points - sp_before;
+    // "%s is now Level %lu and has earned %lu Skill Points!" — the game's own
+    // line says a level pays skill points; how many is this engine's.
+    // `inferred`
+    c.skill_points += gained * 2;
+    return gained;
 }
 
 // Roll the seven attributes: 11 to 20, which is the range the original's own

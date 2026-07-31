@@ -274,3 +274,30 @@ TEST_CASE("the starting four are no longer interchangeable", "[party]") {
         REQUIRE(who.spell_points == who.max_spell_points);
     }
 }
+
+TEST_CASE("experience buys levels, and levels buy the class's own numbers", "[party]") {
+    REQUIRE(experience_for_level(1) == 0);
+    REQUIRE(experience_for_level(2) == 1000);
+    REQUIRE(experience_for_level(3) == 3000);
+    REQUIRE(level_for_experience(0) == 1);
+    REQUIRE(level_for_experience(999) == 1);
+    REQUIRE(level_for_experience(1000) == 2);
+    REQUIRE(level_for_experience(3000) == 3);
+    // A Knight gains exactly what its row says, and a Cleric its own.
+    auto knight = make_party(names(), 7)[0];
+    const int before = knight.max_hit_points;
+    knight.experience = 1000;
+    REQUIRE(level_up(knight) == 1);
+    REQUIRE(knight.level == 2);
+    REQUIRE(knight.max_hit_points - before == kClassHitPointsPerLevel[class_id("Knight")]);
+    // The wounds carried are kept: only the maxima moved, and the current
+    // value rose with them.
+    REQUIRE(knight.hit_points == knight.max_hit_points);
+    // A second call with no new experience does nothing.
+    REQUIRE(level_up(knight) == 0);
+    // Several levels at once are taken in one step.
+    auto cleric = make_party(names(), 7)[3];
+    cleric.experience = 10000;
+    REQUIRE(level_up(cleric) == level_for_experience(10000) - 1);
+    REQUIRE(cleric.max_spell_points > 0);
+}

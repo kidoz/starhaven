@@ -199,6 +199,7 @@ int main(int argc, char** argv) {
     }
     int killed = 0;
     int replies = 0;
+    int levels = 0;
     const std::size_t actors_at_start = session.actors.size();
 
     for (int step = 0; step < steps; ++step) {
@@ -258,6 +259,10 @@ int main(int argc, char** argv) {
         const std::string back =
             battle.update(dt, session, monsters, spells, party, eye, clock.minutes());
         battle.recruit(session, monsters);
+        battle.award(party);
+        for (auto& who : party) {
+            levels += game::level_up(who);
+        }
         if (verbose && !back.empty() && replies < 4) {
             std::cout << "    " << clock.hhmm() << "  " << back << "\n";
             ++replies;
@@ -290,13 +295,13 @@ int main(int argc, char** argv) {
         }
         std::cout << ", dealt " << std::setw(5) << t.dealt << ", took " << std::setw(5)
                   << t.taken << ", low " << std::setw(4) << t.low_water << " of "
-                  << party[who].max_hit_points;
+                  << party[who].max_hit_points << ", level " << party[who].level << ", xp " << party[who].experience;
         if (t.down_at >= 0) {
             std::cout << "  DOWN at world minute " << t.down_at;
         }
         std::cout << "\n";
     }
-    std::cout << "  " << killed << " actors killed; "
+    std::cout << "  " << levels << " levels gained; " << killed << " actors killed; "
               << battle.unclaimed_experience() << " experience, " << battle.take_gold() << " gold\n";
     return 0;
 }

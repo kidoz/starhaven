@@ -1109,6 +1109,14 @@ interoperability and compatibility with a legally purchased copy.
   states — the buffs last an hour a point, and the timed cures forgive three
   minutes, three hours and three days a point, where the prose claims one
   hour and one day.
+- **Levels, and a retraction**: the party now spends what it earns — a
+  sitting reaches level two and a Knight gains exactly the four hit points
+  its class table promises, a Cleric two. Finding where the level lives also
+  overturned a claim from last batch: **stat 14 is not the character's
+  level**, it is a gear bonus worth five for an item "of Power". The level
+  is the word at `+0x32`, with a modifier at `+0x34`. What a level *costs*
+  was hunted and not found, so the experience staircase stays marked as this
+  engine's own.
 - **Spirit, Mind and Light, finished**: twenty-one more cases, and every
   figure their rows state the executable matches — Golden Touch's 40/60/80
   percent, Divine Intervention's one, two and three casts a day,

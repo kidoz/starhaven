@@ -36,11 +36,8 @@ namespace starhaven::game {
     return level;
 }
 
-// The experience a level requires, in total: the triangular curve
-// 1000·L·(L−1)/2 to stand at level L. No table states it. `inferred`
-[[nodiscard]] inline int experience_for_level(int level) noexcept {
-    return level < 2 ? 0 : 1000 * level * (level - 1) / 2;
-}
+// The experience a level requires lives beside the class tables it pays
+// for, in party.hpp — the same triangular curve, and still this engine's.
 
 // What a hall charges to train to a level: its own `Val`, per level trained
 // to. The margin note names the shape — `"for (cost)"` — and the scale is
