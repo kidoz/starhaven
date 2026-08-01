@@ -1371,6 +1371,16 @@ interoperability and compatibility with a legally purchased copy.
   the first time this engine has shown a party getting stronger rather than a
   snapshot at a fixed level. That the party can reach a hall once an hour is
   the harness's convenience and marked as such.
+- **The gamble on the item row's `+0x16` and `+0x18`: `Mod1` and `Mod2`.** The
+  three weapon-figure getters read exactly those two bytes of the 40-byte
+  runtime row and sum them with the skill group at `+0x15`. `ITEMS.TXT`'s
+  header runs `… Equip Stat, Skill Group, Mod1, Mod2, material …`, and
+  `Skill Group` is already `+0x15` — so the two are the columns immediately
+  after it, which for a weapon are its damage. The stated risk was that they
+  would be the dice this engine already parses as strings, confirming the
+  chain and adding nothing; it half lands. They are those columns, but the
+  runtime keeps them **decoded into bytes** rather than as the `"2d6"` text
+  the file writes and this engine re-parses on every roll.
 - **The monster row's columns, named — and a withdrawal withdrawn.** The
   parser dispatches on the **column index** (`cmp edi, 0x1f; jmp [edi*4 +
   0x44851c]`), so the *n*th case is the *n*th column of the header row, and the

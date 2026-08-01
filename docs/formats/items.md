@@ -514,3 +514,30 @@ by shape, or by arithmetic**, and the only remaining route — find the parser
 — is behaviour-first, which is the approach that has failed four times. The
 economy stays this engine's own, and is recorded as blocked rather than
 merely unattempted.
+
+## `+0x16` and `+0x18` of the runtime row
+
+The three weapon-figure getters — stat ids 17, 18 and 21 — take the item at
+the weapon's equipment anchor and read exactly two columns of its 40-byte
+runtime row, summing them with the skill group:
+
+```
+cmp byte [edx + 0x560c28], cl     ; +0x14, the equip type, must be 2 or less
+mov al,  byte [edx + 0x560c2c]    ; +0x18
+mov bl,  byte [edx + 0x560c2a]    ; +0x16
+add eax, ebx
+mov bl,  byte [edx + 0x560c29]    ; +0x15
+```
+
+`observed`. `ITEMS.TXT`'s header row runs `Item #`, `Pic File`, `Name`,
+`Value`, `Equip Stat`, **`Skill Group`**, **`Mod1`**, **`Mod2`**, `material`,
+… — and `Skill Group` is already known to be `+0x15`. So `+0x16` and `+0x18`
+are **`Mod1` and `Mod2`**, the two columns immediately after it, which for a
+weapon are its damage. `inferred` from the header's order and the position;
+`observed` that the getters read them and add them.
+
+The gamble's stated risk was that they would turn out to be the damage this
+engine already parses as strings, confirming the chain and adding nothing. It
+half lands. They are those columns — but the runtime keeps them **decoded into
+bytes** rather than as the `"2d6"` text the file writes and this engine
+re-parses on every roll, which is a difference worth knowing.
