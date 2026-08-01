@@ -1745,6 +1745,14 @@ interoperability and compatibility with a legally purchased copy.
   drive the fight; the nine are wired for measurement first, because what eight
   of them mean is still `unknown` and inventing behaviour for them would be
   guessing where the last three batches have been reading.
+- **The title screen works, and the doubt about it was mine.** I reported that
+  a `--title` capture came out showing the character creation screen and that
+  the transition wanted checking. Re-rendering it shows the painting and its
+  four plates — **NEW, LOAD, CREDITS, EXIT** — exactly as it should. Adding a
+  one-frame trace confirmed the state as well: `at_title=1`, `creating=0`, no
+  movies pending. I had read a stale capture from before a rebuild. The path
+  is: movies (`3dologo`, `MM6Intro`) → title → **N** into creation → **Enter**
+  into the world.
 - **Where a new game begins, traced — and a bare launch now starts one.**
   `0x453ea0` names the map and places the party in the same breath: it pushes
   the executable's own string **`"oute3.odm"`** — sitting beside the `-window`
