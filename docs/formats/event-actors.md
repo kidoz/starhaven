@@ -1008,3 +1008,40 @@ The four tags name the game's whole object space:
 
 `observed`. With `handle = index * 8 | tag`, this is the encoding every part of
 the game passes around, and it now has all four of its kinds named.
+
+## The decoration table at `0x5b23cc`
+
+Handle type 5's case reads the row's first three dwords, so the array's base
+and its shape are settled:
+
+| offset | size | what |
+| --- | --- | --- |
+| `+0x00`, `+0x04`, `+0x08` | dword | the **position**, read by the handle case at `0x40493c` |
+| `+0x12`, `+0x14`, `+0x16` | word | read elsewhere; `unknown` |
+
+Rows are **28 bytes**. `observed`
+
+Two scalars sit immediately before the array and are not columns of it:
+`0x5b23c4`, read as a plain dword **sixty-six times** and written in three
+places, and `0x5b23c8`, read thirty-four times. `unknown` what either holds,
+though a count and a pointer is the obvious pair.
+
+## `+0xb6` is the actor's speed index
+
+State 16 (`0x4034f0`) is short enough to read whole, and it is a **movement
+transition**:
+
+```
+movsx eax, word [edx*4 + 0x56f52e]   ; the actor's +0xb6
+mov  word [esi + 0xa0], 0x10         ; the AI state, 16
+mov  word [esi + 0xa2], 5            ; the sub-state
+mov  dword [esi + 0xa8], 0           ; the action timer, cleared
+mov  eax, dword [0x55dd94]
+mov  dx, word [eax + edx*8 + 0x36]   ; the speed, indexed by +0xb6
+```
+
+That is the same three-field transition state 4 makes and the same speed
+lookup state 12 does. So **`+0xb6` is the actor's index into the table behind
+`0x55dd94`**, a second per-actor index beside the monster row at `+0x34`, and
+the states that write `+0xa0`, `+0xa2` and `+0xa8` together are the ones that
+change what the actor is doing. `observed`

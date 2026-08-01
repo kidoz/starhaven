@@ -1398,6 +1398,15 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The decoration table, and the actor's speed index.** Handle type 5's case
+  settles the decoration array: base `0x5b23cc`, **28-byte rows**, with the
+  position in the first three dwords and words at `+0x12`, `+0x14`, `+0x16`.
+  Two scalars sit before it — `0x5b23c4`, read **sixty-six times**, and
+  `0x5b23c8` — both `unknown`. And state 16 is short enough to read whole: it
+  writes the AI state, the sub-state and the action timer together and then
+  takes a speed from the table behind `0x55dd94` indexed by the actor's
+  **`+0xb6`** — the same lookup state 12 makes, so `+0xb6` is the actor's
+  **speed index**, a second per-actor index beside the monster row at `+0x34`.
 - **The experience award was there all along — two negatives withdrawn.**
   Finishing the monster row named column 6, `EXP`, as **`+0x38`** — the dword
   the death path hands to `0x421520`, which this project had written up as the
