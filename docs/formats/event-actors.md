@@ -955,3 +955,34 @@ push eax
 pass none. So **state 2 is the search**: the action for a monster that knows
 the party is near and cannot see it, turning one way or the other at random.
 `observed` for the roll and the sign; `inferred` for the name.
+
+## `0x4046f0` is "where is this handle", and the handle's own encoding
+
+The routine state 12 calls is not a pathfinder. It opens by taking its
+argument apart:
+
+```
+mov eax, ecx
+and ecx, 7        ; the type tag
+sar eax, 3        ; the index
+add ecx, 0xfffffffe
+cmp ecx, 3
+jmp dword [ecx*4 + 0x404b78]
+```
+
+— four cases, tags **2 through 5**, and each fetches that kind of thing's
+position into the caller's stack buffer. So it answers **where a handle is**,
+and what state 12 takes out of the 28 bytes is a position, not a route. The
+"movement routine" reading of it is corrected.
+
+The four tags name the game's whole object space:
+
+| tag | what | where its rows live |
+| --- | --- | --- |
+| 2 | a **projectile object** | 100-byte rows at `0x5c9ad8`; the case reads `+0x04`, `+0x08`, `+0x0c` |
+| 3 | an **actor** | 548-byte rows at `0x56f478`; the case reads `+0x7a` and `+0x7e` |
+| 4 | a **party member** | a second switch on the index, 0..4; index 0 answers with the party's own position at `0x908c98`, `0x908c9c` and `0x908c70` |
+| 5 | a **decoration** | 28-byte rows at `0x5b23cc` |
+
+`observed`. With `handle = index * 8 | tag`, this is the encoding every part of
+the game passes around, and it now has all four of its kinds named.

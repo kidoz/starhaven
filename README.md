@@ -1422,6 +1422,16 @@ interoperability and compatibility with a legally purchased copy.
   `"Cold"` and its siblings, `+0x36` the speed, `+0x38` the death sound. Which
   column is which for the rest needs the parser walked in order against the
   file's header row; the map and the sizes are on record either way.
+- **`0x4046f0` is "where is this handle", and the object space is named.** It
+  is not a pathfinder — last batch called it a movement routine and that is
+  corrected. It takes its argument apart as `and ecx, 7` for a **type tag** and
+  `sar eax, 3` for an **index**, and switches four ways to fetch that kind of
+  thing's position. The four tags name the game's whole object space: **2 a
+  projectile object** (100-byte rows at `0x5c9ad8`), **3 an actor** (548-byte
+  rows at `0x56f478`), **4 a party member** (a second switch on the index, 0
+  answering with the party's own position), **5 a decoration** (28-byte rows at
+  `0x5b23cc`). With `handle = index * 8 | tag`, that is the encoding every part
+  of the game passes around, and all four kinds now have names.
 - **State 12 approaches; state 2 searches.** With sight, state 12 builds the
   actor's handle, calls `0x4046f0` — a **movement routine** that answers with a
   28-byte record — copies seven dwords of it out, writes a **velocity into the
