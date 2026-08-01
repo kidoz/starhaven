@@ -814,3 +814,41 @@ or  ebp, 3
 — the index in the high bits and a **type tag of 3** in the low three, which is
 the executable's own object-handle form. It hands that and a stack buffer on.
 `observed`
+
+## The 72-byte monster row, from the parser
+
+The stated risk was that `MONSTERS.TXT`'s parser would fill a stack frame and
+copy it wholesale, leaving the columns anonymous. **It does not.** It writes
+the row directly, with the table's own stride — `[reg + 9 x row x 8 + column]`
+— and scanning the parser's range for that form gives the map:
+
+| offset | size | writes | what |
+| --- | --- | --- | --- |
+| `+0x00` | dword | — | the **name** pointer |
+| `+0x0c` | dword | 1 | `unknown` |
+| `+0x0f` | byte | 1 | `unknown` |
+| `+0x10`, `+0x11` | byte | 5, 3 | `unknown` |
+| `+0x12` | byte | 1 | the **idle animation state**, copied to the actor's `+0x3e` |
+| `+0x13` | byte | — | a **skill**, packed with the `E` and `M` rank suffixes |
+| `+0x14` | dword | 1 | `unknown` |
+| `+0x16` | byte | 5 | 0 or **5** by a name comparison |
+| `+0x18`..`+0x21` | byte | 20, 15, 9, 1, 6, 3, 1, 2, 10, 2 | `unknown` |
+| `+0x22` | byte | 20 | an **element**, set from `"Cold"`, `"Mind"` and their siblings |
+| `+0x23`..`+0x29` | byte | 1..3 each | `unknown` |
+| `+0x2a` | byte | 3 | a second **element**, the same way |
+| `+0x2c` | word | 1 | `unknown` |
+| `+0x36` | word | — | the **movement speed** (from the actor preparation) |
+| `+0x38` | dword | — | the **death sound** |
+| `+0x3c` | dword | 1 | `unknown` |
+| `+0x40` | dword | 1 | doubled while the actor's `+0x134` pair is positive |
+
+`observed` for every offset and size. **Twenty-nine distinct columns** are
+written, which is about what `MONSTERS.TXT` ships, so the row is close to one
+field per column rather than a packed structure.
+
+What is not settled is which column is which: the parser's write sites are
+scattered across a thousand lines and its order is not the file's. Naming them
+needs the parser walked in order against the file's own header row, which is
+the next step and not this one's. But the wall the earlier attempt hit — a
+stack frame with no per-column trace — was the *preparation* routine, not the
+parser, and the parser does not have it.

@@ -1362,6 +1362,17 @@ interoperability and compatibility with a legally purchased copy.
   the first time this engine has shown a party getting stronger rather than a
   snapshot at a fixed level. That the party can reach a hall once an hour is
   the harness's convenience and marked as such.
+- **The gamble on the 72-byte monster row: the parser writes it directly.**
+  The stated risk was that `MONSTERS.TXT`'s parser would fill a stack frame and
+  copy it wholesale, the way the *actor preparation* routine does — the wall
+  the earlier attempt hit. It does not: it writes the row with the table's own
+  stride, and scanning for that form gives **twenty-nine distinct columns**
+  with their sizes, which is about what the file ships. Six now have names —
+  `+0x00` the name pointer, `+0x12` the idle animation state, `+0x13` a skill
+  packed with the `E`/`M` suffixes, `+0x22` and `+0x2a` elements set from
+  `"Cold"` and its siblings, `+0x36` the speed, `+0x38` the death sound. Which
+  column is which for the rest needs the parser walked in order against the
+  file's header row; the map and the sizes are on record either way.
 - **What the sighted actions do with the answer**, and a fifth dead timer.
   States 12 and 13 end their "cannot see" branch identically — `push 64; push
   the actor; call 0x4026e0` — so **state 6 is the fallback a sighted action
