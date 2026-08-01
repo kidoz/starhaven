@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **Whose resistances are whose.** Two claims stood in the same record and
+  both could not be right. `0x421dc0`, which turns an element id into a
+  resistance, reads the six bytes at `+0x50`..`+0x55` — and **its argument is
+  an actor**: one caller reaches the record as `esi - 0xa0` off the AI's state
+  pointer, two more test the actor's `+0x114`/`+0x118` pair on the same
+  register in the same breath, and the routine holds the *character* in a
+  different register entirely. So the six bytes with 200-means-immune are the
+  monster's, and the element order rotated by two is that jump table's alone.
+  **A character's five are the words at `+0x1254`..`+0x1267`**, base and
+  modifier in pairs under the buff array. As by-catch it names what the dead
+  timers were for: while `+0x114` is positive the blow does no damage, so the
+  pair was a **damage-shield window** — one that never opens.
 - **Who sets the rank bits, and what a rank costs.** The teacher is at
   `0x4969e4`: it masks the skill byte with `0x3f`, then ORs exactly one bit —
   `0x40` for expert, `0x80` for master — built by `neg`/`sbb`/`and 0x40`/`add

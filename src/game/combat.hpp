@@ -251,6 +251,19 @@ enum class BlowKind : std::uint8_t { Steep = 2, Shot = 3, Plain = 4 };
 // 30)`, and while the roll lands **30 or above** the damage is halved
 // again. So resistance buys repeated halvings by chance, four at most,
 // and a resistance of zero still halves on most rolls. `observed`
+// **Whose resistance.** `0x421dc0` takes an **actor**, not a character. Two
+// of its four callers test the actor's `+0x114`/`+0x118` pair in the same
+// breath as the call (`0x430f36`, `0x431915`) and a third reaches its record
+// as `esi - 0xa0` from the AI's own state pointer. So the six bytes at
+// `+0x50`..`+0x55`, with 200 meaning immune, are the **monster's**
+// resistances, and the element order rotated by two is that jump table's,
+// not a character's.
+//
+// A character's five resistances are **words at `+0x1254`..`+0x1267`, base
+// and modifier in pairs**, sitting immediately below the buff array at
+// `+0x1268` — the property setter's ten case bodies write them and the
+// getter's five read them. `Character::resistances` and
+// `Character::gear_resistances` are already that pair. `observed`
 [[nodiscard]] inline int after_resistance(int damage, int resistance, Mm6Random& random) noexcept {
     // The table's "Imm" cells parse to kResistanceImmune (-1); the
     // original's own immunity is its byte reaching 200, the same thing

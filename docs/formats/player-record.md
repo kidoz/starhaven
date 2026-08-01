@@ -944,3 +944,47 @@ because the rank is not in the points at all — a teacher sets the bits. A
 character with thirty points and no bit set is a novice; one with two points
 and `0x80` is a master. Every reader of a skill in this engine now takes the
 byte and splits it, rather than guessing a rank from a count.
+
+## Whose resistances are whose
+
+Two claims stood in this document and both could not be right: six bytes at
+`+0x50`..`+0x55`, and ten words at `+0x1254`..`+0x1267` in base-and-modifier
+pairs. Reading who calls what settles it.
+
+`0x421dc0` — the routine that turns an element id into a resistance — reads
+the six bytes, and **its argument is an actor**:
+
+- `0x401917` reaches the record as `lea ecx, [esi - 0xa0]`, from the AI's own
+  state pointer;
+- `0x430f36` and `0x431915` test `dword [esi + 0x114]` and `[esi + 0x118]` —
+  the actor's 64-bit pair — in the same breath as the call, on the same
+  register they pass;
+- and `0x4318d4` in that same routine holds a *character* in a different
+  register entirely, reading its condition array at `+0x1388`.
+
+So the caster is one record and the thing being resisted is another. **The six
+bytes at `+0x50`, with 200 meaning immune, are the monster's**, and the
+element order rotated by two belongs to that jump table alone. `observed`
+
+**A character's five resistances are the words at `+0x1254`..`+0x1267`**, base
+and modifier in pairs, sitting immediately below the buff array at `+0x1268` —
+the property setter's ten case bodies write them (ids 46..50 and 51..55) and
+the property getter's five read them. Nothing in a damage path reads them,
+because a character's resistance is applied by the same `0x421dc0` only when
+the character *is* the target, and that path takes the actor form. `observed`
+for the offsets and the pairs.
+
+### What the dead pair would have done
+
+`0x430f36` is worth its own line, because it names the timers the last batch
+buried. Immediately before the resistance call:
+
+```
+0x00430f36  cmp dword [esi + 0x118], edi
+0x00430f40  cmp dword [esi + 0x114], edi
+0x00430f48  xor eax, eax        ; the damage becomes nothing
+```
+
+While the pair is greater than zero the blow does no damage at all — so it was
+a **damage-shield window on the actor**. Since nothing ever writes it and every
+actor on disk carries zero, the shield never comes up. `observed`
