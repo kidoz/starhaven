@@ -1679,6 +1679,19 @@ interoperability and compatibility with a legally purchased copy.
   answering with the party's own position), **5 a decoration** (28-byte rows at
   `0x5b23cc`). With `handle = index * 8 | tag`, that is the encoding every part
   of the game passes around, and all four kinds now have names.
+- **State 5 is the expiry pass — and the actor's buff grid is real after all.**
+  `0x405d60` walks every actor and hands **nine sixteen-byte records from
+  `+0xc4`** the world clock, one a tick, through `0x44ab00`. Every one of the
+  five "64-bit pairs nothing writes" this project collected is one of those
+  nine slots. So the grid that was named from its spacing, **withdrawn for want
+  of a writer**, and left as reads with no source, **is restored** — the walk
+  reaches the slots through a *computed base* held in a register, which is the
+  same blind spot that hid the experience award wearing different clothes, and
+  which an absolute-address sweep cannot see either. What a slot does is
+  visible immediately: when the `+0xf4` pair lapses the actor's **radius is put
+  back from `DMONLIST`**, so that slot is a size effect. It also explains the
+  three AI actions "blocked on" those pairs — they are asking whether a buff is
+  still up, exactly as the party's own array is read.
 - **State 12 approaches; state 2 searches.** With sight, state 12 builds the
   actor's handle, calls `0x4046f0` — a **movement routine** that answers with a
   28-byte record — copies seven dwords of it out, writes a **velocity into the

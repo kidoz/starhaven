@@ -1139,3 +1139,57 @@ So the last unread body is gated on timers that are always zero, and reading
 past the gate would only describe branches that never run. **All eleven action
 bodies have now been opened**, and three of them can never take the branch the
 timers guard. `observed`
+
+## State 5 is the expiry pass — and the buff grid is real after all
+
+`0x405d60` walks every actor, and the first thing it does to each is this:
+
+```
+mov ebx, 0x56f53c          ; actor 0 + 0xc4
+lea ebp, [ebx - 0xc4]      ; the actor itself
+mov esi, ebx
+mov edi, 9                 ; nine of them
+loop:
+  mov eax, dword [0x908d0c]   ; the world clock, high half
+  mov ecx, dword [0x908d08]   ; and low
+  mov ecx, esi
+  call 0x44ab00               ; hand this slot the clock
+  add esi, 0x10               ; sixteen bytes on
+  dec edi
+  jne loop
+```
+
+**Nine sixteen-byte records from `+0xc4`**, each handed the world clock once a
+tick. That is `+0xc4`, `+0xd4`, `+0xe4`, `+0xf4`, `+0x104`, `+0x114`, `+0x124`,
+`+0x134` and `+0x144` — and every one of the five "64-bit pairs that nothing
+writes" this document has collected is one of them. `0x44ab00` is the
+**expiry**.
+
+**So the buff grid is restored.** It was named from the spacing, withdrawn for
+want of a writer, and left as reads with no source. The withdrawal was right on
+the evidence then available and wrong in fact: the walk reaches the slots
+through a **computed base** — `0x56f53c` held in a register and stepped — which
+is the same blind spot that hid the experience award, wearing different
+clothes. An absolute-address sweep cannot see it either.
+
+What the slots do is visible in the next few instructions. When the `+0xf4`
+pair has lapsed, the actor's **radius at `+0x7a` is restored from `DMONLIST`**:
+
+```
+cmp dword [ebp + 0xf8], esi
+jg  skip
+cmp dword [ebp + 0xf4], esi
+ja  skip
+mov ecx, dword [0x5e217c]      ; DMONLIST
+mov dx, word [ecx + eax*4 - 0x94]
+mov word [ebp + 0x7a], dx      ; the radius, put back
+```
+
+So **slot `+0xf4` is a size effect** — something shrinks or enlarges the actor
+and the slot's expiry puts it back. `observed`
+
+And it explains the three AI actions "blocked on" these pairs: they are
+branching on whether a buff is still up, exactly as the party's and each
+character's own arrays are read.
+
+The base is **`+0xc4`**, the stride sixteen, the count **nine**. `observed`
