@@ -692,3 +692,38 @@ the timers nothing writes.
 have homes — `+0x12` the animation state, and the five referenced elsewhere —
 and one column of the 148-byte table does. The rest needs the whole
 preparation routine read, which remains a batch of its own. `unknown`
+
+## What a monster's death does, beyond the body
+
+The impact path at `0x431a78` is the place, and it does three things after a
+blow that kills.
+
+**A sound from the row.** When the animation byte is 4 it takes the monster's
+row index at `+0x34`, indexes the 72-byte table's dword at **`+0x38`**, and
+hands it to `0x421520`. So `+0x38` is the **death sound**, which is the fourth
+column of that table to get a home.
+
+**The death action.** `0x431a97` calls `0x403050`, the state-4 body.
+
+**And a one-in-five remark.** Immediately after:
+
+```
+0x00431a9c  call 0x4ae22b            ; rand()
+0x00431aa7  idiv ecx                 ; % 100
+0x00431aa9  cmp  edx, 0x14           ; 20
+0x00431aac  jge  skip
+0x00431aae  mov  ecx, dword [esi + 0x5c]   ; the actor's full hit points
+0x00431ab6  cmp  ecx, 0x64                 ; 100
+0x00431ab9  setge dl ; inc edx             ; line 1 or line 2
+0x00431aca  call 0x488ca0
+```
+
+So **one kill in five draws a remark from a character, and which of two lines
+it is depends on whether the thing had a hundred hit points or more**.
+`observed` — the twenty, the hundred and the two lines are all the routine's.
+
+The drop itself was already threaded from `MONSTERS.TXT`'s own treasure code,
+which is what this search set out to find and found already done; what was
+missing was anyone looking at the pile. Over sixteen world hours across four
+maps, an armed level-twenty party killing **548 actors** collected **3,915
+gold and 17 items** — rings, a crossbow, a staff.

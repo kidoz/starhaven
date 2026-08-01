@@ -369,6 +369,8 @@ int main(int argc, char** argv) {
     int rests = 0;
     int bought = 0;
     int moves = 0;
+    int dropped = 0;
+    std::vector<std::string> drop_names;
     int stunned = 0;
     int tripled = 0;
     int feathered = 0;
@@ -742,6 +744,15 @@ int main(int argc, char** argv) {
     }
     experience += battle.unclaimed_experience();
     gold += battle.take_gold();
+    // What the treasure codes actually paid out. The codes were threaded a
+    // while ago and no headless run had ever looked at the pile.
+    for (const auto& piece : battle.take_loot()) {
+        ++dropped;
+        if (const auto* row = items.at(static_cast<std::size_t>(piece.item_id));
+            row != nullptr && drop_names.size() < 6) {
+            drop_names.push_back(row->name);
+        }
+    }
     }
 
     const double real_minutes = static_cast<double>(steps) *
@@ -796,7 +807,11 @@ int main(int argc, char** argv) {
         std::cout << ")";
     }
     std::cout << "\n";
-    std::cout << "  " << moves << " monster steps taken\n";
+    std::cout << "  " << moves << " monster steps taken; " << dropped << " items dropped";
+    for (std::size_t at = 0; at < drop_names.size(); ++at) {
+        std::cout << (at == 0 ? " (" : ", ") << drop_names[at];
+    }
+    std::cout << (drop_names.empty() ? "" : ")") << "\n";
     std::cout << "  the higher lines: " << stunned << " stuns, " << tripled
               << " triple strikes, " << feathered << " second arrows\n";
     return 0;

@@ -1318,6 +1318,17 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on what a monster drops: already threaded, and now visible.**
+  The premise was half wrong and the search says so — `MONSTERS.TXT`'s
+  treasure code was parsed and applied a while ago; what was missing was that
+  **no headless run had ever looked at the pile**. It does now: sixteen world
+  hours over four maps, an armed level-twenty party killing **548 actors**,
+  **3,915 gold and 17 items** — rings, a crossbow, a staff. What the trace
+  added on the way is the rest of what a death does. `+0x38` of the 72-byte
+  monster table is the **death sound**, handed to `0x421520`. And after the
+  state-4 body runs, **one kill in five draws a remark from a character**,
+  the line chosen by whether the thing had **a hundred hit points** or more —
+  the twenty, the hundred and the two lines all the routine's.
 - **The sitting measures a fight now.** Everything this project had published
   was a party walking onto stationary targets. The monsters move: within the
   awareness cut of **5120** an undisturbed one closes on the party until the
