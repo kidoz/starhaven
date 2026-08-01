@@ -97,7 +97,7 @@ inline Inspected describe(const data::MonsterStatsEntry& m, const data::SpellSta
             continue;
         }
         std::string line = "attack: " + a.type + " " + a.damage;
-        if (!a.missile.empty() && a.missile != "0") {
+        if (a.flies) {
             line += " (" + a.missile + ")";
         }
         out.lines.push_back(line);

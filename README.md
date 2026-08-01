@@ -1526,6 +1526,14 @@ interoperability and compatibility with a legally purchased copy.
   with it: **Learning does have an implementation**, and its rung multiplies by
   adding one to the rank rather than through a table. The engine now does it
   that way.
+- **A monster's numbers are decoded once now.** The completed row shows the
+  runtime holding each attack's damage as **bytes** — `+0x17`/`+0x18` for the
+  first, `+0x1d`/`+0x1e` for the second — so the text is read at parse and
+  never again. This engine was calling `parse_dice` **twice on every swing**
+  and re-testing the `Miss` column's text for whether the blow flies. Both are
+  now fields on the parsed attack, filled once, and every caller takes them
+  from there. It is the same win the item table took, this time on a layout
+  that is fully read rather than half-guessed.
 - **Each attack carries its own chance — corrected by the row.** This engine
   took `Att%` as the *second* attack's chance, marked `inferred` from where its
   values happened to sit. The completed row settles it: the two attacks are

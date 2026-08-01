@@ -103,7 +103,7 @@ inline constexpr float kCloseRange = 1024.0f;
 // "0" means none.
 [[nodiscard]] inline bool has_missile(const data::MonsterStatsEntry& monster) noexcept {
     for (const auto& attack : monster.attacks) {
-        if (!attack.missile.empty() && attack.missile != "0") {
+        if (attack.flies) {
             return true;
         }
     }
@@ -114,7 +114,7 @@ inline constexpr float kCloseRange = 1024.0f;
 [[nodiscard]] inline std::string_view missile_kind(
     const data::MonsterStatsEntry& monster) noexcept {
     for (const auto& attack : monster.attacks) {
-        if (!attack.missile.empty() && attack.missile != "0") {
+        if (attack.flies) {
             return attack.missile;
         }
     }
@@ -1092,13 +1092,13 @@ private:
         // and the percentage at `+0x1b` and `+0x21`. So `Att%` closes the
         // first block and `Use%` the second, and each attack carries its own
         // chance. `observed`
-        const data::Dice second = data::parse_dice(monster.attacks[1].damage);
+        const data::Dice& second = monster.attacks[1].damage_dice;
         const bool use_second =
             !second.empty() && monster.attacks[1].chance > 0 &&
             static_cast<int>(random_.next() % 100) < monster.attacks[1].chance;
         for (const auto& attack :
              {use_second ? monster.attacks[1] : monster.attacks[0], monster.attacks[0]}) {
-            const data::Dice dice = data::parse_dice(attack.damage);
+            const data::Dice& dice = attack.damage_dice;
             if (dice.empty()) {
                 continue;
             }
@@ -1106,7 +1106,7 @@ private:
             // stands in for its attack bonus, which the table does not
             // state, and an attack its Miss column names flies as the
             // shot's own kind. `inferred` for both readings.
-            const bool flies = !attack.missile.empty() && attack.missile != "0";
+            const bool flies = attack.flies;
             if (!blow_lands(target.armor_class, monster.level,
                             flies ? BlowKind::Shot : BlowKind::Plain, 0, random_)) {
                 return monster.name + " misses " + target.name;

@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include "core/data/dice.hpp"
 #include "core/data/text_table.hpp"
 
 namespace starhaven::data {
@@ -32,7 +33,15 @@ constexpr std::size_t kResistanceCount = static_cast<std::size_t>(Resistance::Co
 struct MonsterAttack {
     std::string type;    // "Phys", "Fire", "Elec", ...
     std::string damage;  // dice code, e.g. "2D6+2"
+    // **Decoded once, as the runtime row does it.** The 72-byte row holds each
+    // attack's damage as bytes — `+0x17`/`+0x18` for the first and
+    // `+0x1d`/`+0x1e` for the second — so the text is read when the table is
+    // parsed and never again. This engine used to call `parse_dice` twice on
+    // every swing.
+    Dice damage_dice;
     std::string missile;
+    // Whether the `Miss` column names a missile: `"0"` and empty do not.
+    bool flies = false;
     int chance = 0;  // percent, from the "Att%" / "Use%" columns
 };
 

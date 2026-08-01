@@ -23,7 +23,7 @@ data::MonsterStatsEntry archer() {
     m.hit_points = 35;
     m.armor_class = 14;
     m.experience = 171;
-    m.attacks[0] = {"Phys", "1D6+1", "Arrow", 0};
+    m.attacks[0] = {"Phys", "1D6+1", data::parse_dice("1D6+1"), "Arrow", true, 0};
     m.resistances[static_cast<std::size_t>(data::Resistance::Fire)] = 10;
     m.resistances[static_cast<std::size_t>(data::Resistance::Cold)] = data::kResistanceImmune;
     return m;

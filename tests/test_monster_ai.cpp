@@ -256,3 +256,28 @@ TEST_CASE("a monster does not walk through a tree", "[ai]") {
     const float dz = at.z - 300.0f;
     REQUIRE(std::sqrt(at.x * at.x + dz * dz) >= 96.0f + kMonsterRadius - 1.0f);
 }
+
+TEST_CASE("a monster's attacks are decoded once, at load", "[monsters]") {
+    // The 72-byte runtime row holds each attack's damage as bytes — +0x17
+    // and +0x1d — so the text is read at parse and never again.
+    std::string body =
+        "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
+        "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
+        "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
+    body += "1\tA\tA\t2\t20\t0\t24\t0\t0\tN\tMed\tAggress\t4\t200\t1\t0\t0\tPhys"
+            "\t2d6+1\tArrow\t0\tPois\t3d4\t0\t25\t0\t0\t0\t0\t0\t0\t0\t0\r\n";
+    data::TextTable table;
+    REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
+    data::MonsterStatsTable rows;
+    REQUIRE(data::MonsterStatsTable::parse(table, rows) == data::MonsterStatsError::None);
+    REQUIRE(rows.entries().size() == 1);
+    const auto& m = rows.entries()[0];
+    REQUIRE(m.attacks[0].damage_dice.count == 2);
+    REQUIRE(m.attacks[0].damage_dice.sides == 6);
+    REQUIRE(m.attacks[0].flies);
+    REQUIRE(m.attacks[1].damage_dice.count == 3);
+    REQUIRE_FALSE(m.attacks[1].flies);
+    // And the percentage sits on the attack whose block carries it.
+    REQUIRE(m.attacks[0].chance == 0);
+    REQUIRE(m.attacks[1].chance == 25);
+}

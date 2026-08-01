@@ -121,6 +121,8 @@ MonsterStatsError MonsterStatsTable::parse(const TextTable& table, MonsterStatsT
             a.damage = cell_text(table, r, base + 1);
             a.missile = cell_text(table, r, base + 2);
             a.chance = table.cell_int(r, base + 3);
+            a.damage_dice = parse_dice(a.damage);
+            a.flies = !a.missile.empty() && a.missile != "0";
         }
         e.spell_percent = table.cell_int(r, kColSpellPercent);
         e.spells = cell_text(table, r, kColSpells);
