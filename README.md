@@ -1318,6 +1318,16 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on `0x434e50`: the loading screen.** The routine whose
+  forty-byte records disproved the actor buff grid is the constructor of a
+  static object at `0x52d0a8` — `atexit` is handed its destructor two
+  instructions later — and its own loader names every field: a progress-bar
+  rectangle of 122, 151, 449, 56, then six forty-byte **image slots** holding
+  `loading.pcx`, `womover.pcx`, `demover.pcx`, `womover2.pcx`, `demover2.pcx`
+  and a `fireball` sprite. So the risk landed as stated: a rendering structure
+  with no bearing on the game. What it buys is that the routine standing
+  behind the buff-grid withdrawal is no longer an unknown, and that the
+  forty-byte image slot is a shape worth recognising elsewhere.
 - **A sitting that is not always the same four classes.** `--classes` fields
   any four of `Class.txt`'s eighteen headings, and with it the last of the
   three flourishes fired for the first time: **the dagger's triple strike, 12

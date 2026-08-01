@@ -63,3 +63,35 @@ gauge groove sits either side of each seat, at the oval's left edge −5 and
 `MANAFULL` in the right, drawn from the bottom up by the fraction they
 report; which groove the game meant for which gauge is not stated in the
 art. `inferred`
+
+## `0x52d0a8`: the loading screen
+
+The routine at `0x434e50` — a member-by-member reset of six forty-byte records
+based at `0x20`, `0x48`, `0x70`, `0x98`, `0xc0` and `0xe8` — is the one that
+disproved the actor buff grid, and it was left unidentified. It is the
+constructor of a **static object at `0x52d0a8`**: `0x434e30` sets `ecx` to it,
+calls the reset, and hands `0x435060` to `atexit`.
+
+What the object is, out of its own loader at `0x438c30`:
+
+| offset | what |
+| --- | --- |
+| `+0x00`..`+0x07` | four words set to **122, 151, 449, 56** — the progress bar's rectangle |
+| `+0x0a` | a byte counted up once per use |
+| `+0x0c` | which of its two modes was asked for |
+| `+0x10` | `loading.pcx` |
+| `+0x38` | `womover.pcx` |
+| `+0x60` | `demover.pcx` |
+| `+0x88` | `womover2.pcx` |
+| `+0xb0` | `demover2.pcx` |
+| `+0xd8` | `"fireball"`, loaded as a sprite rather than a PCX |
+| `+0x120` | `"bardata"`, in the other mode |
+| `+0x34` | non-zero once loaded; the loader returns immediately if it is set |
+
+So the forty-byte record is a **loaded-image slot** — `0x409e50` fills one from
+a named PCX — and the six of them are the loading screen's pictures. `observed`
+
+That is the gamble's stated risk landing exactly: a rendering structure with
+no bearing on the game. What it buys is that the routine which broke the buff
+grid is no longer an unknown standing behind that withdrawal, and that the
+forty-byte image slot is a shape worth recognising elsewhere.
