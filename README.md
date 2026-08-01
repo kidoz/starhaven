@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **Filed: no instruction awards experience for a kill.** Four routes have now
+  been run to the end and the counts are written down so the next pass starts
+  elsewhere. From the character's field: `+0x1420` is touched by **eighteen
+  instructions**, five write, all five are the script property routines or
+  creation, and no `lea` takes its address. From the monster's table: rows are
+  72 bytes from `0x56c188`, and **seven columns are referenced anywhere** —
+  five by absolute base, two through the pointer at `0x55dd94` — none feeding
+  an accumulator. From the death handler: it sets the death bit, the death
+  animation and the reputation, and computes no other number. From the
+  turn-based side: `+0x1c0` has four writers, all toggles and map loads, and
+  the leave routine plays a sound and returns. So the engine's own split of a
+  fight's worth is marked plainly as its own.
 - **The reputation, finished.** The hundred-point penalty is for **angering
   something that was peaceful**: `0x403070` — the routine that turns an actor
   hostile, ending in AI state 4 — takes it only when the monster row's byte at

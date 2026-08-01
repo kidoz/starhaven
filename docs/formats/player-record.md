@@ -1143,3 +1143,38 @@ now; this is what stays bound. The two words after it, `+0x157e` and
 
 So the gamble's stated risk — an interface index, real but dull — half landed:
 it *is* an interface binding, but one the game's own stat table names.
+
+## Filed: no instruction awards experience for a kill
+
+Four approaches have now been run to the end. The counts are here so the next
+pass starts somewhere else.
+
+**From the character's field.** `+0x1420`, with its high half at `+0x1424`, is
+touched by **eighteen instructions in the image**. Five write, and all five are
+accounted for: the script property setter (`0x440c12`), the adder (`0x4416e3`,
+`0x441707`), the taker as a 64-bit subtract (`0x4425bb`), and character
+creation (`0x483e41`, `rand() % 100 + 251`). No `lea` anywhere takes the
+field's address, so there is no write through a pointer either.
+
+**From the monster's table.** The runtime rows are **72 bytes from
+`0x56c188`**, indexed `9 × id` then `× 8`. Five columns are referenced by
+absolute base — `+0x00`, `+0x09`, `+0x12`, `+0x38`, `+0x40` — and two more
+through the pointer at `0x55dd94`, `+0x18` and `+0x36`. **None of the seven
+feeds an accumulator.**
+
+**From the death handler.** `0x403730` sets the death bit `0x20000`, sets the
+death animation `+0x3e = 4`, and takes fifty off the reputation. It computes no
+other number. The two callers of the property routines that pass a computed id
+both read it out of a script instruction's argument byte at `+5`.
+
+**From the turn-based side.** Party `+0x1c0` is `0x908e30`, and it has four
+writers: the toggle at `0x42b142` and `0x42b15c`, and the map-load pair at
+`0x45395a` and `0x453e32`. The routine that leaves turn-based combat,
+`0x405810`, clears a flag, plays a sound and returns — no accumulator, no
+distribution.
+
+So: **no instruction in MM6.exe awards experience for a kill**, by any of the
+four routes. Either it arrives entirely through the event system, or the
+mechanism lies somewhere none of these reaches. `unknown` — and this engine's
+own split of a fight's worth among whoever is standing stays marked as its
+own.

@@ -537,6 +537,13 @@ public:
 
     // Share it among whoever is still standing, the way a party splits a kill.
     // Nobody standing means nobody collects, and it waits. `inferred`
+    //
+    // **This whole routine is this engine's.** Four searches have failed to
+    // find any instruction in MM6.exe that awards experience for a kill — see
+    // docs/formats/player-record.md for the counts from the character's
+    // field, the monster's table, the death handler and the turn-based side.
+    // Nothing here is copied from the original because there was nothing to
+    // copy.
     // `bonus_percent` is a hired teacher's cut on top, from their row's prose.
     void award(std::array<Character, 4>& party, int bonus_percent = 0) {
         if (experience_ <= 0) {
