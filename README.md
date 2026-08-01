@@ -1318,6 +1318,16 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The hirelings' stated numbers, finally applied.** `npcprof.txt` gives them
+  in plain words and this engine had **parsed** them for a long while — an Arms
+  Master's two points to every weapon skill, a Weapons Master's three, a
+  Squire's to armour and weapons both, a Scout's to Perception — and applied
+  none of them, because there was nowhere for a skill point to land until the
+  skill array became real. Now a hired master's points go onto the attack
+  bonus beside the wielder's own, a Squire's lift the armour drag the way a
+  rung does, and a Scout's join the trap dodge. Two masters of one trade are
+  not two bonuses: the largest stands, which is this engine's reading of rows
+  that never mention stacking.
 - **Seven stored terms, and a fit turned into a reading.** Each of the three
   named getters pushes its own stat id and then reads that stat's own table —
   the maximum-hit-point getter pushes **7** and indexes the class base at

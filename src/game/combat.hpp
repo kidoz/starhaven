@@ -579,7 +579,7 @@ public:
                        const data::StandardBonusTable& standard_bonuses,
                        const data::SpecialBonusTable& special_bonuses,
                        const SkillPower& skill = {}, const data::Dice& rider = {},
-                       std::string_view rider_element = {}) {
+                       std::string_view rider_element = {}, int hired_weapon_points = 0) {
         if (!alive(actor) || who.hit_points <= 0) {
             return {};
         }
@@ -609,7 +609,10 @@ public:
         // of the ladder, one for one, which is what the line says and no more.
         // `observed` in the rows; that a point is worth exactly one is this
         // engine's reading, as it has been since the line was first parsed.
-        attack += wielded_skill_points(who, items);
+        // "Two point bonus to all weapon skills for all characters" — an Arms
+        // Master's, a Weapons Master's, a Squire's. Parsed for a long while
+        // and applied nowhere until the weapon skill itself reached the roll.
+        attack += wielded_skill_points(who, items) + hired_weapon_points;
         // The stored term the attack-bonus getter adds beside the gear's and
         // the ladder's — `+0x1570`, the first of the four.
         attack += who.derived_bonus[static_cast<std::size_t>(DerivedBonus::AttackBonus)];

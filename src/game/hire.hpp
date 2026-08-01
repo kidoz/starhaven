@@ -17,6 +17,7 @@
 #include <cctype>
 #include <string>
 #include <string_view>
+#include <algorithm>
 #include <utility>
 
 #include "core/data/npc_stats.hpp"
@@ -72,6 +73,18 @@ struct HireBenefit {
                perception_bonus != 0;
     }
 };
+
+// The best of a benefit across everyone hired. The rows never say the
+// bonuses stack, and two masters of the same trade are not two bonuses, so
+// the largest stands. `inferred`
+template <typename Hirelings, typename Member>
+[[nodiscard]] inline int best_hired(const Hirelings& hired, Member HireBenefit::*field) {
+    int best = 0;
+    for (const auto& one : hired) {
+        best = std::max(best, one.benefit.*field);
+    }
+    return best;
+}
 
 namespace hire_detail {
 

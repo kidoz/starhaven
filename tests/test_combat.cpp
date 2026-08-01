@@ -5,8 +5,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
+#include <vector>
 
 #include "game/combat.hpp"
+#include "game/hire.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
@@ -831,4 +833,23 @@ TEST_CASE("Learning takes its cut of a share", "[combat]") {
     REQUIRE(game::learning_percent(10) == 10);
     REQUIRE(game::learning_percent(game::teach_rank(10, 1)) == 20);
     REQUIRE(game::learning_percent(game::teach_rank(10, 2)) == 30);
+}
+
+TEST_CASE("a hired master's points reach the roll", "[combat]") {
+    // "Two point bonus to all weapon skills for all characters" — parsed for
+    // a long while and applied nowhere until the weapon skill itself reached
+    // the attack bonus.
+    struct Hired {
+        game::HireBenefit benefit;
+    };
+    std::vector<Hired> none;
+    REQUIRE(game::best_hired(none, &game::HireBenefit::weapon_skill_bonus) == 0);
+    std::vector<Hired> two;
+    two.emplace_back();
+    two.back().benefit.weapon_skill_bonus = 2;
+    two.emplace_back();
+    two.back().benefit.weapon_skill_bonus = 3;
+    // Two masters of one trade are not two bonuses; the largest stands.
+    REQUIRE(game::best_hired(two, &game::HireBenefit::weapon_skill_bonus) == 3);
+    REQUIRE(game::best_hired(two, &game::HireBenefit::perception_bonus) == 0);
 }

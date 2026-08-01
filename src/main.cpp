@@ -6848,6 +6848,10 @@ int main(int argc, char** argv) {
                             }
                             // The record already holds the packed byte the
                             // dodge wants; nothing needs repacking.
+                            // "Point bonus to Perception skill" — a Scout's or
+                            // a Psychic's, on top of the character's own byte.
+                            perception += game::best_hired(
+                                hirelings, &game::HireBenefit::perception_bonus);
                             if (game::perception_dodges(perception, misc_random)) {
                                 speak(member, 33);  // line 33: the close call's word
                                 continue;
@@ -7014,10 +7018,11 @@ int main(int argc, char** argv) {
                         heroic > 0) {
                         swung.damage += game::kBlessBase + heroic;
                     }
-                    std::string blow =
-                        battle.strike(target, party[who], packs[who], session, monster_stats,
-                                      item_stats, random_items, standard_bonuses, special_bonuses,
-                                      swung, rider.extra_damage, rider.damage_element);
+                    std::string blow = battle.strike(
+                        target, party[who], packs[who], session, monster_stats, item_stats,
+                        random_items, standard_bonuses, special_bonuses, swung,
+                        rider.extra_damage, rider.damage_element,
+                        game::best_hired(hirelings, &game::HireBenefit::weapon_skill_bonus));
                     if (!blow.empty()) {
                         if (blow.find(" and kills it") != std::string::npos) {
                             speak(party[who], 1);  // line 1: the victor's word
@@ -7091,13 +7096,19 @@ int main(int argc, char** argv) {
                                 rec_points = cost;
                             }
                         }
+                        // A Squire's "armor and weapon skills are increased"
+                        // reaches the drag too: enough hired points lift the
+                        // penalty the way a rung does.
+                        const int hired_armour =
+                            game::best_hired(hirelings, &game::HireBenefit::armor_skill_bonus);
                         for (const game::Slot slot : {game::Slot::Armor, game::Slot::Shield}) {
                             const auto* row = gear_of(slot);
                             if (row == nullptr || row->skill_group.empty()) {
                                 continue;
                             }
+                            const int lift = std::min(2, lift_for(*row) + (hired_armour > 0 ? 1 : 0));
                             rec_points += game::worn_recovery_penalty(
-                                game::gear_recovery(row->skill_group), lift_for(*row));
+                                game::gear_recovery(row->skill_group), lift);
                         }
                         // The original drains recovery half again as fast for
                         // a character wearing an unbroken item "of Recovery",
