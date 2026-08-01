@@ -4,6 +4,10 @@ summary: Authoring rules for maintainable, evidence-backed, MkDocs-compatible do
 doc_type: reference
 status: verified
 last_updated: 2026-08-01
+source_files:
+  - tools/check_docs.py
+  - mkdocs.yml
+  - justfile
 tags:
   - documentation
   - mkdocs

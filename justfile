@@ -72,8 +72,10 @@ docs-setup:
 docs-serve: docs-setup
     uv run --locked mkdocs serve
 
-# Build documentation and fail on broken navigation, links, or anchors.
+# Validate the public Markdown contract, then fail on broken navigation,
+# links, or anchors.
 docs-check: docs-setup
+    uv run --locked python tools/check_docs.py
     uv run --locked mkdocs build --strict
 
 # Formatting + analysis + tests + documentation. The pre-submit gate.
