@@ -536,16 +536,45 @@ State 5b reads a third at **`+0xf4`**, and state 7 reads the `+0x114` and
 **They sit on a sixteen-byte grid**: `+0xf4`, `+0x104`, `+0x114`, `+0x124`.
 That is exactly the stride of the party's buff array and of each character's,
 and the "is this 64-bit value greater than zero" test is exactly how both of
-those decide whether a slot is still up. Three shapes agree — the spacing,
-the idiom and the grid — so the actor almost certainly carries **a buff array
-of its own, sixteen bytes a record, expiry at the record's base**.
+those decide whether a slot is still up. `observed`
 
-`observed` for the reads, the spacing and the idiom. `inferred` for the
-array, because unlike the party's and the character's no clearing routine and
-no writer has been found for it — and after four retractions that difference
-is worth keeping visible.
+## **Retracted: they are not a buff array**
 
-**What it unblocks.** States 5b and 7 branch on whether particular actor
-buffs are still running: 5b on the slot at `+0xf4` across every actor in the
-array, 7 on the two at `+0x114` and `+0x124`. That is what those actions are
-deciding *about*, even though the slots are not yet named.
+On that spacing this file named the run a buff array of the actor's own, and
+marked it `inferred` because no writer had been found. The writer was then
+looked for properly, and **there is none**.
+
+Every store in MM6.exe at `+0xf4`, `+0x104`, `+0x114` or `+0x124` — there are
+twenty-five of them in the whole image — belongs to some other record, and
+each can be told apart by its own neighbours:
+
+- `0x429fc3`, `0x42a18c`, `0x42a31b` write `+0x128` beside `+0x142c`, which
+  is a character's equipment anchor: that `+0x128` is the character's **item
+  array**, not an actor field.
+- `0x434f3d` and its run are a member-by-member reset of an array of
+  **forty-byte records** — a dword, four words, two dwords and a byte apiece,
+  bases at `0x20`, `0x48`, `0x70`, `0x98`, `0xc0`, `0xe8`. It writes `+0xf4`
+  as a **word**, which no 64-bit expiry can be.
+- The `0x44ce40`..`0x44dc9a` cluster writes `+0x104` and `+0x108` twelve times
+  and `+0x114` or `+0x124` never.
+
+And the absolute forms settle it from the other side: across actor zero's
+`+0xf4` through `+0x128`, MM6.exe holds **ten references and not one of them
+is a store**.
+
+So the name goes. A buff array that nothing ever casts into is not a buff
+array — the party's and the character's each have a writer *and* a clearing
+walk, and this has neither.
+
+What still stands, unchanged and `observed`: the reads, the two pairs, the
+sign-then-zero idiom, the sixteen-byte spacing, and that the AI's last three
+actions branch on them. `0x408f9a` is a third independent reading of the same
+two pairs, and it proves the offsets really are the actor's: it holds
+`0x56f59c` in `ebx` and reaches `+0x28`, `+0x5c`, `+0x6c`, `+0x7e` and `+0x92`
+from it by negative displacement.
+
+**What it leaves.** Either the values arrive from outside the code — the map's
+or the save's actor block, read in wholesale — or they are never anything but
+zero, in which case the three actions gated on them are unreachable in the
+shipped game. Distinguishing the two needs the actor block's on-disk layout,
+which is `unknown`.

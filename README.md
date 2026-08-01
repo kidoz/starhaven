@@ -1294,6 +1294,42 @@ interoperability and compatibility with a legally purchased copy.
   dword at `+0x1410`. The length is not a guess — the check that lets a made
   party start walks slots `0` through `0x1e` in all four characters and
   demands four non-zero in each.
+- **The actor's timer grid, withdrawn.** Last batch named the run at `+0xf4`,
+  `+0x114` and `+0x124` a buff array of the actor's own, on a sixteen-byte
+  spacing three readings agreed about, and marked it `inferred` for want of a
+  writer. The writer was then looked for properly and **there is none**: all
+  twenty-five stores at those offsets in the whole image belong to other
+  records — a character's item array, a forty-byte-record reset that writes
+  `+0xf4` as a *word*, an unrelated cluster that never touches `+0x114` — and
+  of the ten absolute references into actor zero's `+0xf4`..`+0x128`, not one
+  is a store. A buff array nothing casts into is not a buff array, so the name
+  goes; the reads, the pairs and the spacing stand. Either the values arrive
+  wholesale from the map or the save, or the three AI actions gated on them
+  are unreachable.
+- **The gamble on `0x55e5d0`: the sine table.** The most-referenced runtime
+  table in the executable — 290 reads and not one write — is read through
+  quadrant folding around a quarter and a half held at `0x55f614` and
+  `0x55f618`, and what comes out goes into a 64-bit multiply shifted back
+  sixteen bits. So the risk landed exactly as named: it is trigonometry. What
+  it settles anyway is the arithmetic every moving thing runs on — the angle
+  scale, the two circle constants by name, and **16.16 fixed point** as the
+  engine's convention. See `docs/formats/fixed-point.md`.
+- **A longer sitting**: `sitting` now takes several maps comma-separated and
+  carries the party, the clock, the fatigue counter and the tally across all
+  of them; `--level N` makes a party that survives long enough to be
+  measured, `--train N` hands out a skill pool and spends it on the training
+  routine's own terms, and `--rest` camps for eight world hours when everyone
+  is at or below half. Eight world hours over four outdoor maps, 1236 actors,
+  a level-twelve party: **38 killed, 793 gold, hit rates of 33 to 48 percent**
+  — and the party is overwhelmed inside half an hour, camps once, and three of
+  its four are put straight back down. The camp restores in full, which is
+  this engine's reading; no rest routine has been traced.
+- **The `+0x60` array is the skills**: thirty-one bytes, one a slot, points in
+  the low six bits and the mastery in the top two. Training costs `n + 1` to
+  buy the `n + 1`th point, stops at sixty, and spends a pool that lives in a
+  dword at `+0x1410`. The length is not a guess — the check that lets a made
+  party start walks slots `0` through `0x1e` in all four characters and
+  demands four non-zero in each.
 - **The actor's timers sit on a buff grid**: the AI tests bits `0x4000` and
   `0x8000` of the flags dword first, then reduces two 64-bit values to
   booleans by the same sign-then-zero idiom the party and character buff
