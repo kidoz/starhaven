@@ -959,11 +959,12 @@ mov  eax, dword [0x55dd94]
 mov  cx, word [eax + edx*8 + 0x36] ; and its speed
 ```
 
-So `0x4046f0` is a **movement routine**: hand it an actor's handle and a
-target and it answers with a 28-byte record, of which the caller takes a
-velocity and writes it to `+0x8a`, then scales it by the speed the table at
-`0x55dd94` gives for the index at the actor's `+0xb2`. **State 12 is the
-approach.** `observed` for every step; `inferred` for the name.
+`0x4046f0` answers with a 28-byte record — a **position with an eye height**,
+not a velocity; see the reading of its actor case further down. State 12 goes
+on to write a word into `+0x8a` and scale it by the speed the table at
+`0x55dd94` gives for the index at the actor's `+0xb2`, but that word comes from
+its own frame rather than from the record. **State 12 is the approach.**
+`observed` for the calls and the writes; `inferred` for the name.
 
 **State 2, without sight** (`0x4043f9`), does something none of the others do
 before falling back:
@@ -1241,3 +1242,29 @@ one already named fits either reading — `+0xf4`'s expiry restores the radius.
 Naming the other eight is not done. What this adds is the slot's true shape,
 the effect id's bound, and a fourth field to search on that did not exist
 before. `unknown` for the eight.
+
+## What the 28-byte record holds — and it is not a velocity
+
+The actor case of `0x4046f0` fills the caller's buffer like this:
+
+```
+movsx ecx, word [esi + 0x56f4f2]   ; the actor's +0x7a, the radius
+movsx edx, word [esi + 0x56f4f6]   ; +0x7e, x
+movsx eax, word [esi + 0x56f4f8]   ; +0x80, y
+fild  dword [esp + 0x1c]           ; the radius ...
+fmul  dword [0x4b9360]             ; ... x -0.75
+movsx edx, word [esi + 0x56f4fa]   ; +0x82, z
+sub   edx, eax                     ; z, lifted by three quarters of the radius
+```
+
+So the record is a **position with an eye height** — x, y, a lifted z and the
+radius — which is exactly what the sight test wants and what the party case a
+few instructions later supplies from the party's own globals. `observed`
+
+**That corrects the reading of state 12.** It was written up as taking "a
+velocity out of the position routine's 28-byte answer". It does not: the
+record carries no velocity, and the word state 12 writes to `+0x8a` comes from
+further along its own frame after work of its own. Where a monster's step
+actually comes from is `unknown`, and the straight-line pace in the headless
+sitting stays this engine's — now for a stated reason rather than an assumed
+one.

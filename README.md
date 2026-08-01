@@ -1546,6 +1546,16 @@ interoperability and compatibility with a legally purchased copy.
   people — and the inference it was meant to test stays where it was: id 214
   clearing party `+0x95` and `+0x96` when it flags a record is *consistent*
   with those being the hireling slots and is not proof.
+- **The gamble on the monster's pace: its own premise was wrong.** The claim
+  was that the original takes a velocity out of the position routine's 28-byte
+  answer. It does not. `0x4046f0`'s actor case fills the record with **x, y, a
+  z lifted by three quarters of the radius, and the radius** — a position with
+  an eye height, which is exactly what the sight test wants and what the party
+  case supplies from the party's own globals a few instructions later. So the
+  record carries no velocity, the reading of state 12 that said it did is
+  corrected, and where a monster's step actually comes from is `unknown`. The
+  sitting's straight-line pace stays this engine's — now for a stated reason
+  rather than an assumed one.
 - **The gamble on the last AI actions: the game has no square root.** State
   1-and-3 gives it away — it differences a remembered position against the live
   one, takes both absolute values and answers **`max + min / 2`**, the
