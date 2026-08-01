@@ -1711,6 +1711,14 @@ interoperability and compatibility with a legally purchased copy.
   answering with the party's own position), **5 a decoration** (28-byte rows at
   `0x5b23cc`). With `handle = index * 8 | tag`, that is the encoding every part
   of the game passes around, and all four kinds now have names.
+- **The slot array's own definition: twenty, not nine.** `0x44a840` is the
+  startup constructor and it says so outright — for each of **500 actors** it
+  builds **20 elements of 16 bytes at `+0xc4`**, with a per-element
+  constructor, then calls the actor's own. So the array is twenty records and
+  `+0xc4 + 20 × 16` lands at `+0x204`, inside the 548-byte actor with 32 bytes
+  to spare. **The expiry pass walks nine of them** — state 5's loop covers
+  `+0xc4`..`+0x144` — so this project's "nine slots" is the expiry's share of a
+  twenty-slot array, and what expires the other eleven is `unknown`.
 - **The engine's actors carry the nine slots now.** `Combatant` had four
   ad-hoc timers — feared, slowed, paralyzed, charmed — invented before any of
   this was read. Beside them it now holds the **nine the expiry pass walks**,

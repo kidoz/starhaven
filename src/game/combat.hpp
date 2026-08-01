@@ -213,6 +213,11 @@ struct Combatant {
     // whose expiry restores the radius, so it is a size effect. The four
     // timers above are this engine's older invention and still drive the
     // fight; these are wired for measurement first.
+    // The array is **twenty** records; the expiry pass walks the first nine.
+    // `0x44a840` constructs 20 elements of 16 bytes at `+0xc4` for each of
+    // 500 actors; state 5's loop covers `+0xc4`..`+0x144`. What expires the
+    // other eleven, if anything, is `unknown`.
+    static constexpr std::size_t kActorSlotArray = 20;
     static constexpr std::size_t kActorSlots = 9;
     static constexpr std::size_t kSizeSlot = 3;  // +0xf4
     std::array<float, kActorSlots> slots{};

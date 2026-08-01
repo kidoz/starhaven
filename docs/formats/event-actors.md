@@ -1296,3 +1296,37 @@ Whether the pointer is deliberately the array's zeroth header or the two just
 happen to share an address is not something the code says. What matters is
 settled: **nothing indexes the array at zero**, both readings stand, and the
 array's records run from `0x5e2190` at twenty bytes apiece.
+
+## The slot array's own definition — and it is twenty, not nine
+
+`0x44a840` is the startup constructor, and it states the array outright:
+
+```
+mov esi, 0x56f478          ; actor zero
+mov edi, 0x1f4             ; 500 of them
+loop:
+  push 0x44a880            ; the per-element constructor
+  push 0x14                ; 20 elements
+  lea  eax, [esi + 0xc4]   ; the array's base
+  push 0x10                ; 16 bytes apiece
+  push eax
+  call ...
+  mov  ecx, esi
+  call 0x44c060            ; and the actor's own constructor
+  add  esi, 0x224          ; 548, the next actor
+  dec  edi
+  jne  loop
+```
+
+So the actor's slot array is **twenty sixteen-byte records at `+0xc4`**, and
+the actor array itself holds **500** entries. `+0xc4 + 20 x 16` is `+0x204`,
+which fits inside the 548-byte record with 32 bytes to spare. `observed`
+
+**But the expiry pass walks nine.** State 5's loop sets `edi = 9` and steps
+sixteen bytes, covering `+0xc4` through `+0x144` — the first nine of twenty.
+Whether the remaining eleven are expired somewhere else, or are a different
+kind of slot that never lapses, is `unknown`; what is settled is that this
+document's "nine slots" is the expiry's share of a **twenty-slot array**.
+
+`0x44c11f` is the matching clear: `lea edi, [edx + 0xc4]` and a `rep stosd`
+over the block.
