@@ -46,11 +46,38 @@ The world clock at `+0x098` is the most-referenced field in the executable's
 whole data segment at 239 sites, which is what a clock every routine consults
 should look like.
 
+## Four of the dense ones, named
+
+Taking the offsets by reference count and reading what touches them.
+
+**`+0x1c0` (73 references) is the turn-based flag.** Every site compares it
+against **1**, and the branch is decisive: at `0x403f27`, when it is 1 the
+actor's recovery counter at `+0x6c` is set directly, and otherwise the value
+is scaled by a float and the double **−32/15** — the same constant the
+real-time recovery uses. So one branch is the turn-based clock and the other
+the running one. `observed`
+
+**`+0x0fd` (57 references) is the quest-bit array.** `0x4031bf` loads it as
+`this` and calls `0x43fdf0` with a number and a set/clear flag; that routine
+shifts the number right three for a byte index and masks the low three bits
+for the bit — a plain bit array. The site sets **bit 202**. `observed`
+
+**`+0x0e0` (41 references) is script variable 20**, a party-level dword. The
+script-variable getter's own jump table lands variable 20 on it, and the
+interface formats it with `%lu`. Which quantity variable 20 is remains
+`unknown` — the engine names 16, 17, 21, 22, 12, 3, 5, 13 and 23, and 20 is
+not among them.
+
+**`+0x074` (44 references) travels with the position.** At `0x425e9e` it is
+written in one group with `+0x030`, `+0x034` and `+0x038` — the z, the facing
+and the second angle — which makes it part of a position-and-heading
+snapshot rather than a field of its own. `observed` for the grouping;
+`inferred` that it is a snapshot.
+
 ## What is measured but unnamed
 
-Ninety-odd further offsets carry references and no name yet. The densest of
-them, worth a later sitting: `+0x1c0` (73), `+0x074` (44), `+0x0e0` (41),
-`+0x078` (29), `+0x0fd` (57 — the byte beside the fatigue counter), `+0x008`
-(22), `+0x0ac`, `+0x0b0`, `+0x0b4`, `+0x0bc` (22–24 each, a run of four).
+Ninety-odd further offsets carry references and no name yet. The densest of the
+remainder, worth a later sitting: `+0x078` (29), `+0x008` (22), and the run
+of four at `+0x0ac`, `+0x0b0`, `+0x0b4`, `+0x0bc` (22–24 each).
 `unknown` for all of them; the reference counts are recorded so the next
 attempt can start with the ones that matter.

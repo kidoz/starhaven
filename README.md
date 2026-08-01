@@ -1193,6 +1193,15 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **Four of the party record's dense fields named**: `+0x1c0` is the
+  **turn-based flag** — every site compares it against 1, and the branch
+  decides whether recovery is set directly or scaled by the same −32/15 the
+  running clock uses. `+0x0fd` is the **quest-bit array**, loaded as `this`
+  into a routine that shifts right three for a byte and masks three bits for
+  the bit. `+0x0e0` is **script variable 20**, a party dword the interface
+  prints with `%lu` — which quantity stays unknown, since the engine names 16,
+  17, 21, 22 and others but not 20. `+0x074` travels in one write with the
+  z, the facing and the second angle, so it is part of a position snapshot.
 - **The gamble: there is a party record, and it closes at both ends**:
   tallying every reference into the neighbourhood gives **123 distinct
   offsets** in one dense run — not scattered globals. The arithmetic settles
