@@ -1546,6 +1546,15 @@ interoperability and compatibility with a legally purchased copy.
   people — and the inference it was meant to test stays where it was: id 214
   clearing party `+0x95` and `+0x96` when it flags a record is *consistent*
   with those being the hireling slots and is not proof.
+- **Where a monster's step comes from, read.** State 12's stretch after the
+  position call does two things: the **sixth dword** of the record goes into
+  the actor's `+0x8a`, and **`+0x90` is incremented by the speed times eight**
+  — incremented, not set, so it accumulates. Then the action timer is cleared
+  and the AI state written as 12. That is the step. Turning `speed × 8 per
+  tick` into world units a second needs the AI's cadence, which this project
+  has never established — the expiry pass runs on the world clock but the
+  decision routine's rate is not read — so the sitting keeps its own pace and
+  the note now says what the game does instead of guessing at it.
 - **The gamble on the monster's pace: its own premise was wrong.** The claim
   was that the original takes a velocity out of the position routine's 28-byte
   answer. It does not. `0x4046f0`'s actor case fills the record with **x, y, a

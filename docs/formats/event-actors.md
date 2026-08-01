@@ -1330,3 +1330,32 @@ document's "nine slots" is the expiry's share of a **twenty-slot array**.
 
 `0x44c11f` is the matching clear: `lea edi, [edx + 0xc4]` and a `rep stosd`
 over the block.
+
+## Where a monster's step comes from
+
+State 12's stretch after the position call, read straight:
+
+```
+mov  ecx, 7
+lea  edi, [esp + 0x14]
+rep  movsd                       ; the record's seven dwords, copied out
+mov  cx, word [esp + 0x28]       ; the sixth dword's low word
+mov  word [ebx + 0x8a], cx       ; -> the actor's +0x8a
+movsx eax, word [ebx + 0xb2]     ; the speed index
+mov  eax, dword [0x55dd94]
+mov  cx, word [eax + edx*8 + 0x36]   ; the speed
+shl  cx, 3                       ; x 8
+add  word [ebx + 0x90], cx       ; **added** to +0x90
+mov  dword [ebx + 0xa8], 0       ; the action timer, cleared
+mov  word [ebx + 0xa0], 0xc      ; the AI state, 12
+```
+
+So the step is two things: the **sixth dword** of the position record goes into
+`+0x8a`, and the actor's **`+0x90` is incremented by its speed times eight**.
+`+0x90` is not set, it accumulates. `observed`
+
+That is as far as it goes. Turning `speed x 8 per tick` into world units a
+second needs the AI's tick rate, which this project has not established — the
+expiry pass is driven by the world clock but the decision routine's cadence is
+not read. So the headless sitting keeps its own pace, and the note now says
+what the game does rather than guessing at it. `unknown` for the rate.
