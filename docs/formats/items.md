@@ -432,3 +432,40 @@ switch — and the pattern is worth naming: the searches that have succeeded
 lately all started from a *field* or a *table* and worked outward to the code
 that touches it, while the ones that failed started from a behaviour and went
 looking for the code that implements it.
+
+## The runtime item row, and a negative on the economy
+
+The way into the economy was to start from `2DEvents.txt`'s **`Val`** column —
+the price factor the engine reads — and find what multiplies by it. That did
+not converge, and this is the **fourth** "find the one routine that does X"
+search to come back empty. It is recorded rather than retried.
+
+What was ruled out: no routine in the executable multiplies an item's value
+by a runtime float in anything resembling a counter. Every register-relative
+float multiply in the image belongs to geometry — distances, velocities,
+projections. If a price is computed from the factor at all, it is not
+computed that way.
+
+What the search did establish, field-first, is a partial map of the
+**runtime item table at `0x560c14`, 40 bytes a row** — the table the AI, the
+recovery routine and the special-damage walk all index by an item id:
+
+| Offset | Refs | What touches it |
+| --- | --- | --- |
+| `+0x00` | 36 | a **pointer to the item's name** |
+| `+0x08` | 8 | a second string pointer, passed to `sprintf` |
+| `+0x14` | 49 | the **equip type**, tested against 4 for a shield |
+| `+0x15` | 25 | the **skill group**, indexing the recovery table |
+| `+0x16`, `+0x17`, `+0x18` | 11, 7, 16 | further bytes the stat getters read |
+| `+0x21`, `+0x22`, `+0x24` | 9, 7, 7 | unread |
+
+`observed` for the offsets and their reference counts; `+0x14` and `+0x15`
+are named from the routines that use them, the rest are `unknown`.
+
+**The pattern, restated.** Four searches that began from a *behaviour* — the
+experience threshold, the AI's decision switch, the item generator's class
+ladder, and now the economy — have all come back empty. Four that began from
+a *field or a table* — the buff arrays, the class tables, the condition run,
+the party record — all landed. The economy should be attempted again only
+from a field: find where a shop's parsed row lives at runtime, and read
+outward from it.

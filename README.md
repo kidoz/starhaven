@@ -1193,6 +1193,16 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The gamble on the economy: empty, and the pattern is now four for
+  four**: starting from the price factor did not converge — no routine in the
+  executable multiplies an item's value by a runtime float in anything like a
+  counter; every register-relative float multiply in the image is geometry.
+  What the search did leave is a partial map of the **runtime item table at
+  `0x560c14`, 40 bytes a row**: a name pointer at `+0x00`, a second string at
+  `+0x08`, the equip type at `+0x14`, the skill group at `+0x15`. And the
+  method pattern is now unambiguous — four searches begun from a *behaviour*
+  have all failed, four begun from a *field or table* have all landed. The
+  economy is worth one more attempt, from a field.
 - **Age put under the sitting, and it found the wrong curve**: `--age` and
   `--poisoned` set a party up and derive its maxima, and the run showed
   spell points falling with age where the executable has them **rising**.
