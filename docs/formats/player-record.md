@@ -788,3 +788,43 @@ are not part of the vestigial run.
 
 So the attack bonus's last term is **structurally present and always zero** —
 a vestige, not a UI artefact and not a live contribution.
+
+## `+0x60`: the skills
+
+Two hundred bytes sat between the resistance bytes and the item records with
+nothing said about them. Thirty-one are the skills.
+
+| what | where | evidence |
+| --- | --- | --- |
+| the array | `+0x60`, one byte a slot | `observed` |
+| how many slots | 31 (`0`..`0x1e`) | `observed` at 0x484899, `cmp eax, 0x1e; jle` |
+| the points | low six bits, `& 0x3f` | `observed` at 0x42d0e4 |
+| the mastery | the top two bits | `inferred` — the mask leaves exactly two, and four rungs is what the game has |
+| not learned | the whole byte is zero | `observed` at 0x484173 and 0x484899 |
+
+**Training**, out of `0x42d0d8`, is three rules and no more:
+
+- raising a skill from `n` costs **`n + 1`**, and the routine refuses when the
+  pool holds less (`cmp esi, edx; jb`);
+- the points stop at **60** (`cmp dl, 0x3c; jae` refuses at or above it);
+- the pool is a **dword at `+0x1410`**, four bytes below the hit points, and
+  `0x42d10e` writes back what the cost left of it.
+
+The raise is `inc al` on the packed byte, which is safe because 60 is well
+under the mask — the mastery bits ride along untouched. `observed`
+
+**What the array is for.** `0x484890` is the check that lets a made party
+start: it walks all four characters at stride `0x161c` from `0x908f34` to
+`0x90e804`, counts the non-zero slots in each, and returns false unless every
+one of them has **at least four**. `observed` — and it is why the array's
+length is knowable at all, since that walk states its own bound.
+
+`0x484150` is the rank getter. It takes a small argument (0..12, through a
+byte selector at `0x484258` into a jump table at `0x48424c`), reads the
+character's byte at `+0x60 + index`, and — if it is non-zero — divides the
+class at `+0x12` by three to get the class family. `observed` for the reads;
+`inferred` that the family is what caps the rung.
+
+Script opcodes reach the array too: `0x43c9a0` and `0x43c9bf` read a slot
+whose index is an instruction's argument byte at `+5`, and `0x430216` writes
+**1** — a skill granted outright rather than bought.

@@ -306,6 +306,86 @@ inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
 
 [[nodiscard]] inline int weighted_repair(int points) noexcept { return points; }
 
+// ---------------------------------------------------------------------------
+// Where a character's own skills live: the byte array at `+0x60`.
+//
+// Two hundred bytes sat unread between the resistances and the item records.
+// **Thirty-one of them are the skills, one byte each, indexed by skill id.**
+// `observed` at 0x484899, where the party-validity check walks indices 0
+// through 0x1e inclusive.
+//
+// The byte is packed. The training routine at 0x42d0d8 masks it with
+// **0x3f** to get the points, so the low six bits are the number and the top
+// two are the mastery rung -- Novice, Expert, Master, Grandmaster, which is
+// exactly four values. `observed` for the mask and the two spare bits;
+// `inferred` that the pair is the mastery, from there being four of them and
+// from the rank getter reading the same byte.
+//
+// Zero means the skill is not learned at all: every reader tests the whole
+// byte against zero before doing anything with it (0x484173, 0x484899).
+// `observed`
+
+inline constexpr int kSkillArrayOffset = 0x60;
+inline constexpr int kSkillSlots = 31;
+inline constexpr int kSkillPointMask = 0x3f;
+inline constexpr int kSkillMasteryShift = 6;
+
+// The training routine's own three rules, read straight out of 0x42d0d8:
+//
+//   * raising a skill from `n` costs **`n + 1`** points, and the character is
+//     refused if the pool holds less;
+//   * the points stop at **60** -- `cmp dl, 0x3c; jae` refuses at or above
+//     it, so 59 is the last rung that may be bought and 60 the ceiling;
+//   * the pool is a dword at **`+0x1410`**, four bytes before the hit points,
+//     and 0x42d10e writes back what the cost left of it.
+//
+// `observed`, all three.
+inline constexpr int kSkillPointCap = 60;
+inline constexpr int kFreeSkillPointsOffset = 0x1410;
+
+[[nodiscard]] inline constexpr int skill_points(int packed) noexcept {
+    return packed & kSkillPointMask;
+}
+
+[[nodiscard]] inline constexpr int skill_mastery(int packed) noexcept {
+    return (packed >> kSkillMasteryShift) & 0x3;
+}
+
+[[nodiscard]] inline constexpr int skill_raise_cost(int points) noexcept { return points + 1; }
+
+// Spend from the pool to buy one point, on the routine's own terms. Returns
+// false and touches nothing when the skill is unlearned, already at the
+// ceiling, or the pool is short.
+[[nodiscard]] inline constexpr bool train_skill(int& packed, int& pool) noexcept {
+    if (packed == 0) {
+        return false;
+    }
+    const int points = skill_points(packed);
+    const int cost = skill_raise_cost(points);
+    if (pool < cost || points >= kSkillPointCap) {
+        return false;
+    }
+    packed += 1;  // the mastery bits ride along untouched, as `inc al` leaves them
+    pool -= cost;
+    return true;
+}
+
+// What a made party must have before the game will start: the check at
+// 0x484890 walks all four characters at stride 0x161c and demands **at least
+// four** non-zero skills in each. `observed`
+inline constexpr int kStartingSkillsRequired = 4;
+
+template <typename SkillOf>
+[[nodiscard]] inline bool character_skills_chosen(SkillOf&& skill_of) {
+    int learned = 0;
+    for (int slot = 0; slot < kSkillSlots; ++slot) {
+        if (skill_of(slot) != 0) {
+            ++learned;
+        }
+    }
+    return learned >= kStartingSkillsRequired;
+}
+
 
 }  // namespace starhaven::game
 

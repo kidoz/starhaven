@@ -1251,6 +1251,12 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **The `+0x60` array is the skills**: thirty-one bytes, one a slot, points in
+  the low six bits and the mastery in the top two. Training costs `n + 1` to
+  buy the `n + 1`th point, stops at sixty, and spends a pool that lives in a
+  dword at `+0x1410`. The length is not a guess — the check that lets a made
+  party start walks slots `0` through `0x1e` in all four characters and
+  demands four non-zero in each.
 - **The actor's timers sit on a buff grid**: the AI tests bits `0x4000` and
   `0x8000` of the flags dword first, then reduces two 64-bit values to
   booleans by the same sign-then-zero idiom the party and character buff

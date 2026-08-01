@@ -2,6 +2,7 @@
 // around them.
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <map>
 
 #include "game/skills.hpp"
@@ -185,4 +186,59 @@ TEST_CASE("a group the table does not name costs nothing extra", "[skills]") {
     const int held = gear_recovery("Club");
     const int spent = held > 0 ? held : kBareHandRecovery;
     REQUIRE(spent == kBareHandRecovery);
+}
+
+TEST_CASE("a skill byte packs points under a mastery", "[skills]") {
+    REQUIRE(kSkillArrayOffset == 0x60);
+    REQUIRE(kSkillSlots == 31);
+    // Low six bits the points, top two the rung.
+    REQUIRE(skill_points(0x0c) == 12);
+    REQUIRE(skill_mastery(0x0c) == 0);
+    REQUIRE(skill_points(0x4c) == 12);
+    REQUIRE(skill_mastery(0x4c) == 1);
+    REQUIRE(skill_mastery(0xcc) == 3);
+    // Zero is not "novice at nothing", it is not learned.
+    REQUIRE(skill_points(0) == 0);
+}
+
+TEST_CASE("training costs the point it buys", "[skills]") {
+    REQUIRE(skill_raise_cost(0) == 1);
+    REQUIRE(skill_raise_cost(11) == 12);
+    int packed = 4;
+    int pool = 10;
+    REQUIRE(train_skill(packed, pool));
+    REQUIRE(skill_points(packed) == 5);
+    REQUIRE(pool == 5);  // five spent for the fifth point
+    // The next point costs six and the pool is short, so nothing moves.
+    REQUIRE_FALSE(train_skill(packed, pool));
+    REQUIRE(skill_points(packed) == 5);
+    REQUIRE(pool == 5);
+    // The mastery bits ride along untouched.
+    int master = 0x80 | 4;
+    int purse = 99;
+    REQUIRE(train_skill(master, purse));
+    REQUIRE(skill_mastery(master) == 2);
+    REQUIRE(skill_points(master) == 5);
+    // An unlearned skill cannot be trained into existence.
+    int absent = 0;
+    REQUIRE_FALSE(train_skill(absent, purse));
+    // And the ceiling holds at sixty.
+    int capped = kSkillPointCap;
+    REQUIRE_FALSE(train_skill(capped, purse));
+    int last = kSkillPointCap - 1;
+    REQUIRE(train_skill(last, purse));
+    REQUIRE(skill_points(last) == kSkillPointCap);
+}
+
+TEST_CASE("a made character owes four skills", "[skills]") {
+    REQUIRE(kStartingSkillsRequired == 4);
+    std::array<int, kSkillSlots> slots{};
+    const auto read = [&slots](int slot) { return slots[static_cast<std::size_t>(slot)]; };
+    REQUIRE_FALSE(character_skills_chosen(read));
+    slots[1] = 1;
+    slots[4] = 1;
+    slots[9] = 1;
+    REQUIRE_FALSE(character_skills_chosen(read));
+    slots[30] = 1;  // the last slot the walk reaches counts
+    REQUIRE(character_skills_chosen(read));
 }
