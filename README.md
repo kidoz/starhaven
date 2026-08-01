@@ -1398,6 +1398,23 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The gold cut, finished — and the profession table at run time.** Every
+  profession's row ends `%01 takes %17 percent of all gold you find`, and
+  `0x41ede0` is what applies it. It walks the party's **two sixty-byte
+  hireling records** at `0x90e7a4` and `0x90e7e0`, then the global roster
+  skipping anyone already there, and for each hired person takes the
+  **profession id at `+0x18`** and indexes a table of **seventy-six-byte
+  records at `0x6b5dcc`** — the professions, in memory — **adding** the dword
+  it finds to a running total. So the cut is a sum, and two hirelings of one
+  profession take twice as much.
+- **Both monster attacks live: the numbers re-measured.** Every figure this
+  project published had the wrong column governing the second attack. With it
+  corrected, four world hours on one map against an armed, trained level-twelve
+  party: **11 kills at novice against 14 at master**, the first casualty at
+  world minute **12** either way — where the same run before the fix read 16
+  and 34. The earlier figures are superseded. With spells and the monsters'
+  own casting live it falls to **7 kills**, which is the first time a headless
+  run has met a monster using its spell column.
 - **The gamble on the economy: the sweep paid, and settled a hireling
   inference outright.** Following the gold routine found where the hirelings
   actually live. `0x41edfc` walks from **`0x90e7a4`** at **stride 60** and

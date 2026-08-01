@@ -1151,3 +1151,35 @@ rolls but no recovery-shaped arithmetic (no `×128`, no small `imul`).
 - `MONSTERS.TXT`'s treasure codes are read and paid out through the four
   item-generator tables — see the treasure-code section above. This was
   carried as `unknown` here until those tables were joined.
+
+## What a hireling's cut costs, and where the professions live at run time
+
+Every profession's row in `npcprof.txt` ends `%01 takes %17 percent of all
+gold you find`. `0x41ede0` is what applies it, and reading it names two
+runtime structures.
+
+**The party keeps two hirelings as full sixty-byte records**, at `0x90e7a4` and
+`0x90e7e0`, immediately past the end of the party block and in the same shape
+as the global roster's entries. The routine walks both, then walks the global
+roster at `0x6aef28` skipping anyone whose name matches either. `observed`
+
+**The professions are seventy-six-byte records at `0x6b5dcc`.** The cut is
+summed like this:
+
+```
+mov cl, byte [esi + 0x55cde0]     ; which hireling, from a short list
+lea eax, [eax + eax*2] ; *5 ; shl 2   ; x 60 — a roster record
+cmp cl, 2
+jae ...                            ; two or more: the global roster
+lea edx, [eax + 0x90e7a4]          ; under two: the party's own pair
+mov edx, dword [edx + 0x18]        ; the record's profession id
+lea ecx, [edx + edx*8] ; lea edx, [edx + ecx*2]   ; x 19
+add ebx, dword [edx*4 + 0x6b5dcc]  ; x 4 -> a stride of 76
+```
+
+So each hired person's **profession id at `+0x18`** indexes the profession
+table, and the dword at the start of that record is **added to a running
+total** — the percentage of found gold the party loses. Two hirelings of the
+same profession would take twice as much. `observed` for the walk, the strides
+and the sum; `inferred` that the dword summed is the `%17` the prose names,
+from its being the only thing added and the prose saying so.
