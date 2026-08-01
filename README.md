@@ -1398,6 +1398,16 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The roster, further — and an inference weakened rather than confirmed.**
+  `0x41110c` names the record's **`+0x00` as the person's name**: it walks the
+  array testing the hired bit at `+0x08` and compares the record's string
+  against the one at **`0x90e7a4`**, a name the party carries just past its own
+  record. So the party remembers a hireling **by name**. That makes the
+  standing inference *less* likely, not more: party `+0x95` and `+0x96` were
+  believed to be the two hireling slots only because id 214 clears them when it
+  flags a record, and following them leads into a region with nothing else to
+  do with the roster. They stay `inferred`, and the write-up now says the
+  evidence points away rather than towards.
 - **The gamble on `0x6aef28`: the roster, addressed by scripts.** The stride is
   **60**, confirmed twice — the property setter reaches a record as
   `0x6aef30 + 60 x amount`, and `0x43cda7` does it outright with `imul eax,

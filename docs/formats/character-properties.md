@@ -277,8 +277,16 @@ bytes** at `[esi+5]` and `[esi+6]`. So a map script names a record by number.
 
 | offset | what |
 | --- | --- |
-| `+0x08` | a dword; property id 214 ORs `0x80` into it |
+| `+0x00` | the person's **name**, a pointer |
+| `+0x08` | flags; bit `0x80` is **hired** |
 | `+0x14` | a dword a script sets, at `0x43cdaa` |
+| `+0x18` | the **profession** id, tested by `0x467f30` |
+| `+0x34` | one reference; `unknown` |
+
+`0x41110c` names `+0x00`: it walks the array testing bit `0x80` at `+0x08` and
+then compares the record's string, character by character, against the one at
+**`0x90e7a4`** — a name the party carries just past its own record. That is how
+the party remembers who it hired. `observed`
 
 The count is `0x6ba534`, read twenty-four times. `observed`
 
@@ -286,7 +294,12 @@ So it is **the game's roster of named people**, addressed by index from
 scripts: exactly the risk the gamble named. What it adds is the stride, the
 count's address, two fields and the fact that scripts index it directly.
 
-**And the inference it was meant to test stands where it was.** Id 214 clears
+**And the inference it was meant to test is still not settled.** Id 214 clears
 party `+0x95` and `+0x96` in the same breath as it flags a record, which is
-consistent with those two bytes being the party's hireling slots and is not
-proof of it. `inferred`, still.
+consistent with those two bytes being the hireling slots. Following them does
+not confirm it: they are read at `0x42dc32`, `0x42dc75` and `0x42eb52`,
+written at `0x42eb82` and cleared at `0x42eb8d`, all in a region that has
+nothing else to do with the roster. So the slots stay `inferred`, and the
+party's memory of a hireling is now known to be a **name** at `0x90e7a4`
+rather than a pair of bytes — which makes the original inference less likely,
+not more.
