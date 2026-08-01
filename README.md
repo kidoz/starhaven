@@ -1398,6 +1398,16 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The gamble on `0x6aef28`: the roster, addressed by scripts.** The stride is
+  **60**, confirmed twice — the property setter reaches a record as
+  `0x6aef30 + 60 x amount`, and `0x43cda7` does it outright with `imul eax,
+  eax, 0x3c`, the index assembled from an **event instruction's argument
+  bytes**. So a map script names a record by number. `+0x08` is the dword id
+  214 ORs `0x80` into, `+0x14` a dword a script sets, and `0x6ba534` is the
+  count. That is the risk landing as stated — the game's roster of named
+  people — and the inference it was meant to test stays where it was: id 214
+  clearing party `+0x95` and `+0x96` when it flags a record is *consistent*
+  with those being the hireling slots and is not proof.
 - **The decoration table, and the actor's speed index.** Handle type 5's case
   settles the decoration array: base `0x5b23cc`, **28-byte rows**, with the
   position in the first three dwords and words at `+0x12`, `+0x14`, `+0x16`.

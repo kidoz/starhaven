@@ -263,3 +263,30 @@ standing the death handler moves by fifty.
 So the gamble's stated risk was that what remained would be save-file
 bookkeeping with no game meaning. It is not bookkeeping — a bit array, an NPC
 mark and the reputation — but two of the three keep their names to themselves.
+
+## The array at `0x6aef28`
+
+Property id 214 flags a record here; following the array settles its shape and
+most of what it is.
+
+**The stride is 60, confirmed twice.** The property setter reaches a record as
+`0x6aef30 + 60 x amount`, and `0x43cda7` does it outright — `imul eax, eax,
+0x3c` — with the index assembled from an **event instruction's argument
+bytes** at `[esi+5]` and `[esi+6]`. So a map script names a record by number.
+`observed`
+
+| offset | what |
+| --- | --- |
+| `+0x08` | a dword; property id 214 ORs `0x80` into it |
+| `+0x14` | a dword a script sets, at `0x43cdaa` |
+
+The count is `0x6ba534`, read twenty-four times. `observed`
+
+So it is **the game's roster of named people**, addressed by index from
+scripts: exactly the risk the gamble named. What it adds is the stride, the
+count's address, two fields and the fact that scripts index it directly.
+
+**And the inference it was meant to test stands where it was.** Id 214 clears
+party `+0x95` and `+0x96` in the same breath as it flags a record, which is
+consistent with those two bytes being the party's hireling slots and is not
+proof of it. `inferred`, still.
