@@ -79,10 +79,11 @@ inline constexpr int kOfThieverySpecial = 35;
     if (const auto it = who.skills.find("Disarm Traps"); it != who.skills.end()) {
         points = it->second;
     }
-    if (points <= 0) {
+    if (skill_points(points) <= 0) {
         return 0;
     }
-    return disarm_value(points, rank_of(points), disarm_item_doublings(who), hireling_points);
+    return disarm_value(skill_points(points), rank_of(points), disarm_item_doublings(who),
+                        hireling_points);
 }
 
 // The roll: value plus a d10 must beat five times the map's lock number.
@@ -144,14 +145,16 @@ enum class TrapElement : std::uint8_t { Fire, Cold, Electric, Poison };
     return damage;
 }
 
-// The original stores a skill as one byte: level in the low six bits,
-// expert as bit 6, master as bit 7 — and the dodge below reads that byte
-// raw, mastery bits and all, so an expert leaps far better than their
-// points alone say. The bit layout is the original's; the thresholds
-// behind `rank_of` remain this engine's.
-[[nodiscard]] inline int packed_skill_byte(int points) noexcept {
-    const int rank = rank_of(points);
-    return points | (rank >= 2 ? 0x80 : rank == 1 ? 0x40 : 0);
+// The original stores a skill as one byte: points in the low six bits, the
+// rank in the top two — and the dodge below reads that byte raw, rank bits
+// and all, so an expert leaps far better than their points alone say.
+//
+// **This used to manufacture the rank from the points**, on thresholds that
+// were this engine's invention. It does not any more: the character record
+// carries the whole byte and a teacher sets the bits, so there is nothing to
+// manufacture. What is left is a convenience for building one.
+[[nodiscard]] inline int packed_skill_byte(int points, int rank = 0) noexcept {
+    return teach_rank(points, rank);
 }
 
 // A member's leap clear of the blast, by Perception: the executable rolls

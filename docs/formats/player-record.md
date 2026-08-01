@@ -884,3 +884,28 @@ hold it.
 
 `0x484150` returns **31** when the walk runs off the end, which is why
 `0x4301fa` compares its result against `0x1f` before using it. `observed`
+
+## The two bits above the points
+
+Every skill is one byte: the points in the low six bits, **the rank in the top
+two**. Three traced sites agree and none of them looks at the number:
+
+- the training routine at `0x42d0e4` masks the points with `0x3f` and raises
+  them with `inc al`, which leaves `0xc0` standing — a number and a rank
+  sharing a byte;
+- the armour-recovery routine tests **`0x40` at `0x481c1e`** and halves the
+  penalty, then **`0x80` at `0x481c84`** and drops it entirely, which is
+  `SKILLDES.TXT`'s "Recovery penalty reduced" and "eliminated" lines with the
+  bits behind them;
+- the property setter's skill case at `0x441dad` masks the incoming byte with
+  `0xc0` before writing, preserving whatever rank was there.
+
+`observed`, all three. The two bits can hold a fourth value; nothing has been
+seen to set `0xc0`, so what it would mean is `unknown`.
+
+**Retracted.** This engine placed expert at four points and master at seven,
+invented because no table states where the ranks begin. No table states it
+because the rank is not in the points at all — a teacher sets the bits. A
+character with thirty points and no bit set is a novice; one with two points
+and `0x80` is a master. Every reader of a skill in this engine now takes the
+byte and splits it, rather than guessing a rank from a count.

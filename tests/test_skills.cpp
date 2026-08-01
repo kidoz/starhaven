@@ -97,7 +97,7 @@ TEST_CASE("every base class starts with a weapon skill", "[skills]") {
     REQUIRE(kSkillNames[static_cast<std::size_t>(class_starting_skills(9)[0])] == "Sword");
 }
 
-TEST_CASE("the higher lines wake at their ranks", "[skills]") {
+TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
     const std::vector<std::string> mace{"Skill added to Attack Bonus",
                                         "Skill added to Attack Damage",
                                         "Chance to stun equal to skill"};
@@ -107,58 +107,58 @@ TEST_CASE("the higher lines wake at their ranks", "[skills]") {
     REQUIRE(low.damage == 0);
     REQUIRE(low.stun_percent == 0);
     // Five points: expert — damage joins.
-    auto mid = skill_power(mace, 5);
+    auto mid = skill_power(mace, 5 | 0x40);  // expert by its bit, not its points
     REQUIRE(mid.damage == 5);
     REQUIRE(mid.stun_percent == 0);
     // Eight points: master — the stun equals the skill.
-    auto high = skill_power(mace, 8);
+    auto high = skill_power(mace, 8 | 0x80);
     REQUIRE(high.stun_percent == 8);
 
     const std::vector<std::string> shield{"Skill added to Armor Class",
                                           "Skill added to Armor Class (double effect)",
                                           "Skill added to Armor Class (triple effect)"};
     REQUIRE(skill_power(shield, 3).armor == 3);
-    REQUIRE(skill_power(shield, 4).armor == 8);
-    REQUIRE(skill_power(shield, 7).armor == 21);
+    REQUIRE(skill_power(shield, 4 | 0x40).armor == 8);
+    REQUIRE(skill_power(shield, 7 | 0x80).armor == 21);
 
     const std::vector<std::string> bow{"Skill added to Attack Bonus",
                                        "Skill reduces recovery time",
                                        "Bow fires two arrows on every attack"};
-    REQUIRE_FALSE(skill_power(bow, 6).second_arrow);
-    REQUIRE(skill_power(bow, 7).second_arrow);
-    REQUIRE(skill_power(bow, 6).recovery_scale < 1.0f);
+    REQUIRE_FALSE(skill_power(bow, 6 | 0x40).second_arrow);
+    REQUIRE(skill_power(bow, 7 | 0x80).second_arrow);
+    REQUIRE(skill_power(bow, 6 | 0x40).recovery_scale < 1.0f);
     REQUIRE(skill_power(bow, 3).recovery_scale == 1.0f);
 
     const std::vector<std::string> dagger{"Skill added to Attack Bonus",
                                           "Permits use of dagger in left hand",
                                           "Chance to cause triple damage equal to skill"};
-    REQUIRE(skill_power(dagger, 7).triple_percent == 7);
-    REQUIRE(skill_power(dagger, 6).triple_percent == 0);
+    REQUIRE(skill_power(dagger, 7 | 0x80).triple_percent == 7);
+    REQUIRE(skill_power(dagger, 6 | 0x40).triple_percent == 0);
 
     const std::vector<std::string> merchant{"Skill adjusts shop prices in your favor",
                                             "Double effect of skill", "Triple effect of skill"};
     REQUIRE(skill_power(merchant, 3).price_percent == 3);
-    REQUIRE(skill_power(merchant, 4).price_percent == 8);
-    REQUIRE(skill_power(merchant, 7).price_percent == 21);
+    REQUIRE(skill_power(merchant, 4 | 0x40).price_percent == 8);
+    REQUIRE(skill_power(merchant, 7 | 0x80).price_percent == 21);
 }
 
 TEST_CASE("the body's lines grant points and lift the armor's drag", "[skills]") {
     const std::vector<std::string> body{"Skill adds to Hit Points", "Double effect of skill",
                                         "Triple effect of skill"};
     REQUIRE(skill_power(body, 3).hp_bonus == 3);
-    REQUIRE(skill_power(body, 4).hp_bonus == 8);
-    REQUIRE(skill_power(body, 7).hp_bonus == 21);
+    REQUIRE(skill_power(body, 4 | 0x40).hp_bonus == 8);
+    REQUIRE(skill_power(body, 7 | 0x80).hp_bonus == 21);
     const std::vector<std::string> meditation{"Skill adds to Spell Points",
                                               "Double effect of skill",
                                               "Triple effect of skill"};
-    REQUIRE(skill_power(meditation, 5).sp_bonus == 10);
+    REQUIRE(skill_power(meditation, 5 | 0x40).sp_bonus == 10);
 
     const std::vector<std::string> plate{"Skill added to Armor Class",
                                          "Recovery penalty reduced",
                                          "Recovery penalty eliminated"};
     REQUIRE(skill_power(plate, 3).armor_penalty_lift == 0);
-    REQUIRE(skill_power(plate, 4).armor_penalty_lift == 1);
-    REQUIRE(skill_power(plate, 7).armor_penalty_lift == 2);
+    REQUIRE(skill_power(plate, 4 | 0x40).armor_penalty_lift == 1);
+    REQUIRE(skill_power(plate, 7 | 0x80).armor_penalty_lift == 2);
     REQUIRE(armor_penalty("Plate") > armor_penalty("Chain"));
     REQUIRE(armor_penalty("Chain") > armor_penalty("Leather"));
     REQUIRE(armor_penalty("Sword") == 0.0f);
@@ -169,12 +169,12 @@ TEST_CASE("the left hand opens at the line's own rank", "[skills]") {
                                           "Permits use of dagger in left hand",
                                           "Chance to cause triple damage equal to skill"};
     REQUIRE_FALSE(skill_power(dagger, 3).left_hand);
-    REQUIRE(skill_power(dagger, 4).left_hand);  // the expert line
+    REQUIRE(skill_power(dagger, 4 | 0x40).left_hand);  // the expert line
     const std::vector<std::string> sword{"Skill added to Attack Bonus",
                                          "Skill reduces recovery time",
                                          "Permits use of sword in left hand"};
-    REQUIRE_FALSE(skill_power(sword, 6).left_hand);
-    REQUIRE(skill_power(sword, 7).left_hand);  // the master line
+    REQUIRE_FALSE(skill_power(sword, 6 | 0x40).left_hand);
+    REQUIRE(skill_power(sword, 7 | 0x80).left_hand);  // the master line
 }
 
 TEST_CASE("a group the table does not name costs nothing extra", "[skills]") {
@@ -334,4 +334,27 @@ TEST_CASE("a class begins with two skills, not one", "[skills]") {
         }
         REQUIRE(granted == 2);
     }
+}
+
+TEST_CASE("the rank lives in the byte, not in the point count", "[skills]") {
+    // The retraction this replaces made expert begin at four points and
+    // master at seven. Neither number is in the game.
+    REQUIRE(skill_rank(3) == 0);
+    REQUIRE(skill_rank(30) == 0);   // thirty points and still a novice
+    REQUIRE(skill_rank(0x42) == 1);  // two points and an expert
+    REQUIRE(skill_rank(0x81) == 2);
+    REQUIRE(skill_points(0x81) == 1);
+    REQUIRE(kRankNames[0] == "Normal");
+    REQUIRE(kRankNames[2] == "Master");
+    // Teaching sets the bits and leaves the points alone.
+    const int taught = teach_rank(11, 2);
+    REQUIRE(skill_points(taught) == 11);
+    REQUIRE(skill_rank(taught) == 2);
+    REQUIRE(teach_rank(taught, 0) == 11);
+    // And training on top of a rank keeps it.
+    int packed = teach_rank(11, 1);
+    int pool = 99;
+    REQUIRE(train_skill(packed, pool));
+    REQUIRE(skill_points(packed) == 12);
+    REQUIRE(skill_rank(packed) == 1);
 }

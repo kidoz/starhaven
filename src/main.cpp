@@ -3446,7 +3446,7 @@ int main(int argc, char** argv) {
         }
         int points = 0;
         if (const auto it = who.skills.find(row->skill_group); it != who.skills.end()) {
-            points = it->second;
+            points = game::skill_points(it->second);
         }
         int mastered = 0;
         for (const auto& h : hirelings) {
@@ -3467,7 +3467,7 @@ int main(int argc, char** argv) {
         int points = 0;
         if (const auto it = who.skills.find(std::string(game::school_skill(spell.school)));
             it != who.skills.end()) {
-            points = it->second;
+            points = game::skill_points(it->second);
         }
         int mastered = 0;
         for (const auto& h : hirelings) {
@@ -4143,7 +4143,7 @@ int main(int argc, char** argv) {
                         int points = 0;
                         if (const auto it = who.skills.find(row->skill_group);
                             it != who.skills.end()) {
-                            points = it->second;
+                            points = game::skill_points(it->second);
                         }
                         if (const auto* skill = skill_table.find(row->skill_group);
                             skill != nullptr && points > 0 &&
@@ -6489,7 +6489,7 @@ int main(int argc, char** argv) {
                 int points = squire;
                 if (const auto it = party[i].skills.find(row->skill_group);
                     it != party[i].skills.end()) {
-                    points += it->second;
+                    points += game::skill_points(it->second);
                 }
                 skilled_armor += power_of_skill(row->skill_group, points).armor;
             }
@@ -6782,8 +6782,9 @@ int main(int argc, char** argv) {
                                 it != member.skills.end()) {
                                 perception = it->second;
                             }
-                            if (game::perception_dodges(game::packed_skill_byte(perception),
-                                                        misc_random)) {
+                            // The record already holds the packed byte the
+                            // dodge wants; nothing needs repacking.
+                            if (game::perception_dodges(perception, misc_random)) {
                                 speak(member, 33);  // line 33: the close call's word
                                 continue;
                             }
@@ -7008,7 +7009,7 @@ int main(int argc, char** argv) {
                             int points = 0;
                             if (const auto it = party[who].skills.find(row.skill_group);
                                 it != party[who].skills.end()) {
-                                points = it->second;
+                                points = game::skill_points(it->second);
                             }
                             const auto* skill = skill_table.find(row.skill_group);
                             return skill != nullptr && points > 0
@@ -7067,7 +7068,7 @@ int main(int argc, char** argv) {
                             if (const auto it = party[who].skills.find(held_row->skill_group);
                                 it != party[who].skills.end() &&
                                 game::rank_of(it->second) >= 1) {
-                                rec_points -= it->second;
+                                rec_points -= game::skill_points(it->second);
                             }
                         }
                         for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {

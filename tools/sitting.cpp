@@ -51,6 +51,7 @@ void print_usage(const char* argv0) {
               << " [<map>[,<map>...]] [--minutes N] [--seed N] [--fps N]\n"
               << "          [--still] [--teach] [--no-spells] [--age N]\n"
               << "          [--poisoned] [--rest] [--train N] [--level N]\n"
+              << "          [--rank 0|1|2]\n"
               << "          [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
     bool poisoned = false;
     bool resting = false;
     int start_level = 0;
+    int start_rank = 0;
     int train_points = 0;
 
     for (int i = 1; i < argc; ++i) {
@@ -144,6 +146,8 @@ int main(int argc, char** argv) {
             poisoned = true;
         } else if (a == "--level" && i + 1 < argc) {
             start_level = std::max(1, std::atoi(argv[++i]));
+        } else if (a == "--rank" && i + 1 < argc) {
+            start_rank = std::max(0, std::min(2, std::atoi(argv[++i])));
         } else if (a == "--rest") {
             resting = true;
         } else if (a == "--train" && i + 1 < argc) {
@@ -311,6 +315,14 @@ int main(int argc, char** argv) {
     // has been read. `unknown`
     for (auto& who : party) {
         who.skill_points += train_points;
+        // A rank is a teacher's doing, not a point threshold: it lives in the
+        // top two bits of the skill byte and nothing but a teacher sets it.
+        // `--rank` is that teacher.
+        if (start_rank > 0) {
+            for (auto& [name, packed] : who.skills) {
+                packed = game::teach_rank(packed, start_rank);
+            }
+        }
     }
 
     for (const std::string& map_name : maps) {
@@ -431,6 +443,27 @@ int main(int argc, char** argv) {
                     row != nullptr && !row->skill_group.empty()) {
                     points = game::gear_recovery(row->skill_group);
                 }
+            }
+            // Worn armour and a held shield add their own cost, and the
+            // wearer's rank in that armour's skill takes it back — halved on
+            // bit 0x40 and gone on 0x80, which is what the recovery routine
+            // tests at 0x481c1e and 0x481c84. Nothing headless had applied
+            // this, so the rank bits never reached the pace.
+            for (const game::Slot worn : {game::Slot::Armor, game::Slot::Shield}) {
+                const int piece = party[who].equipped[static_cast<std::size_t>(worn)];
+                if (piece <= 0 || party[who].equipped_broken[static_cast<std::size_t>(worn)]) {
+                    continue;
+                }
+                const auto* row = items.at(static_cast<std::size_t>(piece));
+                if (row == nullptr || row->skill_group.empty()) {
+                    continue;
+                }
+                int lift = 0;
+                if (const auto it = party[who].skills.find(row->skill_group);
+                    it != party[who].skills.end()) {
+                    lift = game::skill_rank(it->second);
+                }
+                points += game::worn_recovery_penalty(game::gear_recovery(row->skill_group), lift);
             }
             points -= game::attribute_bonus(party[who].attribute(game::Attribute::Speed));
             recovery[who] = game::recovery_seconds(std::max(0, points));
@@ -578,8 +611,12 @@ int main(int argc, char** argv) {
             for (const auto& [name, packed] : party[who].skills) {
                 best = std::max(best, game::skill_points(packed));
             }
+            int rank = 0;
+            for (const auto& [name, packed] : party[who].skills) {
+                rank = std::max(rank, game::skill_rank(packed));
+            }
             std::cout << (who == 0 ? "" : " ") << party[who].name.substr(0, 4) << " best "
-                      << best;
+                      << best << " " << game::kRankNames[static_cast<std::size_t>(rank)];
         }
         std::cout << ")";
     }

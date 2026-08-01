@@ -1298,6 +1298,19 @@ interoperability and compatibility with a legally purchased copy.
   goes; the reads, the pairs and the spacing stand. Either the values arrive
   wholesale from the map or the save, or the three AI actions gated on them
   are unreachable.
+- **The rank is the two bits, not the point count.** This engine placed expert
+  at four points and master at seven — invented, because no table says where
+  the ranks begin. No table says it because a **teacher sets the bits**: three
+  traced sites agree and none looks at the number, the training routine
+  raising the points while leaving `0xc0` standing, the armour-recovery
+  routine halving on `0x40` and dropping on `0x80`, and the property setter
+  masking with `0xc0` before it writes. So thirty points and no bit is a
+  novice and two points with `0x80` is a master. Every reader now splits the
+  byte instead of guessing, which also fixed six places that were passing a
+  packed byte where a point count was meant — a master's five points would
+  have read as a hundred and thirty-three. `sitting --rank` is the teacher,
+  and the armour drag it feeds is wired but does not bite there yet: a made
+  party wears nothing.
 - **All fifty-three property bodies, read.** Every case names its own field in
   its first two instructions, so one pass settles nine constants and corrects
   two. **The level is variable 9, not 8** — both routines share one selector

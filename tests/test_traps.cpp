@@ -26,8 +26,12 @@ TEST_CASE("gear grants its doublings, broken gear grants nothing", "[traps]") {
     who.skills["Disarm Traps"] = 5;
 
     REQUIRE(disarm_item_doublings(who) == 0);
-    // Five points is already expert by this engine's thresholds: 5 × 3.
+    // Five points and no rank bit is a novice, whatever the number.
+    REQUIRE(character_disarm_value(who, 0) == 10);
+    // Taught to expert, the same five points are worth half again.
+    who.skills["Disarm Traps"] = packed_skill_byte(5, 1);
     REQUIRE(character_disarm_value(who, 0) == 15);
+    who.skills["Disarm Traps"] = 5;
 
     who.equipped[static_cast<std::size_t>(Slot::Cloak)] = kPendragonId;
     REQUIRE(disarm_item_doublings(who) == 1);
@@ -41,7 +45,11 @@ TEST_CASE("gear grants its doublings, broken gear grants nothing", "[traps]") {
     who.equipped[static_cast<std::size_t>(Slot::Amulet)] = 101;
     who.worn_special[static_cast<std::size_t>(Slot::Amulet)] = kOfThieverySpecial;
     REQUIRE(disarm_item_doublings(who) == 3);
+    REQUIRE(character_disarm_value(who, 0) == 80);  // (5 × 2³) × 2, a novice's
+    // The same gear on an expert's five points is worth half again more.
+    who.skills["Disarm Traps"] = packed_skill_byte(5, 1);
     REQUIRE(character_disarm_value(who, 0) == 120);  // (5 × 2³) × 3
+    who.skills["Disarm Traps"] = 5;
 
     // A broken piece is mute.
     who.equipped_broken[static_cast<std::size_t>(Slot::Cloak)] = true;
@@ -115,11 +123,16 @@ TEST_CASE("the blast is five plus the trap column's d20s, rolled once", "[traps]
     REQUIRE(trap_damage(9, a) == trap_damage(9, b));
 }
 
-TEST_CASE("the packed byte carries the level and the rank bits", "[traps]") {
+TEST_CASE("the packed byte carries the points and the rank bits", "[traps]") {
+    // The rank is no longer manufactured from the points: it is whatever a
+    // teacher set, and the packer only puts the two together.
     REQUIRE(packed_skill_byte(0) == 0);
-    REQUIRE(packed_skill_byte(3) == 3);          // normal: bare points
-    REQUIRE(packed_skill_byte(4) == 0x44);       // expert at four
-    REQUIRE(packed_skill_byte(7) == 0x87);       // master at seven
+    REQUIRE(packed_skill_byte(3) == 3);           // no bits: a novice at three
+    REQUIRE(packed_skill_byte(4) == 4);           // and still a novice at four
+    REQUIRE(packed_skill_byte(4, 1) == 0x44);     // expert, because it was taught
+    REQUIRE(packed_skill_byte(7, 2) == 0x87);     // master, likewise
+    REQUIRE(skill_points(packed_skill_byte(7, 2)) == 7);
+    REQUIRE(skill_rank(packed_skill_byte(7, 2)) == 2);
 }
 
 TEST_CASE("perception leaps clear by the original's roll", "[traps]") {

@@ -57,16 +57,45 @@ struct SkillEffect {
     return out;
 }
 
-// The rank thresholds. The tables state what expert and master ranks do,
-// but not where they begin — the original keeps that with teachers no table
-// lists — so the steps are this engine's own: expert at four points, master
-// at seven. `inferred`
-inline constexpr int kExpertAt = 4;
-inline constexpr int kMasterAt = 7;
+// **Retracted: the rank is not a point threshold.** Expert at four points and
+// master at seven stood here, invented because no table states where the
+// ranks begin. No table states it because the ranks are not in the points at
+// all: every skill is **one packed byte**, the points in its low six bits and
+// the rank in the top two, and a teacher sets the bits. The training routine
+// at `0x42d0d8` masks the points with `0x3f` and leaves `0xc0` untouched when
+// it raises them, which is exactly a number and a rank sharing a byte; the
+// armour-recovery routine tests `0x40` at `0x481c1e` and `0x80` at
+// `0x481c84` and lifts the penalty by half and then wholly, which is
+// `SKILLDES.TXT`'s "Recovery penalty reduced" and "eliminated" lines with the
+// bits behind them. `observed`
+//
+// So a character with thirty points and no bits set is still a novice, and
+// one with two points and `0x80` set is a master. That is a different game
+// from the one this engine was playing.
 
-[[nodiscard]] inline int rank_of(int points) noexcept {
-    return points >= kMasterAt ? 2 : points >= kExpertAt ? 1 : 0;
+inline constexpr int kSkillPointMask = 0x3f;
+inline constexpr int kSkillRankShift = 6;
+
+[[nodiscard]] inline constexpr int skill_points(int packed) noexcept {
+    return packed & kSkillPointMask;
 }
+
+// 0 novice, 1 expert, 2 master. The two bits can hold a fourth value and
+// nothing in the game has been seen to set it. `observed` for the mask,
+// `unknown` for what `0xc0` would mean.
+[[nodiscard]] inline constexpr int skill_rank(int packed) noexcept {
+    return (packed >> kSkillRankShift) & 0x3;
+}
+
+inline constexpr std::array<std::string_view, 3> kRankNames{"Normal", "Expert", "Master"};
+
+// What a teacher does: set the rank, leaving the points where they are.
+[[nodiscard]] inline constexpr int teach_rank(int packed, int rank) noexcept {
+    const int held = rank < 0 ? 0 : rank > 3 ? 3 : rank;
+    return skill_points(packed) | (held << kSkillRankShift);
+}
+
+[[nodiscard]] inline int rank_of(int packed) noexcept { return skill_rank(packed); }
 
 // Everything a skill grants at a rank, each from the table's own line for
 // that rank; a line beyond the held rank grants nothing yet.
@@ -93,12 +122,16 @@ struct SkillPower {
 
 // Read what `points` in a skill grant at their rank, from the skill's own
 // SKILLDES.TXT lines in rank order.
-[[nodiscard]] inline SkillPower skill_power(const std::vector<std::string>& lines, int points) {
+// `packed` is the skill byte as the character record holds it: the points in
+// the low six bits, the rank in the top two. A byte of zero is a skill the
+// character does not have.
+[[nodiscard]] inline SkillPower skill_power(const std::vector<std::string>& lines, int packed) {
     SkillPower out;
+    const int points = skill_points(packed);
     if (points <= 0) {
         return out;
     }
-    const int rank = rank_of(points);
+    const int rank = rank_of(packed);
     int multiplier = 1;
     bool base_attack = false, base_armor = false, base_prices = false, adds_damage = false;
     bool cuts_recovery = false, adds_hp = false, adds_sp = false;
@@ -338,8 +371,6 @@ inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
 
 inline constexpr int kSkillArrayOffset = 0x60;
 inline constexpr int kSkillSlots = 31;
-inline constexpr int kSkillPointMask = 0x3f;
-inline constexpr int kSkillMasteryShift = 6;
 
 // The training routine's own three rules, read straight out of 0x42d0d8:
 //
@@ -354,12 +385,10 @@ inline constexpr int kSkillMasteryShift = 6;
 inline constexpr int kSkillPointCap = 60;
 inline constexpr int kFreeSkillPointsOffset = 0x1410;
 
-[[nodiscard]] inline constexpr int skill_points(int packed) noexcept {
-    return packed & kSkillPointMask;
-}
-
+// `skill_points` and `skill_rank` are defined above, beside the retraction
+// that made them necessary.
 [[nodiscard]] inline constexpr int skill_mastery(int packed) noexcept {
-    return (packed >> kSkillMasteryShift) & 0x3;
+    return skill_rank(packed);
 }
 
 [[nodiscard]] inline constexpr int skill_raise_cost(int points) noexcept { return points + 1; }
