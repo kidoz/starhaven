@@ -1381,6 +1381,16 @@ interoperability and compatibility with a legally purchased copy.
   chain and adding nothing; it half lands. They are those columns, but the
   runtime keeps them **decoded into bytes** rather than as the `"2d6"` text
   the file writes and this engine re-parses on every roll.
+- **Four more monster columns, and a correction.** Reading the short cases one
+  at a time adds `#` at `+0x08`, **`LVL` at `+0x09`**, `Fly` at `+0x0f` and
+  **`Spd` at `+0x3c`** — and that last one corrects an earlier reading that put
+  the speed at `+0x36`, which belongs to the *other* table, behind the pointer
+  at `0x55dd94`. **Seventeen of the thirty-two columns** now have an offset.
+  The rest do not for a reason that is now on record rather than guessed at:
+  `HP` and `EXP` split their cell on commas and write through a **computed
+  pointer** instead of a literal offset, which is why no scan can attribute
+  them — the two unclaimed dwords are `+0x0c` and `+0x14`, and which is which
+  stays `unknown`.
 - **The monster row's columns, named — and a withdrawal withdrawn.** The
   parser dispatches on the **column index** (`cmp edi, 0x1f; jmp [edi*4 +
   0x44851c]`), so the *n*th case is the *n*th column of the header row, and the

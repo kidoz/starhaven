@@ -878,10 +878,33 @@ six bytes, in order.
 | 24 | `Use%` | `+0x21` |
 | 26..31 | `Fire`, `Elec`, `Cold`, `Pois`, `Phys`, `Mag` | `+0x24`..`+0x29` |
 
-`observed`. The columns whose case bodies are short and share a tail — `LVL`,
-`HP`, `EXP`, `Treasure`, `Fly`, `Spd`, `Pref`, `Bonus`, the two `Damage`
-columns and `Spl,Mas,Skil` — write offsets the scan cannot attribute without
-splitting the shared code, and are left `unknown` rather than guessed at.
+Reading the short cases one at a time adds four more, and describes the rest:
+
+| column | header | offset |
+| --- | --- | --- |
+| 0 | `#` | `+0x08` |
+| 3 | `LVL` | `+0x09` |
+| 9 | `Fly` | `+0x0f` |
+| 13 | `Spd` | `+0x3c` (a dword) |
+
+`observed`. Note that `Spd` is **`+0x3c`**, not the `+0x36` an earlier reading
+suggested — that offset belongs to the *other* table, the one behind the
+pointer at `0x55dd94`.
+
+What the remaining cases do, without yet giving an offset:
+
+- **1 `Picture`** and **2 `Name`** strip a leading quote and run `repne scasb`
+  — they keep pointers, and `+0x00` is already known to be the name's.
+- **4 `HP`** and **6 `EXP`** split their cell on commas and write through a
+  **computed pointer** (`mov dword [esi], ecx`) rather than a literal offset,
+  so the scan cannot attribute them; the two unclaimed dwords left in the row
+  are `+0x0c` and `+0x14`, and which is which is `unknown`.
+- **7 `Treasure`**, **15 `Pref`**, **16 `Bonus`**, **18** and **22 `Damage`**,
+  and **25 `Spl,Mas,Skil`** likewise write through computed pointers or share
+  a tail. `unknown`.
+
+Seventeen of the thirty-two columns now have an offset, and the shape of every
+one that does not is on record rather than guessed at.
 
 ### And the peacefulness name is restored
 
