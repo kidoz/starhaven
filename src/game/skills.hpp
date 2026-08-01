@@ -80,18 +80,40 @@ inline constexpr int kSkillRankShift = 6;
     return packed & kSkillPointMask;
 }
 
-// 0 novice, 1 expert, 2 master. The two bits can hold a fourth value and
-// nothing in the game has been seen to set it. `observed` for the mask,
-// `unknown` for what `0xc0` would mean.
+// 0 novice, 1 expert, 2 master. **`0xc0` never occurs**: the teacher at
+// `0x4969f3` masks the byte with `0x3f` first and then ORs exactly one bit —
+//
+//     mov  cl, byte [edx + eax + 0x60]
+//     and  cl, 0x3f            ; the rank bits go first
+//     mov  byte [eax], cl
+//     ...
+//     neg  ecx                 ; ecx = 0 for expert, 1 for master
+//     sbb  cl, cl              ; 0x00 or 0xff
+//     and  cl, 0x40            ; 0x00 or 0x40
+//     add  cl, 0x40            ; 0x40 or 0x80
+//     or   dl, cl
+//
+// so the pair is one of three states and never both. `observed`
 [[nodiscard]] inline constexpr int skill_rank(int packed) noexcept {
     return (packed >> kSkillRankShift) & 0x3;
 }
 
 inline constexpr std::array<std::string_view, 3> kRankNames{"Normal", "Expert", "Master"};
 
-// What a teacher does: set the rank, leaving the points where they are.
+// What a teacher charges: **2000 gold for expert, 5000 for master**, built by
+// the same three instructions that choose the bit — `and eax, 0xbb8` on a
+// mask of the rank flag, then `add eax, 0x7d0`. `observed` at 0x496cdf.
+inline constexpr int kExpertPrice = 2000;
+inline constexpr int kMasterPrice = kExpertPrice + 3000;
+
+[[nodiscard]] inline constexpr int teach_price(int rank) noexcept {
+    return rank >= 2 ? kMasterPrice : kExpertPrice;
+}
+
+// What a teacher does: clear the rank bits, then set exactly one. The rank is
+// clamped at master because the byte has no fourth state.
 [[nodiscard]] inline constexpr int teach_rank(int packed, int rank) noexcept {
-    const int held = rank < 0 ? 0 : rank > 3 ? 3 : rank;
+    const int held = rank < 0 ? 0 : rank > 2 ? 2 : rank;
     return skill_points(packed) | (held << kSkillRankShift);
 }
 

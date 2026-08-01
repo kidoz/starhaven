@@ -900,8 +900,43 @@ two**. Three traced sites agree and none of them looks at the number:
 - the property setter's skill case at `0x441dad` masks the incoming byte with
   `0xc0` before writing, preserving whatever rank was there.
 
-`observed`, all three. The two bits can hold a fourth value; nothing has been
-seen to set `0xc0`, so what it would mean is `unknown`.
+`observed`, all three.
+
+## Who sets the bits, and what a rank costs
+
+The teacher is at `0x4969e4`. It takes the character from the pointer array at
+`0x944c64`, the skill from `0x9ddd88`, and does this:
+
+```
+0x004969f3  mov  cl, byte [edx + eax + 0x60]
+0x004969fb  and  cl, 0x3f              ; the old rank goes first
+0x004969fe  mov  byte [eax], cl
+0x00496a12  mov  ecx, dword [0x9ddd98] ; 0 expert, 1 master
+0x00496a18  neg  ecx
+0x00496a1a  sbb  cl, cl                ; 0x00 or 0xff
+0x00496a20  and  cl, 0x40              ; 0x00 or 0x40
+0x00496a25  add  cl, 0x40              ; 0x40 or 0x80
+0x00496a28  or   dl, cl
+0x00496a2a  mov  byte [eax], dl
+```
+
+So **`0xc0` never occurs**: the bits are cleared and exactly one is set, and
+the two bits hold one of three states rather than four. That closes what stood
+as `unknown`. `observed`
+
+The price is built by the same trick three instructions later, at `0x496cdb`,
+from the same flag:
+
+```
+neg eax ; sbb eax, eax ; and eax, 0xbb8 ; add eax, 0x7d0
+```
+
+— **2000 gold for expert, 5000 for master**. `observed`
+
+The same packing shows up in the game's own text: `MONSTERS.TXT`'s parser at
+`0x448320` masks a cell's number with `0x3f` and then compares the rest of the
+cell against `"E"` and `"M"`, ORing `0x40` and `0x80`. A monster's spell skill
+is written the same way a character's is stored.
 
 **Retracted.** This engine placed expert at four points and master at seven,
 invented because no table states where the ranks begin. No table states it

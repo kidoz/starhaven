@@ -358,3 +358,23 @@ TEST_CASE("the rank lives in the byte, not in the point count", "[skills]") {
     REQUIRE(skill_points(packed) == 12);
     REQUIRE(skill_rank(packed) == 1);
 }
+
+TEST_CASE("a rank is bought from a teacher, at the teacher's price", "[skills]") {
+    REQUIRE(kExpertPrice == 2000);
+    REQUIRE(kMasterPrice == 5000);
+    REQUIRE(teach_price(1) == kExpertPrice);
+    REQUIRE(teach_price(2) == kMasterPrice);
+    // The teacher clears the bits before setting one, so no byte ever carries
+    // both: a master taught back down to expert is 0x40, not 0xc0.
+    int packed = teach_rank(9, 2);
+    REQUIRE(packed == (9 | 0x80));
+    packed = teach_rank(packed, 1);
+    REQUIRE(packed == (9 | 0x40));
+    // And there is no fourth rung to ask for.
+    REQUIRE(teach_rank(9, 3) == (9 | 0x80));
+    REQUIRE(skill_rank(teach_rank(9, 3)) == 2);
+    // The points are untouched throughout.
+    for (int rank = 0; rank <= 3; ++rank) {
+        REQUIRE(skill_points(teach_rank(37, rank)) == 37);
+    }
+}

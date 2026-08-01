@@ -1318,6 +1318,15 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **Who sets the rank bits, and what a rank costs.** The teacher is at
+  `0x4969e4`: it masks the skill byte with `0x3f`, then ORs exactly one bit —
+  `0x40` for expert, `0x80` for master — built by `neg`/`sbb`/`and 0x40`/`add
+  0x40` off a single flag. So **`0xc0` never occurs**, which closes an
+  `unknown`: the pair is one of three states, not four. Three instructions
+  later the same flag builds the price the same way, `and 0xbb8` then
+  `add 0x7d0` — **2000 gold for expert, 5000 for master**. The convention also
+  shows up in the game's own text: `MONSTERS.TXT`'s parser masks a cell with
+  `0x3f` and ORs the same two bits for the suffixes `E` and `M`.
 - **The rank is the two bits, not the point count.** This engine placed expert
   at four points and master at seven — invented, because no table says where
   the ranks begin. No table says it because a **teacher sets the bits**: three
