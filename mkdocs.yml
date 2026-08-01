@@ -3,6 +3,7 @@ site_description: Compatibility and engine documentation for StarHaven
 repo_url: https://github.com/kidoz/starhaven
 repo_name: kidoz/starhaven
 edit_uri: edit/main/docs/
+strict: true
 
 theme:
   name: mkdocs
@@ -12,6 +13,8 @@ theme:
 nav:
   - Home: index.md
   - Open-question register: open-questions.md
+  - Contributing:
+      - Documentation standard: contributing/documentation-standard.md
   - File formats:
       - LOD archives: formats/lod.md
       - Games.lod: formats/games-lod.md
@@ -51,6 +54,8 @@ nav:
       - Paperdoll: formats/paperdoll.md
       - The player record: formats/player-record.md
       - The party record: formats/party-record.md
+      - Character property setter: formats/character-properties.md
+      - Fixed-point math: formats/fixed-point.md
       - The spell switch: formats/spell-switch.md
       - Weapon specials: formats/weapon-specials.md
   - Rendering:

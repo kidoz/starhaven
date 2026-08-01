@@ -18,8 +18,8 @@ new pages and to existing pages when they receive substantial edits. It does not
 require a bulk rewrite of untouched historical documents.
 
 The metadata is intentionally compact. Published project documentation needs
-only the fields that improve search,
-ownership of facts, evidence tracking, and maintenance.
+only the fields that improve search, ownership of facts, evidence tracking, and
+maintenance.
 
 ## Goals
 
@@ -69,7 +69,6 @@ redirect support.
 - `docs/**` contains published product, engine, and compatibility knowledge.
 - Investigation logs, rejected hypotheses, raw observations, and chronological
   research history are working records, not published reference material.
-
 - Source comments explain local implementation decisions; they do not replace a
   format specification.
 - Tests are executable evidence. Link to the relevant test or source rather than
@@ -204,7 +203,7 @@ Every unknown field stays represented in layouts so parsers can preserve or
 reject it without guessing.
 
 Keep chronological investigation out of published reference pages. Retain a
-`Historical note` only when it prevents a known misreading from recurring.
+short `Historical note` only when it prevents a known misreading from recurring.
 
 ## Format-reference template
 
@@ -364,4 +363,3 @@ strict build.
 - [ ] Large independent subjects were split or intentionally kept together.
 - [ ] No proprietary payload or secret was added.
 - [ ] `just docs-check` passes.
-
