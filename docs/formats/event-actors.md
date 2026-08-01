@@ -1028,8 +1028,18 @@ Which shifts every column by four. Rows are **28 bytes**:
 | offset | size | what |
 | --- | --- | --- |
 | `+0x04`, `+0x08`, `+0x0c` | dword | the **position**, read by the handle case at `0x40493c` |
-| `+0x16` | word | read at `0x41f6dc`, `0x427ce7` and `0x42eebb`; `unknown` |
+| `+0x16` | word | a **signed id, zero meaning none** — see below |
 | `+0x18` | word | `unknown` |
+
+All three readers of `+0x16` do the same thing first: **test it against zero**
+and skip when it is. `0x41f6f0` then sign-extends it and hands it to
+`0x439f60`, which walks a registered list at `0x552f58` counted by
+`0x533eb4`, comparing each entry's `-8` field against the id. So the word is
+an **id into a runtime list**, not a sprite index or a frame counter — but
+what the list holds is `unknown`.
+
+Two of the three readers also do `lea ecx, [ecx*4 + 0x5b23c8]` beside the
+read, which corroborates the corrected base from a third direction.
 
 `observed`. The gamble's stated risk was that the columns would be sprite ids
 and a frame counter with nothing behind them. Three of the seven dwords are the

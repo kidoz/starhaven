@@ -1575,6 +1575,15 @@ interoperability and compatibility with a legally purchased copy.
   actor has strayed from a post it remembers. **State 10** opens exactly as
   state 12's sighted branch does, so it too asks where something is before
   acting. State 7 was not reached, and the write-up says so.
+- **The gamble on the decoration record's words: half a landing.** All three
+  readers of `+0x16` **test it against zero** first and skip when it is, and
+  one sign-extends it and hands it to `0x439f60`, which walks a **registered
+  list** at `0x552f58` counted by `0x533eb4`, matching each entry's `-8` field
+  against the id. So the word is an **id into a runtime list**, not the sprite
+  index or frame counter the risk named — but what the list holds is `unknown`,
+  and `+0x18` was not reached. Two of the three readers also `lea` from
+  `0x5b23c8` beside the read, corroborating the corrected base from a third
+  direction.
 - **The gamble on the decoration table: the base was wrong, and is now right.**
   The two scalars this project put *before* the array turn out to be one scalar
   and the array itself. **`0x5b23c4` is the count** — written by the same map
