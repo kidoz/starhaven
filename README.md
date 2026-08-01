@@ -1352,6 +1352,17 @@ interoperability and compatibility with a legally purchased copy.
   the first time this engine has shown a party getting stronger rather than a
   snapshot at a fixed level. That the party can reach a hall once an hour is
   the harness's convenience and marked as such.
+- **What the sighted actions do with the answer**, and a fifth dead timer.
+  States 12 and 13 end their "cannot see" branch identically — `push 64; push
+  the actor; call 0x4026e0` — so **state 6 is the fallback a sighted action
+  takes when the party is out of sight**, and both pass the same constant. It
+  is one of the three bodies that read nothing from the record, which fits a
+  helper rather than a decision. State 13 has a **second gate**: even with
+  sight it tests the actor's 64-bit pair at `+0x144`/`+0x148`, a **fifth**
+  member of the family that is read and never written, so its sighted branch
+  is the one that always runs. And state 12's sighted branch builds
+  `index * 8 | 3` — the executable's own **object handle**, index high and a
+  type tag of 3 low.
 - **Three of the nine AI actions, and the test they share.** `0x4080c0` is the
   **line of sight**, and states 2, 12 and 13 all open by calling it — in 12
   and 13 byte-identically. Each lifts the actor's z by **three quarters of its

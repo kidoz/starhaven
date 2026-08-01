@@ -767,3 +767,50 @@ reads and the subtraction, `inferred` for the name.
 Six of the eleven remain unnamed. What this adds is that the grouping was
 right for the wrong reason, that the sight test now has an address, and that
 the party's eye height has one too.
+
+## What the sighted actions do with the answer
+
+Both state 12 (`0x403f80`) and state 13 (`0x404160`) end their "cannot see"
+branch identically, and it names another action:
+
+```
+test eax, eax          ; the line of sight
+jne  can_see
+push 0x40              ; 64
+push esi               ; the actor
+call 0x4026e0          ; the state-6 body
+ret
+```
+
+So **state 6 is what a sighted action falls back to when the party is out of
+sight**, and both callers pass the same constant **64**. State 6 is one of the
+three bodies that read nothing from the actor record and take everything from
+their arguments, which fits a helper rather than a decision. `observed`
+
+**State 13 has a second gate.** Even with sight it tests a 64-bit pair before
+acting:
+
+```
+mov eax, dword [ebx + 0x148]
+...
+mov eax, dword [ebx + 0x144]
+...
+push 0x40 ; call 0x4026e0        ; the same fallback
+```
+
+`+0x144`/`+0x148` is a **fifth** member of the actor's 64-bit family, read here
+and written nowhere — the others being `+0xd4`, `+0x104`, `+0x114` and
+`+0x124`. Since every one of them is always zero, state 13's *sighted* branch
+is the one that always runs and the fallback never fires from this gate.
+`observed`
+
+**State 12's sighted branch** opens by building a handle:
+
+```
+lea ebp, [esi*8]
+or  ebp, 3
+```
+
+— the index in the high bits and a **type tag of 3** in the low three, which is
+the executable's own object-handle form. It hands that and a stack buffer on.
+`observed`
