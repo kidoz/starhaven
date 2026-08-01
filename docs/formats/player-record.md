@@ -1315,3 +1315,43 @@ Re-run against the standing negatives:
 `observed`. Three negatives survive a test they had never been given, and the
 blind spot that cost four batches is closed as a method rather than as a
 one-off.
+
+## The condition timestamps: flags, and one line of display
+
+Eighteen eight-byte stamps at `+0x1380`, written with the world clock by
+property ids 87..103 and wiped wholesale by 104. The question was whether
+anything computes with them — a condition worsening with age, a cure's point
+of no return.
+
+**Nothing does.** `+0x1380` is referenced eighty-four times and the pattern is
+always the same two instructions:
+
+```
+mov ecx, dword [ebx + edx*8 + 0x1380]
+mov esi, dword [ebx + edx*8 + 0x1384]
+or  ecx, esi
+je  ...
+```
+
+— OR the halves and test. That is a **set-or-clear flag**, nothing more. No
+site subtracts a stamp from the clock; there is no `sub`, `sbb` or `cmp`
+against one anywhere in the window.
+
+**One site does arithmetic, and it is display.** `0x49e93d`:
+
+```
+fild qword [esi + eax*8 + 0x1380]
+fmul dword [0x4b9374]     ; the 30/128 calendar float
+call 0x4ae24c             ; back to an integer
+push 0x3c                 ; 60
+call 0x4aebc0             ; and formatted
+```
+
+— the same conversion the world clock and the six script clocks use, to print
+the moment in game time.
+
+So the stamps carry **when** a condition landed, and the game keeps that only
+to show it. Nothing in the executable makes a condition worse for having been
+held longer. That retires "what a condition costs over time" for the third
+time, and this time by exhaustion rather than by failing to find something.
+`observed`

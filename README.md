@@ -1574,6 +1574,17 @@ interoperability and compatibility with a legally purchased copy.
   takes a speed from the table behind `0x55dd94` indexed by the actor's
   **`+0xb6`** — the same lookup state 12 makes, so `+0xb6` is the actor's
   **speed index**, a second per-actor index beside the monster row at `+0x34`.
+- **The gamble on the condition timestamps: flags and one line of display.**
+  Eighteen eight-byte stamps at `+0x1380`, and the question was whether
+  anything computes with them. **Nothing does.** The offset is referenced
+  eighty-four times and the pattern is always the same — OR the two halves and
+  test, a set-or-clear flag — with **no `sub`, `sbb` or `cmp` against a stamp
+  anywhere in the window**. Exactly one site does arithmetic and it is display:
+  `0x49e93d` multiplies the stamp by the 30/128 calendar float and formats it,
+  the same conversion the world clock uses, to print when the condition landed.
+  So nothing in the executable makes a condition worse for having been held
+  longer — which retires "what a condition costs over time" for the third time,
+  now by exhaustion rather than by failing to find something.
 - **The absolute-address sweep: three negatives survive it.** The award hid
   behind one blind spot — every scan looked for `+ 0xNNN]` displacements while
   the routine used the absolute `0x90a354` — so every negative filed by
