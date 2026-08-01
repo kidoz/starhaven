@@ -66,3 +66,66 @@ id 38 -> add word [esi + 0x2c]     Luck base
 So **the modifiers begin at 25 and the bases at 32**, and ids 39..45 land on
 the modifier bodies a second time. `observed` at `0x4418ce`, `0x44199a`,
 `0x4419bc` and `0x441ace`.
+
+## All fifty-three bodies
+
+Every case names its own field in its first two instructions. Read whole, the
+table settles nine constants, corrects two more, and names four fields that
+had no name.
+
+| id | what the body does |
+| --- | --- |
+| 1 | `byte [+0x11] =` — `unknown` which field that is |
+| 2 | `byte [+0x12] =` — the **class** |
+| 3 | `dword [+0x1414] +=` — **hit points** |
+| 4 | `[+0x1414] =` the maximum getter at `0x481ea0`, and clears `+0x1578`/`+0x1579` |
+| 5 | `dword [+0x1418] +=` — **spell points** |
+| 6 | `[+0x1418] =` the maximum getter at `0x482090`, and clears `+0x157a`/`+0x157b` |
+| 8..11 | the four words `+0x30`, `+0x32`, `+0x34`, `+0x36` — an unnamed word, the **level**, its modifier, the birth word |
+| 12 | a bit array, indexed `id >> 3` — the **award** |
+| 13 | `dword [+0x1420] +=`, clamped at 4,000,000,000 — the **experience** |
+| 16 | a bit array with `0x80000007` — the **quest bit** |
+| 17 | builds a record and hands the party to `0x487750` — an **item** |
+| 21 | `0x41ede0(amount)` — **gold** |
+| 22, 24 | `rand() % amount`, and `rand() % amount + 1` |
+| 23 | `0x4875f0`, then the table at `0x56c008` — **food** |
+| 25..31, 39..45 | the seven attribute **modifiers**, `+0x16 + 4k` |
+| 32..38 | the seven attribute **bases**, `+0x14 + 4k` |
+| 46..50 | the five resistance **bases**, words at `+0x1254` |
+| 51..55 | the five resistance **modifiers**, the words beside them |
+| 56..86 | the thirty-one **skills** |
+| 87..103 | the seventeen **conditions**, stamped with the world clock |
+| 104 | `rep stosd` of 36 dwords from `+0x1380` — **clears all eighteen conditions** |
+| 105..204 | a hundred global bytes at `0x5b2293` |
+| 205 | the **autonote** |
+| 213..215 | a bit array, and the party globals `0x908d48` and `0x908d05` |
+| 216..221 | six 8-byte world-clock stamps at `0x90e19c` |
+| 7, 14, 15, 18..20, 206..212, 222..224 | the do-nothing case |
+
+### What it corrects
+
+**The level is variable 9, not 8.** Both routines share one selector — the
+225 bytes at `0x4411c0` and at `0x441ff0` are identical — and both index it
+with `id - 1`. Following the selector *through* to the case, id 9 lands on the
+body that writes `word [esi + 0x32]`; the earlier reading took the jump-table
+entry number for the id and came out one low. The max-hit-point getter at
+`0x481ebf` settles which word is the level from the other side: it adds
+`+0x32` and `+0x34` together, the base-and-modifier shape everything else on
+this record keeps. `observed`
+
+**The `+0x1570` run is not written by nothing.** That was filed as a negative:
+six getters read it and no instruction wrote it. Cases 4 and 6 write it —
+`+0x1578` and `+0x1579` are cleared when hit points are set to the maximum,
+`+0x157a` and `+0x157b` when spell points are. So the run is what a full
+restore resets, which is the first thing anything has said about it.
+
+### What it names
+
+- **`+0x1420` is the experience**, a dword, clamped at 4,000,000,000.
+- **`+0x1254`..`+0x1267` are the five resistances**, base and modifier words in
+  pairs, sitting immediately below the buff array at `+0x1268`. Their ids and
+  their offsets do not run in step: by offset the order is 46, 48, 47, 49, 50.
+- **The condition array is eighteen slots**, not seventeen: case 104 clears
+  `0x24` dwords from `+0x1380`, which is 144 bytes, and only seventeen of them
+  have a setter id.
+- **`+0x12` is the class** and `+0x11` the byte before it, which nothing names.

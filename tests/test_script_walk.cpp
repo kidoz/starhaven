@@ -509,3 +509,21 @@ TEST_CASE("either name for a modifier raises the same attribute", "[script]") {
     REQUIRE(outcome.stat_gains[0] == 7);
     REQUIRE(outcome.stat_gains[6] == 1);
 }
+
+TEST_CASE("the level is variable nine", "[script]") {
+    // Both routines share one selector and index it with id - 1; id 9 lands
+    // on the body that writes the word at +0x32, which the max-hit-point
+    // getter reads as the level.
+    REQUIRE(kVarLevel == 9);
+    REQUIRE(kVarLevelModifier == kVarLevel + 1);
+    REQUIRE(kVarBirthWord == kVarLevel + 2);
+    REQUIRE(kVarClass == 2);
+    // Full restores are their own ids, one past the ones that add.
+    REQUIRE(kVarHitPointsFull == kVarHitPoints + 1);
+    REQUIRE(kVarSpellPointsFull == kVarSpellPoints + 1);
+    // The resistances are five bases then five modifiers, and the skills
+    // begin right after them.
+    REQUIRE(kVarResistModFirst == kVarResistFirst + 5);
+    REQUIRE(kVarResistModFirst + 5 == kVarSkillFirst);
+    REQUIRE(kVarClearConditions == kVarConditionFirst + 17);
+}

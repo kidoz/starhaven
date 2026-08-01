@@ -1298,6 +1298,20 @@ interoperability and compatibility with a legally purchased copy.
   goes; the reads, the pairs and the spacing stand. Either the values arrive
   wholesale from the map or the save, or the three AI actions gated on them
   are unreachable.
+- **All fifty-three property bodies, read.** Every case names its own field in
+  its first two instructions, so one pass settles nine constants and corrects
+  two. **The level is variable 9, not 8** — both routines share one selector
+  and index it with `id - 1`, and following it through lands id 9 on the body
+  that writes `+0x32`, which is the word the max-hit-point getter reads as the
+  level; the old reading took the jump-table entry number for the id. **The
+  `+0x1570` run is not written by nothing** — that negative is withdrawn:
+  cases 4 and 6 clear `+0x1578`..`+0x157b` when hit points and spell points
+  are set to their maxima, so the run is what a full restore resets. And it
+  names four fields outright: **`+0x1420` is the experience** (clamped at four
+  billion), **`+0x1254`..`+0x1267` the five resistances** as base-and-modifier
+  words sitting just below the buff array, **`+0x12` the class**, and the
+  condition array is **eighteen** slots rather than seventeen — case 104
+  clears 144 bytes of it while only seventeen have a setter id.
 - **The gamble on what a level grants: a negative, and a dispatcher.** The
   pool grant at `0x441314` turns out to be one case of a general **"add this
   much to that property of this character"** routine — 225 property ids, a

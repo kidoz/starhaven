@@ -189,15 +189,28 @@ inline constexpr std::uint8_t kVarHitPoints = 3;
 inline constexpr std::uint8_t kVarSpellPoints = 5;
 inline constexpr std::uint8_t kVarExperience = 13;
 
-// **Variable 8 is the character's level.** The executable's "set a character
-// field" and "add to a character field" routines dispatch on the variable id
-// through a 225-entry selector at `0x4411c0`, and ids 7, 8, 9, 10 and 11
-// land on the adjacent words `+0x30`, `+0x32`, `+0x34`, `+0x36` and one
-// more. Since those two routines are the **only** instructions in the whole
-// executable that write the level, every level a character gains is a script
-// adding to variable 8 — which is what a training hall does. `observed`
-inline constexpr std::uint8_t kVarLevel = 8;
+// **Variable 9 is the character's level — corrected from 8.** Both routines
+// share one 225-byte selector (`0x4411c0` and `0x441ff0` hold the same bytes)
+// and both index it with `id - 1`. Reading the selector *through* to the
+// case, id 9 lands on the body that writes `word [esi + 0x32]`, and the
+// max-hit-point getter at `0x481ebf` adds exactly `+0x32` and `+0x34`
+// together — so `+0x32` is the level and id 9 sets it. The earlier reading
+// took the jump-table entry number for the id and came out one low.
+// `observed` at 0x440b4b and 0x481ebf.
+//
+// The four words run `+0x30`, `+0x32`, `+0x34`, `+0x36` for ids 8, 9, 10 and
+// 11: an unnamed word, the level, the level's modifier, and the birth word.
+inline constexpr std::uint8_t kVarLevel = 9;
+inline constexpr std::uint8_t kVarLevelModifier = 10;
+inline constexpr std::uint8_t kVarBirthWord = 11;
 inline constexpr std::uint8_t kVarFood = 23;
+
+// The rest of the setter's fifty-three bodies, each fixed by the offset its
+// own first two instructions compute. `observed`
+inline constexpr std::uint8_t kVarClass = 2;             // byte at +0x12
+inline constexpr std::uint8_t kVarHitPointsFull = 4;     // set to the maximum
+inline constexpr std::uint8_t kVarSpellPointsFull = 6;   // set to the maximum
+inline constexpr std::uint8_t kVarClearConditions = 104;  // wipes all eighteen
 // **The seven attributes are variables 31..37, not 32..38.** The setter's
 // cases write `+0x14`, `+0x18`, `+0x1c`, `+0x20`, `+0x24`, `+0x28` and
 // `+0x2c` for those seven ids, and the next seven — **38..44** — write the
@@ -217,7 +230,13 @@ inline constexpr std::uint8_t kVarFood = 23;
 inline constexpr std::uint8_t kVarStatModFirst = 25;      // Might .. Luck modifiers
 inline constexpr std::uint8_t kVarStatFirst = 32;         // Might .. Luck
 inline constexpr std::uint8_t kVarStatModAlias = 39;      // the same seven again
-inline constexpr std::uint8_t kVarResistFirst = 46;  // Fire, Elec, Cold, Poison, Magic
+// The five resistances are **words at `+0x1254`, in base and modifier pairs**,
+// sitting immediately below the character's buff array at `+0x1268` — the
+// same shape the attributes keep. Ids 46..50 write the bases and 51..55 the
+// modifiers, and the two runs are not laid out in id order: by offset they
+// go 46, 48, 47, 49, 50. `observed` at 0x441af0..0x441c5e.
+inline constexpr std::uint8_t kVarResistFirst = 46;      // Fire, Elec, Cold, Poison, Magic
+inline constexpr std::uint8_t kVarResistModFirst = 51;   // their modifiers
 
 // Three more runs the same dispatcher names, each confirmed by the offset its
 // body computes rather than by a fit:
