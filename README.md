@@ -1388,6 +1388,16 @@ interoperability and compatibility with a legally purchased copy.
   chain and adding nothing; it half lands. They are those columns, but the
   runtime keeps them **decoded into bytes** rather than as the `"2d6"` text
   the file writes and this engine re-parses on every roll.
+- **The gamble on `0x55dd88`: a binary-searched name index, and only one of
+  them.** It is what turns `DMONLIST`'s eight animation names into the ids an
+  actor carries, and it is four fields — a **count** at `+0x04`, the position
+  the last search reached at `+0x08`, an array of **name pointers** at `+0x10`
+  and a parallel array of **word ids** at `+0x14` — searched by halving with
+  `strcmp` at `0x444050` and read out at `0x444020`. It is used from
+  **sixty-seven sites**, all in the sprite-frame region, so it is the game's
+  one name-to-id service rather than anything to do with monsters. The stated
+  risk was a generic map over a table already documented, and that is what it
+  is; what it adds is the map's own layout and that there is exactly one.
 - **Four more monster columns, and a correction.** Reading the short cases one
   at a time adds `#` at `+0x08`, **`LVL` at `+0x09`**, `Fly` at `+0x0f` and
   **`Spd` at `+0x3c`** — and that last one corrects an earlier reading that put

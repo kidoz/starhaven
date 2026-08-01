@@ -259,3 +259,36 @@ Reproduce with `sft_info --views`.
   decoded: `DOBJLIST.BIN` (232 × 52), `DCHEST.BIN` (8 × 36),
   `DIFT.BIN` (61 × 32), `DPFT.BIN` (67 × 10), `DTFT.BIN` (19 × 20),
   `DOVERLAY.BIN` (96 × 8) and `DSOUNDS.BIN` (1,355 × 112).
+
+## The lookup at `0x55dd88`
+
+The object that turns each of `DMONLIST`'s eight 10-byte animation names into
+the word id an actor carries at `+0xac` is a **binary-searched name index**,
+and `0x444050` is the search:
+
+```
+sub  esi, edi          ; high - low
+sar  eax, 1            ; the midpoint
+mov  edx, dword [ecx + ebx*4]   ; [obj + 0x10] is an array of name pointers
+call 0x4af370                   ; strcmp against the key
+```
+
+and `0x444020` turns the position it lands on into the answer:
+
+```
+mov   eax, dword [esi + 8]      ; where the search stopped, or negative
+mov   edx, dword [esi + 0x14]   ; a parallel array of words
+movsx eax, word [edx + eax*2]
+```
+
+So the object is four fields — a **count** at `+0x04`, the **position** the
+last search reached at `+0x08`, an array of **name pointers** at `+0x10`, and a
+parallel array of **word ids** at `+0x14`. `observed`
+
+It is used from **sixty-seven sites**, all of them in the sprite-frame region,
+which makes it the game's one name-to-id service rather than anything specific
+to monsters.
+
+That is the gamble's stated risk landing: a generic string-to-index map over a
+table this project already documents. What it adds is the map's own layout and
+the fact that there is exactly one of them.
