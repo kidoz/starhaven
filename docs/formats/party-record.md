@@ -209,3 +209,30 @@ Which lists is `unknown` — but it explains why the hireling reading was wrong.
 Property id 214 clears them because flagging somebody in the roster changes
 what a list shows, not because the bytes held the hirelings. The party's
 hirelings are the two sixty-byte records at `0x90e7a4`.
+
+## The party's two hireling records, counted
+
+They sit at `0x90e7a4` and `0x90e7e0`, sixty bytes each, in the roster's own
+shape. Sweeping every byte of both for absolute references gives this:
+
+| offset | slot 1 | slot 2 | what |
+| --- | --- | --- | --- |
+| `+0x00` | **79** | **39** | the person's **name**, a pointer |
+| `+0x01` | 2 | — | `unknown` |
+| `+0x04` | 1 | — | `unknown` |
+| `+0x14` | 1 | — | a dword a script sets |
+| `+0x18` | 4 | 4 | the **profession** id |
+| `+0x24` | — | 1 | `unknown` |
+| `+0x34` | 4 | 4 | a dword, written at `0x48822a` and `0x4961c3`; `unknown` |
+
+`observed`. **Seven of the sixty bytes are reached by absolute address at
+all**, and the name accounts for well over half of every reference. So what
+the game keeps about a hireling, in practice, is who they are and what they
+do; the rest of the record is barely touched.
+
+**And the premise this was meant to serve was already met.** The motivation
+given was that a hireling could not survive a save. It can: `SaveState`
+already carries a `hired` list of npc id, profession and name, and round-trips
+it. Adding a second store for the same thing was tried here and reverted; the
+existing one is the right shape and matches what the two records actually
+hold.

@@ -1398,6 +1398,17 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The party's two hireling records, counted — and a premise corrected.**
+  Sweeping every byte of both records at `0x90e7a4` and `0x90e7e0` finds
+  **seven of the sixty reached by absolute address at all**, and the **name
+  pointer at `+0x00` accounts for well over half of every reference** (79 on
+  the first slot, 39 on the second). Beside it only the profession at `+0x18`
+  and a dword at `+0x34` are touched more than once. So what the game keeps
+  about a hireling in practice is who they are and what they do. The stated
+  motivation — that a hireling cannot survive a save — turned out to be wrong:
+  `SaveState` already carries a `hired` list of npc id, profession and name and
+  round-trips it. A second store for the same thing was written here and
+  reverted.
 - **Party `+0x95` and `+0x96` are interface offsets.** Withdrawing the hireling
   reading left them unnamed; following their five sites names the shape.
   `0x42dc32` reads `+0x95` as a **count**, adds it to a list index and bounds
