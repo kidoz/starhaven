@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The four holes in the stat space, read.** The gear getter dispatches ids
+  0..22 through a 23-byte selector, and the four unnamed ones each get a body
+  that says where it takes its number from in its first two instructions.
+  **14** walks all sixteen equipment anchors and adds **5 for each worn item
+  whose special enchantment is 25** — a stat only one special feeds. **17**
+  and **18** take the item at the **weapon anchor `+0x142c`**, refuse anything
+  whose equip type is past 2, and read the row's own bytes — 18 branching on
+  the skill group being the bow with the off hand empty. **21** takes the item
+  at the **next anchor, `+0x1430`**, and reads the same column 17 sums. So the
+  three are the wielded weapon's own numbers, two from the hand that holds it
+  and one from the hand beside it, which is exactly why they are asked for
+  only from inside the attack- and shot-damage getters.
 - **The gamble on the stat ids: the space is closed.** Collecting every `push`
   that precedes a call to one of the three stat getters gives **ids 0 through
   21 and 23, and nothing else** — **id 22 is never asked for anywhere in the

@@ -75,6 +75,37 @@ inline constexpr int kStatIdAfterAttributes = 14;
 // ingredients rather than figures of their own. `observed`
 inline constexpr std::array<int, 4> kStoredTermStatIds{15, 16, 19, 20};
 
+// **The four holes, read.** The gear getter at `0x482e80` dispatches ids 0..22
+// through a 23-byte selector at `0x4836b0` into a table at `0x483690`, and
+// the four unnamed ids each get a body of their own. Each says where it takes
+// its number from in its first two instructions. `observed`
+//
+//  * **14** (`0x48332e`) walks all **sixteen** equipment anchors from
+//    `+0x1428`, skips anything flagged broken, and adds **5** for each item
+//    whose **special enchantment at `+0xC` is 25**. So it is a stat only one
+//    special feeds, counted over everything worn.
+//  * **17** (`0x483409`) takes the item at the **weapon anchor `+0x142c`**,
+//    refuses it unless its equip type at `+0x14` is 2 or less, and sums the
+//    row's bytes at `+0x18`, `+0x16` and `+0x15`.
+//  * **18** (`0x4834c7`) takes the same item and the same refusal, then
+//    branches on the row's **skill group being 5** — the bow — with the
+//    off-hand anchor at `+0x1428` empty.
+//  * **21** (`0x4835ef`) takes the item at the **next anchor, `+0x1430`**, and
+//    reads the same `+0x18` byte id 17 sums.
+//
+// So 17, 18 and 21 are the wielded weapon's own numbers — two from the hand
+// that holds it and one from the hand beside it — which is why they are asked
+// for only from inside the attack- and shot-damage getters. `observed` for
+// every offset; what the row's `+0x16` and `+0x18` columns are called stays
+// `unknown`.
+inline constexpr int kGearAnchorsFirst = 0x1428;
+inline constexpr int kGearAnchorCount = 16;
+inline constexpr int kWeaponAnchor = 0x142c;
+inline constexpr int kOffHandAnchor = 0x1430;
+inline constexpr int kCountedSpecial = 25;
+inline constexpr int kCountedSpecialWorth = 5;
+inline constexpr int kBowSkillGroup = 5;
+
 // One special's contribution: the stats it answers for and what it adds.
 struct SpecialStat {
     int special = 0;

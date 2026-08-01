@@ -437,3 +437,20 @@ TEST_CASE("the stat id space is twenty-three ids with one gap", "[skills]") {
     REQUIRE(static_cast<int>(StatId::SpellPoints) == 8);
     REQUIRE(static_cast<int>(StatId::ArmorClass) == 9);
 }
+
+TEST_CASE("the four unnamed ids say where they take their number from",
+          "[skills]") {
+    // Anchors: sixteen from +0x1428, the weapon's at +0x142c, the next at
+    // +0x1430 — which is what makes 17 and 18 the wielded weapon's numbers
+    // and 21 the hand beside it.
+    REQUIRE(kGearAnchorCount == 16);
+    REQUIRE(kWeaponAnchor == kGearAnchorsFirst + 4);
+    REQUIRE(kOffHandAnchor == kWeaponAnchor + 4);
+    // Id 14 counts one special over everything worn, at five apiece.
+    REQUIRE(kCountedSpecial == 25);
+    REQUIRE(kCountedSpecialWorth == 5);
+    // And that special is one of the thirty-nine the stat walk itself does
+    // nothing with, which is why it needed a case of its own.
+    REQUIRE_FALSE(special_reaches_stats(kCountedSpecial));
+    REQUIRE(kBowSkillGroup == skill_id("Bow"));
+}
