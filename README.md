@@ -1417,6 +1417,17 @@ interoperability and compatibility with a legally purchased copy.
   takes a speed from the table behind `0x55dd94` indexed by the actor's
   **`+0xb6`** — the same lookup state 12 makes, so `+0xb6` is the actor's
   **speed index**, a second per-actor index beside the monster row at `+0x34`.
+- **The award, read to the end.** The two terms **add to the share, they do not
+  scale it**: `0x42161a` adds `bonus + share` into the 64-bit field and clamps
+  at four billion. And **the nine is a flat nine percent** every character
+  collects over the plain share whether or not it has Learning or a Teacher. So
+  the whole shape is `share = xp / eligible`, `bonus = share × (learning +
+  hireling% + 9) / 100`, `each = share + bonus`. `0x467f30` turns out to be
+  **"is somebody of profession *n* in the party"** — it walks the roster at
+  stride 60 testing a record's `+0x18` against the profession and the `0x80`
+  bit at `+0x08`, falling back to a party global — which names two more roster
+  fields and confirms the stride from a third place. The engine's `award` now
+  has the traced shape.
 - **The experience award was there all along — two negatives withdrawn.**
   Finishing the monster row named column 6, `EXP`, as **`+0x38`** — the dword
   the death path hands to `0x421520`, which this project had written up as the

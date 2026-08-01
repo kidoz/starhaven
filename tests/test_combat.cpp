@@ -361,7 +361,10 @@ TEST_CASE("only the standing collect", "[combat]") {
     party[1].hit_points = 0;
     battle.award(party);
     REQUIRE(party[0].experience == 0);
-    REQUIRE(party[2].experience == 12);
+    // Twelve is the share; the thirteenth point is the flat nine percent the
+    // routine adds on top of it before anyone's Learning is counted.
+    REQUIRE(party[2].experience == 12 + 12 * game::kAwardBasePercent / 100);
+    REQUIRE(party[2].experience == 13);
 }
 
 TEST_CASE("a party with nobody standing keeps what it has earned", "[combat]") {
@@ -881,4 +884,17 @@ TEST_CASE("what a monster decided is readable from outside", "[combat]") {
     REQUIRE(battle.disposition_of_actor(0) == 0);
     REQUIRE_FALSE(battle.aware_of_party(99));
     REQUIRE(battle.disposition_of_actor(99) == 0);
+}
+
+TEST_CASE("the award adds to the share rather than scaling it", "[combat]") {
+    // 0x421520: divide by the eligible, then add a percentage of the share
+    // built from Learning, any hired Teacher's cut and a flat nine.
+    REQUIRE(game::kAwardBasePercent == 9);
+    REQUIRE(game::kExperienceCeiling == 0xee6b2800LL);
+    // A character with Learning collects the share plus its own percentage
+    // on top, not the share multiplied by it.
+    game::Character plain;
+    game::Character learned;
+    learned.skills["Learning"] = game::teach_rank(20, 2);  // 20 points, master
+    REQUIRE(game::learning_percent(learned.skills["Learning"]) == 60);
 }

@@ -1243,3 +1243,49 @@ and the two profession ids.
 filed on the strength of the same failed searches. It has one, here, and its
 rung multiplies as **`rank + 1`** rather than through a table — which is the
 doubling and tripling its row promises, reached a different way.
+
+## The award, read to the end
+
+Two things were left open when `0x421520` was found: what the constant nine
+does, and what `0x467f30` is.
+
+**The terms add to the share; they do not scale it.** `0x42161a` is the tail:
+
+```
+mov ecx, dword [esi]          ; the character's experience, low half
+add eax, ebp                  ; the bonus, plus the share
+add ecx, eax
+mov dword [esi], ecx
+mov eax, dword [esi + 4]
+adc eax, edx                  ; carried into the high half
+cmp dword [esi], 0xee6b2800   ; and clamped at four billion
+add esi, 0x161c               ; on to the next character
+```
+
+So the whole shape is
+
+```
+share = experience / eligible
+bonus = share x (learning + hireling% + 9) / 100
+each  = share + bonus,  64-bit, clamped at 4,000,000,000
+```
+
+and **the nine is a flat nine percent** every character collects over the plain
+share whether or not it has Learning or a Teacher. `observed`
+
+**`0x467f30` is "is somebody of profession *n* in the party".** It walks the
+roster at stride 60 from `0x6aef28`, testing a record's `+0x18` against the
+profession id and the `0x80` bit at `+0x08` — the flag property id 214 sets —
+and falls back to comparing the party global at `0x90e7bc` when no record
+matches:
+
+```
+mov  esi, dword [0x6ba534]     ; the count
+mov  eax, 0x6aef30             ; the flag field of record 0
+cmp  dword [eax + 0x10], ecx   ; the profession id, at +0x18 of the record
+test byte [eax], 0x80          ; hired?
+add  eax, 0x3c                 ; the next record
+```
+
+That names two more of the roster's fields — **`+0x08` the flags, `+0x18` the
+profession** — and confirms the stride from a third place. `observed`

@@ -37,6 +37,10 @@
 
 namespace starhaven::game {
 
+// The award's two constants, out of `0x421520`.
+inline constexpr int kAwardBasePercent = 9;
+inline constexpr std::int64_t kExperienceCeiling = 0xee6b2800LL;
+
 // The wielder's own points in the skill the held weapon answers to, or none
 // when the hand is empty, the weapon broken, or its group not one the skill
 // list names. `ITEMS.TXT`'s group headings are `SKILLDES.TXT`'s own, which is
@@ -561,6 +565,12 @@ public:
         return taken;
     }
 
+    // **The nine, and the ceiling.** `lea ecx, [ecx + ebx + 9]` adds a flat
+    // nine to the Learning and hireling terms before the share is scaled by
+    // them, so a character with neither still collects nine percent over the
+    // plain share. And `0x421631` clamps the 64-bit total at `0xee6b2800` —
+    // four billion — exactly as the script property adder does. `observed`
+
     // Share it among whoever is still standing, the way a party splits a kill.
     // Nobody standing means nobody collects, and it waits. `inferred`
     //
@@ -581,19 +591,23 @@ public:
         if (standing == 0) {
             return;
         }
-        const int each = (experience_ + experience_ * bonus_percent / 100) / standing;
+        // The routine's own order: divide first, then add a percentage on
+        // top of the share. `0x421585` is the division and `0x42161a` the
+        // 64-bit add with the four-billion clamp.
+        const int share = experience_ / standing;
         for (auto& who : party) {
-            if (who.hit_points > 0) {
-                // "Skill increases amount of experience received" — the one
-                // row of the sixteen silent ones that names a number-shaped
-                // effect. It is read per character, because that is where the
-                // skill lives and the row says nothing about the party.
-                int learned = 0;
-                if (const auto it = who.skills.find("Learning"); it != who.skills.end()) {
-                    learned = learning_percent(it->second);
-                }
-                who.experience += each + each * learned / 100;
+            if (who.hit_points <= 0) {
+                continue;
             }
+            // "Skill increases amount of experience received", read per
+            // character because that is where the skill lives.
+            int learned = 0;
+            if (const auto it = who.skills.find("Learning"); it != who.skills.end()) {
+                learned = learning_percent(it->second);
+            }
+            const int over = share * (learned + bonus_percent + kAwardBasePercent) / 100;
+            const std::int64_t total = static_cast<std::int64_t>(who.experience) + share + over;
+            who.experience = static_cast<int>(std::min<std::int64_t>(total, kExperienceCeiling));
         }
         experience_ = 0;
     }
