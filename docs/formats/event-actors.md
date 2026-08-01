@@ -516,3 +516,36 @@ meaning.
 So the remaining three are not "unfound"; they are **blocked on naming the
 actor's 64-bit timer fields**, which is the next thing to do and a different
 job from reading action bodies. `unknown`
+
+## The actor's 64-bit timers
+
+Reading every site that touches them settles their shape, if not yet their
+names.
+
+`0x401655` shows the pattern whole. It first tests **bits `0x4000` and
+`0x8000` of the flags dword at `+0x24`** and only looks further if either is
+set. It then reads two 64-bit values and reduces each to a boolean by the
+same three-instruction idiom — sign, then zero:
+
+- one at **`+0x114`** (high half `+0x118`),
+- one at **`+0x124`** (high half `+0x128`).
+
+State 5b reads a third at **`+0xf4`**, and state 7 reads the `+0x114` and
+`+0x124` pair.
+
+**They sit on a sixteen-byte grid**: `+0xf4`, `+0x104`, `+0x114`, `+0x124`.
+That is exactly the stride of the party's buff array and of each character's,
+and the "is this 64-bit value greater than zero" test is exactly how both of
+those decide whether a slot is still up. Three shapes agree — the spacing,
+the idiom and the grid — so the actor almost certainly carries **a buff array
+of its own, sixteen bytes a record, expiry at the record's base**.
+
+`observed` for the reads, the spacing and the idiom. `inferred` for the
+array, because unlike the party's and the character's no clearing routine and
+no writer has been found for it — and after four retractions that difference
+is worth keeping visible.
+
+**What it unblocks.** States 5b and 7 branch on whether particular actor
+buffs are still running: 5b on the slot at `+0xf4` across every actor in the
+array, 7 on the two at `+0x114` and `+0x124`. That is what those actions are
+deciding *about*, even though the slots are not yet named.

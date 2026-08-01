@@ -1251,6 +1251,16 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **The actor's timers sit on a buff grid**: the AI tests bits `0x4000` and
+  `0x8000` of the flags dword first, then reduces two 64-bit values to
+  booleans by the same sign-then-zero idiom the party and character buff
+  arrays use for an expiry. The two are at `+0x114` and `+0x124`, and state
+  5b's is at `+0xf4` — **a sixteen-byte grid**, which is exactly the buff
+  stride on both other arrays. Three shapes agree, so the actor almost
+  certainly carries a buff array of its own; it stays `inferred` because,
+  unlike the other two, no clearing routine or writer has been found. It does
+  unblock the reading: 5b and 7 branch on whether particular actor buffs are
+  still running.
 - **The gamble on the `+0x1570` run: a vestige**: neither branch of the
   guess was right. The eight bytes are read by **six** stat getters, each
   adding a signed byte to its total — and **nothing writes them**. Across the
