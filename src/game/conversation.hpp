@@ -190,12 +190,15 @@ inline constexpr int kDeathsAward = 82;
 //     jne  skip
 //     sub  dword [0x908d48], 0x64        ; -100
 //
-// `observed` for the guards and the amount. **The peacefulness reading is
-// withdrawn**: `0x401b09` copies that same `+0x12` byte into the actor's
-// animation state at `+0x3e`, so it is an idle animation index and not a
-// disposition. What stands is that the hundred is taken only when the row's
-// `+0x12` is zero and the party flag at `0x908dbd` is clear; whether a zero
-// there also marks a peaceful creature is `unknown`.
+// `observed` throughout, and the byte now has the file's own name behind it.
+// `MONSTERS.TXT`'s parser dispatches on the column index, and **column 12 is
+// `Hst`** — the hostility — which is what writes `+0x12`. So the hundred is
+// taken for **angering something that was not hostile to begin with**.
+//
+// A reading of that byte as hostility was withdrawn once, because `0x401b09`
+// copies it into the actor's animation state at `+0x3e`. The header settles
+// it the other way: the copy seeds the actor's state from the monster's
+// hostility. The withdrawal was over-cautious and is itself withdrawn.
 inline constexpr int kReputationPerProvocation = 100;
 
 // The bands the table names without numbers are still this engine's, but they

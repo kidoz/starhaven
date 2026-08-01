@@ -1362,6 +1362,19 @@ interoperability and compatibility with a legally purchased copy.
   the first time this engine has shown a party getting stronger rather than a
   snapshot at a fixed level. That the party can reach a hall once an hour is
   the harness's convenience and marked as such.
+- **The monster row's columns, named — and a withdrawal withdrawn.** The
+  parser dispatches on the **column index** (`cmp edi, 0x1f; jmp [edi*4 +
+  0x44851c]`), so the *n*th case is the *n*th column of the header row, and the
+  alignment proves itself: cases **26 through 31** write **`+0x24` through
+  `+0x29`** consecutively, and the header's columns 26 to 31 are Fire, Elec,
+  Cold, Pois, Phys, Mag. Thirteen more columns land with them — `AC` at
+  `+0x34`, `Quest` at `+0x2c`, `Move`, `AI Type`, `Rec`, both attacks' `Type`,
+  `Miss` and percentages. **Column 12 is `Hst`**, the hostility, and it writes
+  `+0x12` — so last batch's withdrawal of the peacefulness reading was
+  over-cautious and is itself withdrawn: the hundred-point reputation penalty
+  is for **angering something that was not hostile to begin with**, now on the
+  file's own header rather than on a fit. The columns whose cases share a tail
+  are left `unknown` rather than guessed at.
 - **The gamble on the 72-byte monster row: the parser writes it directly.**
   The stated risk was that `MONSTERS.TXT`'s parser would fill a stack frame and
   copy it wholesale, the way the *actor preparation* routine does — the wall

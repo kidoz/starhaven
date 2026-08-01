@@ -852,3 +852,46 @@ needs the parser walked in order against the file's own header row, which is
 the next step and not this one's. But the wall the earlier attempt hit — a
 stack frame with no per-column trace — was the *preparation* routine, not the
 parser, and the parser does not have it.
+
+## The monster row's columns, named
+
+The parser dispatches on the **column index** — `cmp edi, 0x1f; jmp dword
+[edi*4 + 0x44851c]`, thirty-two cases — so the *n*th case is the *n*th column
+of `MONSTERS.TXT`'s header row. The alignment proves itself: cases **26
+through 31** write **`+0x24` through `+0x29`**, consecutively, and the header's
+columns 26 to 31 are **Fire, Elec, Cold, Pois, Phys, Mag**. Six resistances,
+six bytes, in order.
+
+| column | header | offset |
+| --- | --- | --- |
+| 5 | `AC` | `+0x34` |
+| 8 | `Quest` | `+0x2c` |
+| 10 | `Move` | `+0x10` |
+| 11 | `AI Type` | `+0x11` |
+| 12 | **`Hst`** | **`+0x12`** |
+| 14 | `Rec` | `+0x13` |
+| 17 | `Type` (attack 1) | `+0x16` |
+| 19 | `Miss` (attack 1) | `+0x1a` |
+| 20 | `Att%` | `+0x1b` |
+| 21 | `Type` (attack 2) | `+0x1c` |
+| 23 | `Miss` (attack 2) | `+0x20` |
+| 24 | `Use%` | `+0x21` |
+| 26..31 | `Fire`, `Elec`, `Cold`, `Pois`, `Phys`, `Mag` | `+0x24`..`+0x29` |
+
+`observed`. The columns whose case bodies are short and share a tail — `LVL`,
+`HP`, `EXP`, `Treasure`, `Fly`, `Spd`, `Pref`, `Bonus`, the two `Damage`
+columns and `Spl,Mas,Skil` — write offsets the scan cannot attribute without
+splitting the shared code, and are left `unknown` rather than guessed at.
+
+### And the peacefulness name is restored
+
+Column 12 is **`Hst`**, and it writes `+0x12`. Last batch withdrew the reading
+of that byte as the row's hostility, on the grounds that `0x401b09` copies it
+into the actor's animation state at `+0x3e`. The header settles it the other
+way: the byte **is** `Hst`, and what `0x401b09` does is *seed* the actor's
+state from the monster's hostility, which is a coherent thing for it to do.
+
+So the reputation guard reads as it first did: the hundred-point penalty is
+taken only when `Hst` is zero — **for angering something that was not hostile
+to begin with**. The withdrawal was over-cautious and is itself withdrawn.
+`observed`, now from the file's own header rather than from a fit.
