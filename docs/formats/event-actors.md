@@ -727,3 +727,43 @@ which is what this search set out to find and found already done; what was
 missing was anyone looking at the pile. Over sixteen world hours across four
 maps, an armed level-twenty party killing **548 actors** collected **3,915
 gold and 17 items** — rings, a crossbow, a staff.
+
+## Three of the nine, and the test they share
+
+`0x4080c0` is the **line of sight**. States 2, 12 and 13 all open by calling
+it, and in 12 and 13 the opening is byte-identical:
+
+```
+fild dword [esp + 0xc]              ; the radius, from +0x7a
+fmul qword [0x4b9340]               ; x -0.75
+call 0x4ae24c                       ; back to an integer
+movsx ecx, word [ebx + 0x82]        ; the actor's z ...
+sub   ecx, eax                      ; ... lifted by three quarters of a radius
+movsx edx, word [ebx + 0x80]
+movsx eax, word [ebx + 0x7e]
+mov   ecx, dword [0x908ca0]         ; the party's z
+mov   edx, dword [0x908c78]         ; and its eye offset
+add   edx, ecx
+mov   ecx, dword [0x908c98]         ; the party's x
+mov   edx, dword [0x908c9c]         ; and y
+call  0x4080c0
+```
+
+So the doc's earlier note that states 2, 12 and 13 are "three variants of one
+thing" because they all read `+0x7a` has a better reason behind it: **they all
+need to see the party, and the radius is only there to lift the eye**. What
+separates them is what each does once the answer comes back. `observed`
+
+Two party fields fall out of it: `0x908c98`, `0x908c9c` and `0x908ca0` are the
+party's position at `+0x28`, `+0x2c` and `+0x30`, and `0x908c78` — party
+`+0x08` — is added to the z, which makes it the **eye height**.
+
+**State 1-and-3** (`0x403b60`) opens differently: it takes `+0x92` and `+0x94`
+against `+0x7e` and `+0x78`, and subtracts one pair from the other. A stored
+pair differenced against the live position is a **vector home** — the actor
+measuring how far it has drifted from where it belongs. `observed` for the
+reads and the subtraction, `inferred` for the name.
+
+Six of the eleven remain unnamed. What this adds is that the grouping was
+right for the wrong reason, that the sight test now has an address, and that
+the party's eye height has one too.

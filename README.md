@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **Three of the nine AI actions, and the test they share.** `0x4080c0` is the
+  **line of sight**, and states 2, 12 and 13 all open by calling it — in 12
+  and 13 byte-identically. Each lifts the actor's z by **three quarters of its
+  radius** and asks whether it can see the party at `0x908c98`/`0x908c9c`/
+  `0x908ca0`, offset by `0x908c78`. So the earlier grouping of those three —
+  made because they all read the radius — was right for the wrong reason: the
+  radius is only there to lift the eye, and what they have in common is
+  **needing to see the party**. Two party fields come with it: the position at
+  `+0x28`/`+0x2c`/`+0x30`, and `+0x08` as the **eye height**. State 1-and-3
+  differences a stored pair against the live position — an actor measuring how
+  far it has drifted from where it belongs. Six of the eleven remain unnamed,
+  and the write-up says so.
 - **The 148-byte monster table is `DMONLIST`, loaded.** The second per-monster
   table that surfaced last batch is a file this project already documents:
   173 records of 148 bytes against `MONSTERS.TXT`'s 173 monsters, behind the
