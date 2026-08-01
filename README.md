@@ -1318,6 +1318,16 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on `0x90e19c`: six clocks that belong to the scripts alone.**
+  Property ids 216..221 stamp eight-byte world-clock values into a fixed array
+  just past the party record, and **four instructions in the whole executable
+  touch it** — a setter, an adder, a clear, and a getter that multiplies by the
+  same 30/128 calendar float the world clock uses and divides by sixty, so a
+  script reads its stamp back in game time. Nothing else looks at them ever.
+  So they are neither interface state nor engine state: the game keeps six
+  timers purely so a map script can mark when something happened and later ask
+  how long ago. The stated risk was screen cooldowns with no bearing on the
+  game; they are the opposite.
 - **The higher lines fire at last** — and finding out why they never had
   turned up a real bug. `DescriptionTable` hands over every description column
   from the second onward, and `SKILLDES.TXT`'s columns are *Skill /

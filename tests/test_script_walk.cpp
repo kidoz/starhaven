@@ -527,3 +527,25 @@ TEST_CASE("the level is variable nine", "[script]") {
     REQUIRE(kVarResistModFirst + 5 == kVarSkillFirst);
     REQUIRE(kVarClearConditions == kVarConditionFirst + 17);
 }
+
+TEST_CASE("six clocks belong to the scripts alone", "[script]") {
+    REQUIRE(kVarTimerFirst == 216);
+    REQUIRE(kScriptTimerCount == 6);
+    // They sit between the party globals and the autonote, and do not run
+    // into either.
+    REQUIRE(kVarTimerFirst + kScriptTimerCount == 222);
+    REQUIRE(kVarAutonote < kVarTimerFirst);
+
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 7, 0, kOpcodeGive, typed(kVarTimerFirst, 40));
+    push_step(payload, 7, 1, kOpcodeGive, typed(kVarTimerFirst + 5, 90));
+    push_step(payload, 7, 2, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+    starhaven::game::WalkState state;
+    (void)starhaven::game::walk_event(script, 7, state);
+    REQUIRE(state.timers[0] == 40);
+    REQUIRE(state.timers[5] == 90);
+    REQUIRE(state.timers[3] == 0);
+    // Nothing leaks into the plain variable store.
+    REQUIRE(state.variables.find(kVarTimerFirst) == state.variables.end());
+}

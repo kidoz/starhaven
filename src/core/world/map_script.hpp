@@ -211,6 +211,21 @@ inline constexpr std::uint8_t kVarClass = 2;             // byte at +0x12
 inline constexpr std::uint8_t kVarHitPointsFull = 4;     // set to the maximum
 inline constexpr std::uint8_t kVarSpellPointsFull = 6;   // set to the maximum
 inline constexpr std::uint8_t kVarClearConditions = 104;  // wipes all eighteen
+
+// **Six clocks that belong to no one but the scripts.** Ids 216..221 write
+// eight-byte world-clock stamps into a fixed array at `0x90e19c + 8 × id`,
+// just past the end of the party record. Three routines touch them — the
+// setter at `0x441095`, the adder at `0x441ec7` and a clear at `0x4429ca` —
+// and the getter at `0x44036c` reads one back, multiplies it by the **same
+// 30/128 calendar float at `0x4b9374`** the world clock uses and divides by
+// sixty, so a script gets its answer in game time.
+//
+// Nothing else in the executable reads them: those four sites are the only
+// access to the array in the whole image. So they are neither interface state
+// nor engine state — they are six timers the game keeps purely so that map
+// scripts can stamp a moment and ask how long ago it was. `observed`
+inline constexpr std::uint8_t kVarTimerFirst = 216;
+inline constexpr int kScriptTimerCount = 6;
 // **The seven attributes are variables 31..37, not 32..38.** The setter's
 // cases write `+0x14`, `+0x18`, `+0x1c`, `+0x20`, `+0x24`, `+0x28` and
 // `+0x2c` for those seven ids, and the next seven — **38..44** — write the

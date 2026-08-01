@@ -163,3 +163,38 @@ same array from its base — id 105 lands on `0x5b22fc` exactly — which cannot
 be a property of a character. Either the numbering is dead in the shipped
 game, or the original scribbles on its own sheet text. Nothing in this engine
 should implement them.
+
+## `0x90e19c`: six clocks that belong to the scripts alone
+
+Property ids 216..221 stamp eight-byte world-clock values into a fixed array
+at `0x90e19c + 8 × id` — `0x90e85c` through `0x90e88b`, just past the end of
+the party record at `0x90e7a4`.
+
+Four instructions in the whole executable touch that array, and all four are
+property plumbing:
+
+| where | what |
+| --- | --- |
+| `0x441095` | the setter writes a stamp |
+| `0x441ec7` | the adder writes a stamp |
+| `0x4429ca` | a clear |
+| `0x44036c` | the getter reads one back |
+
+The getter is the interesting one:
+
+```
+0x0044036c  fild  qword [eax*8 + 0x90e19c]
+0x00440373  fmul  dword [0x4b9374]        ; the 30/128 calendar float
+0x00440379  call  0x4ae24c                ; back to an integer
+0x00440380  push  0x3c                    ; 60
+```
+
+— the **same conversion the world clock uses for the calendar**, then divided
+by sixty. So a script stamps a moment and reads it back in game time.
+
+**Nothing else reads them.** That is the finding: these six are neither
+interface state nor engine state. The game keeps them purely so that a map
+script can mark when something happened and later ask how long ago it was, and
+no part of the engine ever looks. The gamble's stated risk was that they would
+turn out to be screen cooldowns with no bearing on the game; they are the
+opposite — they bear on nothing *but* the game's own scripts.

@@ -46,6 +46,11 @@ struct WalkState {
     int experience = 0;
     int food = 0;
 
+    // The six clocks that exist only for scripts — ids 216..221. The
+    // executable stamps them with the world clock; the walk has none, so it
+    // keeps whatever the script set.
+    std::array<int, world::kScriptTimerCount> timers{};
+
     // The honors earned: `Awards.txt` rows, set by quest events and worn on
     // the sheet. Persistent like the bits.
     std::set<int> awards;
@@ -284,6 +289,19 @@ struct WalkOutcome {
             case world::kVarExperience:
                 state.experience += take ? -value : value;
                 state.experience = state.experience < 0 ? 0 : state.experience;
+                break;
+            case world::kVarTimerFirst:
+            case world::kVarTimerFirst + 1:
+            case world::kVarTimerFirst + 2:
+            case world::kVarTimerFirst + 3:
+            case world::kVarTimerFirst + 4:
+            case world::kVarTimerFirst + 5:
+                // A script stamps a moment or clears it; the walk has no
+                // clock of its own, so it records which slot was touched and
+                // with what, and leaves the reading in game time to callers
+                // that do.
+                state.timers[static_cast<std::size_t>(type - world::kVarTimerFirst)] =
+                    take ? 0 : value;
                 break;
             case world::kVarFood:
                 state.food += take ? -value : value;
