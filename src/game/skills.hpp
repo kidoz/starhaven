@@ -13,7 +13,9 @@
 // where the line names no number — one point of attack bonus per point of
 // skill, one percent off a price — is this engine's own and marked below.
 
+#include <array>
 #include <cctype>
+#include <cstdint>
 #include <map>
 #include <vector>
 #include <string>
@@ -171,18 +173,37 @@ struct SkillPower {
     return data::school_name(school);
 }
 
-// The executable's own skill numbering, and the two tables the attack
-// bonus is built from. `GLOBAL.TXT` names the skills in a run from row
-// 271, so id 0 is Staff and 23 Repair Item; the percentage table at
-// `0x4c27fc` gives each id its weight, and the priority list at
-// `0x4c276c` is the order the getter searches — it takes the **first
-// skill the character actually has** and scales that one. `observed`
-// See docs/formats/player-record.md.
-inline constexpr std::array<std::string_view, 24> kSkillNames{
-    "Staff",      "Sword",      "Dagger",     "Axe",        "Spear",     "Bow",
-    "Mace",       "Blaster",    "Shield",     "Leather",    "Chain",     "Plate",
-    "Fire",       "Air",        "Water",      "Earth",      "Light",     "Dark",
-    "Spirit",     "Mind",       "Body",       "Identify",   "Merchant",  "Repair"};
+// The thirty-one slots, named.
+//
+// `SKILLDES.TXT` ships **exactly thirty-one rows**, and the array at `+0x60`
+// is exactly thirty-one bytes, so slot `n` is row `n`. The names below are
+// that file's, in its own order. `observed`
+//
+// **Corrected.** A twenty-four-name list stood here with Light and Dark at
+// 16 and 17, ahead of Spirit, Mind and Body. That ordering was wrong, and
+// the class table below is what caught it: read the Cleric's row on the old
+// order and the class starts with Spirit rather than Body and may choose
+// Light at creation; read the Sorcerer's and no sorcerer may ever learn Dark.
+// Read on `SKILLDES.TXT`'s order both rows come out exactly as the game
+// plays. The first twelve names are unchanged, so nothing that indexed the
+// weapon groups moves.
+inline constexpr std::array<std::string_view, 31> kSkillNames{
+    "Staff",        "Sword",      "Dagger",     "Axe",        "Spear",
+    "Bow",          "Mace",       "Blaster",    "Shield",     "Leather",
+    "Chain",        "Plate",      "Fire",       "Air",        "Water",
+    "Earth",        "Spirit",     "Mind",       "Body",       "Light",
+    "Dark",         "Identify",   "Merchant",   "Repair",     "Bodybuilding",
+    "Meditation",   "Perception", "Diplomacy",  "Thievery",   "Disarm Traps",
+    "Learning"};
+
+[[nodiscard]] inline int skill_id(std::string_view name) noexcept {
+    for (std::size_t i = 0; i < kSkillNames.size(); ++i) {
+        if (kSkillNames[i] == name) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
 
 // **Retracted.** A per-skill percentage table and a fourteen-entry skill
 // priority list stood here, read from `0x4c27fc` and `0x4c276c`. They are
@@ -368,6 +389,91 @@ inline constexpr int kFreeSkillPointsOffset = 0x1410;
     packed += 1;  // the mastery bits ride along untouched, as `inc al` leaves them
     pool -= cost;
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Which class may hold which skill: a **six by thirty-one byte table at
+// `0x4c2694`**, stride thirty-one, indexed by the class family and the slot.
+// The family is the class divided by three (`0x484181`), which is why there
+// are six rows for eighteen classes and why the six hit-point bases have six
+// entries too. The table runs right up to the weapon-recovery table at
+// `0x4c2750`, which is where its length is fixed from. `observed`
+//
+// The trainer's list at `0x49c864` and `0x49ca81` tests the byte for
+// **non-zero** and nothing finer, then skips any skill the character already
+// holds — so **zero means the class may never learn it**, and that much is
+// `observed`.
+//
+// What separates 1, 2 and 3 is `inferred`, from three things agreeing.
+// `0x484150`'s first body walks the slots whose byte is **1** and hands back
+// the first or second of them; every family has exactly two, and in all six
+// cases they are the pair that class is known to begin play with — Knight
+// sword and leather, Cleric mace and body, Sorcerer dagger and fire, Paladin
+// sword and spirit, Archer bow and air, Druid staff and earth. Its other two
+// bodies walk the slots whose byte is **2**, which is the list a new
+// character chooses from. So: **1 granted, 2 offered at creation, 3 learnable
+// only later, 0 never**.
+inline constexpr int kSkillFamilies = 6;
+inline constexpr int kClassesPerFamily = 3;
+
+enum class SkillAccess : int {
+    Never = 0,
+    Granted = 1,
+    Offered = 2,
+    Later = 3,
+};
+
+inline constexpr std::array<std::array<std::uint8_t, kSkillSlots>, kSkillFamilies>
+    kClassSkillTable{{
+        // Knight
+        {3, 1, 2, 2, 2, 2, 3, 3, 2, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 2, 0, 2, 3, 0,
+         2, 3},
+        // Cleric
+        {2, 0, 0, 0, 0, 3, 1, 3, 2, 2, 3, 0, 0, 0, 0, 0, 2, 2, 1, 3, 3, 2, 3, 2, 3, 2, 3, 2, 0,
+         3, 3},
+        // Sorcerer
+        {2, 0, 1, 0, 0, 3, 0, 3, 0, 2, 0, 0, 1, 2, 2, 2, 0, 0, 0, 3, 3, 2, 3, 2, 3, 2, 3, 2, 0,
+         3, 3},
+        // Paladin
+        {3, 1, 2, 3, 2, 3, 2, 3, 2, 2, 2, 3, 0, 0, 0, 0, 1, 3, 3, 0, 0, 3, 3, 3, 3, 3, 2, 2, 0,
+         2, 3},
+        // Archer
+        {3, 2, 2, 2, 3, 1, 3, 3, 0, 2, 3, 0, 2, 1, 3, 3, 0, 0, 0, 0, 0, 2, 3, 3, 3, 3, 2, 2, 0,
+         2, 3},
+        // Druid
+        {1, 0, 3, 0, 0, 3, 2, 3, 3, 2, 0, 0, 3, 3, 2, 1, 2, 3, 2, 0, 0, 2, 3, 2, 3, 2, 3, 3, 0,
+         3, 2},
+    }};
+
+[[nodiscard]] inline constexpr int class_family(int class_id) noexcept {
+    const int family = class_id / kClassesPerFamily;
+    return family < 0 ? 0 : family >= kSkillFamilies ? kSkillFamilies - 1 : family;
+}
+
+[[nodiscard]] inline constexpr SkillAccess class_skill_access(int class_id, int slot) noexcept {
+    if (slot < 0 || slot >= kSkillSlots) {
+        return SkillAccess::Never;
+    }
+    return static_cast<SkillAccess>(
+        kClassSkillTable[static_cast<std::size_t>(class_family(class_id))]
+                        [static_cast<std::size_t>(slot)]);
+}
+
+// What the trainer's list tests, and nothing finer.
+[[nodiscard]] inline constexpr bool class_may_learn(int class_id, int slot) noexcept {
+    return class_skill_access(class_id, slot) != SkillAccess::Never;
+}
+
+// The two a class begins with, in slot order.
+[[nodiscard]] inline std::array<int, 2> class_starting_skills(int class_id) {
+    std::array<int, 2> found{-1, -1};
+    std::size_t at = 0;
+    for (int slot = 0; slot < kSkillSlots && at < found.size(); ++slot) {
+        if (class_skill_access(class_id, slot) == SkillAccess::Granted) {
+            found[at++] = slot;
+        }
+    }
+    return found;
 }
 
 // What a made party must have before the game will start: the check at

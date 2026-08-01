@@ -1251,6 +1251,16 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **The thirty-one skill slots, named** — and who may hold them.
+  `SKILLDES.TXT` ships exactly thirty-one rows for exactly thirty-one bytes,
+  so slot `n` is row `n`; and `0x4c2694` is a **six by thirty-one table** of
+  what each class family may do with each. Zero means never, which the
+  trainer's list tests directly. The two slots marked `1` in each row are the
+  pair that class begins play with, and they come out right for all six —
+  Knight sword and leather, Cleric mace and body, Sorcerer dagger and fire,
+  Paladin sword and spirit, Archer bow and air, Druid staff and earth. That
+  fit also **corrected an earlier list** that had Light and Dark ahead of the
+  three self schools; read that way, no Sorcerer could ever learn Dark.
 - **The gamble on `0x55e5d0`: the sine table.** The most-referenced runtime
   table in the executable — 290 reads and not one write — is read through
   quadrant folding around a quarter and a half held at `0x55f614` and

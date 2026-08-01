@@ -242,3 +242,76 @@ TEST_CASE("a made character owes four skills", "[skills]") {
     slots[30] = 1;  // the last slot the walk reaches counts
     REQUIRE(character_skills_chosen(read));
 }
+
+TEST_CASE("the thirty-one slots are SKILLDES.TXT's own rows", "[skills]") {
+    REQUIRE(kSkillNames.size() == static_cast<std::size_t>(kSkillSlots));
+    REQUIRE(kSkillNames[0] == "Staff");
+    REQUIRE(kSkillNames[12] == "Fire");
+    REQUIRE(kSkillNames[30] == "Learning");
+    REQUIRE(skill_id("Bow") == 5);
+    REQUIRE(skill_id("Meditation") == 25);
+    REQUIRE(skill_id("Nothing At All") == -1);
+}
+
+TEST_CASE("each class begins with the pair its row marks", "[skills]") {
+    // The families are the eighteen classes over three, and the two ones in
+    // each row are the skills that class starts play with.
+    REQUIRE(class_family(0) == 0);   // Knight
+    REQUIRE(class_family(2) == 0);   // Champion is still a Knight
+    REQUIRE(class_family(17) == 5);  // Arch Druid is a Druid
+    const std::array<std::pair<int, std::pair<const char*, const char*>>, 6> starts{{
+        {0, {"Sword", "Leather"}},
+        {3, {"Mace", "Body"}},
+        {6, {"Dagger", "Fire"}},
+        {9, {"Sword", "Spirit"}},
+        {12, {"Bow", "Air"}},
+        {15, {"Staff", "Earth"}},
+    }};
+    for (const auto& [who, pair] : starts) {
+        const auto got = class_starting_skills(who);
+        REQUIRE(got[0] == skill_id(pair.first));
+        REQUIRE(got[1] == skill_id(pair.second));
+    }
+}
+
+TEST_CASE("a class may never learn what its row zeroes", "[skills]") {
+    // A knight has no magic at all, and no meditation to feed it.
+    for (int school = skill_id("Fire"); school <= skill_id("Dark"); ++school) {
+        REQUIRE_FALSE(class_may_learn(0, school));
+    }
+    REQUIRE_FALSE(class_may_learn(0, skill_id("Meditation")));
+    REQUIRE(class_may_learn(0, skill_id("Plate")));
+    // A sorcerer has the four elements and none of the three self schools.
+    REQUIRE(class_may_learn(6, skill_id("Fire")));
+    REQUIRE(class_may_learn(6, skill_id("Earth")));
+    REQUIRE_FALSE(class_may_learn(6, skill_id("Spirit")));
+    REQUIRE_FALSE(class_may_learn(6, skill_id("Plate")));
+    REQUIRE_FALSE(class_may_learn(6, skill_id("Shield")));
+    // A druid takes no bladed weapon bigger than a dagger, and no mail.
+    REQUIRE_FALSE(class_may_learn(15, skill_id("Sword")));
+    REQUIRE_FALSE(class_may_learn(15, skill_id("Axe")));
+    REQUIRE_FALSE(class_may_learn(15, skill_id("Chain")));
+    // Thievery is the one slot no class in the game may touch.
+    for (int who = 0; who < 18; who += 3) {
+        REQUIRE_FALSE(class_may_learn(who, skill_id("Thievery")));
+    }
+    // And out-of-range asks are refused rather than read past the table.
+    REQUIRE_FALSE(class_may_learn(0, -1));
+    REQUIRE_FALSE(class_may_learn(0, kSkillSlots));
+}
+
+TEST_CASE("the offered list is what a new character picks from", "[skills]") {
+    // Two granted, some offered, the rest for a trainer later or never.
+    int granted = 0;
+    int offered = 0;
+    for (int slot = 0; slot < kSkillSlots; ++slot) {
+        const auto access = class_skill_access(3, slot);  // Cleric
+        granted += access == SkillAccess::Granted ? 1 : 0;
+        offered += access == SkillAccess::Offered ? 1 : 0;
+    }
+    REQUIRE(granted == 2);
+    REQUIRE(offered > 0);
+    REQUIRE(class_skill_access(3, skill_id("Mace")) == SkillAccess::Granted);
+    REQUIRE(class_skill_access(3, skill_id("Light")) == SkillAccess::Later);
+    REQUIRE(class_skill_access(3, skill_id("Plate")) == SkillAccess::Never);
+}

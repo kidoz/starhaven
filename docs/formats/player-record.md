@@ -828,3 +828,59 @@ class at `+0x12` by three to get the class family. `observed` for the reads;
 Script opcodes reach the array too: `0x43c9a0` and `0x43c9bf` read a slot
 whose index is an instruction's argument byte at `+5`, and `0x430216` writes
 **1** — a skill granted outright rather than bought.
+
+## The thirty-one slots, and who may hold them
+
+`SKILLDES.TXT` ships **exactly thirty-one rows**, and the array is exactly
+thirty-one bytes, so slot `n` is row `n`:
+
+| 0..7 | 8..15 | 16..23 | 24..30 |
+| --- | --- | --- | --- |
+| Staff, Sword, Dagger, Axe, Spear, Bow, Mace, Blaster | Shield, Leather, Chain, Plate, Fire, Air, Water, Earth | Spirit, Mind, Body, Light, Dark, Identify, Merchant, Repair | Bodybuilding, Meditation, Perception, Diplomacy, Thievery, Disarm Traps, Learning |
+
+**A correction.** An earlier twenty-four-name list put Light and Dark at 16
+and 17, ahead of the three self schools. That was wrong. What caught it is
+the class table below: on the old order the Cleric begins with Spirit rather
+than Body and may pick Light at character creation, and no Sorcerer may ever
+learn Dark. On `SKILLDES.TXT`'s order every one of the six rows comes out
+exactly as the game plays. The first twelve names did not move, so nothing
+that indexed the weapon groups changes.
+
+## `0x4c2694`: which class may hold which skill
+
+A **six by thirty-one byte table**, stride thirty-one, indexed by the class
+family and the slot. The family is the class over three (`0x484181`) — which
+is why eighteen classes need six rows, and why the hit-point bases have six
+entries too. It ends where the weapon-recovery table begins at `0x4c2750`,
+which is what fixes its length. `observed`
+
+```
+Knight    3 1 2 2 2 2 3 3 2 1 2 3 0 0 0 0 0 0 0 0 0 3 3 3 2 0 2 3 0 2 3
+Cleric    2 0 0 0 0 3 1 3 2 2 3 0 0 0 0 0 2 2 1 3 3 2 3 2 3 2 3 2 0 3 3
+Sorcerer  2 0 1 0 0 3 0 3 0 2 0 0 1 2 2 2 0 0 0 3 3 2 3 2 3 2 3 2 0 3 3
+Paladin   3 1 2 3 2 3 2 3 2 2 2 3 0 0 0 0 1 3 3 0 0 3 3 3 3 3 2 2 0 2 3
+Archer    3 2 2 2 3 1 3 3 0 2 3 0 2 1 3 3 0 0 0 0 0 2 3 3 3 3 2 2 0 2 3
+Druid     1 0 3 0 0 3 2 3 3 2 0 0 3 3 2 1 2 3 2 0 0 2 3 2 3 2 3 3 0 3 2
+```
+
+The trainer's list at `0x49c864` and `0x49ca81` tests the byte for
+**non-zero** and nothing finer, then skips any skill the character already
+holds. So **zero means the class may never learn it**, and that much is
+`observed` — a Knight has no magic and no Meditation, a Sorcerer no plate and
+no shield, a Druid no sword, no axe and no mail.
+
+What separates 1, 2 and 3 is `inferred`, from three readings agreeing.
+`0x484150`'s first body walks the slots whose byte is **1** and hands back the
+first or the second of them; every family has exactly two, and in all six
+cases they are the pair that class is known to begin play with — Knight sword
+and leather, Cleric mace and body, Sorcerer dagger and fire, Paladin sword and
+spirit, Archer bow and air, Druid staff and earth. Its other two bodies walk
+the slots whose byte is **2**, which is the list a new character chooses from.
+So **1 granted, 2 offered at creation, 3 learnable only from a trainer, 0
+never**.
+
+One column is zero in all six rows: **Thievery**. No class in the game may
+hold it.
+
+`0x484150` returns **31** when the walk runs off the end, which is why
+`0x4301fa` compares its result against `0x1f` before using it. `observed`
