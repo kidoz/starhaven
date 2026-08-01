@@ -1178,3 +1178,32 @@ four routes. Either it arrives entirely through the event system, or the
 mechanism lies somewhere none of these reaches. `unknown` — and this engine's
 own split of a fight's worth among whoever is standing stays marked as its
 own.
+
+## The stat id space, counted
+
+Every `push` that immediately precedes a call to one of the three stat getters
+— `0x483800`, `0x483930` and `0x482e80` — was collected. The answer is
+**ids 0 through 21 and 23, and nothing else**; **id 22 is never asked for
+anywhere in the image**. `observed`
+
+| ids | what | how it is known |
+| --- | --- | --- |
+| 0..6 | the seven attributes, Might..Luck | the property setter writes `+0x14 + 4k` for the matching run |
+| 7 | maximum hit points | its getter indexes the class base at `0x4c2630` |
+| 8 | maximum spell points | its getter indexes `0x4c2638` |
+| 9 | armour class | its getter adds the stored word at `+0x30` and the Speed ladder |
+| 10, 11, 12, 13, **23** | the five resistances | one routine asks for all five in a single evenly spaced run at `0x47f6a3`..`0x47f7a8`, and five is how many columns `MONSTERS.TXT` carries |
+| 14 | shown beside the attributes | `0x47d915` continues the same 32-byte stride that spaces ids 0..6 |
+| 15, 16, 19, 20 | the derived combat figures that carry a stored term | `+0x1570`..`+0x1577` |
+| 17, 18, 21 | asked for only from inside those getters | ingredients rather than figures |
+| 22 | never asked | — |
+
+**A correction.** `special_stats.hpp` had "ids 10..13 are the resistances".
+There are five, and the fifth is **23** — it trails the other four rather than
+continuing them, which is why the earlier reading stopped at 13.
+
+The gamble's stated risk was that the gaps would be display-only rows with no
+getter to find. Half of that landed: 14, 17, 18 and 21 have getters but no
+name, and what they are stays `unknown`. What did not land is the fear that
+there would be nothing to count — the id space itself is now closed, with its
+one hole named.

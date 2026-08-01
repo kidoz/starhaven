@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on the stat ids: the space is closed.** Collecting every `push`
+  that precedes a call to one of the three stat getters gives **ids 0 through
+  21 and 23, and nothing else** — **id 22 is never asked for anywhere in the
+  image**. It also corrects a standing claim: `special_stats.hpp` had the
+  resistances as ids 10..13, but there are **five** and the fifth is **23** —
+  one routine asks for all five in a single evenly spaced run, and five is how
+  many columns `MONSTERS.TXT` carries. Id 14 continues the same 32-byte stride
+  that spaces the attributes, so it is shown beside them; 15, 16, 19 and 20
+  are the figures carrying stored terms; 17, 18 and 21 are asked for only from
+  inside those getters, which makes them ingredients rather than figures. The
+  risk was that the gaps would have no getter to find — half landed: four ids
+  have getters and no name.
 - **The monsters fight on the AI's own shape now.** Two traced things that had
   never reached the headless battle. **The awareness cut comes first**: the
   decision routine tests the distance against **5120** before it considers

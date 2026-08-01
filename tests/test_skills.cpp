@@ -6,6 +6,7 @@
 #include <map>
 
 #include "game/skills.hpp"
+#include "game/special_stats.hpp"
 
 using namespace starhaven;
 using namespace starhaven::game;
@@ -414,4 +415,25 @@ TEST_CASE("the bare doublings are what a rank is worth to the silent rows",
     // The packed byte is never taken for a point count.
     REQUIRE(weighted_repair(teach_rank(2, 1)) == 4);
     REQUIRE(weighted_repair(0) == 0);
+}
+
+TEST_CASE("the stat id space is twenty-three ids with one gap", "[skills]") {
+    // Every push before a stat getter, counted: 0..21 and 23.
+    REQUIRE(kStatIdCount == 24);
+    REQUIRE(kStatIdNeverAsked == 22);
+    // The five resistances are not a contiguous run.
+    REQUIRE(kResistanceStatIds.size() == 5);
+    REQUIRE(kResistanceStatIds[3] == 13);
+    REQUIRE(kResistanceStatIds[4] == 23);
+    REQUIRE(kResistanceStatIds[4] != kResistanceStatIds[3] + 1);
+    // The four that carry a stored term sit among the derived figures.
+    REQUIRE(kStoredTermStatIds.size() == 4);
+    for (const int id : kStoredTermStatIds) {
+        REQUIRE(id > static_cast<int>(StatId::ArmorClass));
+        REQUIRE(id < kStatIdNeverAsked);
+    }
+    // And the three named ones are where the getters put them.
+    REQUIRE(static_cast<int>(StatId::HitPoints) == 7);
+    REQUIRE(static_cast<int>(StatId::SpellPoints) == 8);
+    REQUIRE(static_cast<int>(StatId::ArmorClass) == 9);
 }

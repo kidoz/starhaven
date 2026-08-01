@@ -49,6 +49,32 @@ enum class StatId : int {
     ArmorClass = 9,
 };
 
+// **The whole id space, counted.** Scanning every `push` that immediately
+// precedes a call to one of the three stat getters — `0x483800`, `0x483930`
+// and `0x482e80` — gives **ids 0 through 21 and 23, and nothing else**. Id 22
+// is never asked for anywhere in the image. `observed`
+inline constexpr int kStatIdCount = 24;
+inline constexpr int kStatIdNeverAsked = 22;
+
+// **The five resistances are 10, 11, 12, 13 and 23**, not 10..13. One routine
+// asks for all five in a single run — `0x47f6a3`, `0x47f6eb`, `0x47f733`,
+// `0x47f778`, `0x47f7a8`, evenly spaced — and five is exactly how many
+// resistance columns `MONSTERS.TXT` carries. That 23 trails the other four
+// rather than continuing them is why the earlier reading stopped at 13.
+// `observed` for the run, `inferred` that the run is the resistances.
+inline constexpr std::array<int, 5> kResistanceStatIds{10, 11, 12, 13, 23};
+
+// Id **14** follows the seven attributes in the sheet's own walk, at
+// `0x47d915`, on the same 32-byte stride that spaces ids 0..6 — so it is
+// shown beside them. Which row it is stays `unknown`.
+inline constexpr int kStatIdAfterAttributes = 14;
+
+// Ids **15..21** are the derived combat figures. Four of them carry a stored
+// term on the character (`+0x1570`..`+0x1577`): 15, 16, 19 and 20. Ids 17, 18
+// and 21 are asked for only from inside those getters, which makes them
+// ingredients rather than figures of their own. `observed`
+inline constexpr std::array<int, 4> kStoredTermStatIds{15, 16, 19, 20};
+
 // One special's contribution: the stats it answers for and what it adds.
 struct SpecialStat {
     int special = 0;
