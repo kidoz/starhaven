@@ -1115,4 +1115,18 @@ position routine. So it too asks where something is before it acts, and its
 one distinguishing feature remains that nothing inside the AI calls it.
 `observed`
 
-State 7 was not reached.
+**State 7** opens by testing the actor's `+0x114`/`+0x118` pair and then
+`+0x124`/`+0x128` — the two 64-bit pairs nothing ever writes:
+
+```
+mov eax, dword [eax*4 + 0x56f590]   ; +0x118
+...
+mov eax, dword [ebx + 0x114]
+...
+mov ecx, dword [ebx + 0x128]
+```
+
+So the last unread body is gated on timers that are always zero, and reading
+past the gate would only describe branches that never run. **All eleven action
+bodies have now been opened**, and three of them can never take the branch the
+timers guard. `observed`

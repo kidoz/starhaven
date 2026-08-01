@@ -294,12 +294,27 @@ So it is **the game's roster of named people**, addressed by index from
 scripts: exactly the risk the gamble named. What it adds is the stride, the
 count's address, two fields and the fact that scripts index it directly.
 
-**And the inference it was meant to test is still not settled.** Id 214 clears
-party `+0x95` and `+0x96` in the same breath as it flags a record, which is
-consistent with those two bytes being the hireling slots. Following them does
-not confirm it: they are read at `0x42dc32`, `0x42dc75` and `0x42eb52`,
-written at `0x42eb82` and cleared at `0x42eb8d`, all in a region that has
-nothing else to do with the roster. So the slots stay `inferred`, and the
-party's memory of a hireling is now known to be a **name** at `0x90e7a4`
-rather than a pair of bytes — which makes the original inference less likely,
-not more.
+### The hireling slots, settled — and the inference withdrawn
+
+Party `+0x95` and `+0x96` were believed to be the two hireling slots because
+id 214 clears them when it flags a roster record. **They are not.** The gold
+routine at `0x41edfc` shows where the hirelings actually live:
+
+```
+mov eax, 0x90e7a4
+...
+add eax, 0x3c        ; stride 60 — the roster's own record
+cmp eax, 0x90e81c    ; 0x90e7a4 + 0x78 — exactly two of them
+jl  ...
+```
+
+So the party carries **two full sixty-byte roster records at `0x90e7a4`**,
+immediately past the end of its own block at `0x90e7a4`, and they are the same
+shape as the entries in the global roster. That is why `0x41110c` compares a
+record's name against `[0x90e7a4]`: it is asking whether the person standing
+there is one the party already keeps.
+
+The routine then walks the global roster at `0x6aef28` for anyone hired there
+as well — which is how a hireling's stated cut of the gold found is taken.
+
+The `+0x95`/`+0x96` reading is **withdrawn**. `observed`

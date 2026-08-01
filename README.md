@@ -1398,6 +1398,21 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The gamble on the economy: the sweep paid, and settled a hireling
+  inference outright.** Following the gold routine found where the hirelings
+  actually live. `0x41edfc` walks from **`0x90e7a4`** at **stride 60** and
+  stops at `0x90e81c` — exactly **two sixty-byte roster records**, sitting
+  immediately past the end of the party block, in the same shape as the global
+  roster's entries. So the party keeps its hirelings as full records, which is
+  why the roster walker compares a name against `[0x90e7a4]`, and the routine
+  then walks the global roster for anyone hired there before taking the cut of
+  gold found. **The `+0x95`/`+0x96` reading is withdrawn**, not merely
+  weakened.
+- **State 7, and the AI map closed.** The last unread body opens by testing the
+  actor's `+0x114`/`+0x118` and `+0x124`/`+0x128` pairs — the timers nothing
+  ever writes — so reading past the gate would only describe branches that
+  never run. **All eleven action bodies have now been opened**, and three of
+  them can never take the branch those timers guard.
 - **The roster, further — and an inference weakened rather than confirmed.**
   `0x41110c` names the record's **`+0x00` as the person's name**: it walks the
   array testing the hired bit at `+0x08` and compares the record's string
