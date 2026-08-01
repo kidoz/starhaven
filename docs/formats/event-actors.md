@@ -1045,3 +1045,45 @@ lookup state 12 does. So **`+0xb6` is the actor's index into the table behind
 `0x55dd94`**, a second per-actor index beside the monster row at `+0x34`, and
 the states that write `+0xa0`, `+0xa2` and `+0xa8` together are the ones that
 change what the actor is doing. `observed`
+
+## The monster row, complete
+
+The last four columns split cleanly:
+
+- **1 `Picture`** stores a pointer at **`+0x04`**;
+- **2 `Name`** stores one at **`+0x00`**, confirming the column the two
+  `repne scasb` sites had already implied;
+- **14 `Rec`** is `atoi` into a dword at **`+0x40`**;
+- **15 `Pref`** walks the cell's characters and writes **`+0x13`**, which is
+  the byte that carries the `E` and `M` rank suffixes.
+
+That completes it. **All thirty-two columns of `MONSTERS.TXT` now have an
+offset in the 72-byte runtime row**:
+
+| column | offset | | column | offset |
+| --- | --- | --- | --- | --- |
+| `Name` | `+0x00` | | `Type` (2) | `+0x1c` |
+| `Picture` | `+0x04` | | `Damage` (2) | `+0x1d`, `+0x1e` |
+| `#` | `+0x08` | | `Miss` (2) | `+0x20` |
+| `LVL` | `+0x09` | | `Use%` | `+0x21` |
+| `Treasure` | `+0x0a` | | `Spl,Mas,Skil` | `+0x22`, `+0x23` |
+| `Fly` | `+0x0f` | | `Fire` | `+0x24` |
+| `Move` | `+0x10` | | `Elec` | `+0x25` |
+| `AI Type` | `+0x11` | | `Cold` | `+0x26` |
+| `Hst` | `+0x12` | | `Pois` | `+0x27` |
+| `Pref` | `+0x13` | | `Phys` | `+0x28` |
+| `Bonus` | `+0x14`, `+0x15` | | `Mag` | `+0x29` |
+| `Type` (1) | `+0x16` | | `Quest` | `+0x2c` |
+| `Damage` (1) | `+0x17`, `+0x18` | | `HP` | `+0x30` |
+| `Miss` (1) | `+0x1a` | | `AC` | `+0x34` |
+| `Att%` | `+0x1b` | | `EXP` | `+0x38` |
+| | | | `Spd` | `+0x3c` |
+| | | | `Rec` | `+0x40` |
+
+`observed` throughout, with the six resistances landing consecutively as the
+proof of alignment.
+
+**And `Rec` at `+0x40` explains an earlier loose end.** That column was noted
+as "a dword doubled while the actor's `+0x134` pair is positive". It is the
+**recovery**, and doubling it while a timer runs is exactly what a Slow does —
+the same doubling this engine already applies to a slowed monster.

@@ -1455,6 +1455,15 @@ interoperability and compatibility with a legally purchased copy.
   with it: **Learning does have an implementation**, and its rung multiplies by
   adding one to the rank rather than through a table. The engine now does it
   that way.
+- **The monster row is complete: thirty-two of thirty-two.** The last four
+  split cleanly — `Picture` keeps a pointer at `+0x04`, `Name` one at `+0x00`,
+  **`Rec` is a dword at `+0x40`** and `Pref` writes `+0x13`, the byte carrying
+  the `E` and `M` rank suffixes. Every column of `MONSTERS.TXT` now has an
+  offset in the 72-byte runtime row, with the six resistances landing
+  consecutively as the proof of alignment. And `Rec` at `+0x40` closes an
+  earlier loose end: that dword was noted as "doubled while the actor's
+  `+0x134` pair is positive" — it is the **recovery**, and doubling it while a
+  timer runs is exactly what a Slow does.
 - **Twenty-eight of thirty-two monster columns.** Following the computed
   pointers finishes almost all of the row: `HP` at `+0x30`, `EXP` at `+0x38`,
   `Treasure` at `+0x0a`, `Bonus` at `+0x14`/`+0x15`, and both attacks' damage
