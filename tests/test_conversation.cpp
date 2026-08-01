@@ -200,7 +200,9 @@ TEST_CASE("the greeting climbs the table's own reputation ladder", "[conversatio
 
     game::Standing bad;
     bad.fame = 10;
-    bad.reputation = -60;
+    // The bands are scaled to the traced span now — prison waits at -1000,
+    // so notorious is half way there rather than one dead peasant away.
+    bad.reputation = game::kNotoriousAt - 10;
     REQUIRE(game::greeting_number(personality, bad) == 7);
     bad.reputation = -5;
     REQUIRE(game::greeting_number(personality, bad) == 11);
@@ -209,7 +211,7 @@ TEST_CASE("the greeting climbs the table's own reputation ladder", "[conversatio
 
     game::Standing good;
     good.fame = 10;
-    good.reputation = 60;
+    good.reputation = game::kSaintlyAt + 10;
     REQUIRE(game::greeting_number(personality, good) == 9);
     good.reputation = 15;
     REQUIRE(game::greeting_number(personality, good) == 12);
@@ -224,4 +226,19 @@ TEST_CASE("the greeting climbs the table's own reputation ladder", "[conversatio
     notorious.fame = 10;
     notorious.reputation = -60;
     REQUIRE(game::greeting_number(terse, notorious) == 1);
+}
+
+TEST_CASE("a death costs fifty, and a thousand costs a prison term", "[talk]") {
+    REQUIRE(game::kReputationPerDeath == 50);
+    REQUIRE(game::kReputationJail == -1000);
+    REQUIRE(game::kPrisonAward == 83);
+    int reputation = 0;
+    // Nineteen deaths is not yet prison; the twentieth is.
+    for (int i = 0; i < 19; ++i) {
+        REQUIRE_FALSE(game::reputation_after_death(reputation));
+    }
+    REQUIRE(reputation == -950);
+    REQUIRE(game::reputation_after_death(reputation));
+    // The bound resets the counter, as the original's own path does.
+    REQUIRE(reputation == 0);
 }

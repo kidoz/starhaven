@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **What a kill actually pays: fifty reputation.** The hunt for the experience
+  award came up empty again — the monster table is 72-byte rows from
+  `0x56c188` and only five of its columns are referenced anywhere, none
+  feeding an accumulator — but the death handler paid out something else.
+  `0x403730` sets the death bit and the death animation and then, once per
+  death and unconditionally, takes **50** off the global at `0x908d48`. That
+  global is party **`+0xd8`**, carried until now as "a counter": it is the
+  **reputation**. `0x43c598` tests it against **-1000**, and what waits there
+  names the scale — the branch resets it, counts the occasion, and grants
+  award **83**, which `Awards.txt` reads **"Served %u Prison Terms"**. So
+  prison is the bad end, a death is a twentieth of the way, and the engine's
+  greeting bands are now scaled to that span instead of to nothing.
 - **The gamble on the `+0x1570` run: the vestige withdrawn.** It was filed as
   dead — six getters read it, nothing wrote it — and the property setter's
   full-restore clears reopened it. Every getter that reads the run has the

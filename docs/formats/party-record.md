@@ -100,3 +100,58 @@ remainder, worth a later sitting: `+0x078` (29), `+0x008` (22), and the run
 of four at `+0x0ac`, `+0x0b0`, `+0x0b4`, `+0x0bc` (22–24 each).
 `unknown` for all of them; the reference counts are recorded so the next
 attempt can start with the ones that matter.
+
+## `+0xd8` is the reputation, and what a kill actually pays
+
+The search that ran here was for the experience a kill pays. It did not find
+one — see the count of every touch of `+0x1420` in the player record — but it
+found what a kill *does* pay, in the death handler itself.
+
+`0x403730` is the actor-death handler: it reads the AI state at `+0xa0`, sets
+the death bit `0x20000` in the flags at `+0x24` when the state is **7**, sets
+the death animation `+0x3e = 4`, and then, once per death and with no test
+above it:
+
+```
+0x00403778  mov eax, dword [0x908d48]
+0x0040377d  sub eax, 0x32              ; 50
+0x00403780  mov dword [0x908d48], eax
+```
+
+`0x908d48` is party `+0xd8`, which this document has carried as "a counter".
+It is the **reputation**. Three instructions give it its whole span:
+
+| where | what |
+| --- | --- |
+| `0x403778` | **-50** for every actor death |
+| `0x403086` | **-100** somewhere else |
+| `0x43c598` | tests it against **-1000** |
+
+and what waits at `-1000` names the scale: the branch resets the counter,
+increments `0x908d60`, and grants award **83** to all four characters — which
+`Awards.txt` reads **"Served %u Prison Terms"**. So the bad end is `-1000`,
+prison is the penalty, `0x908d60` counts the terms served, and a single death
+is a twentieth of the way there. `observed`
+
+Script property id **214** writes the same global, which is how a map event
+moves the party's standing.
+
+## The runtime monster table, indexed
+
+While looking for the experience column, the table's own indexing came out.
+`0x403efc` shows it whole:
+
+```
+mov al, byte [ebx + 0x34]      ; the actor's monster row
+lea ecx, [eax + eax*8]         ; x9
+mov eax, dword [ecx*8 + 0x56c1c8]   ; x8 -> a stride of 72
+```
+
+So the rows are **72 bytes** from a base of `0x56c188`, and five columns are
+referenced anywhere in the image: `+0x00`, `+0x09`, `+0x12` (a byte, seven
+readers), `+0x38` and `+0x40`. **None of them feeds an experience
+accumulator**, which is the other half of the negative. `observed`
+
+`+0x40` is worth a line of its own: `0x403f21` **doubles it** while the
+actor's `+0x134`/`+0x138` pair is positive — one more behaviour gated on a
+64-bit actor timer that nothing ever writes.

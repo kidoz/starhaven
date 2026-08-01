@@ -159,9 +159,42 @@ struct Standing {
     bool met_before = false;
 };
 
-inline constexpr int kNotoriousAt = -50;
-inline constexpr int kSaintlyAt = 50;
+// **The scale, traced.** Party `+0xd8` — the global at `0x908d48` — is the
+// reputation, and three instructions give it its span:
+//
+//   * `0x403778` takes **50** off it every time an actor dies, once per
+//     death and unconditionally, right where the death animation is set;
+//   * `0x403086` takes **100** off it somewhere else;
+//   * `0x43c598` tests it against **-1000** and, when it is at or past that,
+//     resets it, counts the occasion at `0x908d60` and grants award **83** to
+//     all four characters — which `Awards.txt` reads "Served %u Prison
+//     Terms".
+//
+// So the bad end of the scale is -1000, prison is what waits there, and a
+// death is a twentieth of the way. `observed`
+inline constexpr int kReputationPerDeath = 50;
+inline constexpr int kReputationSecondPenalty = 100;
+inline constexpr int kReputationJail = -1000;
+inline constexpr int kPrisonAward = 83;
+
+// The bands the table names without numbers are still this engine's, but they
+// are now scaled to the traced span rather than to nothing: half way to
+// prison, and as far the other way. `inferred`
+inline constexpr int kNotoriousAt = kReputationJail / 2;
+inline constexpr int kSaintlyAt = -kReputationJail / 2;
 inline constexpr int kFameWanted = 5;
+
+// What a death costs and whether it lands the party in prison. Returns true
+// when the reputation reached the bound, having reset it as the original
+// does.
+[[nodiscard]] inline bool reputation_after_death(int& reputation) noexcept {
+    reputation -= kReputationPerDeath;
+    if (reputation > kReputationJail) {
+        return false;
+    }
+    reputation = 0;
+    return true;
+}
 
 // Which npcbtb message number greets this standing: the table's own ladder,
 // most specific first, falling back to the plain greeting where a
