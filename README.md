@@ -1193,6 +1193,15 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The economy, attempted from the field — and blocked for a nameable
+  reason**: the strings `2DEvents`, `events.lod` and their variants **do not
+  appear anywhere in the executable**, so the file's name is built at
+  runtime and the usual route — filename to reader to table — is closed. Nor
+  does the table turn up by its indexing: the runtime row tables that can be
+  found that way are enumerable (items stride 40, monsters stride 72, two
+  others) and none has `2DEvents`' shape. With the arithmetic route already
+  ruled out, the negative is now specific: **not findable by name, by shape,
+  or by arithmetic**. Recorded as blocked rather than unattempted.
 - **The character record does not tally, and the reason is the point**: the
   party record yielded to a count of absolute references because it lives at
   a fixed address and nothing else does. The character record is reached by

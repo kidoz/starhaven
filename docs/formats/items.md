@@ -469,3 +469,29 @@ a *field or a table* — the buff arrays, the class tables, the condition run,
 the party record — all landed. The economy should be attempted again only
 from a field: find where a shop's parsed row lives at runtime, and read
 outward from it.
+
+## The economy, attempted from the field — a specific negative
+
+The rule said to attempt the economy again from a field rather than a
+behaviour, by finding where a shop's parsed row lives at runtime. Done, and
+it fails for a reason that is worth stating precisely rather than as "not
+found".
+
+- **The table cannot be reached by name.** The strings `2DEvents`,
+  `2devents`, `events.lod` and `Events.lod` **do not appear anywhere in the
+  executable**. Whatever opens the file builds its name at runtime, so the
+  usual way in — follow the filename to its reader, follow the reader to the
+  table — is closed.
+- **It cannot be reached by its indexing.** The runtime tables that *can* be
+  found that way are enumerable: items at `0x560c14` with a stride of 40,
+  monsters at `0x56c1c0` with 72, and two more at `0x55f628` (stride 8) and
+  `0x55e5d0` (scale 4, 290 references — a lookup, not a row table). None has
+  the shape of `2DEvents`' rows.
+- **It cannot be reached by its arithmetic.** The earlier attempt already
+  established that no routine multiplies an item's value by a runtime float.
+
+So the negative is now specific: **the shop table is not findable by name,
+by shape, or by arithmetic**, and the only remaining route — find the parser
+— is behaviour-first, which is the approach that has failed four times. The
+economy stays this engine's own, and is recorded as blocked rather than
+merely unattempted.
