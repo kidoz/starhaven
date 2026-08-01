@@ -1207,3 +1207,39 @@ getter to find. Half of that landed: 14, 17, 18 and 21 have getters but no
 name, and what they are stays `unknown`. What did not land is the fear that
 there would be nothing to count — the id space itself is now closed, with its
 one hole named.
+
+## Withdrawn: the experience award was there all along
+
+This document filed a four-count negative saying no instruction in MM6.exe
+awards experience for a kill. **It is wrong, and it is withdrawn.** The award
+is `0x421520`, and every one of the four searches missed it for the same
+reason: it reaches the experience field through the **absolute address
+`0x90a354`** — character zero's `+0x1420` — and steps by `0x161c`, rather than
+through a `+ 0x1420]` displacement that a scan for the offset would catch. It
+is the same computed-pointer blind spot that hid half the monster row's
+columns.
+
+What led to it was naming a monster column. The death path at `0x431a85` hands
+`0x421520` the dword at the monster row's `+0x38`, and this document called
+that the death sound. The parser says otherwise: **case 6 writes `+0x38` from
+the `EXP` column**. So the value handed over is the monster's experience, and
+the routine receiving it is the award.
+
+What the routine does, in order:
+
+1. walks the four characters testing the condition slots **13 through 17** —
+   Unconscious, Dead, Stoned, Eradicated, Zombie — and counts who is eligible;
+2. **divides the experience by that count** (`idiv ebx`);
+3. for each eligible character, reads the **Learning** byte at `+0x7e`, which
+   is skill slot 30, and forms `points x (rank + 1)`;
+4. asks `0x467f30` for professions **13** and **14** — the Teacher and the
+   Instructor — taking **10** for the first;
+5. multiplies the share by those terms plus nine, over a hundred.
+
+`observed` for the count, the division, the Learning read and its arithmetic,
+and the two profession ids.
+
+**And so the second negative goes too.** "Learning has no implementation" was
+filed on the strength of the same failed searches. It has one, here, and its
+rung multiplies as **`rank + 1`** rather than through a table — which is the
+doubling and tripling its row promises, reached a different way.

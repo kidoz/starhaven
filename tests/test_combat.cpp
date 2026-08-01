@@ -833,6 +833,10 @@ TEST_CASE("Learning takes its cut of a share", "[combat]") {
     REQUIRE(game::learning_percent(10) == 10);
     REQUIRE(game::learning_percent(game::teach_rank(10, 1)) == 20);
     REQUIRE(game::learning_percent(game::teach_rank(10, 2)) == 30);
+    // The rung multiplies as `rank + 1`, which is how the award routine
+    // builds it rather than from a table.
+    REQUIRE(game::learning_percent(7) == 7);
+    REQUIRE(game::learning_percent(game::teach_rank(7, 2)) == 21);
 }
 
 TEST_CASE("a hired master's points reach the roll", "[combat]") {

@@ -698,10 +698,12 @@ preparation routine read, which remains a batch of its own. `unknown`
 The impact path at `0x431a78` is the place, and it does three things after a
 blow that kills.
 
-**A sound from the row.** When the animation byte is 4 it takes the monster's
-row index at `+0x34`, indexes the 72-byte table's dword at **`+0x38`**, and
-hands it to `0x421520`. So `+0x38` is the **death sound**, which is the fourth
-column of that table to get a home.
+**The experience.** When the animation byte is 4 it takes the monster's row
+index at `+0x34`, indexes the 72-byte table's dword at **`+0x38`**, and hands
+it to `0x421520`. This was written up here as the death sound. It is not: the
+parser's **case 6 writes `+0x38` from the `EXP` column**, and `0x421520` is the
+**experience award** — see the player record for what it does with it. The
+misreading is what kept the award hidden through four searches.
 
 **The death action.** `0x431a97` calls `0x403050`, the state-4 body.
 
@@ -878,14 +880,34 @@ six bytes, in order.
 | 24 | `Use%` | `+0x21` |
 | 26..31 | `Fire`, `Elec`, `Cold`, `Pois`, `Phys`, `Mag` | `+0x24`..`+0x29` |
 
-Reading the short cases one at a time adds four more, and describes the rest:
+Following the computed pointers finishes almost all of it. The cases that
+looked unreadable write through a pointer formed as `lea esi, [row + N]` or
+`lea edi, [row]` a few instructions earlier, so the offset is there — just not
+in the store:
 
 | column | header | offset |
 | --- | --- | --- |
 | 0 | `#` | `+0x08` |
 | 3 | `LVL` | `+0x09` |
+| 4 | `HP` | `+0x30` (a dword; the part before the comma is scaled by a thousand) |
+| 6 | `EXP` | `+0x38` (a dword) |
+| 7 | `Treasure` | `+0x0a`, defaulting to 100 |
 | 9 | `Fly` | `+0x0f` |
 | 13 | `Spd` | `+0x3c` (a dword) |
+| 16 | `Bonus` | `+0x14` and `+0x15` |
+| 18 | `Damage` (attack 1) | `+0x17` and `+0x18` |
+| 22 | `Damage` (attack 2) | `+0x1d` and `+0x1e` |
+| 25 | `Spl,Mas,Skil` | `+0x22` and `+0x23` |
+
+The two attack blocks come out parallel and six bytes apart — `Type` at
+`+0x16` and `+0x1c`, the damage pair at `+0x17`/`+0x18` and `+0x1d`/`+0x1e`,
+`Miss` at `+0x1a` and `+0x20`, the percentage at `+0x1b` and `+0x21` — which is
+its own check on the alignment.
+
+**Twenty-eight of the thirty-two columns** now have an offset. What is left is
+`Picture` and `Name`, which keep pointers, and the `Rec`/`Pref` pair, whose two
+cases share the code that writes `+0x13`; which of the two owns it is
+`unknown`.
 
 `observed`. Note that `Spd` is **`+0x3c`**, not the `+0x36` an earlier reading
 suggested — that offset belongs to the *other* table, the one behind the

@@ -1398,6 +1398,26 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The experience award was there all along — two negatives withdrawn.**
+  Finishing the monster row named column 6, `EXP`, as **`+0x38`** — the dword
+  the death path hands to `0x421520`, which this project had written up as the
+  *death sound*. It is the **experience award**, and all four searches that
+  failed to find it missed it the same way: it reaches the field through the
+  **absolute address `0x90a354`** — character zero's `+0x1420` — rather than
+  through a displacement any scan for the offset would catch. It counts the
+  characters whose condition slots **13 through 17** are clear, **divides the
+  experience among them**, reads each one's **Learning** byte at `+0x7e` as
+  `points × (rank + 1)`, and asks for professions **13 and 14** — the Teacher
+  and the Instructor — taking ten for the first. So the second negative goes
+  with it: **Learning does have an implementation**, and its rung multiplies by
+  adding one to the rank rather than through a table. The engine now does it
+  that way.
+- **Twenty-eight of thirty-two monster columns.** Following the computed
+  pointers finishes almost all of the row: `HP` at `+0x30`, `EXP` at `+0x38`,
+  `Treasure` at `+0x0a`, `Bonus` at `+0x14`/`+0x15`, and both attacks' damage
+  pairs. The two attack blocks come out **parallel and six bytes apart**, which
+  is its own check on the alignment. What is left is `Picture` and `Name`,
+  which keep pointers, and the `Rec`/`Pref` pair sharing one write.
 - **Four more monster columns, and a correction.** Reading the short cases one
   at a time adds `#` at `+0x08`, **`LVL` at `+0x09`**, `Fly` at `+0x0f` and
   **`Spd` at `+0x3c`** — and that last one corrects an earlier reading that put
