@@ -35,6 +35,7 @@
 #include "core/world/map_session.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
+#include "game/monster_ai.hpp"
 #include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/player.hpp"
@@ -367,6 +368,7 @@ int main(int argc, char** argv) {
     int levels = 0;
     int rests = 0;
     int bought = 0;
+    int moves = 0;
     int stunned = 0;
     int tripled = 0;
     int feathered = 0;
@@ -606,6 +608,44 @@ int main(int argc, char** argv) {
 
         const std::string back =
             battle.update(dt, session, monsters, spells, party, eye, clock.minutes());
+        // **The monsters move now.** Everything this project has measured so
+        // far was a party walking onto stationary targets. The decision
+        // routine's own two thresholds and its three-way answer are enough to
+        // make them close and back off: within the awareness cut of 5120 an
+        // undisturbed monster walks toward the party until the second
+        // threshold at 1024, and one whose disposition rolled non-zero walks
+        // the other way. That the wavering is what makes it retreat is this
+        // engine's reading; the thresholds and the roll are the routine's.
+        for (std::size_t at = 0; at < session.actors.size(); ++at) {
+            if (!battle.alive(at) || !battle.aware_of_party(at)) {
+                continue;
+            }
+            auto& actor = session.actors[at];
+            const auto id = static_cast<std::size_t>(actor.monster_id);
+            if (id == 0 || id > monsters.entries().size()) {
+                continue;
+            }
+            const auto& row = monsters.entries()[id - 1];
+            const float dx = eye.x - actor.position.x;
+            const float dz = eye.z - actor.position.z;
+            const float away = std::sqrt(dx * dx + dz * dz);
+            if (away < 1.0F) {
+                continue;
+            }
+            const float pace = game::motion_for(row).speed * dt;
+            float step = 0.0F;
+            if (battle.disposition_of_actor(at) != 0) {
+                step = -pace;  // wavering: it gives ground
+            } else if (away > game::kCloseRange) {
+                step = pace;  // steady: it closes to the second threshold
+            }
+            if (step == 0.0F) {
+                continue;
+            }
+            actor.position.x += dx / away * step;
+            actor.position.z += dz / away * step;
+            ++moves;
+        }
         battle.recruit(session, monsters);
         battle.award(party);
         if (const std::int64_t hour_now = clock.minutes() / game::kMinutesPerHour;
@@ -756,6 +796,7 @@ int main(int argc, char** argv) {
         std::cout << ")";
     }
     std::cout << "\n";
+    std::cout << "  " << moves << " monster steps taken\n";
     std::cout << "  the higher lines: " << stunned << " stuns, " << tripled
               << " triple strikes, " << feathered << " second arrows\n";
     return 0;

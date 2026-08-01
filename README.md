@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The sitting measures a fight now.** Everything this project had published
+  was a party walking onto stationary targets. The monsters move: within the
+  awareness cut of **5120** an undisturbed one closes on the party until the
+  decision routine's second threshold at **1024**, and one whose disposition
+  rolled non-zero gives ground — the thresholds and the roll are the
+  routine's, that wavering is what makes it retreat is this engine's. The
+  numbers change completely and honestly: over four world hours on one map,
+  an armed and trained level-twelve party goes from **34 kills to 14**, and
+  the first character falls at world minute **6** instead of 20, with **5,522
+  monster steps** taken against it. The rank still separates — 11 kills at
+  novice against 14 at master — but every figure this project quotes from here
+  on is of a fight rather than a shooting gallery.
 - **The actor preparation, and a name given back.** The per-tick routine at
   `0x401ac7` fills two actor fields from tables, and one of them costs a
   claim. It reaches a **second per-monster table of 148-byte rows** behind the

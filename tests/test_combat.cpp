@@ -866,3 +866,15 @@ TEST_CASE("the disposition is rolled, not held", "[combat]") {
     c.first_percent = 100;
     REQUIRE(c.second_percent >= c.first_percent);
 }
+
+TEST_CASE("what a monster decided is readable from outside", "[combat]") {
+    // A caller that moves the actors needs both answers: whether the actor
+    // was inside the awareness cut this tick, and what its disposition rolled.
+    game::Battle battle;
+    // Nothing has been reset into it, so every index is out of range and
+    // answers the safe way rather than reading past the array.
+    REQUIRE_FALSE(battle.aware_of_party(0));
+    REQUIRE(battle.disposition_of_actor(0) == 0);
+    REQUIRE_FALSE(battle.aware_of_party(99));
+    REQUIRE(battle.disposition_of_actor(99) == 0);
+}

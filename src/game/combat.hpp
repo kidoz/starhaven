@@ -180,6 +180,10 @@ struct Combatant {
     // durations and not percentages. `inferred`
     int second_percent = 0;  // +0x4d, rolled first, answers 2
     int first_percent = 0;   // +0x47, rolled second, answers 1
+    // What the last roll answered, kept so a caller that moves the actors can
+    // act on it: 0, 1 or 2.
+    int disposition = 0;
+    bool aware = false;  // within the awareness cut of 5120 this tick
 };
 
 // The conditions a spell can lay on a monster.
@@ -470,6 +474,15 @@ public:
 
     // Experience earned and not yet handed out.
     [[nodiscard]] int unclaimed_experience() const noexcept { return experience_; }
+
+    // What a monster last decided, for a caller that moves it: its awareness
+    // and the three-way answer of `0x421c50`.
+    [[nodiscard]] bool aware_of_party(std::size_t actor) const noexcept {
+        return actor < combatants_.size() && combatants_[actor].aware;
+    }
+    [[nodiscard]] int disposition_of_actor(std::size_t actor) const noexcept {
+        return actor < combatants_.size() ? combatants_[actor].disposition : 0;
+    }
 
     // Lay a condition on a monster for so many seconds of fight time. False
     // when there is nothing there to afflict.
@@ -851,7 +864,9 @@ public:
             // **The awareness cut comes first.** The decision routine tests
             // the distance against 5120 before it considers anything else,
             // and idles outright beyond it. `observed`
-            if (range2 > kAwarenessRange * kAwarenessRange) {
+            c.aware = range2 <= kAwarenessRange * kAwarenessRange;
+            if (!c.aware) {
+                c.disposition = 0;
                 continue;
             }
             c.recovery -= dt;
@@ -859,7 +874,8 @@ public:
                 continue;
             }
             // Then the disposition is rolled, in the original's own order.
-            if (disposition_of(c) != 0 || c.paralyzed > 0.0f) {
+            c.disposition = disposition_of(c);
+            if (c.disposition != 0 || c.paralyzed > 0.0f) {
                 continue;
             }
             const auto id = static_cast<std::size_t>(actor.monster_id);
