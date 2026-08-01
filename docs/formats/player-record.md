@@ -759,3 +759,32 @@ What the absolute references did name:
   `+0x60`. The array has the two hundred bytes between it and the item
   records at `+0x128` to live in. What it holds is `unknown`. `observed`
   for the base and the indexed write.
+
+## The `+0x1570` run: read by six getters, written by nothing
+
+The attack bonus ends by adding the signed byte at `+0x1570`, the per-tick
+clear routine zeroes a run starting there, and the recovery routine reads
+`+0x1578`. Following the field gives an answer that is neither of the two
+expected.
+
+**The eight bytes `+0x1570`..`+0x1577` are a per-stat scratch, and they are
+always zero.** Six sites read them, all in the stat-getter cluster at
+`0x47exxx` and all as `movsx` of a signed byte: `+0x1570` twice (the attack
+bonus and one other), `+0x1572` three times, `+0x1574` once, `+0x1576`
+twice. Every one adds the byte to its total.
+
+**Nothing writes them.** Across the whole disassembly the only instruction
+that touches those eight offsets other than the six reads is the per-tick
+clear at `0x484520`, which zeroes them. So whatever they were for, in the
+shipped executable they contribute nothing to any stat, every tick, forever.
+`observed`, with one caveat stated rather than glossed: a write through a
+computed pointer or a block store would not appear in a scan by displacement.
+
+**The four bytes above them do have writers.** `+0x1578` and `+0x1579` are
+zeroed at `0x44154c` immediately after a character's hit points are set to
+their maximum, and `+0x157a`/`+0x157b` in the same routine family. So those
+four are tied to hit and spell points rather than to the stat getters, and
+are not part of the vestigial run.
+
+So the attack bonus's last term is **structurally present and always zero** —
+a vestige, not a UI artefact and not a live contribution.

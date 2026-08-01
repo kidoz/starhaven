@@ -1251,6 +1251,16 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **The gamble on the `+0x1570` run: a vestige**: neither branch of the
+  guess was right. The eight bytes are read by **six** stat getters, each
+  adding a signed byte to its total — and **nothing writes them**. Across the
+  whole disassembly the only other instruction touching those offsets is the
+  per-tick clear that zeroes them. So the attack bonus's last term is
+  structurally present and always zero: not a UI artefact, and not a live
+  contribution. The four bytes above the run *do* have writers and are tied
+  to hit and spell points instead. One caveat is stated rather than glossed:
+  a write through a computed pointer would not show in a scan by
+  displacement.
 - **The AI's last three are blocked, not unfound**: state 5b turns out to
   walk the *whole* actor array, testing a 64-bit pair at `+0xf4`/`+0xf8` on
   every one. That is the pattern in all three — 5b, 7 and 9 branch on 64-bit
