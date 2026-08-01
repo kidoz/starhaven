@@ -1009,22 +1009,29 @@ The four tags name the game's whole object space:
 `observed`. With `handle = index * 8 | tag`, this is the encoding every part of
 the game passes around, and it now has all four of its kinds named.
 
-## The decoration table at `0x5b23cc`
+## The decoration table
 
-Handle type 5's case reads the row's first three dwords, so the array's base
-and its shape are settled:
+**The base is `0x5b23c8`, not `0x5b23cc`.** The two scalars this document put
+before the array turn out to be one scalar and the array itself:
+
+- **`0x5b23c4` is the count.** It is written by the map loaders at `0x46d7c5`
+  and `0x48bbe5` — the same routines that read the actor block — and cleared at
+  `0x4568e6`, and read as a plain dword sixty-six times.
+- **`0x5b23c8` is the array's base.** `0x46cd04`, `0x46d811` and `0x48b21b`
+  each push it as a **buffer address** to the file routines, beside the count.
+
+Which shifts every column by four. Rows are **28 bytes**:
 
 | offset | size | what |
 | --- | --- | --- |
-| `+0x00`, `+0x04`, `+0x08` | dword | the **position**, read by the handle case at `0x40493c` |
-| `+0x12`, `+0x14`, `+0x16` | word | read elsewhere; `unknown` |
+| `+0x04`, `+0x08`, `+0x0c` | dword | the **position**, read by the handle case at `0x40493c` |
+| `+0x16` | word | read at `0x41f6dc`, `0x427ce7` and `0x42eebb`; `unknown` |
+| `+0x18` | word | `unknown` |
 
-Rows are **28 bytes**. `observed`
-
-Two scalars sit immediately before the array and are not columns of it:
-`0x5b23c4`, read as a plain dword **sixty-six times** and written in three
-places, and `0x5b23c8`, read thirty-four times. `unknown` what either holds,
-though a count and a pointer is the obvious pair.
+`observed`. The gamble's stated risk was that the columns would be sprite ids
+and a frame counter with nothing behind them. Three of the seven dwords are the
+position and the rest are barely touched, so the risk broadly lands — but the
+base and the count are now right, and they were not before.
 
 ## `+0xb6` is the actor's speed index
 

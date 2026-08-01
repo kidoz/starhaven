@@ -1526,6 +1526,15 @@ interoperability and compatibility with a legally purchased copy.
   actor has strayed from a post it remembers. **State 10** opens exactly as
   state 12's sighted branch does, so it too asks where something is before
   acting. State 7 was not reached, and the write-up says so.
+- **The gamble on the decoration table: the base was wrong, and is now right.**
+  The two scalars this project put *before* the array turn out to be one scalar
+  and the array itself. **`0x5b23c4` is the count** — written by the same map
+  loaders that read the actor block — and **`0x5b23c8` is the base**, pushed as
+  a buffer address to the file routines beside it. That shifts every column by
+  four: the position is `+0x04`..`+0x0c`, not `+0x00`..`+0x08`. Beyond it only
+  two words are read at all. The stated risk was that the columns would be
+  sprite ids with nothing behind them, and broadly it lands — but a wrong base
+  is now a right one.
 - **The decoration table, and the actor's speed index.** Handle type 5's case
   settles the decoration array: base `0x5b23cc`, **28-byte rows**, with the
   position in the first three dwords and words at `+0x12`, `+0x14`, `+0x16`.
