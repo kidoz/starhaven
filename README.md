@@ -1398,7 +1398,19 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
-- **The gamble on shop prices: not reached again, but the purse is named.**
+- **Shop prices, filed properly at last — by exhaustion.** Three earlier
+  attempts said the prices were blocked; this one counts instead. The purse at
+  `0x908d50` is touched forty-two times and **written in exactly five
+  places**: two set it outright, one empties it when a payment exceeds it, one
+  subtracts a payment, and one **adds a difference the caller computed** — a
+  sale. The spender's four callers are all read now: two are the teacher at
+  its own 2000 and 5000, one takes `rand() % n + 1` capped at the purse (a
+  theft or a toll), and the fourth compares the amount against the purse and
+  sets a refusal flag at `0x552f4c` when short — a script's checked payment
+  with the amount arriving as an argument. **Every path that moves money
+  receives its amount already computed.** The price arithmetic lives above all
+  of it, in interface code no table here can name. The negative is now a
+  bounded one rather than a report of not having found something.
   `0x487680` is what spends gold, and it names **party `+0xe0` at `0x908d50`
   as the purse** — with the rule that a payment larger than the purse
   **empties it** rather than failing. One of its four callers turns out not to

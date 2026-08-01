@@ -252,14 +252,34 @@ sub dword [0x908d50], ecx    ; otherwise it pays
 So **party `+0xe0` is the gold**, and a payment larger than the purse empties
 it rather than failing or going negative. `observed`
 
-## The shop price: still not found
+## The shop price is not in the money path — filed by exhaustion
 
-The fourth attempt at it did not get there. What it added is the purse above
-and one negative worth writing down: `0x442374`, one of the four callers that
-spend gold, is **not** a shop — it takes `rand() % n + 1`, capped at what the
-party has, which is a theft or a toll rather than a price. Two of the four
-remaining callers are in the teacher's region and were read last batch.
+Three earlier attempts concluded that the prices are blocked. This one settles
+it a different way: not by failing to find the price, but by **counting every
+instruction that can move the purse** and showing that none of them computes
+one.
 
-So the standing negative on shop prices is unchanged, and the honest note is
-that this attempt spent its time on the purse and the callers rather than on
-the price. `unknown`, still.
+`0x908d50` is touched forty-two times and **written in exactly five places**:
+
+| where | what it does |
+| --- | --- |
+| `0x487637` | sets the purse outright |
+| `0x48768c` | empties it, when a payment exceeds it |
+| `0x487693` | subtracts a payment |
+| `0x41f02f` | **adds** a difference the caller computed — a sale |
+| `0x49f47c` | sets it outright |
+
+And `0x487680`, the spender, has four callers, all now read: two are the
+teacher, at its own 2000 and 5000; `0x442374` takes `rand() % n + 1` capped at
+the purse, which is a theft or a toll; and `0x4426e6` compares the amount
+against the purse first and sets a refusal flag at `0x552f4c` when it is
+short — a script's checked payment, with the amount arriving as an argument.
+
+So **every path that moves money receives its amount already computed**. The
+closest thing to a price anywhere is `0x41f02f`, where a sale adds
+`ebp - ebx` — and that difference, too, is the caller's. The price arithmetic
+lives in the interface code above all of this and is reached by no table this
+project can name.
+
+`observed` for the five writers and the four callers. The negative stands, and
+it is now a bounded one rather than a report of not having found something.
