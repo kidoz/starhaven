@@ -712,10 +712,18 @@ int main(int argc, char** argv) {
                 continue;
             }
             const float pace = game::motion_for(row).speed * dt;
+            // The decision routine's own two thresholds, measured its own
+            // way: the approach closes while the octagonal distance is past
+            // the second threshold of 1024 and stops there, and a wavering
+            // actor gives ground. Straight-line pace is still this engine's —
+            // the original takes a velocity out of the position routine's
+            // 28-byte answer, which nothing here reproduces yet.
+            const int reach = game::octagonal_distance(static_cast<int>(dx),
+                                                       static_cast<int>(dz));
             float step = 0.0F;
             if (battle.disposition_of_actor(at) != 0) {
                 step = -pace;  // wavering: it gives ground
-            } else if (away > game::kCloseRange) {
+            } else if (reach > static_cast<int>(game::kCloseRange)) {
                 step = pace;  // steady: it closes to the second threshold
             }
             if (step == 0.0F) {

@@ -1764,6 +1764,13 @@ interoperability and compatibility with a legally purchased copy.
   state-4 body runs, **one kill in five draws a remark from a character**,
   the line chosen by whether the thing had **a hundred hit points** or more —
   the twenty, the hundred and the two lines all the routine's.
+- **The closing measured the game's way too.** The awareness cut was already
+  octagonal; the *second* threshold was still Euclidean, so a monster stopped
+  closing at the wrong distance on every diagonal. Both are now `max + min/2`
+  against **1024**, and the write-up says plainly what is still this engine's:
+  the pace. The original takes a velocity out of the position routine's
+  28-byte answer and scales it by the speed table; the sitting still walks a
+  straight line at a fixed rate.
 - **The sitting measures a fight now.** Everything this project had published
   was a party walking onto stationary targets. The monsters move: within the
   awareness cut of **5120** an undisturbed one closes on the party until the
