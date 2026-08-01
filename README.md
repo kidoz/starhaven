@@ -1398,6 +1398,14 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **The gamble on shop prices: not reached again, but the purse is named.**
+  `0x487680` is what spends gold, and it names **party `+0xe0` at `0x908d50`
+  as the purse** — with the rule that a payment larger than the purse
+  **empties it** rather than failing. One of its four callers turns out not to
+  be a shop at all: `0x442374` takes `rand() % n + 1` capped at what the party
+  has, which is a theft or a toll. That is where the attempt's time went, and
+  the standing negative on shop prices is unchanged. Said plainly rather than
+  dressed up as a fourth negative.
 - **The party's two hireling records, counted — and a premise corrected.**
   Sweeping every byte of both records at `0x90e7a4` and `0x90e7e0` finds
   **seven of the sixty reached by absolute address at all**, and the **name

@@ -236,3 +236,30 @@ already carries a `hired` list of npc id, profession and name, and round-trips
 it. Adding a second store for the same thing was tried here and reverted; the
 existing one is the right shape and matches what the two records actually
 hold.
+
+## The purse
+
+`0x487680` is what spends it:
+
+```
+mov edx, dword [0x908d50]
+cmp ecx, edx
+jbe ...
+mov dword [0x908d50], 0      ; asked for more than there is: it empties
+sub dword [0x908d50], ecx    ; otherwise it pays
+```
+
+So **party `+0xe0` is the gold**, and a payment larger than the purse empties
+it rather than failing or going negative. `observed`
+
+## The shop price: still not found
+
+The fourth attempt at it did not get there. What it added is the purse above
+and one negative worth writing down: `0x442374`, one of the four callers that
+spend gold, is **not** a shop — it takes `rand() % n + 1`, capped at what the
+party has, which is a theft or a toll rather than a price. Two of the four
+remaining callers are in the teacher's region and were read last batch.
+
+So the standing negative on shop prices is unchanged, and the honest note is
+that this attempt spent its time on the purse and the callers rather than on
+the price. `unknown`, still.
