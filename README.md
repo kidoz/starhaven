@@ -1371,6 +1371,13 @@ interoperability and compatibility with a legally purchased copy.
   the first time this engine has shown a party getting stronger rather than a
   snapshot at a fixed level. That the party can reach a hall once an hour is
   the harness's convenience and marked as such.
+- **`Mod1` is decoded once now, as the original does it.** The runtime row
+  keeps a weapon's damage as **bytes** at `+0x16`, decoded when the table is
+  read; this engine kept the `"2d6"` text the file writes and re-parsed it on
+  every roll, every off-hand swing and every printed range. `ItemStatsEntry`
+  now carries the decoded dice beside the text, filled at parse, and every
+  caller takes it from there. Small, but it is the hot path and it is what the
+  original does.
 - **The gamble on the item row's `+0x16` and `+0x18`: `Mod1` and `Mod2`.** The
   three weapon-figure getters read exactly those two bytes of the 40-byte
   runtime row and sum them with the skill group at `+0x15`. `ITEMS.TXT`'s

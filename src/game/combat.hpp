@@ -322,7 +322,7 @@ enum class BlowKind : std::uint8_t { Steep = 2, Shot = 3, Plain = 4 };
     const int held = who.equipped[static_cast<std::size_t>(Slot::Weapon)];
     if (held > 0 && !who.equipped_broken[static_cast<std::size_t>(Slot::Weapon)]) {
         if (const auto* row = items.at(static_cast<std::size_t>(held)); row != nullptr) {
-            if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
+            if (const data::Dice& dice = row->modifier_1_dice; !dice.empty()) {
                 return dice;
             }
         }
@@ -340,7 +340,7 @@ enum class BlowKind : std::uint8_t { Steep = 2, Shot = 3, Plain = 4 };
             continue;
         }
         const auto* row = items.at(static_cast<std::size_t>(id));
-        if (row == nullptr || data::parse_dice(row->modifier_1).empty() == false) {
+        if (row == nullptr || !row->modifier_1_dice.empty()) {
             continue;  // a weapon's modifier is dice, not armour
         }
         total += data::parse_int(row->modifier_1, 0);
@@ -677,7 +677,7 @@ public:
         if (const int off = who.equipped[static_cast<std::size_t>(Slot::Shield)];
             off > 0 && !who.equipped_broken[static_cast<std::size_t>(Slot::Shield)]) {
             if (const auto* row = items.at(static_cast<std::size_t>(off)); row != nullptr) {
-                if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
+                if (const data::Dice& dice = row->modifier_1_dice; !dice.empty()) {
                     damage += data::roll(dice, random_);
                     flourish += ", both hands";
                 }

@@ -1082,8 +1082,8 @@ int do_dice(const std::filesystem::path& data_dir) {
             continue;
         }
         ++weapons;
-        weapon_dice += data::parse_dice(item.modifier_1).empty() ? 0 : 1;
-        if (data::parse_dice(item.modifier_1).empty()) {
+        weapon_dice += item.modifier_1_dice.empty() ? 0 : 1;
+        if (item.modifier_1_dice.empty()) {
             std::cout << "  no dice: " << item.name << " \"" << item.modifier_1 << "\"\n";
         }
     }

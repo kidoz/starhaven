@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include "core/data/dice.hpp"
 #include "core/data/text_table.hpp"
 
 namespace starhaven::data {
@@ -73,6 +74,12 @@ struct ItemStatsEntry {
     std::string skill_group;
     ItemSkillType skill_type = ItemSkillType::Misc;
     std::string modifier_1;
+    // **`Mod1`, decoded once.** The original's runtime row keeps a weapon's
+    // damage as bytes at `+0x16` — the three weapon-figure getters read them
+    // there and add `Mod2` at `+0x18` — so the text is decoded when the table
+    // is parsed and never again. This engine used to re-parse `"2d6"` on
+    // every roll, every shop listing and every printed range.
+    Dice modifier_1_dice;
     int modifier_2 = 0;
     std::string material;  // numeric codes plus the literals "Artifact" and "Relic"
     int id_rep_st = 0;

@@ -229,6 +229,7 @@ ItemStatsError ItemStatsTable::parse(const TextTable& table, ItemStatsTable& out
         item.skill_group = cell_text(table, row, kColSkillGroup);
         item.skill_type = item_skill_type_from_name(item.skill_group);
         item.modifier_1 = cell_text(table, row, kColModifier1);
+        item.modifier_1_dice = parse_dice(item.modifier_1);
         item.modifier_2 = table.cell_int(row, kColModifier2);
         item.material = cell_text(table, row, kColMaterial);
         item.id_rep_st = table.cell_int(row, kColIdRepSt);
