@@ -1045,3 +1045,38 @@ So what a point of Learning is worth here is this engine's own — one percent
 more experience a point, doubled and tripled by the rung the way every other
 silent row is, applied per character because that is where the skill lives.
 `inferred`
+
+## `+0x30` and `+0x11`, the last two unnamed fields of the dense part
+
+**`+0x30` is an armour-class term.** The getter at `0x482860` builds the
+armour class from four things and nothing else:
+
+```
+0x00482866  call 0x483800          ; the gear getter, stat id 9
+0x00482875  call 0x482e80          ; the other getter, stat id 9
+0x0048287a  movsx ecx, word [esi + 0x30]
+0x00482880  movsx eax, byte [ebx + 0x4c289c]   ; the ladder, Speed's row
+0x0048288d  cmp edi, 1
+0x00482890  setl al ; dec eax ; and eax, edi   ; a negative becomes nothing
+```
+
+So: both stat getters for **stat 9**, plus the stored word at `+0x30`, plus
+the Speed row of the attribute ladder, **floored at zero**. `observed` — and
+it is the only place `+0x30` is read, which makes property id 8 the one way a
+script can change a character's armour class directly.
+
+**`+0x11` is a boolean beside the class.** Three sites read it:
+
+- `0x42b073` does `neg al; sbb eax, eax; add eax, 0x7db` — **2011 when the
+  byte is zero and 2010 when it is not**, handed to the sound object at
+  `0x9cf598`;
+- `0x421a68` chooses between `byte [eax + 0x12]` and `byte [eax + 0x11]` by a
+  sign test and compares the result the same way, so the two are alternative
+  identifiers for one lookup;
+- `0x43dc8c` reads it beside `+0x10` and packs the two together.
+
+`observed` that it is a boolean, because a two-way select on zero is all any
+reader does with it. `inferred` that the boolean is the character's **sex**:
+two adjacent voice ids chosen per character is what a male and a female line
+look like, and the field sits immediately before the class. Property id 1
+writes it, one below the class's id 2.

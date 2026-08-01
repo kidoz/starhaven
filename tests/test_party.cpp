@@ -387,3 +387,15 @@ TEST_CASE("the years reach the numbers", "[party]") {
     level_up_to(b, 5);
     REQUIRE(a.max_hit_points > b.max_hit_points);
 }
+
+TEST_CASE("the armour class is three terms and a floor", "[party]") {
+    // The getter asks both stat getters for stat 9, adds the stored word at
+    // +0x30, adds the Speed row of the ladder, and floors the total at zero.
+    REQUIRE(game::traced_armor_class(0, 0, 0) == 0);
+    REQUIRE(game::traced_armor_class(5, 3, 2) == 10);
+    // A negative total is nothing, not a penalty.
+    REQUIRE(game::traced_armor_class(1, 0, -6) == 0);
+    REQUIRE(game::traced_armor_class(0, 0, -1) == 0);
+    // And the stored word carries on its own.
+    REQUIRE(game::traced_armor_class(0, 7, 0) == 7);
+}

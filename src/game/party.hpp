@@ -150,6 +150,10 @@ struct Character {
     int spell_points = 0;
     int max_spell_points = 0;
     int armor_class = 0;
+    // The stored word at `+0x30`: a term the armour class adds beside the
+    // gear's and the ladder's, and the only one a script can set — property
+    // id 8, the one sitting immediately before the level's id 9. `observed`
+    int armor_bonus = 0;
     int skill_points = 0;
 
     // What is worn, as ITEMS.TXT ids; zero means the slot is empty. The
@@ -494,6 +498,17 @@ inline constexpr int kExperienceStep = 1000;
     return total < 0 ? 0 : total;
 }
 
+// **What the armour class is made of**, out of the getter at `0x482860`: it
+// asks both stat getters for **stat id 9**, adds the stored word at `+0x30`,
+// adds the Speed row of the attribute ladder at `0x4c289c`, and **floors the
+// total at zero** — `cmp edi, 1; setl al; dec eax; and eax, edi`, which is a
+// branchless "negative becomes nothing". `observed`
+[[nodiscard]] inline constexpr int traced_armor_class(int from_gear, int stored,
+                                                      int speed_bonus) noexcept {
+    const int total = from_gear + stored + speed_bonus;
+    return total < 0 ? 0 : total;
+}
+
 // Derive what the class and the rolled attributes decide: hit points, spell
 // points, armour and the starting spell. Rerolling a character at creation
 // runs this again; every number is this engine's. `inferred`
@@ -519,7 +534,9 @@ inline void derive_start(Character& c) {
         c.known_spells.insert(68);
     }
     c.spell_points = c.max_spell_points;
-    c.armor_class = attribute_bonus(c.attribute(Attribute::Speed));
+    c.armor_bonus = 0;
+    c.armor_class = traced_armor_class(0, c.armor_bonus,
+                                       attribute_bonus(c.attribute(Attribute::Speed)));
     c.skill_points = 0;
 }
 

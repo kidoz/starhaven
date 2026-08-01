@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The last two unnamed fields of the dense record.** **`+0x30` is an
+  armour-class term**: the getter at `0x482860` builds the armour class from
+  both stat getters at **stat id 9**, plus this stored word, plus the Speed
+  row of the attribute ladder, and **floors the total at zero** with a
+  branchless `setl`/`dec`/`and`. It is the only place the word is read, which
+  makes property id 8 the one way a script can move a character's armour class
+  directly — and the floor was missing from this engine. **`+0x11` is a
+  boolean beside the class**: `0x42b073` turns it into **2011 when zero and
+  2010 when not**, handed to the sound object, and `0x421a68` uses it as an
+  alternative to the class in one lookup. That it is a boolean is observed;
+  that the boolean is sex is inferred from two adjacent voice ids being what a
+  male and a female line look like.
 - **The teacher has a door now**, and the proposal's premise needed correcting
   on the way: "Teacher", "Arms Master", "Weapons Master" and "Spell Master"
   are not buildings at all — `npcprof.txt` shows them as **hirelings**, with

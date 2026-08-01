@@ -208,6 +208,8 @@ inline constexpr std::uint8_t kVarFood = 23;
 // The rest of the setter's fifty-three bodies, each fixed by the offset its
 // own first two instructions compute. `observed`
 inline constexpr std::uint8_t kVarClass = 2;             // byte at +0x12
+inline constexpr std::uint8_t kVarSex = 1;               // byte at +0x11
+inline constexpr std::uint8_t kVarArmorClass = 8;        // the word at +0x30
 inline constexpr std::uint8_t kVarHitPointsFull = 4;     // set to the maximum
 inline constexpr std::uint8_t kVarSpellPointsFull = 6;   // set to the maximum
 inline constexpr std::uint8_t kVarClearConditions = 104;  // wipes all eighteen

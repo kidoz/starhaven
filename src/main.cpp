@@ -6564,10 +6564,11 @@ int main(int argc, char** argv) {
                 stone > 0) {
                 warded = game::kBlessBase + stone;
             }
-            party[i].armor_class =
-                game::attribute_bonus(party[i].attribute(game::Attribute::Speed)) +
+            party[i].armor_class = game::traced_armor_class(
                 game::armour_of(party[i], item_stats) + party[i].temp_armor + skilled_armor +
-                gear_armor + warded;
+                    gear_armor + warded,
+                party[i].armor_bonus,
+                game::attribute_bonus(party[i].attribute(game::Attribute::Speed)));
         }
 
         // An hour awake is an hour worn: the counter climbs, and past its
