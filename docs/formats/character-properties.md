@@ -154,8 +154,9 @@ words, since 400 is not that row in `GLOBAL.TXT` and whichever table it is has
 not been identified.
 
 It is uninitialised in the image, so it is filled at run time, and the dword
-immediately below it at `0x5b22f8` is read eighty-one times, most of them in
-the AI. `unknown` what that one holds.
+immediately below it at `0x5b22f8` is **the actor count** — the save writer
+at `0x46cd8b` passes it straight to `fwrite` beside the actor array's address
+and its 548-byte stride, which is why the AI reads it eighty-one times.
 
 **So the hundred property ids write over a display table.** They index the
 same array from its base — id 105 lands on `0x5b22fc` exactly — which cannot

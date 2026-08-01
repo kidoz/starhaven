@@ -34,6 +34,8 @@ void print_usage(const char* argv0) {
               << "\n"
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "\n"
+              << "  --actor-timers  every map's actor block, at the three\n"
+              << "           64-bit fields the AI reads and nothing writes\n"
               << "  --scan   research mode: every opcode across all scripts, its\n"
               << "           argument sizes, and any map file name in its arguments\n"
               << "\n"
@@ -2055,6 +2057,79 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
 
 }  // namespace
 
+// Do the actor's three unwritten timers ever arrive non-zero from a file?
+//
+// The executable copies the whole actor array in and out as a straight image
+// of the 548-byte record — `memcpy(0x56f478, buffer, 548 * count)` at
+// 0x46dc92 and 0x48c0a6, and `fwrite(0x56f478, 548, count)` at 0x46cd92 —
+// so whatever the map's own actor block holds at `+0xf4`, `+0x114` and
+// `+0x124` is what the AI reads there. This walks every map's block and
+// counts.
+int do_actor_timers(const starhaven::lod::LodArchive& icons) {
+    namespace lod = starhaven::lod;
+    namespace world = starhaven::world;
+    (void)icons;
+
+    lod::GameLodArchive games;
+    if (lod::GameLodArchive::open(
+            *starhaven::platform::install_from_env() / "data" / "Games.lod", games) !=
+        lod::GameLodError::None) {
+        std::cerr << "error: could not open Games.lod\n";
+        return 1;
+    }
+    struct Field {
+        std::size_t offset;
+        const char* name;
+        std::size_t nonzero = 0;
+    };
+    std::array<Field, 4> fields{{{0xf4, "+0xf4"}, {0x104, "+0x104"}, {0x114, "+0x114"},
+                                {0x124, "+0x124"}}};
+    std::size_t maps = 0;
+    std::size_t actors = 0;
+    for (const auto& entry : games.entries()) {
+        const std::string name = entry.name;
+        const bool outdoor = name.size() > 4 && name.compare(name.size() - 4, 4, ".ddm") == 0;
+        const bool indoor = name.size() > 4 && name.compare(name.size() - 4, 4, ".dlv") == 0;
+        if (!outdoor && !indoor) {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapEventFile file;
+        if (games.payload(name, raw) != lod::GameLodArchive::PayloadError::None ||
+            world::parse_map_event(raw, file) != world::MapEventError::None) {
+            continue;
+        }
+        world::EventLayout layout;
+        if (world::parse_event_layout(file, layout) != world::EventLayoutError::None) {
+            continue;
+        }
+        const std::size_t offset = layout.actors_offset;
+        const std::uint32_t count = layout.actor_count;
+        ++maps;
+        const auto& bytes = file.payload;
+        for (std::uint32_t i = 0; i < count; ++i) {
+            const std::size_t base = offset + i * world::kActorRecordSize;
+            if (base + world::kActorRecordSize > bytes.size()) {
+                break;
+            }
+            ++actors;
+            for (auto& field : fields) {
+                bool any = false;
+                for (std::size_t b = 0; b < 8; ++b) {
+                    any = any || bytes[base + field.offset + b] != 0;
+                }
+                field.nonzero += any ? 1 : 0;
+            }
+        }
+    }
+    std::cout << maps << " maps, " << actors << " actors on disk\n";
+    for (const auto& field : fields) {
+        std::cout << "  " << field.name << ": " << field.nonzero << " non-zero ("
+                  << (actors > 0 ? 100 * field.nonzero / actors : 0) << "%)\n";
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2 || argc > 3) {
         print_usage(argv[0]);
@@ -2105,6 +2180,9 @@ int main(int argc, char** argv) {
     }
     if (stem == "--npc-mutations") {
         return do_npc_mutations(icons, *install / "data");
+    }
+    if (stem == "--actor-timers") {
+        return do_actor_timers(icons);
     }
     if (stem == "--headers") {
         return do_headers(icons);

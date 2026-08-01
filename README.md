@@ -1298,6 +1298,18 @@ interoperability and compatibility with a legally purchased copy.
   goes; the reads, the pairs and the spacing stand. Either the values arrive
   wholesale from the map or the save, or the three AI actions gated on them
   are unreachable.
+- **The gamble on the actor block: the three timers are dead.** The actor
+  array moves as a **straight image** — `memcpy` of `548 × count` in, `fwrite`
+  of `548 × count` out, no field touched, which also names `0x5b22f8` as the
+  actor count the AI reads eighty-one times. So a file could carry values the
+  code never writes. It does not: `evt_info --actor-timers` walks every actor
+  block Games.lod ships and finds **342 actors across 67 maps with all four
+  64-bit fields zero, without exception**. A save can only hold what memory
+  held, and no instruction sets them. So the fields are always zero, every
+  branch that asks whether they are greater than zero always answers no, and
+  **the three AI actions behind them never run in the shipped game**. The
+  gamble's risk was that the answer would be "they come from the file"; the
+  answer is better than that.
 - **The hundred counters at `0x5b2293` are not counters.** Three readers index
   the same array by an attribute's raw value and add the byte to 400 before
   handing it to a string routine — it is the table that turns a number into

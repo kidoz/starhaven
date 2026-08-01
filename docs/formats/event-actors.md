@@ -578,3 +578,48 @@ or the save's actor block, read in wholesale — or they are never anything but
 zero, in which case the three actions gated on them are unreachable in the
 shipped game. Distinguishing the two needs the actor block's on-disk layout,
 which is `unknown`.
+
+## Settled: the three timers are never anything but zero
+
+The withdrawal above left one question open — whether the values arrive from
+outside the code, or are always zero and three AI actions are dead. Both ends
+now answer.
+
+**The block moves as a straight image.** The executable copies the whole actor
+array in and out without touching a field:
+
+```
+0x0046dc92  mov edi, 0x56f478          ; the array
+0x0046dc97  shl ecx, 4                 ; count * 17 ...
+0x0046dca2  mov ecx, eax               ; ... * 8 + count, << 2  =  548 * count
+            (byte copy from the map's buffer)
+
+0x0046cd8b  mov eax, dword [0x5b22f8]  ; the actor count
+0x0046cd92  push 0x224                 ; 548
+0x0046cd97  push 0x56f478
+0x0046cd9c  call 0x4ae63c              ; fwrite
+```
+
+The save reader at `0x48c0a6` and the save writer at `0x48b362` are the same
+two shapes. `observed` — and it names `0x5b22f8` as **the actor count**, which
+is why the AI reads it eighty-one times.
+
+So a file *could* carry values the code never writes. **It does not.**
+`evt_info --actor-timers` walks every actor block Games.lod ships:
+
+```
+67 maps, 342 actors on disk
+  +0xf4: 0 non-zero (0%)
+  +0x104: 0 non-zero (0%)
+  +0x114: 0 non-zero (0%)
+  +0x124: 0 non-zero (0%)
+```
+
+Every authored actor in the game has all four 64-bit fields at zero. And a
+save can only hold what memory held, which no instruction ever sets.
+
+**Therefore the three AI actions gated on these timers are unreachable in the
+shipped game.** Each reduces its field to "greater than zero" and each field is
+always zero, so each branch always takes the same side. That is the answer the
+withdrawal was owed: not "they come from the file", but that the fields are
+dead and the behaviours behind them never run.
