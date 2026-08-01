@@ -1318,6 +1318,15 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The 512 bits at `+0x1530` belong to the scripts alone.** Following the
+  readers settles it in four instructions: the property getter, setter, adder
+  and taker are the **only** things in the whole image that reach the array,
+  there is no absolute reference into any character's copy, and the getter
+  does nothing with a set bit but report that it is set. So sixty-four bytes
+  on every character are **512 flags the game itself never consults** — the
+  same shape as the six script-only clocks, one row down. A map script marks a
+  character and later asks whether it is marked, and nothing else looks. The
+  walk carries them now.
 - **The gamble on the party record's last dense fields: three ids, one name.**
   **213** is a bit in an array on the *character* at `+0x1530`, indexed the way
   every bit array here is — and the array runs to `+0x1570`, which is

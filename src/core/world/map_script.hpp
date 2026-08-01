@@ -234,8 +234,15 @@ inline constexpr std::uint8_t kVarClearConditions = 104;  // wipes all eighteen
 // twelve bits**.
 //
 // That is far more room than the game's ninety-nine spells need, so the
-// obvious name does not fit and is not taken. `observed` for the array, its
-// span and its indexing; `unknown` for what the bits are.
+// obvious name does not fit and is not taken.
+//
+// **And nothing but a script ever touches it.** Four instructions in the whole
+// image reach the array — the property getter at `0x44018a`, the setter at
+// `0x440cf2`, the adder at `0x4417fe` and the taker at `0x442664` — and there
+// is no absolute reference into any character's copy anywhere. The getter
+// does nothing with a set bit but answer that it is set. So these are **512
+// flags a character that the game itself never consults**, the same shape as
+// the six clocks at `0x90e19c`. `observed`
 inline constexpr std::uint8_t kVarCharacterBit = 213;
 inline constexpr int kCharacterBitArray = 0x1530;
 inline constexpr int kCharacterBitArrayBytes = 0x40;

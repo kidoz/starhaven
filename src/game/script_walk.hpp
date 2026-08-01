@@ -51,6 +51,12 @@ struct WalkState {
     // keeps whatever the script set.
     std::array<int, world::kScriptTimerCount> timers{};
 
+    // The 512 bits every character carries at `+0x1530`. Like the six clocks,
+    // nothing but a script ever touches them — the walk keeps them party-wide
+    // because it models the party and not the member a property names, as it
+    // does for every other per-character property.
+    std::set<int> character_bits;
+
     // The honors earned: `Awards.txt` rows, set by quest events and worn on
     // the sheet. Persistent like the bits.
     std::set<int> awards;
@@ -289,6 +295,13 @@ struct WalkOutcome {
             case world::kVarExperience:
                 state.experience += take ? -value : value;
                 state.experience = state.experience < 0 ? 0 : state.experience;
+                break;
+            case world::kVarCharacterBit:
+                if (take) {
+                    state.character_bits.erase(value);
+                } else {
+                    state.character_bits.insert(value);
+                }
                 break;
             case world::kVarTimerFirst:
             case world::kVarTimerFirst + 1:

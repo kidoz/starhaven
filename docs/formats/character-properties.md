@@ -224,13 +224,29 @@ opposite — they bear on nothing *but* the game's own scripts.
 
 ## The last three ids before the clocks
 
-**213 — a bit on the character.** `0x4417e7` indexes an array at
-`+0x1530` the way every bit array here is indexed: `byte[base + (bit >> 3)]`,
-mask `0x80 >> (bit & 7)`. The array begins just after the readied spell at
-`+0x152f` and runs to where the stored terms start at `+0x1570` — **sixty-four
-bytes, five hundred and twelve bits**. That is far more room than the game's
-ninety-nine spells would need, so the obvious name is not taken. `observed`
-for the array, its span and its indexing; `unknown` for what the bits are.
+**213 — a bit on the character, and nobody but a script cares.** `0x4417e7`
+indexes an array at `+0x1530` the way every bit array here is indexed:
+`byte[base + (bit >> 3)]`, mask `0x80 >> (bit & 7)`. The array begins just
+after the readied spell at `+0x152f` and runs to where the stored terms start
+at `+0x1570` — **sixty-four bytes, five hundred and twelve bits**. That is far
+more room than the game's ninety-nine spells would need, so the obvious name
+was refused.
+
+Following its readers settles it. **Four instructions in the whole image reach
+the array**, and all four are property plumbing:
+
+| where | what |
+| --- | --- |
+| `0x44018a` | the getter tests the bit and answers whether it is set |
+| `0x440cf2` | the setter |
+| `0x4417fe` | the adder |
+| `0x442664` | the taker |
+
+There is no absolute reference into any character's copy anywhere, and the
+getter does nothing with a set bit but report it. So these are **512 flags a
+character that the game itself never consults** — the same shape as the six
+clocks at `0x90e19c`, one row down. A map script marks a character and later
+asks whether it is marked; no part of the engine looks. `observed`
 
 **214 — a mark on somebody, and two party bytes cleared.** The body zeroes
 party `+0x95` and `+0x96`, multiplies its amount by fifteen, and sets bit

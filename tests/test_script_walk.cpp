@@ -564,3 +564,22 @@ TEST_CASE("the last three property ids before the clocks", "[script]") {
     REQUIRE(kCharacterBitArray + kCharacterBitArrayBytes == 0x1570);
     REQUIRE(kCharacterBitArrayBytes * 8 > 99 * 4);
 }
+
+TEST_CASE("the character's bits belong to the scripts alone", "[script]") {
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 8, 0, kOpcodeGive, typed(kVarCharacterBit, 40));
+    push_step(payload, 8, 1, kOpcodeGive, typed(kVarCharacterBit, 511));
+    push_step(payload, 8, 2, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+    starhaven::game::WalkState state;
+    (void)starhaven::game::walk_event(script, 8, state);
+    REQUIRE(state.character_bits.contains(40));
+    REQUIRE(state.character_bits.contains(511));
+    REQUIRE_FALSE(state.character_bits.contains(41));
+    // They are their own store, not the party's quest bits and not variables.
+    REQUIRE_FALSE(state.bits.contains(40));
+    REQUIRE(state.variables.find(kVarCharacterBit) == state.variables.end());
+    // The array is big enough for every bit a script could name in a byte
+    // pair, which is why the ninety-nine-spell reading was refused.
+    REQUIRE(kCharacterBitArrayBytes * 8 == 512);
+}
