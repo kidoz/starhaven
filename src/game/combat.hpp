@@ -610,6 +610,9 @@ public:
         // `observed` in the rows; that a point is worth exactly one is this
         // engine's reading, as it has been since the line was first parsed.
         attack += wielded_skill_points(who, items);
+        // The stored term the attack-bonus getter adds beside the gear's and
+        // the ladder's — `+0x1570`, the first of the four.
+        attack += who.derived_bonus[static_cast<std::size_t>(DerivedBonus::AttackBonus)];
         // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
         // why archery against armour asks for skill; a swing is the plain
         // bar. Which call site passes which kind is the original's;
@@ -626,7 +629,9 @@ public:
         // A weapon does physical damage, which no resistance column answers;
         // the call is here so an elemental one would be answered correctly.
         int damage = data::roll(weapon_of(who, items), random_) +
-                     attribute_bonus(who.attribute(Attribute::Might)) + skill.damage;
+                     attribute_bonus(who.attribute(Attribute::Might)) + skill.damage +
+                     who.derived_bonus[static_cast<std::size_t>(
+                         shooting ? DerivedBonus::ShootDamage : DerivedBonus::AttackDamage)];
         // Each of these appends: a blow may be two-handed *and* tripled *and*
         // carry a special's name. They used to overwrite one another, so only
         // the last one to fire was ever spoken.

@@ -161,6 +161,16 @@ struct Character {
     // pool should do when the pool is refilled. `observed`
     int max_hit_point_bonus = 0;
     int max_spell_point_bonus = 0;
+    // Four more of the same, one per derived stat, at `+0x1570`, `+0x1572`,
+    // `+0x1574` and `+0x1576`. Their getters push ids **15, 16, 19 and 20**
+    // and are shaped exactly like the three above. `observed`
+    //
+    // Which four stats those are is `inferred`: id 15's getter reads Speed's
+    // modifier word at `+0x2a`, which is precisely the mixture the attack
+    // bonus was traced to use, and id 20's starts from the item at the
+    // weapon's own equipment anchor, which suits a damage figure. So: the
+    // attack pair and the shot pair, in that order.
+    std::array<int, 4> derived_bonus{};
     int skill_points = 0;
 
     // What is worn, as ITEMS.TXT ids; zero means the slot is empty. The
@@ -504,6 +514,17 @@ inline constexpr int kExperienceStep = 1000;
                           kClassSpellPointsPerLevel[static_cast<std::size_t>(id)];
     return total < 0 ? 0 : total;
 }
+
+// The four stored terms at `+0x1570`..`+0x1577`, in the order their getters
+// take them.
+enum class DerivedBonus : std::size_t {
+    AttackBonus = 0,
+    AttackDamage = 1,
+    ShootBonus = 2,
+    ShootDamage = 3,
+};
+
+inline constexpr std::array<int, 4> kDerivedBonusStatIds{15, 16, 19, 20};
 
 // **What the armour class is made of**, out of the getter at `0x482860`: it
 // asks both stat getters for **stat id 9**, adds the stored word at `+0x30`,

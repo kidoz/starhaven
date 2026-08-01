@@ -438,3 +438,17 @@ TEST_CASE("a stored term rides on a pool's ceiling until it is refilled",
     game::level_up_to(who, 1);
     REQUIRE(who.max_hit_points == 1);
 }
+
+TEST_CASE("four more stored terms sit beside the pools", "[party]") {
+    // Each getter pushes its own id and is shaped like the three named ones.
+    REQUIRE(game::kDerivedBonusStatIds.size() == 4);
+    REQUIRE(game::kDerivedBonusStatIds[0] == 15);
+    REQUIRE(game::kDerivedBonusStatIds[3] == 20);
+    REQUIRE(static_cast<std::size_t>(game::DerivedBonus::AttackBonus) == 0);
+    REQUIRE(static_cast<std::size_t>(game::DerivedBonus::ShootDamage) == 3);
+    game::Character who;
+    REQUIRE(who.derived_bonus.size() == 4);
+    for (const int stored : who.derived_bonus) {
+        REQUIRE(stored == 0);
+    }
+}

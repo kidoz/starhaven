@@ -37,13 +37,13 @@ enum class StatId : int {
     Accuracy = 4,
     Speed = 5,
     Luck = 6,
-    // The next three follow `stats.txt`'s own row order, and four separate
-    // things agree: the max-hit-point routine folds in **7** and the
-    // max-spell-point routine **8**; "of Life" and "of Earth" give 7, which
-    // is what a name like that should give; "of The Eclipse", "of The
-    // Phoenix" and "of The Sky" give 8; and "of The Golem" gives 9 beside
-    // fifteen Endurance, which is what an armoured thing should give.
-    // `inferred` — no display routine has been read that names them.
+    // **Confirmed, and no longer a fit.** Each of the three getters pushes
+    // its own id and then reads that stat's own table: the maximum-hit-point
+    // getter at `0x482020` pushes **7** and indexes the class hit-point base
+    // at `0x4c2630`; the maximum-spell-point getter at `0x482190` pushes
+    // **8** and indexes the class spell-point base at `0x4c2638`; the
+    // armour-class getter at `0x482840` pushes **9** and adds the Speed row
+    // of the attribute ladder. `observed`
     HitPoints = 7,
     SpellPoints = 8,
     ArmorClass = 9,

@@ -1318,6 +1318,19 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **Seven stored terms, and a fit turned into a reading.** Each of the three
+  named getters pushes its own stat id and then reads that stat's own table —
+  the maximum-hit-point getter pushes **7** and indexes the class base at
+  `0x4c2630`, the maximum-spell-point getter pushes **8** and indexes
+  `0x4c2638`, the armour-class getter pushes **9** and adds the Speed row of
+  the ladder. So `special_stats.hpp`'s Hit Points 7, Spell Points 8, Armour
+  Class 9 stop being a fit and become observed. Four more getters of the
+  identical shape push **15, 16, 19 and 20** and read the stored terms at
+  `+0x1570`..`+0x1577`. Which four stats those are is inferred, but pointedly:
+  id 15's getter reads **Speed's modifier word at `+0x2a`**, which is exactly
+  the mixture the attack bonus was traced to use, and id 20's starts from the
+  item at the **weapon's own equipment anchor**, which suits a damage figure.
+  Two of the four now reach a blow.
 - **What a kill actually pays: fifty reputation.** The hunt for the experience
   award came up empty again — the monster table is 72-byte rows from
   `0x56c188` and only five of its columns are referenced anywhere, none
