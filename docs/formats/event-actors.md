@@ -469,3 +469,28 @@ Consistent with the map's reading of it as the common ending every movement
 falls into, but not enough on its own to name. `unknown`
 
 States 5b, 7 and 10 were not reached this sitting.
+
+## The last four attempted
+
+**State 10 is a commanded move.** `0x404660` builds the actor's packed
+handle, calls the pathfinder at `0x4046f0` with a target of **zero** — the
+caller's own point rather than one it works out — copies the seven-dword
+result, and writes the velocity pair at `+0x8a`/`+0x8c`. Every one of its
+callers is outside the AI, including the aiming code at `0x420beb`. So it is
+"go to this point", commanded rather than decided. `observed` for the call
+and the writes; `inferred` for the name.
+
+**State 7 branches on two of the actor's own timers.** `0x402dd0` reads the
+64-bit pairs at `+0x114`/`+0x118` and `+0x128`, tests each for sign and for
+zero, and folds the two into booleans before proceeding. Two 64-bit values
+tested that way are timestamps, but which is `unknown`, and the action they
+gate was not reached.
+
+**States 5b and 9 remain unnamed.** State 9's body was read in an earlier
+sitting — the pathfinder, the seven-dword copy, a facing from `word[+0xba]`
+— and is consistent with being the common ending every movement falls into
+without settling it. State 5b opens on `+0xc4` and was not read.
+
+So the tally across three sittings: **death, hurt, reanimation and a
+commanded move** named outright; **closing/backing off** and **approach**
+named as families; **five actions and one field** still open. `unknown`

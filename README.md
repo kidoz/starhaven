@@ -1213,6 +1213,13 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **State 10 named: a commanded move**: it calls the pathfinder with a
+  target of **zero** — the caller's own point rather than one it works out —
+  and every caller is outside the AI, including the aiming code. State 7 was
+  read far enough to see it branch on two of the actor's own 64-bit timers,
+  which is as far as it goes; 5b and 9 stay open. Across three sittings the
+  tally is four actions named outright, two named as families, five still
+  open.
 - **State 16 named: reanimation**: it has exactly one caller anywhere —
   inside the case for **Reanimate** — and its body restores the hit points
   at `+0x28` from a stored word at `+0x5c`, which names that field as the
