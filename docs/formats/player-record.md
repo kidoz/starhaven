@@ -698,9 +698,14 @@ The three curves differ, and sensibly:
 
 | band | under 50 | 50–99 | 100–149 | 150+ |
 | --- | --- | --- | --- | --- |
+| spell points (`0x4c284c`) | 100 | **150** | 100 | 10 |
 | hit points (`0x4c2850`) | 100 | **75** | 40 | 10 |
 | attack bonus (`0x4c2854`) | 100 | 100 | 40 | 10 |
 | recovery (`0x4c2858`) | 100 | 100 | 40 | 10 |
+
+**Spell points are the odd one**: they *rise* by half through the fifties,
+eighties and nineties, hold at full through the hundreds, and only fail past
+a hundred and fifty with the rest. The old grow wiser before they fail.
 
 Hit points feel age first; the other two hold until a hundred; past a
 hundred and fifty a character keeps a tenth of all three. `observed` for the

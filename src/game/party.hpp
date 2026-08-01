@@ -351,6 +351,11 @@ inline constexpr std::array<std::string_view, 18> kClassNames{
 // bands and the curves.
 inline constexpr std::array<int, 3> kAgeBands{50, 100, 150};
 inline constexpr std::array<int, 4> kAgeHitPointPercent{100, 75, 40, 10};
+// Spell points have a row of their own at `0x4c284c` and it is the odd one:
+// **150** in the fifty-to-ninety-nine band, back to 100 at a hundred, then
+// the same tenth past a hundred and fifty. The old grow wiser before they
+// fail. `observed`
+inline constexpr std::array<int, 4> kAgeSpellPointPercent{100, 150, 100, 10};
 inline constexpr std::array<int, 4> kAgeAttackPercent{100, 100, 40, 10};
 inline constexpr std::array<int, 4> kAgeRecoveryPercent{100, 100, 40, 10};
 
@@ -532,7 +537,7 @@ inline void level_up_to(Character& c, int level) {
         casts_spells(c.class_name)
             ? class_spell_points(c.class_name, c.level,
                                  attribute_bonus(ailing_attribute(
-                                     c, Attribute::Personality, kAgeHitPointPercent)))
+                                     c, Attribute::Personality, kAgeSpellPointPercent)))
             : 0;
     c.hit_points += c.max_hit_points - hp_before;
     c.spell_points += c.max_spell_points - sp_before;

@@ -341,6 +341,12 @@ TEST_CASE("age bands and their three curves", "[party]") {
     REQUIRE(age_band(100) == 2);
     REQUIRE(age_band(150) == 3);
     REQUIRE(age_band(900) == 3);
+    // Spell points are the odd curve: they *rise* by half in the fifty band
+    // before falling with the rest.
+    REQUIRE(age_percent(kAgeSpellPointPercent, 20) == 100);
+    REQUIRE(age_percent(kAgeSpellPointPercent, 60) == 150);
+    REQUIRE(age_percent(kAgeSpellPointPercent, 120) == 100);
+    REQUIRE(age_percent(kAgeSpellPointPercent, 200) == 10);
     // Hit points feel age first: three quarters at fifty where the other two
     // are untouched until a hundred.
     REQUIRE(age_percent(kAgeHitPointPercent, 60) == 75);

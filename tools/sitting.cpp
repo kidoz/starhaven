@@ -49,7 +49,8 @@ namespace {
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0
               << " [<map>] [--minutes N] [--seed N] [--fps N]\n"
-              << "          [--still] [--teach] [--no-spells] [--verbose]\n"
+              << "          [--still] [--teach] [--no-spells] [--age N]\n"
+              << "          [--poisoned] [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
               << "actors a real map places, for N minutes of world time.\n"
@@ -111,6 +112,8 @@ int main(int argc, char** argv) {
     bool advance = true;
     bool casting = true;
     bool teach = false;
+    int start_age = 0;
+    bool poisoned = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -120,6 +123,10 @@ int main(int argc, char** argv) {
             seed = static_cast<std::uint32_t>(std::strtoul(argv[++i], nullptr, 10));
         } else if (a == "--fps" && i + 1 < argc) {
             fps = std::max(1, std::atoi(argv[++i]));
+        } else if (a == "--age" && i + 1 < argc) {
+            start_age = std::atoi(argv[++i]);
+        } else if (a == "--poisoned") {
+            poisoned = true;
         } else if (a == "--teach") {
             teach = true;
         } else if (a == "--no-spells") {
@@ -176,6 +183,22 @@ int main(int argc, char** argv) {
     }
 
     std::array<game::Character, 4> party = game::make_party(names, seed);
+    // The two things the traces just put in and nothing has played: the age
+    // curves and the condition multiplier. Set them before the maxima are
+    // derived so both reach the numbers.
+    if (start_age > 0 || poisoned) {
+        for (auto& who : party) {
+            if (start_age > 0) {
+                who.age = start_age;
+            }
+            if (poisoned) {
+                who.poisoned = 1;
+            }
+            game::level_up_to(who, who.level);
+            who.hit_points = who.max_hit_points;
+            who.spell_points = who.max_spell_points;
+        }
+    }
     if (teach) {
         // A starting party knows only First Aid, so nothing aimed is ever
         // cast. These four are the cheapest aimed spells in the game, one
@@ -201,7 +224,8 @@ int main(int argc, char** argv) {
         std::cout << "  " << std::setw(12) << std::left << who.name << std::setw(10)
                   << who.class_name << " hp " << std::setw(4) << who.max_hit_points << " sp "
                   << std::setw(4) << who.max_spell_points << " ac " << std::setw(3)
-                  << who.armor_class << "  might " << who.attribute(game::Attribute::Might)
+                  << who.armor_class << " age " << std::setw(4) << who.age
+                  << " might " << who.attribute(game::Attribute::Might)
                   << " (" << std::showpos << game::attribute_bonus(
                                                  who.attribute(game::Attribute::Might))
                   << std::noshowpos << ")"

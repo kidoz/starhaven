@@ -1193,6 +1193,14 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **Age put under the sitting, and it found the wrong curve**: `--age` and
+  `--poisoned` set a party up and derive its maxima, and the run showed
+  spell points falling with age where the executable has them **rising**.
+  Spell points have a **fourth row of their own** at `0x4c284c` — 100, then
+  **150** through the fifties to nineties, back to 100 through the hundreds,
+  and a tenth past a hundred and fifty. The old grow wiser before they fail.
+  My wiring had used the hit-point row; corrected. Second time the instrument
+  has caught a wiring error within minutes of being pointed at new work.
 - **Four of the party record's dense fields named**: `+0x1c0` is the
   **turn-based flag** — every site compares it against 1, and the branch
   decides whether recovery is set directly or scaled by the same −32/15 the
