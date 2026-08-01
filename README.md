@@ -1701,6 +1701,14 @@ interoperability and compatibility with a legally purchased copy.
   answering with the party's own position), **5 a decoration** (28-byte rows at
   `0x5b23cc`). With `handle = index * 8 | tag`, that is the encoding every part
   of the game passes around, and all four kinds now have names.
+- **The engine's actors carry the nine slots now.** `Combatant` had four
+  ad-hoc timers — feared, slowed, paralyzed, charmed — invented before any of
+  this was read. Beside them it now holds the **nine the expiry pass walks**,
+  each lapsing on its own once a tick the way `0x44ab00` does it, with slot 3
+  marked as the one whose expiry restores the radius. The four old timers still
+  drive the fight; the nine are wired for measurement first, because what eight
+  of them mean is still `unknown` and inventing behaviour for them would be
+  guessing where the last three batches have been reading.
 - **What a slot actually is, from the expiry routine.** `0x44ab00` gives the
   layout in eleven instructions: an **eight-byte expiry**, two words at `+0x08`
   and `+0x0a` that are cleared when it lapses, and a word at **`+0x0c` that

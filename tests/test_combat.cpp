@@ -913,3 +913,19 @@ TEST_CASE("the game measures a distance without a square root", "[combat]") {
     REQUIRE(game::octagonal_distance(100, 100) > 100);
     REQUIRE(game::octagonal_distance(100, 100) < 100 * 3 / 2 + 1);
 }
+
+TEST_CASE("an actor carries nine slots that lapse on their own", "[combat]") {
+    // Nine sixteen-byte records from +0xc4, each handed the clock once a tick.
+    REQUIRE(game::Combatant::kActorSlots == 9);
+    REQUIRE(game::Combatant::kSizeSlot == 3);
+    game::Combatant c;
+    for (const float held : c.slots) {
+        REQUIRE(held == 0.0f);
+    }
+    game::Battle battle;
+    // Nothing has been reset in, so every ask is refused rather than read
+    // past the array.
+    REQUIRE_FALSE(battle.hold_slot(0, 0, 5.0f));
+    REQUIRE_FALSE(battle.slot_up(0, 0));
+    REQUIRE_FALSE(battle.slot_up(0, game::Combatant::kActorSlots));
+}

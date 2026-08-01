@@ -202,6 +202,20 @@ struct Combatant {
     // durations and not percentages. `inferred`
     int second_percent = 0;  // +0x4d, rolled first, answers 2
     int first_percent = 0;   // +0x47, rolled second, answers 1
+
+    // **The nine slots the expiry pass walks**, at `+0xc4` and every sixteen
+    // bytes after it. Each is an eight-byte expiry, two words, and an effect
+    // id at `+0x0c` that survives the clear — see docs/formats/event-actors.md.
+    // Held here as expiries in the fight's own seconds, since this engine has
+    // no world clock inside a battle.
+    //
+    // What eight of the nine mean is `unknown`; the ninth, slot 3, is the one
+    // whose expiry restores the radius, so it is a size effect. The four
+    // timers above are this engine's older invention and still drive the
+    // fight; these are wired for measurement first.
+    static constexpr std::size_t kActorSlots = 9;
+    static constexpr std::size_t kSizeSlot = 3;  // +0xf4
+    std::array<float, kActorSlots> slots{};
     // What the last roll answered, kept so a caller that moves the actors can
     // act on it: 0, 1 or 2.
     int disposition = 0;
@@ -504,6 +518,22 @@ public:
     }
     [[nodiscard]] int disposition_of_actor(std::size_t actor) const noexcept {
         return actor < combatants_.size() ? combatants_[actor].disposition : 0;
+    }
+
+    // Lay one of the nine slots on an actor, for however many seconds of the
+    // fight's clock. False when there is nothing there or no such slot.
+    bool hold_slot(std::size_t actor, std::size_t slot, float seconds) {
+        if (actor >= combatants_.size() || !combatants_[actor].alive ||
+            slot >= Combatant::kActorSlots) {
+            return false;
+        }
+        combatants_[actor].slots[slot] = std::max(combatants_[actor].slots[slot], seconds);
+        return true;
+    }
+
+    [[nodiscard]] bool slot_up(std::size_t actor, std::size_t slot) const noexcept {
+        return actor < combatants_.size() && slot < Combatant::kActorSlots &&
+               combatants_[actor].slots[slot] > 0.0f;
     }
 
     // Lay a condition on a monster for so many seconds of fight time. False
@@ -884,6 +914,11 @@ public:
             tick(c.slowed);
             tick(c.paralyzed);
             tick(c.charmed);
+            // The expiry pass, on the original's own shape: every slot is
+            // handed the clock once a tick and lapses on its own.
+            for (float& slot : c.slots) {
+                tick(slot);
+            }
             // Each affliction holds its byte at a hundred while it runs.
             c.second_percent = c.charmed > 0.0f ? 100 : 0;
             c.first_percent = c.feared > 0.0f ? 100 : 0;
