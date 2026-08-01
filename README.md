@@ -1339,6 +1339,15 @@ interoperability and compatibility with a legally purchased copy.
   **reputation**, a second door onto the standing the death handler moves by
   fifty. The risk was save-file bookkeeping with no game meaning; it is not
   bookkeeping, but two of the three keep their names to themselves.
+- **The sitting equips what it finds and hires who it can.** Twenty-one items
+  used to be left where they fell; a dropped weapon or armour now goes on
+  whoever's own skills allow it and beats what they carry — one of the
+  twenty-one, because most drops are rings and shop gear usually wins. And the
+  party hires: over 128 world hours it takes on an **Expert Healer and an
+  Instructor**, chosen as the dearest professions the purse can carry whose
+  stated words this engine can read. The Instructor's **fifteen percent** now
+  reaches the experience split, which is the first time a hireling's own
+  written number has changed a headless measurement.
 - **The sitting spends its gold, and the economy answers back.** It now buys
   at each trip to town: a rung at the teacher's traced **2000 and 5000**, for
   the whole party first because gear would otherwise eat the purse, then the

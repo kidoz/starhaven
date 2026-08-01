@@ -29,6 +29,7 @@
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
+#include "core/data/npc_stats.hpp"
 #include "core/data/name_table.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
@@ -36,6 +37,7 @@
 #include "core/world/map_session.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
+#include "game/hire.hpp"
 #include "game/monster_ai.hpp"
 #include "game/training.hpp"
 #include "game/inventory.hpp"
@@ -244,6 +246,10 @@ int main(int argc, char** argv) {
             break;
         }
     }
+    // The professions, so a sitting can hire. Their benefits are stated in
+    // words in `npcprof.txt` and their weekly fee is a column of it.
+    data::NpcProfessionTable professions;
+    (void)data::load_npc_professions(data_dir, professions);
     data::DescriptionTable skill_lines;
     if (data::load_descriptions(data_dir, "SKILLDES.TXT", skill_lines) !=
         data::GameDataError::None) {
@@ -386,6 +392,13 @@ int main(int argc, char** argv) {
     int dropped = 0;
     int trained = 0;
     int rungs = 0;
+    int picked_up = 0;
+    int hired = 0;
+    struct Hired {
+        game::HireBenefit benefit;
+        std::string name;
+    };
+    std::vector<Hired> hirelings;
     int bought_gear = 0;
     std::vector<std::string> drop_names;
     int stunned = 0;
@@ -666,7 +679,9 @@ int main(int argc, char** argv) {
             ++moves;
         }
         battle.recruit(session, monsters);
-        battle.award(party);
+        // A Teacher's ten percent, an Instructor's fifteen — read from their
+        // own row and applied where the split happens.
+        battle.award(party, game::best_hired(hirelings, &game::HireBenefit::experience_percent));
         if (const std::int64_t hour_now = clock.minutes() / game::kMinutesPerHour;
             hour_now != fatigue_hour) {
             hours_awake += static_cast<int>(hour_now - fatigue_hour);
@@ -694,6 +709,28 @@ int main(int argc, char** argv) {
                 // 2000 and 5000, and the best piece of gear the character's
                 // own skills allow, bought at the item's own value. Which of
                 // the two the party spends on first is the harness's choice.
+                // And somebody is hired, if the purse can carry a week of
+                // them. Which profession is the cheapest the party can
+                // afford whose words this engine can read; that a week is
+                // paid up front is the harness's simplification.
+                if (hirelings.size() < 2) {
+                    const data::NpcProfessionEntry* cheapest = nullptr;
+                    for (const auto& row : professions.entries()) {
+                        if (row.hire_cost <= 0 || row.hire_cost > gold ||
+                            !game::parse_benefit(row.party_benefit).any()) {
+                            continue;
+                        }
+                        if (cheapest == nullptr || row.hire_cost > cheapest->hire_cost) {
+                            cheapest = &row;
+                        }
+                    }
+                    if (cheapest != nullptr) {
+                        gold -= cheapest->hire_cost;
+                        hirelings.push_back({game::parse_benefit(cheapest->party_benefit),
+                                             cheapest->name});
+                        ++hired;
+                    }
+                }
                 // A rung first, for the whole party: it is the larger and the
                 // better-traced purchase, and gear would otherwise eat the
                 // purse before anyone reached two thousand.
@@ -846,9 +883,38 @@ int main(int argc, char** argv) {
     // while ago and no headless run had ever looked at the pile.
     for (const auto& piece : battle.take_loot()) {
         ++dropped;
-        if (const auto* row = items.at(static_cast<std::size_t>(piece.item_id));
-            row != nullptr && drop_names.size() < 6) {
+        const auto* row = items.at(static_cast<std::size_t>(piece.item_id));
+        if (row == nullptr) {
+            continue;
+        }
+        if (drop_names.size() < 6) {
             drop_names.push_back(row->name);
+        }
+        // And it goes on somebody, if anybody's own skills allow it and it
+        // beats what they carry. Twenty-five pieces used to be left where
+        // they fell.
+        const bool is_weapon = row->equip_type == data::ItemEquipType::Weapon ||
+                               row->equip_type == data::ItemEquipType::TwoHandedWeapon ||
+                               row->equip_type == data::ItemEquipType::Missile;
+        const bool is_armour = row->equip_type == data::ItemEquipType::Armor;
+        if ((!is_weapon && !is_armour) || row->skill_group.empty()) {
+            continue;
+        }
+        const auto slot =
+            static_cast<std::size_t>(is_weapon ? game::Slot::Weapon : game::Slot::Armor);
+        for (auto& who : party) {
+            if (!who.skills.contains(row->skill_group)) {
+                continue;
+            }
+            const int held = who.equipped[slot];
+            const auto* have = held > 0 ? items.at(static_cast<std::size_t>(held)) : nullptr;
+            if (have != nullptr && have->value >= row->value) {
+                continue;
+            }
+            who.equipped[slot] = row->id;
+            who.equipped_broken[slot] = false;
+            ++picked_up;
+            break;
         }
     }
     }
@@ -885,8 +951,12 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "nobody went Weak\n";
     }
-    std::cout << "  " << rungs << " rungs bought, " << bought_gear
-              << " pieces of gear\n";
+    std::cout << "  " << rungs << " rungs bought, " << bought_gear << " pieces of gear, "
+              << picked_up << " picked up, " << hired << " hired";
+    for (std::size_t at = 0; at < hirelings.size(); ++at) {
+        std::cout << (at == 0 ? " (" : ", ") << hirelings[at].name;
+    }
+    std::cout << (hirelings.empty() ? "" : ")") << "\n";
     std::cout << "  " << trained << " levels trained for at the hall; " << levels
               << " levels gained; " << killed << " actors killed; "
               << experience << " experience, " << gold << " gold\n";
