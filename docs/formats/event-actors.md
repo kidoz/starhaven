@@ -1268,3 +1268,31 @@ further along its own frame after work of its own. Where a monster's step
 actually comes from is `unknown`, and the straight-line pace in the headless
 sitting stays this engine's — now for a stated reason rather than an assumed
 one.
+
+## `0x5e217c` resolved: a variable *and* an array, with element zero never used
+
+The two readings are both right, and the contradiction dissolves on one
+instruction.
+
+`0x5e217c` is written once, at `0x44a8a2`, and read as a plain dword in six
+places — that is the **pointer to `DMONLIST`'s 148-byte rows**.
+
+It is also the base of a **twenty-byte record array**: three sites in the
+expiry family (`0x44aa03`, `0x44aab7`, `0x44ab79`) do `lea eax, [ecx*4 +
+0x5e217c]` with `ecx = 5 x id`, so record *n* is at `0x5e217c + 20n`. Record
+**zero would be the pointer itself** — and it is never reached, because the
+expiry skips a slot whose effect id is zero two instructions earlier:
+
+```
+cmp ax, di        ; di is zero here
+je  done
+```
+
+So the array's first usable record is **`0x5e2190`**, which is referenced
+**130 times** across the image and is what the property setter's condition
+case hands to `0x4358f0`. `observed`
+
+Whether the pointer is deliberately the array's zeroth header or the two just
+happen to share an address is not something the code says. What matters is
+settled: **nothing indexes the array at zero**, both readings stand, and the
+array's records run from `0x5e2190` at twenty bytes apiece.

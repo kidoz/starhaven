@@ -1719,6 +1719,15 @@ interoperability and compatibility with a legally purchased copy.
   drive the fight; the nine are wired for measurement first, because what eight
   of them mean is still `unknown` and inventing behaviour for them would be
   guessing where the last three batches have been reading.
+- **`0x5e217c` resolved: both readings were right.** The address is written
+  once and read as a plain dword six times — the **`DMONLIST` pointer** — and
+  it is also the base of a **twenty-byte record array**, three sites doing
+  `lea [ecx*4 + 0x5e217c]` with `ecx = 5 × id`. Record zero would be the
+  pointer itself, and it is never reached: the expiry skips a slot whose effect
+  id is zero two instructions earlier. So the first usable record is
+  **`0x5e2190`**, referenced **130 times** across the image and the thing the
+  property setter's condition case hands on. The contradiction dissolves on one
+  `je`.
 - **What a slot actually is, from the expiry routine.** `0x44ab00` gives the
   layout in eleven instructions: an **eight-byte expiry**, two words at `+0x08`
   and `+0x0a` that are cleared when it lapses, and a word at **`+0x0c` that
