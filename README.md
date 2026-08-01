@@ -1318,6 +1318,19 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **A sitting that grows, and a rule it had been quietly breaking.** Every run
+  this project published ended with "0 levels gained", and the reason turned
+  out to be worse than "the sitting never visits a trainer": the sitting was
+  calling `level_up` in its own loop, which raises a level for free — against
+  the traced rule that **the level word at `+0x32` is written by exactly two
+  instructions, both of them the script property routines a training hall
+  drives**. That call is gone. A real `Training` row out of `2DEvents.txt` now
+  does the work, at its own `Val` fee and its own `Max level` ceiling. From
+  level one, over thirty-two world hours across four maps: **574 actors
+  killed, 27,000 experience, 18 levels bought at the hall, level 1 to 7** —
+  the first time this engine has shown a party getting stronger rather than a
+  snapshot at a fixed level. That the party can reach a hall once an hour is
+  the harness's convenience and marked as such.
 - **Three of the nine AI actions, and the test they share.** `0x4080c0` is the
   **line of sight**, and states 2, 12 and 13 all open by calling it — in 12
   and 13 byte-identically. Each lifts the actor's z by **three quarters of its

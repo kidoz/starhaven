@@ -25,6 +25,7 @@
 
 #include "core/assets/asset_cache.hpp"
 #include "core/data/game_data.hpp"
+#include "core/data/building_stats.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
@@ -36,6 +37,7 @@
 #include "game/clock.hpp"
 #include "game/combat.hpp"
 #include "game/monster_ai.hpp"
+#include "game/training.hpp"
 #include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/player.hpp"
@@ -230,6 +232,18 @@ int main(int argc, char** argv) {
     // so the stun, the triple damage, the second arrow and the off hand had
     // never fired in a fight — the strike has carried all four for a while
     // and no caller here ever handed it a `SkillPower`.
+    // A real training hall's own row, for a sitting that trains between
+    // fights: the `Val` that scales its fee and the `Max level` its stock
+    // cell writes.
+    data::BuildingStatsTable buildings;
+    (void)data::load_building_stats(data_dir, buildings);
+    const data::BuildingStatsEntry* hall = nullptr;
+    for (const auto& row : buildings.entries()) {
+        if (game::is_training(row)) {
+            hall = &row;
+            break;
+        }
+    }
     data::DescriptionTable skill_lines;
     if (data::load_descriptions(data_dir, "SKILLDES.TXT", skill_lines) !=
         data::GameDataError::None) {
@@ -370,6 +384,7 @@ int main(int argc, char** argv) {
     int bought = 0;
     int moves = 0;
     int dropped = 0;
+    int trained = 0;
     std::vector<std::string> drop_names;
     int stunned = 0;
     int tripled = 0;
@@ -654,6 +669,26 @@ int main(int argc, char** argv) {
             hour_now != fatigue_hour) {
             hours_awake += static_cast<int>(hour_now - fatigue_hour);
             fatigue_hour = hour_now;
+            // An hour is also a trip to the hall. A level is bought there and
+            // nowhere else, so a sitting that never visits one can never show
+            // a party growing; that the party can reach a hall once an hour
+            // is the harness's convenience and not the game's. `inferred`
+            if (hall != nullptr) {
+                for (auto& who : party) {
+                    for (;;) {
+                        const game::TrainingOffer offer = game::training_offer(*hall, who);
+                        if (offer.to_level <= 0 || offer.experience_needed > 0 ||
+                            offer.cost > gold) {
+                            break;
+                        }
+                        gold -= offer.cost;
+                        game::train(who);
+                        who.skill_points += train_points;
+                        ++trained;
+                        ++levels;
+                    }
+                }
+            }
             if (hours_awake >= game::kFatigueWeakAfterHours) {
                 for (auto& who : party) {
                     if (who.affliction.empty() && who.hit_points > 0) {
@@ -665,11 +700,13 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        for (auto& who : party) {
-            const int gained = game::level_up(who);
-            levels += gained;
-            who.skill_points += gained * train_points;
-        }
+        // **No level is gained by standing there.** The level word at `+0x32`
+        // is written by exactly two instructions in the whole executable, both
+        // of them the script property routines a training hall drives — so
+        // experience banks and nothing else happens until the party reaches a
+        // hall. The sitting used to call `level_up` here, which quietly broke
+        // that rule; it does not any more.
+        (void)train_points;
         // Spend the pool the moment there is anything to spend it on, on the
         // training routine's own terms: the cheapest skill first, `n + 1` a
         // point, and never past sixty.
@@ -722,6 +759,11 @@ int main(int argc, char** argv) {
                 hours_awake = 0;
                 fatigue_hour = clock.minutes() / game::kMinutesPerHour;
                 ++rests;
+                // A camp is also when the party can get to a hall. Every run
+                // this project has published ended with "0 levels gained",
+                // because a level is bought at a trainer and nothing headless
+                // ever visited one.
+
                 if (verbose) {
                     std::cout << "    " << clock.hhmm() << "  camped, everyone up again\n";
                 }
@@ -787,7 +829,8 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "nobody went Weak\n";
     }
-    std::cout << "  " << levels << " levels gained; " << killed << " actors killed; "
+    std::cout << "  " << trained << " levels trained for at the hall; " << levels
+              << " levels gained; " << killed << " actors killed; "
               << experience << " experience, " << gold << " gold\n";
     std::cout << "  " << rests << " rests taken; " << bought << " skill points bought";
     if (train_points > 0) {
