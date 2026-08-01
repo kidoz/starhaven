@@ -1298,6 +1298,14 @@ interoperability and compatibility with a legally purchased copy.
   goes; the reads, the pairs and the spacing stand. Either the values arrive
   wholesale from the map or the save, or the three AI actions gated on them
   are unreachable.
+- **The hundred counters at `0x5b2293` are not counters.** Three readers index
+  the same array by an attribute's raw value and add the byte to 400 before
+  handing it to a string routine — it is the table that turns a number into
+  the word printed beside it on the sheet. Which means the property setter's
+  ids 105..204 write over a **display table**: id 105 lands on its base
+  exactly. Either that stretch of the numbering is dead in the shipped game or
+  the original scribbles on its own sheet text; either way nothing here should
+  implement it.
 - **The rank is the two bits, not the point count.** This engine placed expert
   at four points and master at seven — invented, because no table says where
   the ranks begin. No table says it because a **teacher sets the bits**: three

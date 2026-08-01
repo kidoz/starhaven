@@ -129,3 +129,36 @@ restore resets, which is the first thing anything has said about it.
   `0x24` dwords from `+0x1380`, which is 144 bytes, and only seventeen of them
   have a setter id.
 - **`+0x12` is the class** and `+0x11` the byte before it, which nothing names.
+
+## `0x5b22fc`: not a hundred counters
+
+Property ids 105..204 add to a hundred bytes from `0x5b22fc`, capped at 255,
+and being global rather than per-character they looked like a run worth
+naming. Following the array from its own side settles what it is, and it is
+**not a counter and not a character's anything**.
+
+Three places read it, and all three read it the same way:
+
+```
+0x0041f726  movsx eax, word [ecx + 0x14]        ; an attribute's value
+0x0041f72c  mov cl, byte [eax + 0x5b22fc]       ; -> a small band number
+0x0041f732  mov ecx, dword [ecx*8 + 0x6a82f8]
+```
+
+and at `0x420ad0` and `0x427d3b` the band is added to **400** and handed to the
+string routine at `0x43c7c0`. So the array is indexed by an attribute's raw
+value and yields the row of the word printed beside it — **the table that
+turns a number into "Good" or "Average" on the sheet**. `observed` for the
+indexing and the string call; `inferred` that the rows are the descriptive
+words, since 400 is not that row in `GLOBAL.TXT` and whichever table it is has
+not been identified.
+
+It is uninitialised in the image, so it is filled at run time, and the dword
+immediately below it at `0x5b22f8` is read eighty-one times, most of them in
+the AI. `unknown` what that one holds.
+
+**So the hundred property ids write over a display table.** They index the
+same array from its base — id 105 lands on `0x5b22fc` exactly — which cannot
+be a property of a character. Either the numbering is dead in the shipped
+game, or the original scribbles on its own sheet text. Nothing in this engine
+should implement them.
