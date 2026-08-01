@@ -1318,6 +1318,17 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **A sitting that is not always the same four classes.** `--classes` fields
+  any four of `Class.txt`'s eighteen headings, and with it the last of the
+  three flourishes fired for the first time: **the dagger's triple strike, 12
+  of them for a Sorcerer party**, which had never once fired because no class
+  in the fixed four holds Dagger. Each family brings its own — the Archer's
+  second arrow, the Cleric's mace stun, the Druid's staff stun, the
+  Sorcerer's dagger. Four world hours on one map, armed and trained, novice
+  against master: **Knight/Paladin/Archer/Cleric 16 → 34 kills, four Knights
+  25 → 32, Sorcerer/Druid 14 → 17, four Druids 15 → 18**. The spread is the
+  weapon skills doing what their rows say, and it is the first time the class
+  table's six rows have been exercised in play rather than in a test.
 - **The audit of what the effect-line fix moved**, run as a tool rather than
   by eye: `data_info --skill-audit` prints every one of the thirty-one rows
   beside what this engine now reads from it, rank by rank. All thirty-one have

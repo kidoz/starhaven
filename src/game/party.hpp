@@ -589,14 +589,15 @@ inline void roll_attributes(Character& c, Mm6Random& random) {
 //
 // The names come from `npcnames.txt`, the game's own list, picked by the seed
 // so a party is reproducible. Everything numeric is this engine's.
-[[nodiscard]] inline std::array<Character, 4> make_party(const data::NameTable& names,
-                                                         std::uint32_t seed) {
+[[nodiscard]] inline std::array<Character, 4> make_party(
+    const data::NameTable& names, std::uint32_t seed,
+    const std::array<std::string_view, 4>& classes = kStartingClasses) {
     std::array<Character, 4> party;
     Mm6Random random{seed};
 
     for (std::size_t i = 0; i < party.size(); ++i) {
         Character& c = party[i];
-        c.class_name = std::string(kStartingClasses[i]);
+        c.class_name = std::string(classes[i]);
         c.face = static_cast<int>(random.next() % kFaceCount);
         c.name = std::string(names.name(face_is_female(c.face), random.next()));
         roll_attributes(c, random);

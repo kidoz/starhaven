@@ -51,7 +51,7 @@ void print_usage(const char* argv0) {
               << " [<map>[,<map>...]] [--minutes N] [--seed N] [--fps N]\n"
               << "          [--still] [--teach] [--no-spells] [--age N]\n"
               << "          [--poisoned] [--rest] [--train N] [--level N]\n"
-              << "          [--rank 0|1|2] [--arm]\n"
+              << "          [--rank 0|1|2] [--arm] [--classes a,b,c,d]\n"
               << "          [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
@@ -153,6 +153,7 @@ int main(int argc, char** argv) {
     int start_level = 0;
     int start_rank = 0;
     bool arm = false;
+    std::string class_list;
     int train_points = 0;
 
     for (int i = 1; i < argc; ++i) {
@@ -171,6 +172,8 @@ int main(int argc, char** argv) {
             start_level = std::max(1, std::atoi(argv[++i]));
         } else if (a == "--rank" && i + 1 < argc) {
             start_rank = std::max(0, std::min(2, std::atoi(argv[++i])));
+        } else if (a == "--classes" && i + 1 < argc) {
+            class_list = argv[++i];
         } else if (a == "--arm") {
             arm = true;
         } else if (a == "--rest") {
@@ -255,7 +258,36 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::array<game::Character, 4> party = game::make_party(names, seed);
+    // Every measurement this project has taken has been of one Knight,
+    // Paladin, Archer and Cleric — which is why the dagger's triple strike
+    // had never fired: no class in that four holds Dagger. `--classes` lets
+    // the other two families into a fight.
+    std::array<std::string_view, 4> classes = game::kStartingClasses;
+    std::vector<std::string> chosen_classes;
+    for (std::size_t at = 0; at <= class_list.size() && !class_list.empty();) {
+        const std::size_t comma = class_list.find(',', at);
+        std::string one =
+            class_list.substr(at, comma == std::string::npos ? comma : comma - at);
+        if (!one.empty()) {
+            chosen_classes.push_back(std::move(one));
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        at = comma + 1;
+    }
+    for (std::size_t i = 0; i < chosen_classes.size() && i < classes.size(); ++i) {
+        bool known = false;
+        for (const auto& name : game::kClassNames) {
+            known = known || name == chosen_classes[i];
+        }
+        if (!known) {
+            std::cerr << "error: no class named " << chosen_classes[i] << "\n";
+            return 1;
+        }
+        classes[i] = chosen_classes[i];
+    }
+    std::array<game::Character, 4> party = game::make_party(names, seed, classes);
     // The two things the traces just put in and nothing has played: the age
     // curves and the condition multiplier. Set them before the maxima are
     // derived so both reach the numbers.
@@ -359,6 +391,7 @@ int main(int argc, char** argv) {
                 for (const auto& row : items.entries()) {
                     const bool right_kind =
                         want_weapon ? (row.equip_type == data::ItemEquipType::Weapon ||
+                                       row.equip_type == data::ItemEquipType::TwoHandedWeapon ||
                                        row.equip_type == data::ItemEquipType::Missile)
                                     : row.equip_type == data::ItemEquipType::Armor;
                     if (!right_kind || row.skill_group.empty() || row.value <= 0) {
