@@ -1318,6 +1318,17 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The 148-byte monster table is `DMONLIST`, loaded.** The second per-monster
+  table that surfaced last batch is a file this project already documents:
+  173 records of 148 bytes against `MONSTERS.TXT`'s 173 monsters, behind the
+  runtime pointer `0x5e217c`, indexed **one-based**. Two things the runtime
+  says that the file alone cannot. The word at **`+0x00` is the actor's
+  radius**, written straight into `+0x7a`. And the **eight animation names at
+  `+0x30`** are walked in steps of ten, each resolved through the object at
+  `0x55dd88`, and the returned ids written into the actor at **`+0xac + 2i`**
+  — so the actor's `+0xac`..`+0xbb` is the resolved sprite set. The 72-byte
+  table beside it also gave up its first column: `+0x00` is the monster's
+  **name pointer**, strlen'd in two places.
 - **The gamble on what a monster drops: already threaded, and now visible.**
   The premise was half wrong and the search says so — `MONSTERS.TXT`'s
   treasure code was parsed and applied a while ago; what was missing was that

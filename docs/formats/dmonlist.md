@@ -176,3 +176,42 @@ name that resolves for none of a triple falls back to the first of the three;
 see [`dsft.md`](dsft.md).
 
 Reproduce with `sft_info --check`.
+
+## The record at run time
+
+The "second per-monster table of 148-byte rows" that the actor preparation
+reaches is **this file, loaded**. `DMONLIST.BIN` ships 173 records of 148
+bytes and `MONSTERS.TXT` ships 173 monsters; the runtime pointer is
+`0x5e217c`, and the rows are indexed **one-based**:
+
+```
+lea ecx, [eax + eax*8]              ; x9
+lea edx, [eax + ecx*4]              ; x37
+mov eax, dword [0x5e217c]
+mov cx,  word [eax + edx*4 - 0x94]  ; x4 -> 148, less one row
+```
+
+`observed`. Two things the runtime says that the file alone cannot.
+
+**The word at `+0x00` is the actor's radius.** `0x401ad7` reads it and writes
+it straight into the actor record's `+0x7a`, which the AI uses as the body's
+half-width.
+
+**The eight animation names become eight ids on the actor.** `0x44bf5f` walks
+the record from **`+0x30` in steps of ten** — the eight 10-byte name fields —
+copies each onto the stack, hands it to `0x444020` on the object at
+`0x55dd88`, and writes the returned word into the actor at **`+0xac + 2i`**:
+
+```
+add ebp, 0xa       ; the next 10-byte name
+add ebx, 2         ; the next word on the actor
+```
+
+So the actor's `+0xac`..`+0xbb` is **the resolved sprite set**, eight word ids,
+and `0x55dd88` is the object that turns a sprite's name into its id.
+`observed`
+
+While here, the 72-byte table beside it gives up its first column: `0x455c8f`
+and `0x4a3686` both take `dword [9 × id × 8 + base]` and run `repne scasb`
+over it, so the **72-byte row's `+0x00` is the monster's name pointer**.
+`observed`
