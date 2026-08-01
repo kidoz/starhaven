@@ -226,6 +226,31 @@ inline constexpr std::uint8_t kVarClearConditions = 104;  // wipes all eighteen
 // access to the array in the whole image. So they are neither interface state
 // nor engine state — they are six timers the game keeps purely so that map
 // scripts can stamp a moment and ask how long ago it was. `observed`
+// **Property id 213 is a bit in the character's own array at `+0x1530`.**
+// `0x4417f8` indexes it the way every bit array in this executable is
+// indexed — `byte[base + (bit >> 3)]`, mask `0x80 >> (bit & 7)`. The array
+// begins just after the readied spell at `+0x152f` and runs to where the
+// stored terms start at `+0x1570`: **sixty-four bytes, five hundred and
+// twelve bits**.
+//
+// That is far more room than the game's ninety-nine spells need, so the
+// obvious name does not fit and is not taken. `observed` for the array, its
+// span and its indexing; `unknown` for what the bits are.
+inline constexpr std::uint8_t kVarCharacterBit = 213;
+inline constexpr int kCharacterBitArray = 0x1530;
+inline constexpr int kCharacterBitArrayBytes = 0x40;
+
+// **Id 214** zeroes the two party bytes at `+0x95` and `+0x96` and then sets
+// bit `0x80` on a record in a global array of **60-byte** entries at
+// `0x6aef28`, counted by `0x6ba534`. `observed`; that the two bytes are the
+// party's hireling slots is `inferred`, from their being cleared exactly when
+// a record in that array is flagged.
+inline constexpr std::uint8_t kVarHirelingMark = 214;
+
+// **Id 215** adds a byte-masked amount to the reputation at `0x908d48`, which
+// is party `+0xd8`. `observed`
+inline constexpr std::uint8_t kVarReputation = 215;
+
 inline constexpr std::uint8_t kVarTimerFirst = 216;
 inline constexpr int kScriptTimerCount = 6;
 // **The seven attributes are variables 31..37, not 32..38.** The setter's

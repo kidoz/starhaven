@@ -549,3 +549,18 @@ TEST_CASE("six clocks belong to the scripts alone", "[script]") {
     // Nothing leaks into the plain variable store.
     REQUIRE(state.variables.find(kVarTimerFirst) == state.variables.end());
 }
+
+TEST_CASE("the last three property ids before the clocks", "[script]") {
+    REQUIRE(kVarCharacterBit == 213);
+    REQUIRE(kVarHirelingMark == 214);
+    REQUIRE(kVarReputation == 215);
+    REQUIRE(kVarReputation + 1 == kVarTimerFirst);
+    // The bit array sits between the readied spell and the stored terms.
+    // Sixty-four bytes is five hundred and twelve bits — far more than the
+    // ninety-nine spells the obvious guess would want, which is why the name
+    // is not taken.
+    REQUIRE(kCharacterBitArray == 0x1530);
+    REQUIRE(kCharacterBitArrayBytes == 0x40);
+    REQUIRE(kCharacterBitArray + kCharacterBitArrayBytes == 0x1570);
+    REQUIRE(kCharacterBitArrayBytes * 8 > 99 * 4);
+}

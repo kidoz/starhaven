@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on the party record's last dense fields: three ids, one name.**
+  **213** is a bit in an array on the *character* at `+0x1530`, indexed the way
+  every bit array here is — and the array runs to `+0x1570`, which is
+  **sixty-four bytes, five hundred and twelve bits**. That is far more room
+  than ninety-nine spells would need, so the obvious name is refused rather
+  than taken. **214** zeroes party `+0x95` and `+0x96` and sets a flag on a
+  record in a global array of **sixty-byte** entries at `0x6aef28`, counted by
+  `0x6ba534` — a mark on somebody, with the two cleared bytes inferred to be
+  the hireling slots. **215** masks its amount to a byte and adds it to the
+  **reputation**, a second door onto the standing the death handler moves by
+  fifty. The risk was save-file bookkeeping with no game meaning; it is not
+  bookkeeping, but two of the three keep their names to themselves.
 - **A sitting that grows, and a rule it had been quietly breaking.** Every run
   this project published ended with "0 levels gained", and the reason turned
   out to be worse than "the sitting never visits a trainer": the sitting was

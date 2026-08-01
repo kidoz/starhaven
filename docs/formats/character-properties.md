@@ -221,3 +221,29 @@ script can mark when something happened and later ask how long ago it was, and
 no part of the engine ever looks. The gamble's stated risk was that they would
 turn out to be screen cooldowns with no bearing on the game; they are the
 opposite — they bear on nothing *but* the game's own scripts.
+
+## The last three ids before the clocks
+
+**213 — a bit on the character.** `0x4417e7` indexes an array at
+`+0x1530` the way every bit array here is indexed: `byte[base + (bit >> 3)]`,
+mask `0x80 >> (bit & 7)`. The array begins just after the readied spell at
+`+0x152f` and runs to where the stored terms start at `+0x1570` — **sixty-four
+bytes, five hundred and twelve bits**. That is far more room than the game's
+ninety-nine spells would need, so the obvious name is not taken. `observed`
+for the array, its span and its indexing; `unknown` for what the bits are.
+
+**214 — a mark on somebody, and two party bytes cleared.** The body zeroes
+party `+0x95` and `+0x96`, multiplies its amount by fifteen, and sets bit
+`0x80` on `dword [0x6aef30 + 60 × amount]` — a global array of **sixty-byte
+records** based at `0x6aef28` and counted by `0x6ba534`. It then walks that
+array against `0x90e7e0` and the party record's end at `0x90e7a4`. `observed`;
+that the two cleared bytes are the party's hireling slots is `inferred`, from
+their going blank exactly when a record in that array is flagged.
+
+**215 — the reputation.** `0x441326` masks its amount to a byte and adds it to
+`0x908d48`, which is party `+0xd8`. `observed` — a second door onto the
+standing the death handler moves by fifty.
+
+So the gamble's stated risk was that what remained would be save-file
+bookkeeping with no game meaning. It is not bookkeeping — a bit array, an NPC
+mark and the reputation — but two of the three keep their names to themselves.
