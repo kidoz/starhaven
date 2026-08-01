@@ -895,3 +895,40 @@ So the reputation guard reads as it first did: the hundred-point penalty is
 taken only when `Hst` is zero — **for angering something that was not hostile
 to begin with**. The withdrawal was over-cautious and is itself withdrawn.
 `observed`, now from the file's own header rather than from a fit.
+
+## State 12 approaches; state 2 searches
+
+**State 12, with sight** (`0x404004`), builds the handle and asks for a move:
+
+```
+lea  ebp, [esi*8] ; or ebp, 3      ; the actor's handle
+lea  eax, [esp + 0x14]             ; a 28-byte buffer
+call 0x4046f0                      ; -> a record
+mov  ecx, 7 ; rep movsd            ; seven dwords of it, copied out
+movsx eax, word [ebx + 0xb2]
+mov  cx, word [esp + 0x28]
+mov  word [ebx + 0x8a], cx         ; the actor's velocity pair
+mov  eax, dword [0x55dd94]
+mov  cx, word [eax + edx*8 + 0x36] ; and its speed
+```
+
+So `0x4046f0` is a **movement routine**: hand it an actor's handle and a
+target and it answers with a 28-byte record, of which the caller takes a
+velocity and writes it to `+0x8a`, then scales it by the speed the table at
+`0x55dd94` gives for the index at the actor's `+0xb2`. **State 12 is the
+approach.** `observed` for every step; `inferred` for the name.
+
+**State 2, without sight** (`0x4043f9`), does something none of the others do
+before falling back:
+
+```
+push 0x40                  ; 64, the same constant
+call 0x4ae22b              ; rand()
+and  eax, 0x80000001       ; ... reduced to +1 or -1
+push eax
+```
+
+— it picks a **random direction** and passes it along, where states 12 and 13
+pass none. So **state 2 is the search**: the action for a monster that knows
+the party is near and cannot see it, turning one way or the other at random.
+`observed` for the roll and the sign; `inferred` for the name.

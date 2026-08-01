@@ -1386,6 +1386,15 @@ interoperability and compatibility with a legally purchased copy.
   `"Cold"` and its siblings, `+0x36` the speed, `+0x38` the death sound. Which
   column is which for the rest needs the parser walked in order against the
   file's header row; the map and the sizes are on record either way.
+- **State 12 approaches; state 2 searches.** With sight, state 12 builds the
+  actor's handle, calls `0x4046f0` — a **movement routine** that answers with a
+  28-byte record — copies seven dwords of it out, writes a **velocity into the
+  actor's `+0x8a`** and scales it by the speed the table at `0x55dd94` gives.
+  State 2 does something none of the others do before falling back: it rolls
+  `rand()` down to **+1 or −1** and passes that direction along, where 12 and
+  13 pass none. So one is the approach and the other the search — a monster
+  that knows the party is near, cannot see it, and turns one way or the other
+  at random.
 - **What the sighted actions do with the answer**, and a fifth dead timer.
   States 12 and 13 end their "cannot see" branch identically — `push 64; push
   the actor; call 0x4026e0` — so **state 6 is the fallback a sighted action
