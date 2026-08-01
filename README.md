@@ -1251,6 +1251,14 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **The gamble on `0x55e5d0`: the sine table.** The most-referenced runtime
+  table in the executable — 290 reads and not one write — is read through
+  quadrant folding around a quarter and a half held at `0x55f614` and
+  `0x55f618`, and what comes out goes into a 64-bit multiply shifted back
+  sixteen bits. So the risk landed exactly as named: it is trigonometry. What
+  it settles anyway is the arithmetic every moving thing runs on — the angle
+  scale, the two circle constants by name, and **16.16 fixed point** as the
+  engine's convention. See `docs/formats/fixed-point.md`.
 - **A longer sitting**: `sitting` now takes several maps comma-separated and
   carries the party, the clock, the fatigue counter and the tally across all
   of them; `--level N` makes a party that survives long enough to be
