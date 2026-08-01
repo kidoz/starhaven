@@ -1398,6 +1398,15 @@ interoperability and compatibility with a legally purchased copy.
   one name-to-id service rather than anything to do with monsters. The stated
   risk was a generic map over a table already documented, and that is what it
   is; what it adds is the map's own layout and that there is exactly one.
+- **Party `+0x95` and `+0x96` are interface offsets.** Withdrawing the hireling
+  reading left them unnamed; following their five sites names the shape.
+  `0x42dc32` reads `+0x95` as a **count**, adds it to a list index and bounds
+  the sum before drawing a row, and `0x42eb52` draws `GLOBAL.TXT` row **90,
+  "Forward"**, when it is non-zero. A count added to a list index with a
+  *Forward* control beside it is a **scroll offset**. Which list is `unknown`,
+  but it explains the earlier mistake: property id 214 clears them because
+  flagging somebody in the roster changes what a list shows — not because the
+  bytes held the hirelings.
 - **The gold cut, finished — and the profession table at run time.** Every
   profession's row ends `%01 takes %17 percent of all gold you find`, and
   `0x41ede0` is what applies it. It walks the party's **two sixty-byte

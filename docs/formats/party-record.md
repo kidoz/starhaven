@@ -188,3 +188,24 @@ handed out as awards:
 | `+0x14d` | `0x908dbd` | the flag that waives the provocation penalty, `unknown` otherwise |
 
 `observed`. Both counters and the reputation now survive a save.
+
+## `+0x95` and `+0x96`: interface offsets, not hireling slots
+
+Withdrawing the hireling reading left these two bytes unnamed. Following their
+five sites names their *shape*, if not their subject.
+
+- `0x42dc32` reads `+0x95` as a **count**, adds it to a running index and
+  compares the sum against a bound before drawing a row.
+- `0x42eb52` draws `GLOBAL.TXT` row **90 — "Forward"** — when `+0x95` is
+  non-zero.
+- `0x42eb82` writes it and `0x42eb8d` clears it, both in the same routine.
+- Property id 214 clears both in the same breath as it flags a roster record.
+
+A count added to a list index, with a **"Forward"** control shown when it is
+non-zero, is a **scroll offset**. `observed` for the reads, the bound and the
+string; `inferred` that the pair are offsets into two lists, from that shape.
+
+Which lists is `unknown` — but it explains why the hireling reading was wrong.
+Property id 214 clears them because flagging somebody in the roster changes
+what a list shows, not because the bytes held the hirelings. The party's
+hirelings are the two sixty-byte records at `0x90e7a4`.
