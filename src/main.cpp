@@ -3487,18 +3487,24 @@ int main(int argc, char** argv) {
     // What the party pays over a counter: the best merchant among them,
     // hired or born, bends the asking price by skills.hpp's own curve.
     const auto haggled = [&](int asking) {
-        int best = 0;
+        // Compare on what each member's row actually grants, not on the
+        // packed byte: an expert's two points pack to 0x42, which would beat
+        // a novice's forty and a hireling's ten alike.
+        const auto* skill = skill_table.find("Merchant");
+        int percent = 0;
         for (const auto& member : party) {
-            if (const auto it = member.skills.find("Merchant"); it != member.skills.end()) {
-                best = std::max(best, it->second);
+            const auto it = member.skills.find("Merchant");
+            if (it == member.skills.end()) {
+                continue;
             }
+            percent = std::max(percent, skill != nullptr
+                                            ? game::skill_power(skill->text, it->second)
+                                                  .price_percent
+                                            : game::skill_points(it->second));
         }
         for (const auto& h : hirelings) {
-            best = std::max(best, h.benefit.merchant_skill_bonus);
+            percent = std::max(percent, h.benefit.merchant_skill_bonus);
         }
-        const auto* skill = skill_table.find("Merchant");
-        const int percent =
-            skill != nullptr ? game::skill_power(skill->text, best).price_percent : best;
         return game::haggled_price(asking, percent);
     };
 
@@ -3519,12 +3525,12 @@ int main(int argc, char** argv) {
         int best = 0;
         for (const auto& member : party) {
             if (const auto it = member.skills.find("Identify"); it != member.skills.end()) {
-                best = std::max(best, it->second);
+                best = std::max(best, game::weighted_identify(it->second));
             }
         }
         // A point of Identify Item is worth 120% of itself, by the
         // executable's own weight for skill id 21.
-        return game::weighted_identify(best) >= row.id_rep_st;
+        return best >= row.id_rep_st;
     };
 
     // The pack verbs act on the chosen cell first when a pack is open,
@@ -4675,11 +4681,11 @@ int main(int argc, char** argv) {
                 for (const auto& member : party) {
                     if (const auto it = member.skills.find("Repair");
                         it != member.skills.end()) {
-                        repair_points = std::max(repair_points, it->second);
+                        repair_points =
+                            std::max(repair_points, game::weighted_repair(it->second));
                     }
                 }
-                const int repair_off =
-                    std::min(50, game::weighted_repair(repair_points));
+                const int repair_off = std::min(50, repair_points);
                 int bill = 0;
                 for (const auto& member : party) {
                     for (std::size_t slot = 0; slot < game::kSlotCount; ++slot) {

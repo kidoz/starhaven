@@ -383,9 +383,25 @@ inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
     return paid < 1 ? 1 : paid;
 }
 
-[[nodiscard]] inline int weighted_identify(int points) noexcept { return points; }
+// Sixteen of the thirty-one rows say nothing `skill_power` can read — their
+// normal line is prose ("Higher skill allows identification of more difficult
+// items") and their higher two are the bare **"Double effect of skill"** and
+// **"Triple effect of skill"**. That much *is* readable, and it is the whole
+// of what a rank is worth to those skills. `observed` in the rows.
+[[nodiscard]] inline constexpr int rank_multiplier(int packed) noexcept {
+    const int rank = skill_rank(packed);
+    return rank >= 2 ? 3 : rank == 1 ? 2 : 1;
+}
 
-[[nodiscard]] inline int weighted_repair(int points) noexcept { return points; }
+// Identify Item and Repair Item take the packed byte, because their rungs are
+// the plain doublings above.
+[[nodiscard]] inline constexpr int weighted_identify(int packed) noexcept {
+    return skill_points(packed) * rank_multiplier(packed);
+}
+
+[[nodiscard]] inline constexpr int weighted_repair(int packed) noexcept {
+    return skill_points(packed) * rank_multiplier(packed);
+}
 
 // ---------------------------------------------------------------------------
 // Where a character's own skills live: the byte array at `+0x60`.

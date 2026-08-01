@@ -399,3 +399,19 @@ TEST_CASE("the prose column is not an effect line", "[skills]") {
     const std::vector<std::string> bare{"only prose here"};
     REQUIRE(skill_power(bare, 9 | 0x80).to_hit == 0);
 }
+
+TEST_CASE("the bare doublings are what a rank is worth to the silent rows",
+          "[skills]") {
+    // Sixteen of the thirty-one rows say nothing skill_power can parse: prose
+    // at normal, then the bare "Double effect of skill" and "Triple effect of
+    // skill". That much is readable and it is the whole of their rungs.
+    REQUIRE(rank_multiplier(9) == 1);
+    REQUIRE(rank_multiplier(teach_rank(9, 1)) == 2);
+    REQUIRE(rank_multiplier(teach_rank(9, 2)) == 3);
+    REQUIRE(weighted_identify(9) == 9);
+    REQUIRE(weighted_identify(teach_rank(9, 1)) == 18);
+    REQUIRE(weighted_repair(teach_rank(9, 2)) == 27);
+    // The packed byte is never taken for a point count.
+    REQUIRE(weighted_repair(teach_rank(2, 1)) == 4);
+    REQUIRE(weighted_repair(0) == 0);
+}

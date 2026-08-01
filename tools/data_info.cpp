@@ -69,6 +69,7 @@ void print_usage(const char* argv0) {
               << "  --classes          Class.txt\n"
               << "  --stats            stats.txt\n"
               << "  --skills           SkillDes.txt\n"
+              << "  --skill-audit      each row beside what this engine reads from it\n"
               << "  --items [id]       ITEMS.TXT as typed rows, or one direct item id\n"
               << "  --random-items [id] RNDITEMS.TXT weights, or one direct item id\n"
               << "  --standard-bonuses [id] STDITEMS.TXT selectors and strength ranges\n"
@@ -1300,6 +1301,60 @@ int do_professions(const std::filesystem::path& data_dir) {
     return 0;
 }
 
+// Every skill's own row beside what this engine now reads from it, rank by
+// rank. The reader used to walk from the prose column, so each rank got the
+// line above its own and nothing past novice ever did what it says; this is
+// the check that the correction reaches all thirty-one rows and every effect
+// each of them names.
+int do_skill_audit(const std::filesystem::path& data_dir) {
+    namespace data = starhaven::data;
+    namespace game = starhaven::game;
+
+    data::DescriptionTable table;
+    if (data::load_descriptions(data_dir, "SKILLDES.TXT", table) != data::GameDataError::None) {
+        std::cerr << "error: could not load SKILLDES.TXT\n";
+        return 1;
+    }
+    const int points = 7;  // a round number, so a doubling is unmistakable
+    std::size_t rows = 0;
+    std::size_t silent = 0;
+    for (const auto& entry : table.entries()) {
+        ++rows;
+        std::cout << entry.name << "  (" << entry.text.size() << " columns)\n";
+        bool anything = false;
+        for (int rank = 0; rank <= 2; ++rank) {
+            const int packed = game::teach_rank(points, rank);
+            const game::SkillPower p = game::skill_power(entry.text, packed);
+            const std::size_t at = static_cast<std::size_t>(rank) + game::kSkillProseColumns;
+            std::cout << "    " << std::setw(6) << std::left
+                      << game::kRankNames[static_cast<std::size_t>(rank)] << " "
+                      << (at < entry.text.size() ? entry.text[at] : std::string("(no column)"))
+                      << "\n         ->";
+            if (p.to_hit != 0) std::cout << " hit+" << p.to_hit;
+            if (p.damage != 0) std::cout << " dmg+" << p.damage;
+            if (p.armor != 0) std::cout << " ac+" << p.armor;
+            if (p.hp_bonus != 0) std::cout << " hp+" << p.hp_bonus;
+            if (p.sp_bonus != 0) std::cout << " sp+" << p.sp_bonus;
+            if (p.price_percent != 0) std::cout << " price-" << p.price_percent << "%";
+            if (p.stun_percent != 0) std::cout << " stun " << p.stun_percent << "%";
+            if (p.triple_percent != 0) std::cout << " triple " << p.triple_percent << "%";
+            if (p.second_arrow) std::cout << " second-arrow";
+            if (p.left_hand) std::cout << " left-hand";
+            if (p.armor_penalty_lift != 0) std::cout << " lift " << p.armor_penalty_lift;
+            if (p.recovery_scale < 1.0f) std::cout << " recovery x" << p.recovery_scale;
+            std::cout << "\n";
+            anything = anything || p.to_hit != 0 || p.damage != 0 || p.armor != 0 ||
+                       p.hp_bonus != 0 || p.sp_bonus != 0 || p.price_percent != 0 ||
+                       p.stun_percent != 0 || p.triple_percent != 0 || p.second_arrow ||
+                       p.left_hand || p.armor_penalty_lift != 0 || p.recovery_scale < 1.0f;
+        }
+        silent += anything ? 0 : 1;
+    }
+    std::cout << "\n" << rows << " rows; " << silent
+              << " grant nothing this engine reads at any rank\n";
+    return 0;
+}
+
 int do_descriptions(const std::filesystem::path& data_dir, const char* entry) {
     data::DescriptionTable table;
     if (data::load_descriptions(data_dir, entry, table) != data::GameDataError::None) {
@@ -1533,6 +1588,8 @@ int main(int argc, char** argv) {
         return do_descriptions(data_dir, "stats.txt");
     if (command == "--skills")
         return do_descriptions(data_dir, "SKILLDES.TXT");
+    if (command == "--skill-audit")
+        return do_skill_audit(data_dir);
     if (command == "--check")
         return do_check(data_dir);
     if (command.rfind("--", 0) == 0) {

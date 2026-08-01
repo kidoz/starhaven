@@ -1318,6 +1318,20 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The audit of what the effect-line fix moved**, run as a tool rather than
+  by eye: `data_info --skill-audit` prints every one of the thirty-one rows
+  beside what this engine now reads from it, rank by rank. All thirty-one have
+  exactly four columns, so the `+1` holds everywhere, and each rank's line is
+  now its own. Two things fell out of it. **Sixteen rows grant nothing the
+  parser can read** — their normal line is prose and their rungs are the bare
+  "Double effect of skill" and "Triple effect of skill", which *is* readable
+  and is the whole of what a rank is worth to them; Identify and Repair now
+  take it. And **three consumers were still taking the packed byte for a point
+  count** — Identify, Repair, and the merchant's haggle, where an expert's two
+  points pack to `0x42` and would have beaten a novice's forty. A pleasant
+  cross-check fell out too: `Thievery`'s row is placeholder text — "Normal
+  Text goes here" — which is the class table's finding that no class may hold
+  it, arriving from the design side.
 - **The teacher is in the game.** Four batches of tracing had left a rank that
   could be read and never earned, and a character that died with the two
   skills its class handed it. Now a guild can teach a skill the class's row in
