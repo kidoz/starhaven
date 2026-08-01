@@ -1318,6 +1318,18 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on the `+0x1570` run: the vestige withdrawn.** It was filed as
+  dead — six getters read it, nothing wrote it — and the property setter's
+  full-restore clears reopened it. Every getter that reads the run has the
+  identical shape, and it is the shape just named for `+0x30`: ask both stat
+  getters for one stat id, **add the stored byte**, add the attribute ladder's
+  byte, sum. Two are certain from the class tables they read — **`+0x1578` is
+  the maximum hit points** (`0x482060` reads the class base at `0x4c2630` and
+  floors at 1) and **`+0x157a` the maximum spell points** (`0x4821c8`, base at
+  `0x4c2638`) — and the four below them belong to four more derived stats. It
+  also explains the clears the last pass could not place: a temporary addition
+  to a ceiling goes when the pool behind it is refilled. Both are wired, with
+  the getter's floor.
 - **The last two unnamed fields of the dense record.** **`+0x30` is an
   armour-class term**: the getter at `0x482860` builds the armour class from
   both stat getters at **stat id 9**, plus this stored word, plus the Speed

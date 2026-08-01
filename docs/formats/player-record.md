@@ -1080,3 +1080,38 @@ reader does with it. `inferred` that the boolean is the character's **sex**:
 two adjacent voice ids chosen per character is what a male and a female line
 look like, and the field sits immediately before the class. Property id 1
 writes it, one below the class's id 2.
+
+## The `+0x1570` run: not a vestige, a row of stored terms
+
+This document filed the run as vestigial — six getters read it and nothing
+wrote it — and then the property setter turned up clearing four of its bytes
+on a full restore. **The negative is withdrawn.** The run is the same thing
+`+0x30` is, one row down.
+
+Every getter that reads it has the identical shape: ask both stat getters for
+one stat id, add the stored byte, add the attribute ladder's byte, sum.
+
+```
+0x0047e3da  call 0x483800                     ; the gear getter
+0x0047e3e5  call 0x482e80                     ; the other getter
+0x0047e3ea  movsx ecx, byte [esi + 0x1570]    ; the stored term
+0x0047e3f3  movsx eax, byte [edi + 0x4c289c]  ; the ladder
+0x0047e3fd  add ebx, ecx
+```
+
+Two of them are certain from the class tables they read:
+
+| offset | which getter | how it is known |
+| --- | --- | --- |
+| `+0x1578` | **maximum hit points** | `0x482060` reads the class hit-point base at `0x4c2630` and floors the answer at 1 |
+| `+0x157a` | **maximum spell points** | `0x4821c8` reads the class spell-point base at `0x4c2638` |
+| `+0x1570`, `+0x1572`, `+0x1574`, `+0x1576` | four more derived stats | each getter pushes its own stat id — 15, 16, 19 and 20 are among them |
+
+`observed` throughout. And it explains the clears the last pass found without
+being able to place them: setting hit points to their maximum clears
+`+0x1578`/`+0x1579`, setting spell points to theirs clears `+0x157a`/`+0x157b`
+— a temporary addition to a ceiling goes when the pool behind it is refilled.
+
+`+0x157c` and `+0x157e` are not part of the run. They are words, written with
+`0x21` and `1` at `0x47fe46` and `0x451383`, and read forty and eighteen times.
+`unknown`.

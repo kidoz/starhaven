@@ -399,3 +399,42 @@ TEST_CASE("the armour class is three terms and a floor", "[party]") {
     // And the stored word carries on its own.
     REQUIRE(game::traced_armor_class(0, 7, 0) == 7);
 }
+
+TEST_CASE("a stored term rides on a pool's ceiling until it is refilled",
+          "[party]") {
+    // +0x1578 and +0x157a are added by the maximum getters beside the class
+    // table and the ladder, and the property setter's two "restore to the
+    // maximum" cases clear them.
+    game::Character who;
+    who.class_name = "Cleric";
+    who.attributes.fill(15);
+    game::level_up_to(who, 1);
+    const int plain_hp = who.max_hit_points;
+    const int plain_sp = who.max_spell_points;
+    REQUIRE(plain_hp > 0);
+    REQUIRE(plain_sp > 0);
+
+    who.max_hit_point_bonus = 20;
+    who.max_spell_point_bonus = 8;
+    game::level_up_to(who, 1);
+    REQUIRE(who.max_hit_points == plain_hp + 20);
+    REQUIRE(who.max_spell_points == plain_sp + 8);
+
+    who.hit_points = 3;
+    game::restore_hit_points(who);
+    REQUIRE(who.max_hit_point_bonus == 0);
+    REQUIRE(who.max_hit_points == plain_hp);
+    REQUIRE(who.hit_points == plain_hp);
+
+    who.spell_points = 0;
+    game::restore_spell_points(who);
+    REQUIRE(who.max_spell_point_bonus == 0);
+    REQUIRE(who.max_spell_points == plain_sp);
+    REQUIRE(who.spell_points == plain_sp);
+
+    // The hit-point ceiling never falls below one, as the getter's own floor
+    // does not.
+    who.max_hit_point_bonus = -9999;
+    game::level_up_to(who, 1);
+    REQUIRE(who.max_hit_points == 1);
+}

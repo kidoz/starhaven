@@ -154,6 +154,13 @@ struct Character {
     // gear's and the ladder's, and the only one a script can set — property
     // id 8, the one sitting immediately before the level's id 9. `observed`
     int armor_bonus = 0;
+    // The same shape one row down. `+0x1578` and `+0x157a` are stored terms
+    // the maximum hit-point and spell-point getters add beside the class
+    // table and the ladder, and the two "restore to the maximum" cases of the
+    // property setter clear them — which is what a temporary addition to a
+    // pool should do when the pool is refilled. `observed`
+    int max_hit_point_bonus = 0;
+    int max_spell_point_bonus = 0;
     int skill_points = 0;
 
     // What is worn, as ITEMS.TXT ids; zero means the slot is empty. The
@@ -563,8 +570,30 @@ inline void level_up_to(Character& c, int level) {
                                  attribute_bonus(ailing_attribute(
                                      c, Attribute::Personality, kAgeSpellPointPercent)))
             : 0;
+    c.max_hit_points += c.max_hit_point_bonus;
+    if (c.max_spell_points > 0) {
+        c.max_spell_points += c.max_spell_point_bonus;
+    }
+    // The hit-point getter floors its answer at one; the engine keeps that.
+    c.max_hit_points = c.max_hit_points < 1 ? 1 : c.max_hit_points;
     c.hit_points += c.max_hit_points - hp_before;
     c.spell_points += c.max_spell_points - sp_before;
+}
+
+// What the property setter's two "restore to the maximum" cases do: fill the
+// pool and drop the stored term that had been stacked on its ceiling.
+inline void restore_hit_points(Character& c) {
+    c.max_hit_points -= c.max_hit_point_bonus;
+    c.max_hit_point_bonus = 0;
+    c.max_hit_points = c.max_hit_points < 1 ? 1 : c.max_hit_points;
+    c.hit_points = c.max_hit_points;
+}
+
+inline void restore_spell_points(Character& c) {
+    c.max_spell_points -= c.max_spell_point_bonus;
+    c.max_spell_point_bonus = 0;
+    c.max_spell_points = c.max_spell_points < 0 ? 0 : c.max_spell_points;
+    c.spell_points = c.max_spell_points;
 }
 
 // What experience alone would buy, for the training hall to offer. The
