@@ -1318,6 +1318,15 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The reputation, finished.** The hundred-point penalty is for **angering
+  something that was peaceful**: `0x403070` — the routine that turns an actor
+  hostile, ending in AI state 4 — takes it only when the monster row's byte at
+  `+0x12` is zero and a party flag at `+0x14d` is clear. Two more party
+  globals came with it, both counters the original hands out as awards:
+  **`+0xe8` the deaths** (award 82, "%u Deaths") and **`+0xf0` the prison
+  terms** (award 83). All three now survive a save, a kill costs the party its
+  fifty, and reaching the bound actually serves the term — reputation reset,
+  counter raised, award granted.
 - **The gamble on `+0x157c`: the quick spell.** The most-referenced unnamed
   field left on the record says what it is in five instructions — take the
   word, subtract two, bound it at 97, and jump through a byte selector into a

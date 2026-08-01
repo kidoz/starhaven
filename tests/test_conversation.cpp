@@ -242,3 +242,27 @@ TEST_CASE("a death costs fifty, and a thousand costs a prison term", "[talk]") {
     // The bound resets the counter, as the original's own path does.
     REQUIRE(reputation == 0);
 }
+
+TEST_CASE("provoking the peaceful costs double, and a term is served",
+          "[talk]") {
+    REQUIRE(game::kReputationPerProvocation == 100);
+    REQUIRE(game::kDeathsAward == 82);
+    int reputation = 0;
+    // Ten provocations reach the bound where twenty deaths would.
+    for (int i = 0; i < 9; ++i) {
+        REQUIRE_FALSE(game::reputation_after_provocation(reputation));
+    }
+    REQUIRE(reputation == -900);
+    REQUIRE(game::reputation_after_provocation(reputation));
+
+    game::PartyRecord record;
+    record.reputation = -1000;
+    std::set<int> awards;
+    game::serve_prison_term(record, awards);
+    REQUIRE(record.reputation == 0);
+    REQUIRE(record.prison_terms == 1);
+    REQUIRE(awards.contains(game::kPrisonAward));
+    game::count_death(record, awards);
+    REQUIRE(record.deaths == 1);
+    REQUIRE(awards.contains(game::kDeathsAward));
+}

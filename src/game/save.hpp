@@ -64,6 +64,10 @@ struct SaveState {
     // The word at `+0x157c` on each character: what stays bound to the quick
     // key, as against what is readied now.
     std::array<int, 4> quick{};
+
+    // The two counters beside the reputation: party `+0xe8` and `+0xf0`.
+    int deaths = 0;
+    int prison_terms = 0;
     bool turn_based = false;
     int hourglass_turn = 0;
 
@@ -125,6 +129,9 @@ struct SaveState {
     }
     if (state.reputation != 0) {
         out << "reputation\t" << state.reputation << "\n";
+    }
+    if (state.deaths != 0 || state.prison_terms != 0) {
+        out << "standing\t" << state.deaths << "\t" << state.prison_terms << "\n";
     }
     if (state.quick[0] != 0 || state.quick[1] != 0 || state.quick[2] != 0 ||
         state.quick[3] != 0) {
@@ -340,6 +347,9 @@ struct SaveState {
             }
         } else if (kind == "fly") {
             out.fly_until = next_int();
+        } else if (kind == "standing") {
+            out.deaths = next_int();
+            out.prison_terms = next_int();
         } else if (kind == "reputation") {
             out.reputation = next_int();
         } else if (kind == "quick") {

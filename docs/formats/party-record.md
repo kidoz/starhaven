@@ -155,3 +155,36 @@ accumulator**, which is the other half of the negative. `observed`
 `+0x40` is worth a line of its own: `0x403f21` **doubles it** while the
 actor's `+0x134`/`+0x138` pair is positive — one more behaviour gated on a
 64-bit actor timer that nothing ever writes.
+
+## The globals beside the reputation
+
+`0x403070` is where an actor turns hostile — it ends by setting the AI state
+at `+0xa0` to 4 and the sub-state to 5 — and the second penalty sits above it
+behind two guards:
+
+```
+mov  al, byte [edx*8 + 0x56c19a]   ; the monster row's byte at +0x12
+test al, al
+jne  skip                          ; only when that byte is zero
+mov  al, byte [0x908dbd]           ; a party flag
+test al, al
+jne  skip
+sub  dword [0x908d48], 0x64        ; -100
+```
+
+So the hundred is for **angering something that was peaceful**, and a flag at
+party `+0x14d` can waive it. `observed` for the guards and the amount;
+`inferred` that the monster row's `+0x12` is the row's peacefulness, since it
+is the only thing that decides whether provoking the creature costs anything.
+
+Two more party globals fall out of the same search, both counters that are
+handed out as awards:
+
+| offset | global | what |
+| --- | --- | --- |
+| `+0xd8` | `0x908d48` | the **reputation** |
+| `+0xe8` | `0x908d58` | the **deaths**, counted up at `0x453d52` beside award **82**, `Awards.txt`'s "%u Deaths" |
+| `+0xf0` | `0x908d60` | the **prison terms**, counted up at `0x43c60d` beside award **83**, "Served %u Prison Terms" |
+| `+0x14d` | `0x908dbd` | the flag that waives the provocation penalty, `unknown` otherwise |
+
+`observed`. Both counters and the reputation now survive a save.

@@ -10,6 +10,7 @@
 // `npcbtb.txt`. See docs/formats/text-tables.md.
 
 #include <array>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -173,9 +174,28 @@ struct Standing {
 // So the bad end of the scale is -1000, prison is what waits there, and a
 // death is a twentieth of the way. `observed`
 inline constexpr int kReputationPerDeath = 50;
-inline constexpr int kReputationSecondPenalty = 100;
 inline constexpr int kReputationJail = -1000;
 inline constexpr int kPrisonAward = 83;
+inline constexpr int kDeathsAward = 82;
+
+// **The hundred, read.** `0x403070` is where an actor turns hostile — it ends
+// by setting the AI state at `+0xa0` to 4 and the sub-state to 5 — and the
+// penalty above it has two guards:
+//
+//     mov  al, byte [edx*8 + 0x56c19a]   ; the monster row's byte at +0x12
+//     test al, al
+//     jne  skip                          ; only when that byte is zero
+//     mov  al, byte [0x908dbd]           ; a party flag
+//     test al, al
+//     jne  skip
+//     sub  dword [0x908d48], 0x64        ; -100
+//
+// So the double penalty is for **angering something that was peaceful**: the
+// monster row's `+0x12` is what tells the two apart, and a party flag at
+// `0x908dbd` can waive it. `observed` for the guards and the amount;
+// `inferred` that `+0x12` is the row's peacefulness, from its being the only
+// thing that decides whether provoking this creature costs anything.
+inline constexpr int kReputationPerProvocation = 100;
 
 // The bands the table names without numbers are still this engine's, but they
 // are now scaled to the traced span rather than to nothing: half way to
@@ -194,6 +214,40 @@ inline constexpr int kFameWanted = 5;
     }
     reputation = 0;
     return true;
+}
+
+// The same for provoking something peaceful, at twice the price.
+[[nodiscard]] inline bool reputation_after_provocation(int& reputation) noexcept {
+    reputation -= kReputationPerProvocation;
+    if (reputation > kReputationJail) {
+        return false;
+    }
+    reputation = 0;
+    return true;
+}
+
+// The two party counters that sit beside the reputation and are handed out as
+// awards: `0x908d58` is the **deaths**, counted up at `0x453d52` and granting
+// award 82 — `Awards.txt`'s "%u Deaths" — and `0x908d60` the **prison terms**,
+// counted up at `0x43c60d` beside award 83. Both are party `+0xe8` and
+// `+0xf0`. `observed`
+struct PartyRecord {
+    int reputation = 0;
+    int deaths = 0;
+    int prison_terms = 0;
+};
+
+// Serve the term the bound calls for: the original resets the reputation,
+// counts the occasion and grants the award to all four.
+inline void serve_prison_term(PartyRecord& party, std::set<int>& awards) {
+    party.reputation = 0;
+    party.prison_terms += 1;
+    awards.insert(kPrisonAward);
+}
+
+inline void count_death(PartyRecord& party, std::set<int>& awards) {
+    party.deaths += 1;
+    awards.insert(kDeathsAward);
 }
 
 // Which npcbtb message number greets this standing: the table's own ladder,

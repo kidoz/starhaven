@@ -2747,6 +2747,9 @@ int main(int argc, char** argv) {
     // from experience. The derivation and the deed prices are the engine's
     // own and say so where they act.
     int reputation = 0;
+    // The two counters beside it, both handed out as awards by the original.
+    int party_deaths = 0;
+    int prison_terms = 0;
     std::set<int> greeted_npcs;  // who has met the party, this session
     // A passerby stopped in the street: the actor index, and the persona
     // assembled for them — a name from npcnames.txt by the sprite's own
@@ -3868,6 +3871,15 @@ int main(int argc, char** argv) {
         }
         for (const int killed : battle.take_kills()) {
             kills_this_month.insert(killed);
+            // What a death costs the party's standing: fifty, once per body,
+            // as the death handler takes it. Prison waits at the bound.
+            if (game::reputation_after_death(reputation)) {
+                game::PartyRecord standing_record{reputation, party_deaths, prison_terms};
+                game::serve_prison_term(standing_record, script_state.awards);
+                reputation = standing_record.reputation;
+                prison_terms = standing_record.prison_terms;
+                shop_said = "The watch has seen enough. A term is served.";
+            }
         }
         for (const auto& noise : battle.take_noises()) {
             if (noise.actor >= session.actors.size()) {
@@ -4248,6 +4260,8 @@ int main(int argc, char** argv) {
                 state.visited_towns = visited_towns;
                 state.fly_until = fly_until;
                 state.reputation = reputation;
+                state.deaths = party_deaths;
+                state.prison_terms = prison_terms;
                 state.torch_until = torch_until;
                 state.readied = readied;
                 state.turn_based = turn_based;
@@ -4386,6 +4400,8 @@ int main(int argc, char** argv) {
                     visited_towns = state.visited_towns;
                     fly_until = state.fly_until;
                     reputation = state.reputation;
+                    party_deaths = state.deaths;
+                    prison_terms = state.prison_terms;
                     torch_until = state.torch_until;
                     readied = state.readied;
                     turn_based = state.turn_based;
