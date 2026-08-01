@@ -494,3 +494,25 @@ without settling it. State 5b opens on `+0xc4` and was not read.
 So the tally across three sittings: **death, hurt, reanimation and a
 commanded move** named outright; **closing/backing off** and **approach**
 named as families; **five actions and one field** still open. `unknown`
+
+## The last three, and what blocks them
+
+**State 5b surveys everyone.** `0x405d60` sets a pointer to the *first*
+actor's record and walks the whole array, reading the 64-bit pair at
+`+0xf4`/`+0xf8` on each and testing its sign and zero-ness. Whatever it does,
+it does after looking at every actor rather than at the party. `observed`
+
+**State 9** was read again and adds nothing: the pathfinder, the seven-dword
+copy, a facing from `word[+0xba]`.
+
+**What blocks all three.** States 5b, 7 and 9 branch on **64-bit pairs on the
+actor record** — `+0xf4`/`+0xf8` for 5b, `+0x114`/`+0x118` and `+0x128` for
+7 — and nothing in this project knows what those timers hold. They are the
+same shape as the character's condition timestamps, which were named only
+once three independent readings agreed on them. Until the actor's timers are
+named the same way, reading these bodies further yields structure without
+meaning.
+
+So the remaining three are not "unfound"; they are **blocked on naming the
+actor's 64-bit timer fields**, which is the next thing to do and a different
+job from reading action bodies. `unknown`

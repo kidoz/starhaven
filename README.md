@@ -1251,6 +1251,13 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **The AI's last three are blocked, not unfound**: state 5b turns out to
+  walk the *whole* actor array, testing a 64-bit pair at `+0xf4`/`+0xf8` on
+  every one. That is the pattern in all three — 5b, 7 and 9 branch on 64-bit
+  timer pairs on the actor record, and nothing here knows what those timers
+  hold. They are the same shape as the character's condition timestamps,
+  which were only named once three independent readings agreed. So the next
+  job is naming the actor's timers, not reading more action bodies.
 - **State 10 named: a commanded move**: it calls the pathfinder with a
   target of **zero** — the caller's own point rather than one it works out —
   and every caller is outside the AI, including the aiming code. State 7 was
