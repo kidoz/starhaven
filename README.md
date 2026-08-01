@@ -1438,6 +1438,15 @@ interoperability and compatibility with a legally purchased copy.
   but it explains the earlier mistake: property id 214 clears them because
   flagging somebody in the roster changes what a list shows — not because the
   bytes held the hirelings.
+- **The gamble on the thirteen pointers: two lines of patter.** Neither array
+  is in the image and **no instruction writes either by absolute address** —
+  the sweep finds nothing — so both are filled at load from a file through a
+  computed base. And both readers are dialogue: `0x43adca` and `0x4a3e3e` are
+  the only two, they are the same three instructions, and the second fetches
+  the currently chosen party member and hands it on. So the pair is **two lines
+  a hired person can say about a party member, one chosen per profession by a
+  flag**. The stated risk was exactly this — a name, and nothing that changes
+  play — and that is what it is.
 - **What the profession's busiest field indexes: two arrays of thirteen.**
   `+0x04` reaches **two parallel arrays of text pointers** at `0x6b9d84` and
   `0x6b9db8`, with a **byte flag at `0x6b999a`** choosing between them per

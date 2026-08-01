@@ -1224,7 +1224,23 @@ So the profession's `+0x04` indexes **two parallel arrays of text pointers**,
 them per entry, and the winner is formatted against the currently chosen party
 member. The two arrays are `0x34` apart — **thirteen dwords** each. `observed`
 
-What the thirteen are is `unknown`. They are not the personality greetings this
-project parses from `npcbtb.txt`, which are numbered past sixteen; and the
-arrays are referenced only two and one times respectively, so there is little
-else to read them by.
+Two further things pin them down, and both point the same way.
+
+**Neither array is in the image.** Both are uninitialised, and **no
+instruction writes either by absolute address** — the sweep that found the
+experience award finds nothing here. So they are filled at load from a file
+through a computed base, exactly as every table read from `icons.lod` is.
+
+**Both readers are dialogue.** `0x43adca` and `0x4a3e3e` are the only two, and
+they are the same three instructions: take the profession's `+0x04`, read the
+byte at `0x6b999a`, and pick one of the two arrays by it. The second then
+fetches the currently chosen party member from `0x944c64` and calls
+`0x4852d0` with them.
+
+So the pair is **two lines a hired person can say about a party member, one
+chosen per profession by a flag** — which is what `npcprof.txt`'s own action
+and joining columns are. `inferred` for the naming, `observed` for the shape,
+the count and the absence of a writer.
+
+That is the gamble's stated risk landing: a name, and nothing that changes
+play.
