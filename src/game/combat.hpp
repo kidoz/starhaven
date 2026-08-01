@@ -1050,8 +1050,14 @@ private:
         Character& target = party[pool[random_.next() % pool.size()]];
         const bool was_down = target.hit_points <= 0;
 
-        // The table's own spell first: cast as often as the row's percent
-        // says, at its written mastery and skill — the number the prose's
+        // The table's own spell first. Note that the row gives the spell no
+        // percentage of its own — `Spl,Mas,Skil` is two bytes at `+0x22` and
+        // `+0x23`, the mastery and the skill — so the `Use%` column serves
+        // both the second attack and the cast. `observed` for the two bytes;
+        // `inferred` that one column does double duty, for want of another.
+        //
+        // Cast as often as the row's percent says, at its written mastery and
+        // skill — the number the prose's
         // per-skill dice scale by — and answered by the target's resistance
         // to the spell's own element. A spell whose prose carries no number
         // is not cast; the monster falls back to its blows.
@@ -1078,16 +1084,18 @@ private:
             }
         }
 
-        // Which attack swings: the "Att%" column is the second attack's
-        // chance — the header groups it with the first, but its 10..30
-        // values sit exactly on the rows whose second attack is the rare
-        // elemental bite, and a first-attack share of 20 would invert every
-        // such monster. `observed` for the values, `inferred` for the
-        // reading. The parser leaves that column on the first slot.
+        // **Corrected by the runtime row.** This used to take `Att%` as the
+        // second attack's chance, marked `inferred` from where its values sat.
+        // The row settles it: the two attacks are **parallel blocks six bytes
+        // apart** — `Type` at `+0x16` and `+0x1c`, the damage pair at
+        // `+0x17`/`+0x18` and `+0x1d`/`+0x1e`, `Miss` at `+0x1a` and `+0x20`,
+        // and the percentage at `+0x1b` and `+0x21`. So `Att%` closes the
+        // first block and `Use%` the second, and each attack carries its own
+        // chance. `observed`
         const data::Dice second = data::parse_dice(monster.attacks[1].damage);
         const bool use_second =
-            !second.empty() && monster.attacks[0].chance > 0 &&
-            static_cast<int>(random_.next() % 100) < monster.attacks[0].chance;
+            !second.empty() && monster.attacks[1].chance > 0 &&
+            static_cast<int>(random_.next() % 100) < monster.attacks[1].chance;
         for (const auto& attack :
              {use_second ? monster.attacks[1] : monster.attacks[0], monster.attacks[0]}) {
             const data::Dice dice = data::parse_dice(attack.damage);

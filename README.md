@@ -1465,6 +1465,17 @@ interoperability and compatibility with a legally purchased copy.
   with it: **Learning does have an implementation**, and its rung multiplies by
   adding one to the rank rather than through a table. The engine now does it
   that way.
+- **Each attack carries its own chance — corrected by the row.** This engine
+  took `Att%` as the *second* attack's chance, marked `inferred` from where its
+  values happened to sit. The completed row settles it: the two attacks are
+  **parallel blocks six bytes apart** — `Type` at `+0x16` and `+0x1c`, the
+  damage pair at `+0x17`/`+0x18` and `+0x1d`/`+0x1e`, `Miss` at `+0x1a` and
+  `+0x20`, the percentage at `+0x1b` and `+0x21` — so `Att%` closes the first
+  block and `Use%` the second. Every fight this project has measured had the
+  wrong column governing the second attack. The row also shows the **spell
+  gets no percentage of its own**: `Spl,Mas,Skil` is two bytes, the mastery and
+  the skill, so `Use%` does double duty, which is now marked as the inference
+  it is.
 - **The monster row is complete: thirty-two of thirty-two.** The last four
   split cleanly — `Picture` keeps a pointer at `+0x04`, `Name` one at `+0x00`,
   **`Rec` is a dword at `+0x40`** and `Pref` writes `+0x13`, the byte carrying

@@ -750,14 +750,17 @@ TEST_CASE("only a missile-armed monster attacks from range", "[combat]") {
 }
 
 TEST_CASE("the second attack bites at its own written chance", "[combat]") {
-    // A cobra shape: physical fangs, and Att% 100 forcing the poison bite
-    // so the test can see it.
+    // A cobra shape: physical fangs, and **Use%** 100 forcing the poison
+    // bite so the test can see it. The runtime row settles which column is
+    // whose — the two attacks are parallel blocks six bytes apart, `Att%`
+    // closing the first and `Use%` the second — so the chance that governs
+    // the second attack is its own.
     std::string body =
         "#\tPicture\tName\tLVL\tHP\tAC\tEXP\tTreasure\tQuest\tFly\tMove\tAI Type\tHst\tSpd\tRec"
         "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
         "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
     body += "1\tCobraA\tCobra\t2\t20\t0\t24\t0\t0\tN\tMed\tAggress\t4\t200\t1\t0\t0\tPhys"
-            "\t1d2\t0\t100\tPois\t50d1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\r\n";
+            "\t1d2\t0\t0\tPois\t50d1\t0\t100\t0\t0\t0\t0\t0\t0\t0\t0\r\n";
     data::TextTable table;
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
     data::MonsterStatsTable cobras;
@@ -771,7 +774,7 @@ TEST_CASE("the second attack bites at its own written chance", "[combat]") {
     }
     Battle battle;
     battle.reset(session, cobras, 5);
-    // With Att% at 100 every landed blow is the 50-point poison fang, never
+    // With Use% at 100 every landed blow is the 50-point poison fang, never
     // the 1d2 nibble: any hit that lands takes at least 50.
     for (int i = 0; i < 40; ++i) {
         (void)battle.update(0.5f, session, cobras, {}, party, {0, 0, 0});
