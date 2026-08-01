@@ -1,3 +1,15 @@
+---
+title: "Design data tables"
+summary: "Container, syntax, schemas, and cross-table joins for Might and Magic VI tab-separated design data."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - text-tables
+  - design-data
+  - icons-lod
+---
 # Design data tables (Might and Magic VI)
 
 Status: **verified.** Thirty tab-separated tables sit inside `icons.lod`
@@ -6,14 +18,13 @@ and NPC dialogue. Each claim is tagged `observed`, `inferred`, or `unknown`.
 
 ## Scope
 
-Covers the container, the text format, and the nineteen tables parsed into
-typed rows — `MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
+Covers the container, the text format, and the tables parsed into typed rows —
+`MapStats.txt`, `MONSTERS.TXT`, `ITEMS.TXT`, `RNDITEMS.TXT`,
 `STDITEMS.TXT`, `SPCITEMS.TXT`, `Spells.txt`, `Class.txt`, `stats.txt` and
 `SkillDes.txt`, `2DEvents.txt`, `NPCdata.txt`, `npcprof.txt`, `npctopic.txt`,
 `npctext.txt`, `NPCNews.txt`, `npcbtb.txt`, `GLOBAL.TXT`, `Quests.txt`,
-`Awards.txt` and `Autonote.txt`.
-The other 11 are readable through the same reader but not yet given typed
-views.
+`Awards.txt` and `Autonote.txt`. Remaining archive tables are readable through
+the generic text-table parser but do not have dedicated typed views.
 
 There is little to reverse engineer here, and that is the point: these are
 spreadsheet exports the developers left in the archive. The work is unwrapping
@@ -822,9 +833,10 @@ Healing Touch. `observed` And `Scroll.txt` is the **message scrolls'** prose,
 86 rows keyed by item id — row 505 is Sulman's letter itself, the full text
 of the thing Andover pays for. `observed`
 
-The engine drinks: `U` in a pack applies the cures, says the effect in the
-table's words, and the bottle empties into item 163 exactly as written.
-Mixing and the scroll spells wait on systems not yet built.
+The engine drinks, mixes, and reads scrolls from these rows. `U` in a pack
+applies cures and empties the bottle into item 163 as written; `M` resolves two
+potions through the mixing matrix, including its explosion grades; a spell
+scroll's `S` number selects the spell that consuming the scroll casts.
 
 ## The entrances' trailing columns
 
@@ -1124,6 +1136,7 @@ rolls but no recovery-shaped arithmetic (no `×128`, no small `imul`).
   two NPC bytes (`[+0x11]`, `[+1]`) and calls `0x489af0`. So all five resolve to
   engine-defined substitutions keyed on the speaker's NPC record. `observed`
   for the dispatch and handlers, `inferred` for the exact NPC-field semantics.
+
 - `GLOBAL.TXT` is indexed by **sequential row number**: the loader
   (`fcn.004455d0`) tokenises the file on tab/NUL (handling quoted fields) and
   stores one pointer per row into a flat array at `0x56b830`, growing to

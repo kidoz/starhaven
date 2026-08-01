@@ -1,7 +1,25 @@
+---
+title: "Outdoor sprite objects in DDM data"
+summary: "Array and record layout for placed loot and live projectile objects in Might and Magic VI outdoor event data."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - objects
+  - ddm
+  - events
+---
 # Outdoor sprite objects (`.ddm`)
 
 Status: **decoded, evidence-backed.** The second counted outdoor event array
 stores placed loot and the same 100-byte structure used for live projectiles.
+
+## Scope
+
+This page covers the outdoor sprite-object array, its 100-byte record, and the
+join to [`dobjlist.md`](dobjlist.md). Other outdoor and indoor event arrays are
+documented in [`event-tables.md`](event-tables.md).
 
 ## Array
 

@@ -1,8 +1,26 @@
+---
+title: "Event actors in DDM and DLV data"
+summary: "Record layout, runtime behavior, and evidence boundaries for actors stored in Might and Magic VI event data."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - actors
+  - ddm
+  - dlv
+---
 # Event actors (`.ddm` / `.dlv`)
 
 Status: **decoded, evidence-backed.** Actor records are a counted array of
 548-byte records, in outdoor and indoor files alike. This corrects both the
 former count-less-array interpretation and the former `variant` reading.
+
+## Scope
+
+This page covers actor-array framing, the 548-byte record fields established
+by file census or executable reads, and the runtime AI and timer findings tied
+to those fields. It does not define every unnamed actor field.
 
 ## Array
 
@@ -154,8 +172,8 @@ handle, and `0x42fb85` is a 170-case dispatch on an unrelated id range.
 
 ## Following one behaviour, and why it does not isolate
 
-The follow-up to the "no switch" finding was to pick a single question —
-what makes a monster flee — and follow it from the state word to whatever
+To test the "no switch" finding, the analysis selected one question — what
+makes a monster flee — and followed it from the state word to whatever
 reads it. Three states came out of it, and the question did not.
 
 - **State 4 is acting.** Entered at `0x403094` together with a sub-state 5
@@ -243,7 +261,8 @@ strongest evidence about what they mean:
   monster that is hit: one of the pair for a blow it survives and the other
   for one it does not. State 8's body sets the animation byte at `+0x3e` to
   4 and raises bit `0x20000` in the flag dword at `+0x24`. `observed`; which
-  of the two is the death is `inferred` from the pairing and not yet read.
+  of the two is death is `inferred` from the pairing; the exact mapping remains
+  `unknown`.
 - **State 7** (`0x402dd0`) is called from the effect applier at `0x432732`
   and from four sites in `0x461xxx`/`0x462xxx`.
 - **State 10** (`0x404660`) is reached *only* from outside, including from
@@ -519,8 +538,8 @@ job from reading action bodies. `unknown`
 
 ## The actor's 64-bit timers
 
-Reading every site that touches them settles their shape, if not yet their
-names.
+Reading every site that touches them settles their shape; their semantics
+remain `unknown`.
 
 `0x401655` shows the pattern whole. It first tests **bits `0x4000` and
 `0x8000` of the flags dword at `+0x24`** and only looks further if either is
@@ -588,7 +607,7 @@ now answer.
 **The block moves as a straight image.** The executable copies the whole actor
 array in and out without touching a field:
 
-```
+```asm
 0x0046dc92  mov edi, 0x56f478          ; the array
 0x0046dc97  shl ecx, 4                 ; count * 17 ...
 0x0046dca2  mov ecx, eax               ; ... * 8 + count, << 2  =  548 * count
@@ -607,7 +626,7 @@ is why the AI reads it eighty-one times.
 So a file *could* carry values the code never writes. **It does not.**
 `evt_info --actor-timers` walks every actor block Games.lod ships:
 
-```
+```text
 67 maps, 342 actors on disk
   +0xf4: 0 non-zero (0%)
   +0x104: 0 non-zero (0%)

@@ -1,3 +1,15 @@
+---
+title: "Chest appearance table (DCHEST.BIN)"
+summary: "Complete record layout and object-art join for the Might and Magic VI chest appearance table."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dchest
+  - chests
+  - binary-table
+---
 # Chest appearance table (`DCHEST.BIN`, Might and Magic VI)
 
 Status: **verified.** The eight chest graphics. Each claim is tagged `observed`,

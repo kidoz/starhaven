@@ -1,8 +1,21 @@
+---
+title: "Open-question register"
+summary: "Authoritative evidence-backed answers and unresolved questions gathered from public StarHaven documentation."
+doc_type: index
+status: verified
+last_updated: 2026-08-01
+tags:
+  - open-questions
+  - research
+  - evidence
+  - compatibility
+---
 # Open-question register
 
 Status: **audited 2026-07-31.** This page gathers every section headed
 "Open question" or "Open questions" under `docs/` and records the best
-answer currently supported by evidence. It is the authoritative status page;
+answer supported by evidence through the 2026-07-31 audit. It is the
+authoritative status page;
 the older sections in individual format notes are research history and may
 describe hypotheses that this audit supersedes.
 

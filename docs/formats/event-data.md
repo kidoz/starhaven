@@ -1,3 +1,15 @@
+---
+title: "Event-data format for DDM and DLV files"
+summary: "Container envelope and top-level payload structure for Might and Magic VI outdoor and indoor event-data files."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - events
+  - ddm
+  - dlv
+---
 # Event-data format (.ddm / .dlv) (Might and Magic VI)
 
 Status: **draft, evidence-backed.** This documents the file envelope of the
@@ -9,7 +21,9 @@ The outdoor counted sections are documented separately.
 This document covers the **zlib wrapper** surrounding `.ddm` (outdoor map events)
 and `.dlv` (indoor map events) entries — the same envelope used by `.odm` map
 files. It documents decompression and the payload's gross structure. The
-internal event-record tables (triggers, actions, NPC spawns, etc.) are deferred.
+internal counted arrays are canonical in
+[`event-tables.md`](event-tables.md), while map scripts are canonical in
+[`map-events.md`](map-events.md).
 
 ## Source provenance (non-expressive)
 

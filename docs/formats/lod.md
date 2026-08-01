@@ -1,3 +1,15 @@
+---
+title: "LOD archive format"
+summary: "Binary layout, compression, and validation rules for standard Might and Magic VI resource archives."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - lod
+  - archive
+  - binary-format
+---
 # LOD archive format (Might and Magic VI: Mandate of Heaven)
 
 Status: **draft, evidence-backed.** Field semantics are verified against a
@@ -13,8 +25,8 @@ This document covers the **MM6+ standard `.LOD`** format used by
 engine reads. It does **not** cover:
 
 - `Games.lod`, which is the separate live-game-data / chapter LOD with a
-  different directory layout (different `lod_type`, games-header variant).
-  Handling it is a follow-up slice.
+  different directory layout (different `lod_type`, games-header variant); see
+  [`games-lod.md`](games-lod.md).
 - Entry-specific payload formats. Images and sprites have their own headers;
   a generic compressed entry instead starts with the zlib envelope described
   below.
@@ -138,5 +150,6 @@ the supplied buffer.
 
 - The meaning of the u32 at entry +0x1C (`unknown`).
 - Whether `size_field` for sprites is authoritative; verify on `SPRITES.LOD`.
-- The `Games.lod` directory layout (different `lod_type="game"`); deferred.
-- The LZ decompression scheme; deferred.
+- The `Games.lod` directory layout is canonical in
+  [`games-lod.md`](games-lod.md).
+- The LZ decompression scheme remains `unknown`.

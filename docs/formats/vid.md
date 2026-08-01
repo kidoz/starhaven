@@ -1,3 +1,15 @@
+---
+title: "VID video container"
+summary: "Directory layout and Smacker-stream joins for Might and Magic VI video archives."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - vid
+  - video
+  - archive
+---
 # VID video container (Might and Magic VI)
 
 Status: **verified.** The container holding MM6's cutscene and shop videos.

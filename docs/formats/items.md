@@ -1,8 +1,27 @@
+---
+title: "Items and item instances"
+summary: "Design-table joins, serialized item layout, and generation behavior for Might and Magic VI items."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - items
+  - inventory
+  - text-tables
+---
 # Items and item instances
 
 Status: **draft, evidence-backed.** `ITEMS.TXT` defines concrete item ids,
 while `RNDITEMS.TXT`, `STDITEMS.TXT`, and `SPCITEMS.TXT` describe generation
 weights and enchantments stored in a 28-byte item instance.
+
+## Scope
+
+This page covers item-definition tables, serialized item instances, random
+generation weights, standard and special bonuses, equipment types, and the
+shared generation sequence. Inventory presentation and paperdoll placement are
+covered by [`paperdoll.md`](paperdoll.md).
 
 ## `ITEMS.TXT`
 

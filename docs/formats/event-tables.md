@@ -1,3 +1,15 @@
+---
+title: "Event sections in DDM and DLV data"
+summary: "Counted actor, object, chest, door, and state sections in Might and Magic VI event payloads."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - events
+  - ddm
+  - dlv
+---
 # Event sections (`.ddm` / `.dlv`)
 
 Status: **draft, evidence-backed.** This documents the counted actor,

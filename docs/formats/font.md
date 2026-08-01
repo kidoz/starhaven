@@ -1,3 +1,15 @@
+---
+title: "Bitmap font format (FNT)"
+summary: "Header, glyph metrics, and pixel layout for Might and Magic VI bitmap font entries."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - font
+  - fnt
+  - image-format
+---
 # Bitmap fonts (`.FNT`, Might and Magic VI)
 
 Status: **verified.** The game's interface fonts. Each claim is tagged
@@ -108,5 +120,6 @@ The decoder rejects, deterministically and without reading out of bounds:
 > supersedes unresolved hypotheses below.
 
 - What `fontpal` is for, and whether the body and outline colours come from it
-  or are chosen per call site. StarHaven currently chooses them. `unknown`
+  or are chosen per call site. StarHaven's decoder chooses them as an
+  implementation policy. `unknown`
 - Which font the original interface used where. `unknown`

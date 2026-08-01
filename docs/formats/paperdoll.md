@@ -1,3 +1,15 @@
+---
+title: "Paperdoll art"
+summary: "Asset naming, dimensions, placement joins, and unresolved layering details for Might and Magic VI paperdolls."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - paperdoll
+  - interface
+  - assets
+---
 # Paperdoll art (Might and Magic VI)
 
 Status: **measured**. The pieces, their sizes, and the joins between them are
@@ -5,6 +17,12 @@ established; the drawing order and the face-to-body mapping are not. Each
 claim is tagged `observed`, `inferred`, or `unknown`.
 
 Reproduce everything below with `doll_info`.
+
+## Scope
+
+This page covers paperdoll asset names, measured dimensions, item placement
+coordinates, and established joins. Drawing order and the face-to-body mapping
+remain `unknown`; portrait naming is covered by [`portraits.md`](portraits.md).
 
 ## Where it lives
 
@@ -139,7 +157,8 @@ Each of the twelve portrait families ships 53 frames, and a contact sheet of
 them names several by their own art: frame 8 is the face gone green, 12 the
 face turned stone-grey, 33 blacked out, 35 slumped with eyes shut, 36 a
 corpse, and 2 a wince — with the remainder reading as conversational
-expressions not yet needed. The engine shows them for poisoned, petrified,
+expressions without a documented state assignment. The engine shows them for
+poisoned, petrified,
 unconscious, asleep, dead and freshly hurt; the naming is an observation of
 the shipped pictures rather than any table, and is marked `inferred`.
 Reproduce with `view_bitmap icons.lod MaleA08 --dump out.ppm` and kin.

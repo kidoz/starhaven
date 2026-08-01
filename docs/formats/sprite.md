@@ -1,3 +1,15 @@
+---
+title: "Sprite format for Might and Magic VI LOD entries"
+summary: "Binary layout, scanline compression, palette lookup, and RGBA decoding rules for Might and Magic VI sprites."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - sprite
+  - lod
+  - image-format
+---
 # Sprite format (Might and Magic VI `.LOD` sprite entries)
 
 Status: **draft, evidence-backed.** Field layout is verified against a
@@ -46,7 +58,7 @@ All integers little-endian. The engine's `ByteReader` is the single chokepoint.
 | 0x1A | 2 | u16 | flags | observed | runtime-only? |
 | 0x1C | 4 | u32 | decompressedSize | observed | decompressed pixel-data size; **0 if uncompressed** |
 
-### Verified invariant
+### Header size invariant
 
 For a valid entry: `32 + height*8 + dataSize == entry size`. `observed` on
 `3DAGGER` (32 + 4×8 + 154 = 218 ✓) and `3AMULET` (32 + 7×8 + 230 = 318 ✓).
@@ -67,7 +79,7 @@ For a scanline, columns in `[begin, end)` are visible; their palette indices are
 `[begin, end)` are fully transparent. If `begin >= end`, the line is empty
 (fully transparent) and consumes no pixel bytes.
 
-### Verified invariant
+### Scanline bounds invariant
 
 The maximum `offset + (end - begin)` over all non-empty lines is less than the
 decompressed pixel-data length. `observed` on `3AMULET`: max = 337 < 338.
@@ -132,4 +144,5 @@ The decoder rejects, deterministically and without reading out of bounds:
   constants, treated as opaque by the decoder.
 - Whether any sprite uses a non-zero `decompressedSize == 0` (uncompressed)
   path — none observed, but the decoder supports it.
-- Non-index-0 transparency / colorkey for sprites — not observed; deferred.
+- Non-index-0 transparency or colorkey behavior has not been observed and
+  remains `unknown`.

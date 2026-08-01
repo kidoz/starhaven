@@ -1,3 +1,15 @@
+---
+title: "Games.lod container format"
+summary: "Binary layout, compression, and validation rules for the Might and Magic VI live-game-data archive."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - games-lod
+  - archive
+  - binary-format
+---
 # Games.lod container format (Might and Magic VI)
 
 Status: **draft, evidence-backed.** Field layout is verified against a
@@ -96,6 +108,7 @@ A file's bytes begin at `root.dataOffset + entry.dataOffset`
 ### Verified invariants
 
 On `Games.lod`:
+
 - `256 + 32 + numItems*32 == root.dataOffset` (the file-entry table ends exactly
   where file data begins). `observed`: `256 + 32 + 134*32 = 4576 = root.dataOffset` ✓
 - `root.dataOffset + root.dataSize == filesize` (the root covers the whole tail).
@@ -129,7 +142,8 @@ The reader rejects, deterministically and without reading out of bounds:
 > supersedes unresolved hypotheses below.
 
 - Meaning of the header `size` field (always 100) and `unk_1[80]` — unused.
-- The internals of `.blv` / `.odm` / `.dlv` / `.ddm` files — deferred to a
-  dedicated slice (the largest remaining format).
+- The archive entries have dedicated references for
+  [BLV](blv.md), [ODM](odm.md), and
+  [DLV/DDM event data](event-data.md).
 - Whether any MM6 Games.lod uses per-entry Games7 compression — none observed
   in this edition.

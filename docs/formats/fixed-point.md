@@ -1,4 +1,27 @@
+---
+title: "Might and Magic VI trigonometry and fixed point"
+summary: "Observed sine-table layout, angle constants, and 16.16 fixed-point arithmetic used by the executable."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - runtime
+  - trigonometry
+  - fixed-point
+---
 # The engine's trigonometry, and its fixed point
+
+This runtime reference identifies the read-only table at `0x55e5d0` as a sine
+table and derives the associated angle constants and 16.16 arithmetic from
+observed instructions. The routine that initializes the table remains
+`unknown`.
+
+## Scope
+
+This page covers executable reads of `0x55e5d0`, the four adjacent constants,
+quadrant folding, and fixed-point multiplication. It does not specify every
+fixed-point value or trigonometric routine in the engine.
 
 ## `0x55e5d0`, the most-referenced runtime table
 
@@ -16,7 +39,7 @@ table computes its base some other way. `observed`
 
 `0x402850` shows it whole. Given an angle, it folds and then looks up:
 
-```
+```asm
 0x0040285a  cmp eax, ecx                    ; past the fold point?
 0x0040285e  mov edx, dword [0x55f618]       ; the half circle
 0x00402864  sub edx, eax                    ; angle = half - angle
@@ -33,7 +56,7 @@ table is for and nothing else is. `observed`
 
 The value that comes out goes straight into `0x4453c0`:
 
-```
+```asm
 0x004453cf  imul dword [ebp - 4]
 0x004453d2  shrd eax, edx, 0x10
 ```

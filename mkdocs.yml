@@ -60,7 +60,7 @@ nav:
       - Weapon specials: formats/weapon-specials.md
   - Rendering:
       - Software rasterizer: rendering/software-rasterizer.md
-      - Terrain coloring: rendering/terrain-coloring.md
+      - Terrain texturing: rendering/terrain-coloring.md
       - Collision and movement: rendering/collision.md
       - Renderer performance: rendering/performance.md
 

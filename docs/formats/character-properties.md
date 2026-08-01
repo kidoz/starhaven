@@ -1,4 +1,27 @@
+---
+title: "Character property setter at 0x4412b0"
+summary: "Observed dispatch cases and runtime fields handled by the Might and Magic VI character-property setter."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - runtime
+  - character
+  - properties
+---
 # The character property setter at `0x4412b0`
+
+This runtime reference maps the 225-way character-property dispatch used by
+Might and Magic VI event instructions. The mapped cases settle character,
+party, script-clock, and global-table fields while retaining unresolved fields
+as `unknown`; this page does not define the complete player or party record.
+
+## Scope
+
+This page covers the dispatch tables and observed case bodies at `0x4412b0`
+and related getter and adder routines. The canonical record-level context is in
+[`player-record.md`](player-record.md) and [`party-record.md`](party-record.md).
 
 ## What the gamble was after, and what it found instead
 
@@ -56,7 +79,7 @@ re-confirms something read a different way:
 This engine had the two attribute runs at 31..37 and 38..44. The case bodies
 say otherwise, with fixed offsets that leave nothing to interpret:
 
-```
+```text
 id 25 -> add word [esi + 0x16]     Might modifier
 id 31 -> add word [esi + 0x2e]     Luck modifier
 id 32 -> add word [esi + 0x14]     Might base
@@ -139,7 +162,7 @@ naming. Following the array from its own side settles what it is, and it is
 
 Three places read it, and all three read it the same way:
 
-```
+```asm
 0x0041f726  movsx eax, word [ecx + 0x14]        ; an attribute's value
 0x0041f72c  mov cl, byte [eax + 0x5b22fc]       ; -> a small band number
 0x0041f732  mov ecx, dword [ecx*8 + 0x6a82f8]
@@ -182,7 +205,7 @@ property plumbing:
 
 The getter is the interesting one:
 
-```
+```asm
 0x0044036c  fild  qword [eax*8 + 0x90e19c]
 0x00440373  fmul  dword [0x4b9374]        ; the 30/128 calendar float
 0x00440379  call  0x4ae24c                ; back to an integer

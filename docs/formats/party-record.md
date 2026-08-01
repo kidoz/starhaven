@@ -1,8 +1,27 @@
+---
+title: "Party runtime record"
+summary: "Observed structure and partially named fields of the Might and Magic VI in-memory party record."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - runtime
+  - party
+  - memory-layout
+---
 # The party record (`MM6.exe`, runtime)
 
 Status: **structure settled, fields partly named.** Not a file format: this
 is the in-memory party the executable keeps at **`0x908c70`**. Every claim is
 tagged `observed` (read from an instruction) or `inferred`.
+
+## Scope
+
+This page covers the contiguous party record at `0x908c70`, the embedded four
+player records, and party-level fields established from executable access
+patterns. Player-field details are canonical in
+[`player-record.md`](player-record.md).
 
 ## It is one record, not scattered globals
 

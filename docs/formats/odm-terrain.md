@@ -1,9 +1,22 @@
+---
+title: "ODM terrain maps"
+summary: "Height-map and tile-map grid layouts for Might and Magic VI outdoor terrain."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - terrain
+  - outdoor-map
+---
 # ODM terrain maps (Might and Magic VI)
 
 Status: **draft, evidence-backed.** This document covers the fixed-size terrain
 grids that follow the `.odm` header (see [`odm.md`](odm.md) for the outer format
-and header). The vertex/facet/model geometry that follows these grids is
-**deferred**. Each claim is tagged `observed`, `inferred`, or `unknown`.
+and header). The geometry that follows is canonical in
+[`odm-model-facets.md`](odm-model-facets.md). Each claim is tagged `observed`,
+`inferred`, or `unknown`.
 
 ## Scope
 
@@ -14,10 +27,12 @@ the terrain elevation and ground tile selection for an outdoor region.
 It does **not** cover:
 
 - the remaining attribute grids (tile flags, ground attributes, etc.) that
-  follow the tile-type map — their exact per-grid meaning is not yet confirmed;
+  follow the tile-type map — their exact per-grid meaning remains `unknown`;
 - the vertex, facet, and model geometry tables (the 3D mesh of terrain and
-  props) — a large, complex section deferred to a later slice;
-- decorations, spawns, and event hooks.
+  props); see [`odm-model-facets.md`](odm-model-facets.md);
+- decorations and spawns; see
+  [`odm-decorations.md`](odm-decorations.md) and
+  [`odm-tile-index.md`](odm-tile-index.md).
 
 ## Source provenance (non-expressive)
 
@@ -40,6 +55,7 @@ one byte per tile, laid out row-major (y × 128 + x). `observed`.
 | 0xB0 | 16,384 | u8[128×128] | heightmap | observed | terrain elevation per tile |
 
 `observed` across all sampled maps:
+
 - `Outa1.odm`: range 0–127, 128 distinct values, most common heights 5 (5037
   tiles), 24 (2186).
 - `Outb1.odm`: range 0–111.
@@ -55,14 +71,15 @@ height step) is `unknown` in this slice.
 | 0x40B0 | 16,384 | u8[128×128] | tilemap | observed | ground tile-type index per tile |
 
 `observed`:
+
 - `Outa1.odm`: range 1–211, most common 90 (8989 tiles), 162 (873).
 - `Outb1.odm`: range 1–212, most common 90 (6688), 1 (1992).
 - `Outc2.odm`: range 1–212, most common 1 (4641), 2 (2375), 3 (2350) — different
   terrain palette than the grassy maps.
 
 Tile-type indices reference the ground tileset named in the header (e.g.
-`"grastyl"`). The mapping from index to a specific tile graphic is `unknown`
-here and is resolved against tileset data in a later slice.
+`"grastyl"`). Each byte directly selects a row in `DTILE.BIN`, whose name
+selects the bitmap; the canonical mapping is in [`dtile.md`](dtile.md).
 
 ## Decoding
 

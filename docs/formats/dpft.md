@@ -1,3 +1,15 @@
+---
+title: "Portrait frame table (DPFT.BIN)"
+summary: "Record layout, timing, and group semantics for Might and Magic VI portrait animation frames."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dpft
+  - portraits
+  - binary-table
+---
 # Portrait frame table (`DPFT.BIN`, Might and Magic VI)
 
 Status: **decoded, layout corrected and verified.** Sixty-seven portrait

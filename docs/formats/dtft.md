@@ -1,7 +1,25 @@
+---
+title: "Texture frame table (DTFT.BIN)"
+summary: "Decoded texture-animation records and the remaining water-animation boundary in Might and Magic VI."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dtft
+  - textures
+  - animation
+---
 # Texture frame table (`DTFT.BIN`, Might and Magic VI)
 
 Status: **decoded and in use.** The wall textures that move. Each claim is
 tagged `observed`, `inferred`, or `unknown`.
+
+## Scope
+
+This page covers all records in `DTFT.BIN`, their animation groups, and the
+join from each frame name to a wall texture. Palette-driven water animation is
+outside this table and remains `unknown`.
 
 ## Layout
 

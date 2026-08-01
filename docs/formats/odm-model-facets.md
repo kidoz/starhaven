@@ -1,3 +1,15 @@
+---
+title: "ODM model facets and geometry stream"
+summary: "Verified geometry-stream and facet-record layouts for Might and Magic VI outdoor models."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - facets
+  - geometry
+---
 # ODM model facets and the geometry stream (Might and Magic VI)
 
 Status: **draft, evidence-backed — all models walk.** This document records the

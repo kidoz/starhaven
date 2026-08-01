@@ -1,3 +1,15 @@
+---
+title: "Bitmap format for Might and Magic VI LOD image entries"
+summary: "Binary layout, palette handling, compression, and RGBA decoding rules for Might and Magic VI LOD bitmap entries."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - bitmap
+  - lod
+  - image-format
+---
 # Bitmap format (Might and Magic VI `.LOD` image entries)
 
 Status: **draft, evidence-backed.** Field layout is verified against a
@@ -14,7 +26,7 @@ cover:
 
 - The `.LOD` container itself — see [`lod.md`](lod.md).
 - Sprites (`SPRITES.LOD`), which use a separate `LodSpriteHeader_MM6` layout
-  with per-line offsets. Deferred to a later slice.
+  with per-line offsets; see [`sprite.md`](sprite.md).
 - Fonts and 16-bit images. Out of scope here. PCX entries in the same
   container are read by `src/core/image/pcx.cpp` — see
   [`interface-panels.md`](interface-panels.md).
@@ -102,7 +114,7 @@ non-image entries. `icons.lod`'s bitmaps carry `0x0`, `0x10`, `0x100`,
 | --- | --- | --- |
 | 0x0001 | uses palette index 0 — the transparent color. Set on 1,085 of 1,085 world textures whose pixels contain index 0 and on 0 of the 607 that do not: a perfect split. | observed for the split; the transparency reading `inferred` |
 | 0x0002 | a four-level mip chain follows: the pixel data is exactly `size + size/4 + size/16 + size/64` bytes on all 1,692 flagged entries, and the executable's loader stands pointers at those very offsets when it tests the bit. | observed |
-| 0x0010 | set on every real image in both archives; not yet seen tested. | unknown |
+| 0x0010 | set on every real image in both archives; no tested read site has been observed. | unknown |
 | 0x0100 | `icons.lod` UI art only (233 entries); untraced. | unknown |
 | 0x0200 | `icons.lod` UI art: palette entry 0 is transparent. | inferred |
 | 0x0400 | never on disk — the executable's loader ORs it into the word after loading, a runtime marker. | observed |
@@ -143,5 +155,5 @@ The decoder rejects, deterministically and without reading out of bounds:
 
 - What bit `0x0010` selects (present on every real image in both archives)
   and what `0x0100` marks on `icons.lod` UI art. `unknown`
-- Colorkey (non-index-0 transparency) handling — deferred.
+- Colorkey behavior beyond palette index zero remains `unknown`.
 - Whether `anotherPaletteId` is ever non-zero — not observed.

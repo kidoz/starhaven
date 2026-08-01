@@ -1,3 +1,15 @@
+---
+title: "Character portraits and paperdolls"
+summary: "Archive names and dimensions for the twelve Might and Magic VI character portraits and paperdolls."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - portraits
+  - paperdoll
+  - assets
+---
 # Character portraits and paperdolls (Might and Magic VI)
 
 Status: **verified** for the naming and the sizes. Each claim is tagged

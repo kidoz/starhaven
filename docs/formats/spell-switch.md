@@ -1,8 +1,27 @@
+---
+title: "Spell runtime switch"
+summary: "Observed per-spell dispatch behavior, effect parameters, projectiles, and damage joins in Might and Magic VI."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - runtime
+  - spells
+  - combat
+---
 # The spell switch (`MM6.exe`, runtime)
 
 Status: **every case read, and the machinery around them.** Not a file format: this is the
 executable's own per-spell code, reached while chasing the recovery tick.
 Every claim is tagged `observed` (read from an instruction) or `inferred`.
+
+## Scope
+
+This page covers the spell queue, the 102-entry runtime dispatch, observed
+per-spell parameters, projectile records, damage routing, and related spell
+predicates. Text-table definitions are canonical in
+[`text-tables.md`](text-tables.md).
 
 ## How a spell reaches its own numbers
 
@@ -22,7 +41,7 @@ from `0x908f34` to `0x90e7a4`, which is exactly four strides. `observed`
 
 Dispatch is one instruction, at `0x422c93`:
 
-```
+```asm
 movsx eax, word [ebx]          ; the spell id
 dec   eax
 cmp   eax, 0x65                ; 101
@@ -99,7 +118,7 @@ executable's alone:
 | Id | Spell | Case | What the case computes |
 | --- | --- | --- | --- |
 | 46 | Bless | `0x4266e4` | `+points`, for **64 min + 5 a point**, 15 at master |
-| 47 | Healing Touch | `0x4268fa` | three branches; the amounts not decoded |
+| 47 | Healing Touch | `0x4268fa` | `2d3 + 1 / 3 / 5` by rank |
 | 48 | Lucky Day | `0x42698d` | **10 + 2 (expert 3) × points**, party at master |
 | 49 | Remove Curse | `0x426b01` | window **180 / 3600 / 86400 s** a point |
 | 50 | Guardian Angel | `0x426b97` | **3600 s** a point |
@@ -364,7 +383,7 @@ That two-byte slip is also why the search for readers came up empty. With
 the right offsets the answer is one instruction: the collision handler's
 **kind-4** branch — the party's own projectiles — opens with
 
-```
+```asm
 mov edx, [ebp + 0x48]
 mov ecx, [ebp + 0x40]      ; the spell id
 push edx
@@ -409,7 +428,3 @@ attack from the sub-structure at `+0x2c` of its record, which holds a spell
 id at `+0x22` and a packed skill at `+0x23`; and `0x47d5a0` is the general
 "does this character wear an item with special N", walking the sixteen
 anchors. `observed`
-
-## Still unread
-- The other eight schools' own case bodies. The addresses are all in the
-  dispatch table; only Body has been read. `unknown`

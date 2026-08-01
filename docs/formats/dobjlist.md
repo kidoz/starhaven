@@ -1,8 +1,26 @@
+---
+title: "Object descriptor table (DOBJLIST.BIN)"
+summary: "Container, record, and flag layout for Might and Magic VI sprite-object descriptors."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dobjlist
+  - objects
+  - binary-table
+---
 # Object descriptor table (`DOBJLIST.BIN`)
 
 Status: **decoded, evidence-backed.** `DOBJLIST.BIN` is the global descriptor
 table for loot sprites, projectiles, spell effects, and other sprite objects.
 Each claim is tagged `observed`, `inferred`, or `unknown`.
+
+## Scope
+
+This page covers the `DOBJLIST.BIN` container, its fixed-size object descriptor
+records, flag bits, and deterministic parser rejection rules. Runtime instances
+of these descriptors are documented in [`event-objects.md`](event-objects.md).
 
 ## Container
 

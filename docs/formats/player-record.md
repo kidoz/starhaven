@@ -1,3 +1,15 @@
+---
+title: "Player runtime record"
+summary: "Observed field offsets, skills, statistics, and remaining unknowns in the Might and Magic VI player record."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - runtime
+  - player
+  - memory-layout
+---
 # The player record (`MM6.exe`, runtime)
 
 Status: **partially mapped, from traced routines only.** Not a file format:
@@ -6,6 +18,13 @@ skill code addresses. It is recorded because three separate traces kept
 re-deriving the same offsets, and because the fields StarHaven still guesses
 at — recovery, the attack bonus's parts — will be found here. Each claim is
 tagged `observed` (read from an instruction) or `inferred`.
+
+## Scope
+
+This page covers the `0x161c`-byte in-memory player record fields established
+through traced combat, skill, condition, equipment, and training routines. It
+does not claim a complete save-file schema; unresolved offsets remain
+`unknown`.
 
 ## A verification pass, and what it caught
 
@@ -205,7 +224,7 @@ from the byte table at `0x4c27fc` — 100, 100, 100, 50, 10, 100, 75, 60,
 50, 30, 25, 10. So the attribute contributes **raw**, not through the
 sheet's bonus curve, and a weapon whose skill is worth only 10% barely
 gains from training. `observed` for both tables; which percentage answers
-which of this engine's skill names is not yet joined. `unknown`
+which StarHaven skill name corresponds to the id remains `unknown`.
 
 ## The class and skill numbering, closed
 
@@ -854,7 +873,7 @@ is why eighteen classes need six rows, and why the hit-point bases have six
 entries too. It ends where the weapon-recovery table begins at `0x4c2750`,
 which is what fixes its length. `observed`
 
-```
+```text
 Knight    3 1 2 2 2 2 3 3 2 1 2 3 0 0 0 0 0 0 0 0 0 3 3 3 2 0 2 3 0 2 3
 Cleric    2 0 0 0 0 3 1 3 2 2 3 0 0 0 0 0 2 2 1 3 3 2 3 2 3 2 3 2 0 3 3
 Sorcerer  2 0 1 0 0 3 0 3 0 2 0 0 1 2 2 2 0 0 0 3 3 2 3 2 3 2 3 2 0 3 3
@@ -907,7 +926,7 @@ two**. Three traced sites agree and none of them looks at the number:
 The teacher is at `0x4969e4`. It takes the character from the pointer array at
 `0x944c64`, the skill from `0x9ddd88`, and does this:
 
-```
+```asm
 0x004969f3  mov  cl, byte [edx + eax + 0x60]
 0x004969fb  and  cl, 0x3f              ; the old rank goes first
 0x004969fe  mov  byte [eax], cl
@@ -927,7 +946,7 @@ as `unknown`. `observed`
 The price is built by the same trick three instructions later, at `0x496cdb`,
 from the same flag:
 
-```
+```asm
 neg eax ; sbb eax, eax ; and eax, 0xbb8 ; add eax, 0x7d0
 ```
 
@@ -979,7 +998,7 @@ for the offsets and the pairs.
 `0x430f36` is worth its own line, because it names the timers the last batch
 buried. Immediately before the resistance call:
 
-```
+```asm
 0x00430f36  cmp dword [esi + 0x118], edi
 0x00430f40  cmp dword [esi + 0x114], edi
 0x00430f48  xor eax, eax        ; the damage becomes nothing

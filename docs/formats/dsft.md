@@ -1,3 +1,15 @@
+---
+title: "Sprite frame table (DSFT.BIN)"
+summary: "Frame layout, animation groups, palette variants, and archive joins for Might and Magic VI sprites."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dsft
+  - sprites
+  - animation
+---
 # Sprite frame table (`DSFT.BIN`, Might and Magic VI)
 
 Status: **verified.** The table that turns an animation name into the sprites

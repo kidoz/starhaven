@@ -1,12 +1,25 @@
+---
+title: "StarHaven documentation"
+summary: "Entry point to StarHaven compatibility references, rendering explanations, and project documentation."
+doc_type: index
+status: verified
+last_updated: 2026-08-01
+tags:
+  - starhaven
+  - documentation
+  - mm6
+  - compatibility
+---
 # StarHaven Documentation
 
 StarHaven is a portable, open-source compatibility engine for
 **Might and Magic VI: The Mandate of Heaven**. It reads resources from a user's
 legally obtained installation and does not distribute original game content.
 
-The project is currently focused on decoding the original data formats and
-rendering outdoor and indoor maps with a portable C++20 software renderer.
-Audio, UI, and gameplay systems remain future work.
+The playable engine loads all outdoor and indoor maps with the game's art,
+audio, interface, event scripts, combat, progression, services, travel, and
+save systems. Compatibility claims remain evidence-tagged, and unresolved
+behavior stays explicit in the open-question register.
 
 ## Explore the documentation
 
@@ -38,7 +51,12 @@ Audio, UI, and gameplay systems remain future work.
   [paperdoll](formats/paperdoll.md) describe the screen furniture the
   interface wears.
 - [Software rasterizer](rendering/software-rasterizer.md) explains the
-  rendering pipeline.
+  rendering pipeline; [terrain texturing](rendering/terrain-coloring.md),
+  [collision and movement](rendering/collision.md), and
+  [performance measurements](rendering/performance.md) cover its major
+  supporting systems.
+- [Documentation standard](contributing/documentation-standard.md) defines the
+  metadata, evidence, linking, and validation contract for these pages.
 
 ## Evidence status
 

@@ -1,3 +1,15 @@
+---
+title: "ODM tile index and spawn points"
+summary: "Tile-neighborhood index and spawn-point layouts at the end of Might and Magic VI outdoor maps."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - tile-index
+  - spawns
+---
 # ODM tile index and spawn points (Might and Magic VI)
 
 Status: **verified.** The last two sections of an outdoor map: a list, per
@@ -64,7 +76,7 @@ an entry finds decoration 0 on every tile of the map.
 
 Each non-zero entry packs a type in its low three bits and an id above them:
 
-```
+```text
 id   = entry >> 3
 type = entry & 7
 ```
@@ -84,7 +96,7 @@ no tile added and none missing. `observed`
 The tile grid is centred on the origin, 512 units to a tile, and its rows run
 against world y:
 
-```
+```text
 tile_x = floor(world_x / 512) + 64
 tile_y = 64 - floor(world_y / 512)
 ```

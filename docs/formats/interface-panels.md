@@ -1,8 +1,26 @@
+---
+title: "Game-screen panels in icons.lod"
+summary: "Asset names, dimensions, and layout relationships for the Might and Magic VI game-screen frame."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - interface
+  - icons-lod
+  - layout
+---
 # The game screen's panels (`icons.lod`, Might and Magic VI)
 
 Status: **in use.** The pieces the game's main screen is built from, as they
 ship in `icons.lod`, and how their own sizes pin the layout. Each claim is
 tagged `observed`, `inferred`, or `unknown`.
+
+## Scope
+
+This page covers the main game-screen border, portrait bar, message strip,
+resource gauges, and the asset dimensions that constrain their placement. It
+does not define interactive screen behavior or every book and dialog screen.
 
 ## The pieces
 

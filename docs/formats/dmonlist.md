@@ -1,3 +1,15 @@
+---
+title: "Monster table (DMONLIST.BIN)"
+summary: "Record layout and actor, sprite, and sound joins for the Might and Magic VI monster table."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dmonlist
+  - monsters
+  - binary-table
+---
 # Monster table (`DMONLIST.BIN`, Might and Magic VI)
 
 Status: **verified.** The table an actor's monster id

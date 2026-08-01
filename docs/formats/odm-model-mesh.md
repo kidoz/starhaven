@@ -1,9 +1,21 @@
+---
+title: "ODM model mesh vertices"
+summary: "Verified vertex-array layout and superseded investigation notes for Might and Magic VI outdoor models."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - vertices
+  - geometry
+---
 # ODM model mesh vertices (Might and Magic VI)
 
 Status: **draft, evidence-backed — superseded in part.** This document records
 the verified layout of a model's vertex array. The "blocker" it described for
-walking subsequent models was resolved by the next slice, and its
-variable-length conclusion was **wrong**: see
+walking subsequent models is resolved by the fixed facet-stream layout, and
+its variable-length conclusion was **wrong**: see
 [`odm-model-facets.md`](odm-model-facets.md) for the corrected geometry-stream
 layout and for how all models are now walked. Each claim is tagged `observed`,
 `inferred`, or `unknown`.

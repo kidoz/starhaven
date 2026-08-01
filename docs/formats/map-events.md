@@ -1,3 +1,15 @@
+---
+title: "Map event scripts"
+summary: "Container framing, opcode semantics, and runtime joins for Might and Magic VI map scripts."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - events
+  - scripts
+  - opcodes
+---
 # Map event scripts (Might and Magic VI)
 
 Status: **verified** for the container and the record structure; twenty-four
@@ -786,8 +798,8 @@ step — the executor skips it via the same default path. `observed`
 
 The `observed` rows are grounded in the handler's own reads and calls or in
 the data analysis above; the `inferred` rows name the operation from its shape
-but pin the exact argument semantics to a follow-up trace of the called
-function. Opcode 4's two readings are complementary, not conflicting: in the
+but require a trace of the called function to pin the exact argument semantics.
+Opcode 4's two readings are complementary, not conflicting: in the
 *data* it opens an event and carries the interactable-noun string index (see
 "Opcode 4 opens an event" above); in the *handler* it records the structured
 block's opening.

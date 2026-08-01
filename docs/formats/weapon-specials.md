@@ -1,13 +1,29 @@
+---
+title: "Weapon special effects"
+summary: "Observed on-hit and statistic effects for Might and Magic VI special weapon enchantments."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - runtime
+  - weapons
+  - enchantments
+---
 # Weapon specials (`MM6.exe`, runtime)
 
-Status: **read in full, both halves.** Not a file format: this is what the
-executable does with the special enchantment on a piece of gear — after a
-blow lands, and when a stat is asked for. Every
-claim is tagged `observed` (read from an instruction) or `inferred`.
+This runtime reference documents what the executable does with a special
+enchantment after a blow lands and when a statistic is requested. Every claim
+is tagged `observed` (read from an instruction) or `inferred`. The game's
+special-bonus table gives each row a name, class letter, and price but no
+effect, so the executable branches are the only source for the numbers below.
 
-The game's own special-bonus table gives each row a name, a class letter and
-a price, and stops. It never says what "of Ice" actually does. The numbers
-below are the executable's only.
+## Scope
+
+This page covers special-enchantment identifiers 4 through 46, three named
+artifact branches, on-hit effects, and statistic adjustments observed in the
+Might and Magic VI executable. It does not define base weapon damage or general
+item generation.
 
 ## The walk
 

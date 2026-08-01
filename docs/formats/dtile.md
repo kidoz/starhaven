@@ -1,3 +1,15 @@
+---
+title: "Ground tile table (DTILE.BIN)"
+summary: "Container layout and mappings from outdoor tile bytes to Might and Magic VI ground textures."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dtile
+  - terrain
+  - textures
+---
 # Ground tile table (`DTILE.BIN`, Might and Magic VI)
 
 Resolves the open question in `docs/rendering/terrain-coloring.md`: how an

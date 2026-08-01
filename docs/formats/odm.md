@@ -1,10 +1,22 @@
+---
+title: "ODM outdoor map format"
+summary: "Container envelope and fixed header for Might and Magic VI outdoor map files."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - outdoor-map
+  - binary-format
+---
 # ODM outdoor map format (Might and Magic VI)
 
-Status: **draft, evidence-backed — outer format only.** This slice documents
+Status: **draft, evidence-backed — outer format only.** This page documents
 the file envelope (zlib wrapper + the fixed map header) and parses the header
-metadata. The tile grid, height map, vertex/facet geometry, and decorations are
-**deferred** to later slices. Field layout is verified against a user-supplied
-legal GOG.com installation. Each claim is tagged `observed`, `inferred`, or
+metadata. Terrain grids, model geometry, and decorations are documented on
+their canonical linked pages. Field layout is verified against a user-supplied
+legal GOG.com installation, with each claim tagged `observed`, `inferred`, or
 `unknown`.
 
 ## Scope
@@ -16,16 +28,14 @@ This document covers the **`.odm` outdoor map** file as stored inside
 - the fixed header at the start of the decompressed payload (name, name2,
   version string, tileset name, and the dimension/region fields at 0xA0).
 
-It does **not** yet cover:
+It does **not** specify:
 
-- the tile map (128×128 tile indices) and height map (128×128 heights);
-- the vertex, facet, and model geometry (the 3D mesh of the terrain and props);
-- decorations, spawns, and event hooks (see
-  [`odm-tile-index.md`](odm-tile-index.md) for the per-tile index and the spawn
-  point array that end the payload).
-
-These are the subject of follow-up slices. The geometry in particular is a
-large format (each ODM decompresses to ~570 KB) and will need its own slice.
+- the tile and height maps; see [`odm-terrain.md`](odm-terrain.md);
+- model records and geometry; see [`odm-models.md`](odm-models.md) and
+  [`odm-model-facets.md`](odm-model-facets.md);
+- decorations, the per-tile index, or spawn points; see
+  [`odm-decorations.md`](odm-decorations.md) and
+  [`odm-tile-index.md`](odm-tile-index.md).
 
 ## Source provenance (non-expressive)
 
@@ -98,29 +108,18 @@ After the 0xB0 header:
 
 - **Terrain grids** (heightmap + tilemap, see [`odm-terrain.md`](odm-terrain.md))
   occupy fixed 128×128 byte sections starting at 0xB0.
-- **Vertex / facet / model geometry** follows. The in-memory struct layouts are
-  documented below, but the **file-level sectioning** (the exact order and
-  count-prefix layout of the vertex, facet, and model arrays in the file) is
-  **not yet confirmed** and is the subject of the next slice. Confirming it
-  reliably requires analyzing `MM6.exe`'s map loader rather than guessing.
+- **Vertex / facet / model geometry** follows. The model-array framing is
+  canonical in [`odm-models.md`](odm-models.md), and the complete per-model
+  stream order is canonical in [`odm-model-facets.md`](odm-model-facets.md).
 
-### Geometry struct anchors (in-memory layout, from the engine)
+### Canonical geometry records
 
-These are the engine's in-memory struct sizes, recorded as anchors for the
-file-level decode. They are **not** sufficient on their own to parse the file:
-the file stores count-prefixed variable-length arrays whose exact on-disk
-order is still being verified.
-
-- **MapVertex** — 6 bytes: X(i16), Y(i16), Z(i16). Terrain mesh vertices.
-- **MapModel** — 0xBC (188) bytes: name[32], name2[32], bits, vertex/facet/
-  ordering/BSP array pointers (file offsets), grid X/Y, position, bounding box.
-  Models are the props/buildings/terrain features.
-- **MapFacet** — 0x50 (80) bytes for MM6: normal (fixed-point), vertex id list,
-  bitmap id, room, bounding box, polygon type, vertex count.
-- **ModelVertex** — 12 bytes: X/Y/Z as i32 (model-local vertices).
-
-The full geometry decode is deferred. The next experiment is to trace the map
-loader in `MM6.exe` to confirm the file-level count-prefix order.
+The model array contains 188-byte `MapModel` records. Each model's sequential
+geometry block contains 12-byte vertices, 308-byte facets, facet ordering,
+optional BSP nodes, and texture names. Exact counts, record fields, and stream
+order belong to [`odm-models.md`](odm-models.md) and
+[`odm-model-facets.md`](odm-model-facets.md); duplicating those layouts here
+would create a second source of truth.
 
 ## Invalid-input behavior
 

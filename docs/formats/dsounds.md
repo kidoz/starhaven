@@ -1,3 +1,15 @@
+---
+title: "Sound table (DSOUNDS.BIN)"
+summary: "Record layout and archive joins that map Might and Magic VI sound identifiers to audio payloads."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dsounds
+  - audio
+  - binary-table
+---
 # Sound table (`DSOUNDS.BIN`, Might and Magic VI)
 
 Status: **verified.** The table that turns a sound id in the game's data into

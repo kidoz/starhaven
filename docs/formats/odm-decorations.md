@@ -1,3 +1,15 @@
+---
+title: "ODM decorations"
+summary: "Placement records and descriptor joins for decorations in Might and Magic VI outdoor maps."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - decorations
+  - outdoor-map
+---
 # ODM decorations (Might and Magic VI)
 
 Status: **verified.** The placed sprites of an outdoor map — trees, cacti,

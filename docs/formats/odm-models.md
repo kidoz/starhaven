@@ -1,10 +1,22 @@
+---
+title: "ODM models"
+summary: "Top-level model-array and placement-record layout for Might and Magic VI outdoor maps."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - odm
+  - models
+  - outdoor-map
+---
 # ODM models (Might and Magic VI)
 
 Status: **draft, evidence-backed.** The model-array section that follows the
 terrain grids, confirmed by tracing `MM6.exe`'s map loader in radare2 and
 verified against real maps. Each claim is tagged `observed`, `inferred`, or
-`unknown`. The nested vertex/facet/BSP arrays *inside* each model are deferred
-(see Open questions).
+`unknown`. The nested geometry stream is documented in
+[`odm-model-facets.md`](odm-model-facets.md).
 
 ## Scope
 
@@ -12,8 +24,8 @@ This document covers the **model array** — the list of named props/buildings/
 terrain features placed on an outdoor map (bridges, houses, decorations). Each
 model is a `MapModel` record (0xBC bytes) carrying its name, world position, and
 bounding box. The model's own mesh (its vertices, facets, and BSP tree, stored
-elsewhere in the file and referenced by offsets inside the model record) is the
-subject of a later slice.
+after the model array and counted by fields inside the model record) is
+canonical in [`odm-model-facets.md`](odm-model-facets.md).
 
 ## Source provenance (non-expressive)
 
@@ -60,14 +72,14 @@ Field offsets from the engine struct (verified against real model bytes):
 | 0x00 | 32 | char[32] | name | observed | e.g. `"bridge2ns"` |
 | 0x20 | 32 | char[32] | name2 | observed | usually equals name |
 | 0x40 | 4 | u32 | bits | inferred | attributes/flags |
-| 0x44 | 4 | u32 | vertex_offset | inferred | offset to this model's vertices (nested) |
-| 0x48 | 4 | u32 | vertex_count | inferred | number of model-local vertices |
-| 0x4C | 4 | u32 | facet_offset | inferred | offset to facets (nested) |
+| 0x44 | 4 | u32 | vertex_count | observed | number of model-local vertices on disk |
+| 0x48 | 4 | u32 | vertex_pointer | observed | runtime pointer slot; not a file offset or count |
+| 0x4C | 4 | u32 | facet_count | observed | number of model-local facets on disk |
 | 0x50 | 2 | i16 | convex_facets_count | inferred | |
-| 0x54 | 4 | u32 | facet_count | inferred | |
-| 0x58 | 4 | u32 | ordering_offset | inferred | BSP/ordering data (nested) |
-| 0x5C | 4 | u32 | bsp_node_count | inferred | |
-| 0x60 | 4 | u32 | bsp_offset | inferred | |
+| 0x54 | 4 | u32 | facet_pointer | observed | runtime pointer slot |
+| 0x58 | 4 | u32 | ordering_pointer | observed | runtime pointer slot |
+| 0x5C | 4 | u32 | bsp_node_count | observed | zero in all 921 shipped models |
+| 0x60 | 4 | u32 | bsp_pointer | observed | runtime pointer slot |
 | 0x68 | 4 | i32 | grid_x | observed | center grid X |
 | 0x6C | 4 | i32 | grid_y | observed | center grid Y |
 | 0x70 | 4 | i32 | pos_x | observed | world position X |
@@ -80,8 +92,9 @@ Field offsets from the engine struct (verified against real model bytes):
 | 0x8C | 4 | i32 | max_y | observed | bounding box max Y |
 | 0x90 | 4 | i32 | max_z | observed | bounding box max Z |
 
-This slice decodes the **observed** fields (name, position, bounding box). The
-nested-array offset/count fields are read but not yet followed.
+The top-level parser reads the observed name, position, bounding box, and count
+fields. The nested arrays are walked sequentially as documented in
+[`odm-model-facets.md`](odm-model-facets.md); no on-disk offset table exists.
 
 ## Verified example (Outa1.odm)
 
@@ -99,21 +112,11 @@ The decoder rejects, deterministically and without reading out of bounds:
 - a model count whose records would extend past the end of the payload;
 - any individual record field read past the payload end.
 
-## Historical question status
+## Open questions
 
-> Audited in the [open-question register](../open-questions.md); the register
-> supersedes unresolved hypotheses below.
-
-- ~~The model facet stream that sits between models' vertex arrays.~~ Decoded:
-  the record is a fixed 308 bytes and every model's mesh now walks. See
-  [`odm-model-facets.md`](odm-model-facets.md).
-- The third 128×128 terrain grid (offset 0x80B0) — its meaning is unknown.
-- ~~How model positions relate to the heightmap coordinate system (units,
-  handedness).~~ Resolved: model coordinates are absolute world units on the
-  terrain's own scale, with X/Y horizontal and Z up. See
-  [`odm-model-facets.md`](odm-model-facets.md).
-
-The record's +0x44/+0x4C fields are labeled `vertex_offset`/`facet_offset` in
-the table above, from the engine struct. On disk they hold the vertex and facet
-**counts**; the loader overwrites them with pointers at runtime. See
+The meaning of the third 128×128 terrain grid at offset `0x80B0` remains
+`unknown`; its authoritative status is in the
+[open-question register](../open-questions.md). The facet stream, model
+coordinate system, and the on-disk count fields at `+0x44` and `+0x4C` are
+resolved in [`odm-model-facets.md`](odm-model-facets.md) and
 [`odm-model-mesh.md`](odm-model-mesh.md).

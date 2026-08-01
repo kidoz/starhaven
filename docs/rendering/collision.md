@@ -1,3 +1,15 @@
+---
+title: "Collision and movement"
+summary: "Engine-side collision queries, swept movement, controls, and known limitations for StarHaven map traversal."
+doc_type: explanation
+status: partial
+last_updated: 2026-08-01
+tags:
+  - rendering
+  - collision
+  - movement
+  - engine
+---
 # Collision and movement
 
 How the walkers turn decoded map geometry into something you move through
@@ -38,7 +50,7 @@ wall" from "already through it", but comparing against the start position can.
 
 Queries are brute force over every polygon — a few thousand per level. That is
 far cheaper than the rasterization already happening each frame, and it avoids
-depending on the indoor BSP and room data, which is still undecoded.
+coupling collision behavior to the indoor BSP or sector-based render culling.
 
 ## Movement
 

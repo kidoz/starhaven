@@ -1,3 +1,15 @@
+---
+title: "Overlay table (DOVERLAY.BIN)"
+summary: "Record layout and sprite-frame join for the Might and Magic VI overlay table."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - doverlay
+  - overlays
+  - binary-table
+---
 # Overlay table (`DOVERLAY.BIN`, Might and Magic VI)
 
 Status: **decoded, layout corrected and verified.** A small lookup from an

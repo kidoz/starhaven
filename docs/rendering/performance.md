@@ -1,7 +1,20 @@
+---
+title: "Renderer performance"
+summary: "Reproducible performance measurements and bottleneck analysis for the StarHaven software renderer."
+doc_type: explanation
+status: historical
+last_updated: 2026-08-01
+tags:
+  - rendering
+  - performance
+  - benchmark
+  - software-rasterizer
+---
 # Renderer performance (StarHaven)
 
-Status: **measured.** What the software rasterizer costs, on every map, in an
-optimised build.
+This historical benchmark snapshot records what the software rasterizer cost
+on every map in an optimised build. The commands remain reproducible, but the
+numbers are not a release performance guarantee.
 
 ## How to reproduce
 

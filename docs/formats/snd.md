@@ -1,3 +1,15 @@
+---
+title: "SND sound archive"
+summary: "Archive layout and RIFF/WAVE payload behavior for Might and Magic VI sound effects."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - snd
+  - audio
+  - archive
+---
 # SND sound archive (Might and Magic VI)
 
 Status: **verified.** The container holding MM6's sound effects, and the wave

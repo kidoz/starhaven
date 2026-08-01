@@ -1,3 +1,15 @@
+---
+title: "Decoration frame table (DIFT.BIN)"
+summary: "Record layout, animation grouping, and icon joins for the Might and Magic VI decoration frame table."
+doc_type: reference
+status: verified
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - dift
+  - animation
+  - binary-table
+---
 # Decoration frame table (`DIFT.BIN`, Might and Magic VI)
 
 Status: **decoded, layout corrected and verified.** This is the frame table for

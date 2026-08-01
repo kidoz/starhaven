@@ -15,11 +15,16 @@ tags:
 This standard keeps `docs/` readable as plain Markdown, buildable by MkDocs,
 useful as compatibility reference, and predictable for AI agents. It applies to
 new pages and to existing pages when they receive substantial edits. It does not
-require a bulk rewrite of untouched historical documents.
+require a bulk rewrite of untouched historical documents. Its intentionally
+compact metadata includes only fields that improve search, ownership of facts,
+evidence tracking, and maintenance.
 
-The metadata is intentionally compact. Published project documentation needs
-only the fields that improve search, ownership of facts, evidence tracking, and
-maintenance.
+## Scope
+
+This page defines the authoring, evidence, linking, metadata, navigation, and
+validation contract for every Markdown page published from `docs/`. It does not
+govern private working notes, source comments, or test design except where a
+public page links to those artifacts as evidence.
 
 ## Goals
 

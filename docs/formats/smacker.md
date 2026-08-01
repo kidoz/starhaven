@@ -1,7 +1,26 @@
+---
+title: "Smacker video in Might and Magic VI"
+summary: "Header, frame, Huffman, palette, video, and audio boundaries for Smacker streams used by the game."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - smacker
+  - video
+  - codec
+---
 # Smacker video (`.smk`) as used by Might and Magic VI
 
-Status: **video decoding verified; audio not decoded.** Each claim is tagged
+Status: **video and MM6 DPCM audio decoding verified.** Each claim is tagged
 `observed`, `inferred`, or `unknown`.
+
+## Scope
+
+Covers the header, frame tables, palette records, the block-coded video stream,
+and the DPCM audio tracks — everything MM6 uses. The Bink-audio variant some
+Smacker files carry is detected and reported, not decoded; **no MM6 track uses
+it**.
 
 ## Provenance of this specification
 
@@ -11,13 +30,6 @@ by reverse engineering `MM6.exe`.** The implementation was ported from the
 project maintainer's own MIT-licensed MM7 engine code, which cites public
 format documentation, and was then corrected and verified against MM6's own
 videos. The observations below are ours; the layout is public knowledge.
-
-## Scope
-
-Covers the header, frame tables, palette records, the block-coded video stream,
-and the DPCM audio tracks — everything MM6 uses. The Bink-audio variant some
-Smacker files carry is detected and reported, not decoded; **no MM6 track uses
-it**.
 
 ## Source provenance (non-expressive)
 
@@ -253,11 +265,11 @@ were, which is what a run of skip blocks would have done.
 > Audited in the [open-question register](../open-questions.md); the register
 > supersedes unresolved hypotheses below.
 
-- The Bink-audio variant. The Bink bit (27) is clear on **all 80 audio tracks**
+- The Bink-audio variant. The Bink bit (27) is clear on **all 77 audio tracks**
   across the 127 videos, so no MM6 video uses it; it remains undecoded because
   nothing exercises it. `unknown` (the path, not the absence)
 - Which of bits 31 and 30 is "compressed" and which is "present". Both are set
-  on **all 80 tracks**, so this data cannot distinguish them; nothing in the
+  on **all 77 tracks**, so this data cannot distinguish them; nothing in the
   decoder depends on telling them apart, since each chunk announces its own
   compression. `unknown`
 - Whether `mmap_size`/`mclr_size`/`full_size`/`type_size` must be honored as

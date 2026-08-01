@@ -1,3 +1,15 @@
+---
+title: "BLV indoor map format for Might and Magic VI"
+summary: "Binary layout and decoded geometry sections of Might and Magic VI BLV indoor maps."
+doc_type: reference
+status: partial
+last_updated: 2026-08-01
+tags:
+  - mm6
+  - blv
+  - indoor-map
+  - geometry
+---
 # BLV indoor map format (Might and Magic VI)
 
 Status: **draft, evidence-backed — geometry only.** The level geometry of the
@@ -133,8 +145,8 @@ array's offset in the index block, so subtracting the offset recovers it — and
 every face in a map agrees, on all 52 maps. `blv_info` reports it. `observed`
 
 That makes any other stale pointer in the file readable as a payload offset,
-which is worth having even though it has not yet cracked anything: see the open
-questions.
+which is worth retaining even though it does not identify the later sections;
+see the open questions.
 
 The six arrays are, in order:
 
@@ -201,7 +213,7 @@ Three of the four long-unread bits now have their runtime tests:
 | 0x40000 | 2,509 | **a door's face**: the door geometry updater (the function whose own assertion reads `"Door Error… Overflow dividing facet->d by facet->nz"`) recomputes texture coordinates against the door's per-face `delta_u`/`delta_v` arrays only where this bit is set — the bit selects which faces slide their texture with the door's travel. `observed` |
 | 0x400000 | 7 | **the scrolling sky**: the face maps to a render-side flag whose one consumer subtracts `GetTickCount()/8` from the texture offset each frame — the ceiling's sky drifts with real time. `observed` |
 | 0x20000000 | 2,836 | **pass-through**: the point-under-party floor lookup skips such faces, and a face-interaction routine refuses them at its first instruction — geometry that is drawn but never touched, which is how a fake wall hides a secret passage. `observed` |
-| 0x10 | 416 | routed to an **alternate per-vertex draw routine** (the same conversion that maps the sky bit): a distinct render path for these mostly-liquid floors, whose visual behavior is not yet characterized. `observed` for the routing, `unknown` for what it draws differently |
+| 0x10 | 416 | routed to an **alternate per-vertex draw routine** (the same conversion that maps the sky bit): a distinct render path for these mostly-liquid floors. `observed` for the routing; its visual difference is `unknown` |
 
 Bits 0x8 and 0x1000 (~29,000 each) accompany the texture origins in the
 face's extra record (see below). The remaining bits appear on fewer than
@@ -641,7 +653,7 @@ sector culler walks between sectors; slot 2 (`+0x10`) is **faces** (render
 `0x4080c0`); slot 3 (`+0x18`) is **lights** (lighting `0x404ed0`); slot 4
 (`+0x20`) is **collision geometry** (collision `0x407720` builds vertex triples
 from it). The remaining three slots (6, 7, 8) and the head/gap/middle bytes are
-pinned to a follow-up trace of their consumers. `observed` for the named slots'
+pinned by tracing their consumers. `observed` for the named slots'
 pointer use, `inferred` for the portal/light/collision labels.
 
   Sliding-window stride detection over that region on `D03.blv` segments it
@@ -662,6 +674,7 @@ pointer use, `inferred` for the portal/light/collision labels.
      first search attempt, and it turned out not to be a section at all: it is
      the face-extra name array, now decoded. Finding it moved the boundary
      forward but did not make the count-prefixed model work for what follows.
+
 - What follows the decoration block is now partly read: first the lights,
   then the quad section, both above. What the quads mean, and whatever
   trails them, stays `unknown`.
