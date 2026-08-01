@@ -1318,6 +1318,16 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The teacher is in the game.** Four batches of tracing had left a rank that
+  could be read and never earned, and a character that died with the two
+  skills its class handed it. Now a guild can teach a skill the class's row in
+  `0x4c2694` allows — refusing outright what it zeroes, whatever the price —
+  and the rungs above novice are bought from the party's purse at the
+  teacher's own **2000 and 5000 gold**, one rung at a time, setting the bits
+  `0x4969e4` sets and leaving the points alone. The sheet shows a skill's
+  points and rung and what the next one costs; shift over its number buys it.
+  It also fixes a visible bug: the sheet had been printing the packed byte, so
+  a master's five points read as 133.
 - **The gamble on `0x90e19c`: six clocks that belong to the scripts alone.**
   Property ids 216..221 stamp eight-byte world-clock values into a fixed array
   just past the party record, and **four instructions in the whole executable

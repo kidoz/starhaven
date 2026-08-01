@@ -75,3 +75,71 @@ TEST_CASE("an offer knows ready, short, and beyond", "[training]") {
     train(who);
     REQUIRE(who.max_hit_points - who.hit_points == wounded);
 }
+
+TEST_CASE("a guild teaches what the class may hold", "[training]") {
+    game::Character who;
+    who.class_name = "Cleric";
+    who.skills[std::string(game::kSkillNames[game::skill_id("Mace")])] = 3;
+    int gold = 100;
+    // A cleric may learn Chain; a knight's magic is refused whatever it pays.
+    REQUIRE(game::learn_skill(who, game::skill_id("Chain"), 40, gold) ==
+            game::TeachRefusal::None);
+    REQUIRE(gold == 60);
+    REQUIRE(game::skill_points(who.skills["Chain"]) == 1);
+    REQUIRE(game::skill_rank(who.skills["Chain"]) == 0);
+    // Twice is refused, and the purse is untouched.
+    REQUIRE(game::learn_skill(who, game::skill_id("Chain"), 40, gold) ==
+            game::TeachRefusal::AlreadyHolds);
+    REQUIRE(gold == 60);
+    // Plate is zero in the cleric's row: never, at any price.
+    REQUIRE(game::learn_skill(who, game::skill_id("Plate"), 0, gold) ==
+            game::TeachRefusal::ClassMayNot);
+    // And a purse too thin buys nothing.
+    REQUIRE(game::learn_skill(who, game::skill_id("Staff"), 999, gold) ==
+            game::TeachRefusal::TooPoor);
+    REQUIRE_FALSE(who.skills.contains("Staff"));
+}
+
+TEST_CASE("a rung costs the teacher's own price", "[training]") {
+    game::Character who;
+    who.class_name = "Cleric";
+    who.skills["Mace"] = 3;
+    int gold = 2000;
+    // Master cannot be bought over novice's head.
+    REQUIRE(game::buy_rank(who, game::skill_id("Mace"), 2, gold) ==
+            game::TeachRefusal::NotNextRung);
+    REQUIRE(game::buy_rank(who, game::skill_id("Mace"), 1, gold) == game::TeachRefusal::None);
+    REQUIRE(gold == 0);
+    REQUIRE(game::skill_rank(who.skills["Mace"]) == 1);
+    REQUIRE(game::skill_points(who.skills["Mace"]) == 3);  // the points do not move
+    // Master is five thousand, and an empty purse buys nothing.
+    REQUIRE(game::buy_rank(who, game::skill_id("Mace"), 2, gold) == game::TeachRefusal::TooPoor);
+    gold = 5000;
+    REQUIRE(game::buy_rank(who, game::skill_id("Mace"), 2, gold) == game::TeachRefusal::None);
+    REQUIRE(gold == 0);
+    REQUIRE(game::skill_rank(who.skills["Mace"]) == 2);
+    // A skill not held cannot be ranked.
+    gold = 9999;
+    REQUIRE(game::buy_rank(who, game::skill_id("Chain"), 1, gold) == game::TeachRefusal::NotHeld);
+}
+
+TEST_CASE("what is left to learn is what the class may hold", "[training]") {
+    game::Character knight;
+    knight.class_name = "Knight";
+    const auto left = game::teachable_skills(knight);
+    // A knight with nothing yet may be taught everything its row allows and
+    // nothing it forbids.
+    REQUIRE(!left.empty());
+    for (const int slot : left) {
+        REQUIRE(game::class_may_learn(game::class_id("Knight"), slot));
+    }
+    for (const int school : {game::skill_id("Fire"), game::skill_id("Dark"),
+                             game::skill_id("Meditation"), game::skill_id("Thievery")}) {
+        REQUIRE(std::find(left.begin(), left.end(), school) == left.end());
+    }
+    // What it already holds drops off the list.
+    knight.skills["Sword"] = 1;
+    const auto after = game::teachable_skills(knight);
+    REQUIRE(std::find(after.begin(), after.end(), game::skill_id("Sword")) == after.end());
+    REQUIRE(after.size() + 1 == left.size());
+}

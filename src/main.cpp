@@ -985,10 +985,19 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
                         shadow);
         y += line;
         int numbered = 5;
-        for (const auto& [skill, points] : who.skills) {
+        for (const auto& [skill, packed] : who.skills) {
+            // The stored byte is points and rank together; the sheet used to
+            // print it raw, so a master's five points read as 133.
+            const int points = game::skill_points(packed);
+            const int rank = game::skill_rank(packed);
             std::string label = (numbered <= 9 ? std::to_string(numbered) + "  " : "   ") +
-                                skill + "  " + std::to_string(points) + "  (raise for " +
-                                std::to_string(game::raise_cost(points)) + ")";
+                                skill + "  " + std::to_string(points) + " " +
+                                std::string(game::kRankNames[static_cast<std::size_t>(rank)]) +
+                                "  (raise for " + std::to_string(game::raise_cost(points)) + ")";
+            if (rank < 2) {
+                label += ", " + std::string(game::kRankNames[static_cast<std::size_t>(rank + 1)]) +
+                         " for " + std::to_string(game::teach_price(rank + 1)) + " gold";
+            }
             game::draw_text(scene.framebuffer(), font, 24, y, label,
                             who.skill_points >= game::raise_cost(points) ? white : dim, shadow);
             y += line;
@@ -4869,6 +4878,45 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key >= SDLK_1 &&
                        event.key.key <= SDLK_9) {
                 const int chosen = static_cast<int>(event.key.key - SDLK_1);
+                // Held shift over a numbered skill buys its next rung from
+                // the teacher, at the teacher's own price — 2000 gold for
+                // expert, 5000 for master, and the bits it sets are the ones
+                // `0x4969e4` sets. The rung is bought with the party's purse,
+                // not with the sheet's skill points, which buy only the
+                // number beneath it.
+                if (const bool shifted = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+                    shifted && shown_member >= 0 && chosen >= 4 && chosen < 9) {
+                    auto& who = party[static_cast<std::size_t>(shown_member)];
+                    int index = chosen - 4;
+                    for (const auto& [skill, packed] : who.skills) {
+                        if (index-- != 0) {
+                            continue;
+                        }
+                        const int slot = game::skill_id(skill);
+                        const int want = game::skill_rank(packed) + 1;
+                        switch (game::buy_rank(who, slot, want, gold)) {
+                            case game::TeachRefusal::None:
+                                shop_said = who.name + " is taught to " +
+                                            std::string(game::kRankNames[
+                                                static_cast<std::size_t>(want)]) +
+                                            " in " + skill;
+                                break;
+                            case game::TeachRefusal::TooPoor:
+                                shop_said = "That costs " +
+                                            std::to_string(game::teach_price(want)) + " gold.";
+                                break;
+                            case game::TeachRefusal::NotNextRung:
+                                shop_said = who.name + " has nothing left to learn in " + skill;
+                                break;
+                            default:
+                                shop_said = "No one here teaches " + skill + " to a " +
+                                            who.class_name;
+                                break;
+                        }
+                        break;
+                    }
+                    break;
+                }
                 if (talking_to >= 0) {
                     // Ask about one of the three things this person knows.
                     // A topic the global script defines is a quest: walk it,

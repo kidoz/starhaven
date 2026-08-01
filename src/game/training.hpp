@@ -11,7 +11,10 @@
 // a level grants; both are this engine's own and say so.
 
 #include <cctype>
+#include <cstdint>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "core/data/building_stats.hpp"
 #include "core/data/text_table.hpp"
@@ -82,6 +85,99 @@ inline void train(Character& who) {
     // Skill points to spend on the sheet; that a level grants five is this
     // engine's own number. `inferred`
     who.skill_points += 5;
+}
+
+// --- Teaching: a new skill, and the two rungs above novice ----------------
+//
+// The teacher at `0x4969e4` is the only thing in the executable that sets a
+// skill's rank bits, and it does three things and no more: it masks the byte
+// with `0x3f`, ORs exactly one of `0x40` and `0x80`, and charges **2000 gold
+// for expert or 5000 for master** (see skills.hpp for both traces). It does
+// **not** test the points — a character with one point may be made a master
+// if it can pay. `observed`
+//
+// What it does test is the gold, and which class is asking: the table at
+// `0x4c2694` decides whether a class may hold the skill at all.
+
+enum class TeachRefusal : std::uint8_t {
+    None,
+    ClassMayNot,   // the class's row zeroes this skill
+    AlreadyHolds,  // asked to learn a skill already held
+    NotHeld,       // asked to rank a skill not held
+    NotNextRung,   // asked for master while still a novice
+    TooPoor,
+};
+
+// What a guild charges to teach a skill outright. No table states it and no
+// routine has been read for it; the hall's own `Val` is this engine's
+// reading, the same one `training_cost` takes. `inferred`
+[[nodiscard]] inline int learn_cost(const data::BuildingStatsEntry& shop) noexcept {
+    const auto cost = static_cast<int>(shop.price_factor);
+    return cost < 1 ? 1 : cost;
+}
+
+// Teach a skill the character does not have, at one point and no rank.
+inline TeachRefusal learn_skill(Character& who, int slot, int cost, int& gold) {
+    if (slot < 0 || slot >= kSkillSlots) {
+        return TeachRefusal::ClassMayNot;
+    }
+    if (!class_may_learn(class_id(who.class_name), slot)) {
+        return TeachRefusal::ClassMayNot;
+    }
+    const std::string name(kSkillNames[static_cast<std::size_t>(slot)]);
+    if (const auto it = who.skills.find(name);
+        it != who.skills.end() && skill_points(it->second) > 0) {
+        return TeachRefusal::AlreadyHolds;
+    }
+    if (gold < cost) {
+        return TeachRefusal::TooPoor;
+    }
+    gold -= cost;
+    who.skills[name] = 1;
+    return TeachRefusal::None;
+}
+
+// Buy the next rung. The teacher takes the rank it is told and clears the old
+// bits first, so a rung is never both; this refuses a jump from novice
+// straight to master, which is this engine's own rule and not the routine's.
+// `inferred` for the one-rung-at-a-time part, `observed` for everything else.
+inline TeachRefusal buy_rank(Character& who, int slot, int rank, int& gold) {
+    if (slot < 0 || slot >= kSkillSlots) {
+        return TeachRefusal::ClassMayNot;
+    }
+    if (!class_may_learn(class_id(who.class_name), slot)) {
+        return TeachRefusal::ClassMayNot;
+    }
+    const std::string name(kSkillNames[static_cast<std::size_t>(slot)]);
+    const auto it = who.skills.find(name);
+    if (it == who.skills.end() || skill_points(it->second) <= 0) {
+        return TeachRefusal::NotHeld;
+    }
+    if (rank < 1 || rank > 2 || rank != skill_rank(it->second) + 1) {
+        return TeachRefusal::NotNextRung;
+    }
+    const int cost = teach_price(rank);
+    if (gold < cost) {
+        return TeachRefusal::TooPoor;
+    }
+    gold -= cost;
+    it->second = teach_rank(it->second, rank);
+    return TeachRefusal::None;
+}
+
+// What a character may still be taught here, in slot order.
+[[nodiscard]] inline std::vector<int> teachable_skills(const Character& who) {
+    std::vector<int> out;
+    for (int slot = 0; slot < kSkillSlots; ++slot) {
+        if (!class_may_learn(class_id(who.class_name), slot)) {
+            continue;
+        }
+        const auto it = who.skills.find(std::string(kSkillNames[static_cast<std::size_t>(slot)]));
+        if (it == who.skills.end() || skill_points(it->second) <= 0) {
+            out.push_back(slot);
+        }
+    }
+    return out;
 }
 
 }  // namespace starhaven::game
