@@ -1318,6 +1318,17 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The actor preparation, and a name given back.** The per-tick routine at
+  `0x401ac7` fills two actor fields from tables, and one of them costs a
+  claim. It reaches a **second per-monster table of 148-byte rows** behind the
+  pointer at `0x5e217c` for the actor's radius at `+0x7a` — the 72-byte table
+  is not the only one. And eight instructions later it copies the 72-byte
+  row's **`+0x12` straight into the actor's animation state at `+0x3e`**, the
+  field the hurt action sets to 4. So `+0x12` is an idle animation index, and
+  last batch's reading of it as the row's *peacefulness* — leaned on for the
+  hundred-point reputation penalty — is **withdrawn**. What stands is the
+  guard itself: the hundred is taken only when that byte is zero. The full
+  column map is still not done and says so.
 - **The four holes in the stat space, read.** The gear getter dispatches ids
   0..22 through a 23-byte selector, and the four unnamed ones each get a body
   that says where it takes its number from in its first two instructions.

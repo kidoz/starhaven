@@ -190,11 +190,12 @@ inline constexpr int kDeathsAward = 82;
 //     jne  skip
 //     sub  dword [0x908d48], 0x64        ; -100
 //
-// So the double penalty is for **angering something that was peaceful**: the
-// monster row's `+0x12` is what tells the two apart, and a party flag at
-// `0x908dbd` can waive it. `observed` for the guards and the amount;
-// `inferred` that `+0x12` is the row's peacefulness, from its being the only
-// thing that decides whether provoking this creature costs anything.
+// `observed` for the guards and the amount. **The peacefulness reading is
+// withdrawn**: `0x401b09` copies that same `+0x12` byte into the actor's
+// animation state at `+0x3e`, so it is an idle animation index and not a
+// disposition. What stands is that the hundred is taken only when the row's
+// `+0x12` is zero and the party flag at `0x908dbd` is clear; whether a zero
+// there also marks a peaceful creature is `unknown`.
 inline constexpr int kReputationPerProvocation = 100;
 
 // The bands the table names without numbers are still this engine's, but they

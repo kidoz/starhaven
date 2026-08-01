@@ -642,3 +642,53 @@ shipped game.** Each reduces its field to "greater than zero" and each field is
 always zero, so each branch always takes the same side. That is the answer the
 withdrawal was owed: not "they come from the file", but that the fields are
 dead and the behaviours behind them never run.
+
+## What the per-tick preparation says, and one retraction
+
+The routine at `0x401ac7` runs over an actor each tick and fills two of its
+fields from tables. Both are worth having, and one of them costs a name.
+
+**The radius comes from a second monster table.** 
+
+```
+mov  al, byte [ebp + 0x34]        ; the monster's row
+lea  ecx, [eax + eax*8]           ; x9
+lea  edx, [eax + ecx*4]           ; x37
+mov  eax, dword [0x5e217c]
+mov  cx,  word [eax + edx*4 - 0x94]   ; x4 -> a stride of 148
+mov  word [ebp + 0x7a], cx
+```
+
+So there is a **second per-monster table of 148-byte rows**, behind the
+pointer at `0x5e217c`, and the actor's radius at `+0x7a` is one of its
+columns. `observed` — the 72-byte table at `0x56c188` is not the only one.
+
+**And the retraction.** Eight instructions later:
+
+```
+mov  al, byte [ebp + 0x34]
+lea  edx, [eax + eax*8]
+mov  al, byte [edx*8 + 0x56c19a]      ; the 72-byte row's +0x12
+mov  byte [ebp + 0x3e], al            ; the animation state
+```
+
+— guarded by the 64-bit pair at `+0xd4`/`+0xd8` having lapsed. `+0x3e` is the
+animation state the hurt action sets to **4**. So the monster row's `+0x12` is
+**an animation state**, not a disposition.
+
+The reputation work read that same byte in the hundred-point penalty's guard
+and called it the row's peacefulness. That name is **withdrawn**: what is
+observed is that the double penalty applies only when the row's `+0x12` is
+zero, and `+0x12` is now known to be the idle animation state. Whether a
+zero there also marks a peaceful creature is `unknown` — it may well
+correlate, since townsfolk and monsters need not share an idle set, but the
+fit is no longer available as evidence.
+
+The same routine tests the actor's `+0x114`/`+0x118` and `+0x124`/`+0x128`
+pairs at `0x401b13` and `0x401b2d`, which is a fourth independent sighting of
+the timers nothing writes.
+
+**The column map is still not done.** Two columns of the 72-byte table now
+have homes — `+0x12` the animation state, and the five referenced elsewhere —
+and one column of the 148-byte table does. The rest needs the whole
+preparation routine read, which remains a batch of its own. `unknown`
