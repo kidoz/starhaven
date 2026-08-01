@@ -761,10 +761,12 @@ party's position at `+0x28`, `+0x2c` and `+0x30`, and `0x908c78` — party
 `+0x08` — is added to the z, which makes it the **eye height**.
 
 **State 1-and-3** (`0x403b60`) opens differently: it takes `+0x92` and `+0x94`
-against `+0x7e` and `+0x78`, and subtracts one pair from the other. A stored
-pair differenced against the live position is a **vector home** — the actor
-measuring how far it has drifted from where it belongs. `observed` for the
-reads and the subtraction, `inferred` for the name.
+against `+0x7e` and `+0x80`, and subtracts one pair from the other. The
+preparation routine at `0x455cb5` settles what the first pair is — it writes
+the spawn position into `+0x92`/`+0x94`/`+0x96` and `+0x7e`/`+0x80`/`+0x82`
+together, and only the second triple ever moves. So the action measures **how
+far the actor has strayed from where it was placed**. `observed`, not
+inferred.
 
 Six of the eleven remain unnamed. What this adds is that the grouping was
 right for the wrong reason, that the sight test now has an address, and that

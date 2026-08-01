@@ -1692,6 +1692,16 @@ interoperability and compatibility with a legally purchased copy.
   differences a stored pair against the live position — an actor measuring how
   far it has drifted from where it belongs. Six of the eleven remain unnamed,
   and the write-up says so.
+- **What an actor takes from `DMONLIST` — and an inference made observed.**
+  `0x455cb5` is the preparation, and it reads both tables into one actor: the
+  record's `+0x00`, `+0x02` and `+0x04` become the actor's `+0x7a`, `+0x78` and
+  `+0x7c`, and the 72-byte row's `HP` at `+0x30` becomes `+0x28`, confirming
+  both offsets at once. The payoff is what it does next — it writes the spawn
+  position into **`+0x92`/`+0x94`/`+0x96` and `+0x7e`/`+0x80`/`+0x82`
+  together**, and only the second triple ever moves. That settles AI state
+  1-and-3, which differences the two: the "post it remembers" is its **spawn
+  point**, and the name goes from `inferred` to `observed`. Only three of the
+  record's seventy-four words are read anywhere besides the eight names.
 - **The 148-byte monster table is `DMONLIST`, loaded.** The second per-monster
   table that surfaced last batch is a file this project already documents:
   173 records of 148 bytes against `MONSTERS.TXT`'s 173 monsters, behind the

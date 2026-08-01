@@ -215,3 +215,43 @@ While here, the 72-byte table beside it gives up its first column: `0x455c8f`
 and `0x4a3686` both take `dword [9 × id × 8 + base]` and run `repne scasb`
 over it, so the **72-byte row's `+0x00` is the monster's name pointer**.
 `observed`
+
+## What the actor takes from the record
+
+`0x455cb5` is the preparation, and it reads both tables into one actor. What
+it takes from **this** record:
+
+| record | actor | what |
+| --- | --- | --- |
+| `+0x00` | `+0x7a` | the **radius** |
+| `+0x02` | `+0x78` | a second body word |
+| `+0x04` | `+0x7c` | a third |
+| `+0x30` (x8, ten bytes each) | `+0xac` (x8, two bytes each) | the **sprite set**, resolved through `0x55dd88` |
+
+and from the 72-byte row beside it, `+0x30` — the `HP` column — goes to the
+actor's `+0x28`, which confirms both offsets at once.
+
+**And the spawn point.** The same three values that fill the actor's position
+at `+0x7e`, `+0x80` and `+0x82` are written again to **`+0x92`, `+0x94` and
+`+0x96`**:
+
+```
+mov word [ebx + 0x92], ax
+mov word [ebx + 0x7e], ax
+mov word [ebx + 0x94], ax
+mov word [ebx + 0x80], ax
+mov word [ebx + 0x96], ax
+mov word [ebx + 0x82], ax
+```
+
+So the second triple is **where the actor was placed**, and it never moves.
+That settles AI state 1-and-3, which differences `+0x92`/`+0x94` against
+`+0x7e`/`+0x80` and was written up as "how far it has strayed from a post it
+remembers" — `inferred`. The post is its **spawn point**, and the name is now
+`observed`.
+
+`+0x9e` is initialised to **256** by the same routine. `unknown`.
+
+Only three of the record's seventy-four words are read anywhere in the image
+besides the eight names — the fixed base was worth the search, but most of
+what the file carries the runtime never looks at.
