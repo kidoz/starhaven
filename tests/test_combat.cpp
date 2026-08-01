@@ -898,3 +898,15 @@ TEST_CASE("the award adds to the share rather than scaling it", "[combat]") {
     learned.skills["Learning"] = game::teach_rank(20, 2);  // 20 points, master
     REQUIRE(game::learning_percent(learned.skills["Learning"]) == 60);
 }
+
+TEST_CASE("the game measures a distance without a square root", "[combat]") {
+    // max + min/2, the octagonal approximation the AI's own thresholds use.
+    REQUIRE(game::octagonal_distance(10, 0) == 10);
+    REQUIRE(game::octagonal_distance(0, -10) == 10);
+    REQUIRE(game::octagonal_distance(10, 10) == 15);
+    REQUIRE(game::octagonal_distance(-8, 4) == 10);
+    REQUIRE(game::octagonal_distance(0, 0) == 0);
+    // It never reads below the longer leg, and overstates the diagonal.
+    REQUIRE(game::octagonal_distance(100, 100) > 100);
+    REQUIRE(game::octagonal_distance(100, 100) < 100 * 3 / 2 + 1);
+}

@@ -1087,3 +1087,32 @@ proof of alignment.
 as "a dword doubled while the actor's `+0x134` pair is positive". It is the
 **recovery**, and doubling it while a timer runs is exactly what a Slow does —
 the same doubling this engine already applies to a slowed monster.
+
+## How the game measures a distance
+
+State 1-and-3 gives it away. It differences the stored pair at `+0x92`/`+0x94`
+against the position at `+0x7e`/`+0x80`, takes both absolute values, and then:
+
+```
+cmp ecx, eax
+jle ...
+sar eax, 1
+add eax, ecx        ; max + min / 2
+```
+
+That is the **octagonal approximation** — no square root anywhere. So every
+threshold the AI tests, the awareness cut at **5120** and the second at
+**1024**, is against `max + min / 2`, which overstates a diagonal by up to
+about twelve percent against a Euclidean length. `observed` at `0x403b99`.
+
+What the action itself is doing with that distance is measuring **how far the
+actor has strayed from a post it remembers** — the stored pair is a position,
+differenced against where it stands now. `inferred` for the name.
+
+**State 10** (`0x404660`) opens exactly as state 12's sighted branch does: the
+actor's pointer, the handle `index * 8 | 3`, and a stack buffer handed to the
+position routine. So it too asks where something is before it acts, and its
+one distinguishing feature remains that nothing inside the AI calls it.
+`observed`
+
+State 7 was not reached.

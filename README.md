@@ -1408,6 +1408,16 @@ interoperability and compatibility with a legally purchased copy.
   people — and the inference it was meant to test stays where it was: id 214
   clearing party `+0x95` and `+0x96` when it flags a record is *consistent*
   with those being the hireling slots and is not proof.
+- **The gamble on the last AI actions: the game has no square root.** State
+  1-and-3 gives it away — it differences a remembered position against the live
+  one, takes both absolute values and answers **`max + min / 2`**, the
+  octagonal approximation. So every threshold the AI tests, the awareness cut
+  at 5120 and the second at 1024, is against that and not a Euclidean length,
+  which overstates a diagonal by about twelve percent. The engine now measures
+  the same way. What the action *does* with the distance is measure how far the
+  actor has strayed from a post it remembers. **State 10** opens exactly as
+  state 12's sighted branch does, so it too asks where something is before
+  acting. State 7 was not reached, and the write-up says so.
 - **The decoration table, and the actor's speed index.** Handle type 5's case
   settles the decoration array: base `0x5b23cc`, **28-byte rows**, with the
   position in the first three dwords and words at `+0x12`, `+0x14`, `+0x16`.

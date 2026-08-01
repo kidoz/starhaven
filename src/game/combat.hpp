@@ -37,6 +37,24 @@
 
 namespace starhaven::game {
 
+// **How the game measures a distance.** State 1-and-3 differences two pairs,
+// takes both absolute values, and answers `max + min / 2` — the octagonal
+// approximation, no square root anywhere:
+//
+//     sub ecx, edx ; cdq ; xor ecx, edx ; sub ecx, edx   ; abs
+//     cmp ecx, eax
+//     jle ...
+//     sar eax, 1 ; add eax, ecx                          ; max + min/2
+//
+// `observed` at 0x403b99. Every threshold the AI tests — the awareness cut at
+// 5120, the second at 1024 — is against this, not against a Euclidean length,
+// and the two differ by up to twelve percent on a diagonal.
+[[nodiscard]] inline constexpr int octagonal_distance(int dx, int dz) noexcept {
+    const int a = dx < 0 ? -dx : dx;
+    const int b = dz < 0 ? -dz : dz;
+    return a >= b ? a + b / 2 : b + a / 2;
+}
+
 // The award's two constants, out of `0x421520`.
 inline constexpr int kAwardBasePercent = 9;
 inline constexpr std::int64_t kExperienceCeiling = 0xee6b2800LL;
@@ -877,7 +895,9 @@ public:
             // **The awareness cut comes first.** The decision routine tests
             // the distance against 5120 before it considers anything else,
             // and idles outright beyond it. `observed`
-            c.aware = range2 <= kAwarenessRange * kAwarenessRange;
+            // The awareness cut is measured the game's way, not Euclidean.
+            c.aware = octagonal_distance(static_cast<int>(dx), static_cast<int>(dz)) <=
+                      static_cast<int>(kAwarenessRange);
             if (!c.aware) {
                 c.disposition = 0;
                 continue;
