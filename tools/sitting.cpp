@@ -385,6 +385,8 @@ int main(int argc, char** argv) {
     int moves = 0;
     int dropped = 0;
     int trained = 0;
+    int rungs = 0;
+    int bought_gear = 0;
     std::vector<std::string> drop_names;
     int stunned = 0;
     int tripled = 0;
@@ -688,6 +690,60 @@ int main(int argc, char** argv) {
                         ++levels;
                     }
                 }
+                // The gold is worth something now. A rung at the teacher's own
+                // 2000 and 5000, and the best piece of gear the character's
+                // own skills allow, bought at the item's own value. Which of
+                // the two the party spends on first is the harness's choice.
+                // A rung first, for the whole party: it is the larger and the
+                // better-traced purchase, and gear would otherwise eat the
+                // purse before anyone reached two thousand.
+                for (auto& who : party) {
+                    for (auto& [name, packed] : who.skills) {
+                        const int want = game::skill_rank(packed) + 1;
+                        if (want > 2 || gold < game::teach_price(want)) {
+                            continue;
+                        }
+                        int purse = static_cast<int>(gold);
+                        if (game::buy_rank(who, game::skill_id(name), want, purse) ==
+                            game::TeachRefusal::None) {
+                            gold = purse;
+                            ++rungs;
+                        }
+                    }
+                }
+                for (auto& who : party) {
+                    for (const auto slot : {game::Slot::Weapon, game::Slot::Armor}) {
+                        const auto at = static_cast<std::size_t>(slot);
+                        const bool want_weapon = slot == game::Slot::Weapon;
+                        const int held = who.equipped[at];
+                        const auto* have = held > 0
+                                               ? items.at(static_cast<std::size_t>(held))
+                                               : nullptr;
+                        int best = 0;
+                        int worth = have != nullptr ? have->value : 0;
+                        for (const auto& row : items.entries()) {
+                            const bool right_kind =
+                                want_weapon
+                                    ? (row.equip_type == data::ItemEquipType::Weapon ||
+                                       row.equip_type == data::ItemEquipType::TwoHandedWeapon ||
+                                       row.equip_type == data::ItemEquipType::Missile)
+                                    : row.equip_type == data::ItemEquipType::Armor;
+                            if (!right_kind || row.value <= worth || row.value > gold ||
+                                row.skill_group.empty() ||
+                                !who.skills.contains(row.skill_group)) {
+                                continue;
+                            }
+                            best = row.id;
+                            worth = row.value;
+                        }
+                        if (best > 0) {
+                            gold -= worth;
+                            who.equipped[at] = best;
+                            who.equipped_broken[at] = false;
+                            ++bought_gear;
+                        }
+                    }
+                }
             }
             if (hours_awake >= game::kFatigueWeakAfterHours) {
                 for (auto& who : party) {
@@ -829,6 +885,8 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "nobody went Weak\n";
     }
+    std::cout << "  " << rungs << " rungs bought, " << bought_gear
+              << " pieces of gear\n";
     std::cout << "  " << trained << " levels trained for at the hall; " << levels
               << " levels gained; " << killed << " actors killed; "
               << experience << " experience, " << gold << " gold\n";

@@ -1339,6 +1339,16 @@ interoperability and compatibility with a legally purchased copy.
   **reputation**, a second door onto the standing the death handler moves by
   fifty. The risk was save-file bookkeeping with no game meaning; it is not
   bookkeeping, but two of the three keep their names to themselves.
+- **The sitting spends its gold, and the economy answers back.** It now buys
+  at each trip to town: a rung at the teacher's traced **2000 and 5000**, for
+  the whole party first because gear would otherwise eat the purse, then the
+  best piece of weapon or armour the character's own skills allow at the
+  item's own value. The measurement that falls out is the interesting part.
+  Over thirty-two world hours and **581 kills**, a party can afford **six
+  pieces of gear and not one rung** — the hall takes most of what the corpses
+  pay. It takes **128 world hours and 1,224 kills** before the first two rungs
+  are bought, and one character reaches Expert. At the game's own prices,
+  mastery is not something a party grinds its way to in an afternoon.
 - **A sitting that grows, and a rule it had been quietly breaking.** Every run
   this project published ended with "0 levels gained", and the reason turned
   out to be worse than "the sitting never visits a trainer": the sitting was
