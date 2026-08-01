@@ -1183,3 +1183,22 @@ total** — the percentage of found gold the party loses. Two hirelings of the
 same profession would take twice as much. `observed` for the walk, the strides
 and the sum; `inferred` that the dword summed is the `%17` the prose names,
 from its being the only thing added and the prose saying so.
+
+## The profession record at run time
+
+Nineteen dwords a profession, indexed `76 x id`. **Only five of the nineteen
+are referenced anywhere in the image**, which is the first thing the table
+says about itself.
+
+| offset | how it is used |
+| --- | --- |
+| `+0x00` | the **cut of gold found**, summed by `0x41ede0` — 4 references |
+| `+0x04` | an **index into the personality tables**: `0x43adca` takes it and reads `byte [it + 0x6b999a]`, then `dword [it * 4 + 0x6b9d84]` — 28 references, the busiest field |
+| `+0x08`, `+0x0c` | two **text pointers**, tried in that order at `0x4111e3` and falling back to a literal at `0x4cb230` when both are empty |
+| `+0x10` | 2 references; `unknown` |
+| `+0x2c` | 2 references; `unknown` |
+
+`observed`. The fourteen dwords nothing reads are not padding in any obvious
+sense — the record is 76 bytes and `npcprof.txt` has six columns — so most of
+what the file carries is either kept as text elsewhere or not kept at all.
+`unknown` which.

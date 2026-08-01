@@ -1407,6 +1407,16 @@ interoperability and compatibility with a legally purchased copy.
   but it explains the earlier mistake: property id 214 clears them because
   flagging somebody in the roster changes what a list shows — not because the
   bytes held the hirelings.
+- **The profession record, and how little of it the game keeps.** Nineteen
+  dwords a profession at `0x6b5dcc`, and **only five are referenced anywhere in
+  the image**. `+0x00` is the cut of gold the party loses; `+0x04` is the
+  busiest field at 28 references and is an **index into the personality
+  tables** at `0x6b999a` and `0x6b9d84`; `+0x08` and `+0x0c` are two **text
+  pointers tried in order**, falling back to a literal when both are empty;
+  `+0x10` and `+0x2c` have two references apiece and stay `unknown`. The
+  fourteen dwords nothing reads are the finding as much as the five that are —
+  most of what `npcprof.txt` carries is either held as text elsewhere or not
+  held at all.
 - **The gold cut, finished — and the profession table at run time.** Every
   profession's row ends `%01 takes %17 percent of all gold you find`, and
   `0x41ede0` is what applies it. It walks the party's **two sixty-byte
