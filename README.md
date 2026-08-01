@@ -1701,6 +1701,19 @@ interoperability and compatibility with a legally purchased copy.
   answering with the party's own position), **5 a decoration** (28-byte rows at
   `0x5b23cc`). With `handle = index * 8 | tag`, that is the encoding every part
   of the game passes around, and all four kinds now have names.
+- **What a slot actually is, from the expiry routine.** `0x44ab00` gives the
+  layout in eleven instructions: an **eight-byte expiry**, two words at `+0x08`
+  and `+0x0a` that are cleared when it lapses, and a word at **`+0x0c` that
+  survives the clear** — because it is what the routine switches on. The
+  party's and each character's slots are an expiry and two words; the actor's
+  carries a fourth naming what to undo. That word is **bounded at 50**, and out
+  of range the routine trips an assertion reading
+  `"D:\MM6Src\code\ITEMS.CPP"`; in range, the expiry clears a **twenty-byte
+  record** at `0x5e217c + 20 x id` and raises a redraw flag. So the effect id
+  has an *item's* provenance, which reframes the nine slots as possibly timed
+  item effects carried on the actor rather than monster buffs. Naming the
+  remaining eight is not done — what this adds is the true shape, the bound,
+  and a fourth field to search on that did not exist before.
 - **State 5 is the expiry pass — and the actor's buff grid is real after all.**
   `0x405d60` walks every actor and hands **nine sixteen-byte records from
   `+0xc4`** the world clock, one a tick, through `0x44ab00`. Every one of the

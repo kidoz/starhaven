@@ -1193,3 +1193,51 @@ branching on whether a buff is still up, exactly as the party's and each
 character's own arrays are read.
 
 The base is **`+0xc4`**, the stride sixteen, the count **nine**. `observed`
+
+## What a slot is, from the expiry
+
+`0x44ab00` is handed one sixteen-byte record and the world clock as two
+dwords, and its first eleven instructions give the layout outright:
+
+```
+mov  ecx, dword [esi]          ; +0x00, the expiry, low half
+mov  eax, dword [esi + 4]      ; +0x04, high half
+or   edx, eax
+je   done                      ; an empty slot
+cmp  eax, dword [esp + 0xc]    ; against the world clock
+jg   done
+cmp  ecx, dword [esp + 8]
+jae  done                      ; not yet due
+mov  ax, word [esi + 0xc]      ; +0x0c, kept
+mov  dword [esi], 0            ; the expiry, cleared
+mov  dword [esi + 4], 0
+mov  word [esi + 8], 0         ; +0x08, cleared
+mov  word [esi + 0xa], 0       ; +0x0a, cleared
+```
+
+So a slot is **an eight-byte expiry, two words at `+0x08` and `+0x0a`, and a
+word at `+0x0c`** — and the fourth word is the one that *survives* the clear,
+because it is what the routine then switches on. The party's and each
+character's slots are an expiry and two words; the actor's carries a fourth
+naming what to undo. `observed`
+
+Two things about that fourth word. It is **bounded at 50** — `cmp ax, 0x32`,
+and out of range the routine trips an assertion whose string is
+`"D:\MM6Src\code\ITEMS.CPP"`. And in range, the expiry clears a **twenty-byte
+record** elsewhere and raises a redraw flag at `0x5e257c`:
+
+```
+lea ecx, [eax + eax*4] ; lea eax, [ecx*4 + 0x5e217c]   ; x20
+mov word [eax + 2] ... [eax + 0xe], 0
+mov dword [eax + 0x10], 0x10000
+mov dword [0x5e257c], 1
+```
+
+So the effect id names something with a twenty-byte record and an item's
+provenance, not a monster's. **That reframes the nine slots**: they may be
+timed *item* effects carried on the actor rather than monster buffs, and the
+one already named fits either reading — `+0xf4`'s expiry restores the radius.
+
+Naming the other eight is not done. What this adds is the slot's true shape,
+the effect id's bound, and a fourth field to search on that did not exist
+before. `unknown` for the eight.
