@@ -335,6 +335,30 @@ inline constexpr std::array<int, 29> kAttributeBonus{
     return kAttributeBonus[i];
 }
 
+// **Where a new game begins**, out of `0x453ea0` — the routine that names the
+// map and places the party in the same breath:
+//
+//     mov  eax, 0xa0
+//     mov  dword [0x908ca0], eax         ; the party's z, +0x30
+//     push str.oute3.odm                 ; "oute3.odm"
+//     mov  dword [0x908c98], 0xffffda00  ; x, +0x28  = -9728
+//     mov  dword [0x908c9c], 0xffffd3c9  ; y, +0x2c  = -11319
+//     mov  dword [0x908ca4], 0x200       ; the facing, +0x34 = 512 of 2048
+//     mov  dword [0x908ca8], 0           ; the pitch, +0x38
+//
+// So a new party stands in **New Sorpigal** at (-9728, -11319, 160) facing a
+// quarter turn, and the map's name is the executable's own string beside the
+// `-window` and `-nomovie` switches. `observed`
+//
+// The game's y is the horizontal axis this engine calls z, and the game's z is
+// the height this engine calls y.
+inline constexpr std::string_view kNewGameMap = "OutE3.Odm";
+inline constexpr float kNewGameX = -9728.0f;
+inline constexpr float kNewGameHeight = 160.0f;
+inline constexpr float kNewGameZ = -11319.0f;
+inline constexpr int kNewGameFacing = 512;   // of 2048 to the turn
+inline constexpr int kFacingTurn = 2048;
+
 // The four classes a party starts as. The names are `Class.txt` headings, and
 // which four is this engine's choice: the table lists all eighteen with their
 // promotions and says nothing about starting parties. `inferred`

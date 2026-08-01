@@ -283,3 +283,28 @@ project can name.
 
 `observed` for the five writers and the four callers. The negative stands, and
 it is now a bounded one rather than a report of not having found something.
+
+## Where a new game begins
+
+`0x453ea0` names the map and places the party in the same breath:
+
+```
+mov  eax, 0xa0
+mov  dword [0x908ca0], eax         ; the party's z, +0x30  = 160
+push str.oute3.odm                 ; "oute3.odm"
+mov  dword [0x908c98], 0xffffda00  ; x, +0x28  = -9728
+mov  dword [0x908c9c], 0xffffd3c9  ; y, +0x2c  = -11319
+mov  dword [0x908ca4], 0x200       ; the facing, +0x34 = 512 of 2048
+mov  dword [0x908ca8], 0           ; the pitch, +0x38
+mov  dword [0x908cc4], 0
+mov  dword [0x908cc8], 0
+mov  dword [0x908ccc], 0
+```
+
+So a new party stands in **New Sorpigal**, `OutE3.Odm`, at **(-9728, -11319,
+160)** facing **a quarter turn**, with the pitch level. The map's name is the
+executable's own string, sitting beside the `-window` and `-nomovie` switches
+at `0x4c06f4`. `observed`
+
+The game's *y* is the horizontal axis this engine calls *z*, and the game's
+*z* is the height this engine calls *y*.

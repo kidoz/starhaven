@@ -1745,6 +1745,14 @@ interoperability and compatibility with a legally purchased copy.
   drive the fight; the nine are wired for measurement first, because what eight
   of them mean is still `unknown` and inventing behaviour for them would be
   guessing where the last three batches have been reading.
+- **Where a new game begins, traced — and a bare launch now starts one.**
+  `0x453ea0` names the map and places the party in the same breath: it pushes
+  the executable's own string **`"oute3.odm"`** — sitting beside the `-window`
+  and `-nomovie` switches — and writes **x = -9728, y = -11319, z = 160**, a
+  facing of **512 of 2048** and a level pitch. So a new party stands in **New
+  Sorpigal** at a quarter turn. Running `starhaven` with no map named used to
+  print a usage message; it now opens there, on the executable's authority
+  rather than on a guess.
 - **`0x5e217c` resolved: both readings were right.** The address is written
   once and read as a plain dword six times — the **`DMONLIST` pointer** — and
   it is also the base of a **twenty-byte record array**, three sites doing

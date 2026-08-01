@@ -2273,15 +2273,19 @@ int main(int argc, char** argv) {
     if (list_only) {
         return list_maps(data_dir);
     }
+    // With no map named, the game opens where the game opens. `0x453ea0`
+    // names `"oute3.odm"` and places the party in the same breath, so a bare
+    // launch is a new game in New Sorpigal rather than a usage message.
+    bool new_game_start = false;
     if (map_name.empty()) {
-        std::cout << "StarHaven " << STARHAVEN_VERSION << "\n";
-        if (const auto install = platform::install_from_env()) {
-            std::cout << "Game install: " << install->string() << "\n";
-        } else {
+        if (!platform::install_from_env()) {
+            std::cout << "StarHaven " << STARHAVEN_VERSION << "\n";
             std::cout << "No game install configured. Set " << platform::kInstallEnvVar << ".\n";
+            print_usage(argv[0]);
+            return 2;
         }
-        print_usage(argv[0]);
-        return 2;
+        map_name = std::string(game::kNewGameMap);
+        new_game_start = true;
     }
 
     // The install's own MM6.ini, honored where its keys map: AlwaysRun
@@ -2344,7 +2348,15 @@ int main(int argc, char** argv) {
     }
 
     if (!have_pos) {
-        if (session.outdoor()) {
+        if (new_game_start) {
+            // The traced start: the game's x and y are this engine's x and z,
+            // and its z is the height. The facing is 512 of 2048 to the turn.
+            camera.position = {game::kNewGameX, game::kNewGameHeight + game::kEyeHeight,
+                               game::kNewGameZ};
+            camera.yaw = 2.0f * 3.14159265f * static_cast<float>(game::kNewGameFacing) /
+                         static_cast<float>(game::kFacingTurn);
+            camera.pitch = 0.0f;
+        } else if (session.outdoor()) {
             camera.position = {0, 32.0f * 30.0f, 0};
             camera.yaw = 0.6f;
             camera.pitch = -0.3f;
