@@ -729,3 +729,33 @@ the stored run make stat **5**'s, since max hit points asks id 3 and reads
 bonuses are summed with another's stored value. That is what the
 instructions do; that the two are Accuracy and Speed is `inferred` from
 `stats.txt`'s order rather than from anything that names them.
+
+## Tallying the record — and why the method does not transfer
+
+The party record yielded to a tally of absolute references because it lives
+at a fixed address and nothing else does. The character record does not
+yield the same way, and the reason is worth recording.
+
+**Absolute references reach only character zero.** Counting them gives 48
+offsets and 214 references — enough to have found the buff array and Haste's
+slot in earlier sittings, but sparse, because almost every routine takes a
+character *pointer* and reaches its fields by displacement.
+
+**Displacements are contaminated.** Tallying `[reg + disp]` across the image
+gives 319 offsets in the record's range, but a displacement belongs to no
+particular structure: `+0x0a00`, `+0x04fc` and `+0x07d0` all score highly and
+all fall inside ranges that other structures use too. The tally cannot tell
+which. So the number that looks like a ranking is not one, and it is recorded
+here as a caution rather than a result.
+
+What the absolute references did name:
+
+- **`+0x1618` is cleared every tick.** The time-advance routine walks the
+  four records from `0x90a54c` in strides of `0x161c` writing zero, bounded
+  at `0x90fdbc`. It is the record's last dword and it is frame scratch.
+  `observed`
+- **`+0x60` is the base of a byte array inside the record.** `0x43012c`
+  writes `byte [reg + index*4 + 0x908f94]`, and `0x908f94` is exactly
+  `+0x60`. The array has the two hundred bytes between it and the item
+  records at `+0x128` to live in. What it holds is `unknown`. `observed`
+  for the base and the indexed write.

@@ -1193,6 +1193,17 @@ interoperability and compatibility with a legally purchased copy.
   which is a mechanic the engine did not have and now does. It is also a
   third, independent confirmation of both buff arrays' base, stride and
   count, from a routine that had nothing to do with finding them.
+- **The character record does not tally, and the reason is the point**: the
+  party record yielded to a count of absolute references because it lives at
+  a fixed address and nothing else does. The character record is reached by
+  *pointer*, so absolute references touch only character zero (48 offsets),
+  and a tally of instruction displacements is contaminated — a displacement
+  belongs to no particular structure, and the offsets that score highest fall
+  inside ranges other structures use too. Recorded as a caution rather than a
+  ranking. Two fields did come out of the absolute references: **`+0x1618`**
+  is frame scratch the time-advance clears every tick, and **`+0x60`** is the
+  base of a byte array with two hundred bytes to live in before the item
+  records begin.
 - **The gamble on the economy: empty, and the pattern is now four for
   four**: starting from the price factor did not converge — no routine in the
   executable multiplies an item's value by a runtime float in anything like a
