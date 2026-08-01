@@ -206,9 +206,34 @@ inline constexpr std::uint8_t kVarFood = 23;
 // stat getter for id 3 and reads the stored pair at `+0x20`/`+0x22`, max
 // spell points asks for id 2 and reads `+0x1c`/`+0x1e`. `observed` This
 // engine had the run starting one too high. `0x440de7`..`0x440e94`.
-inline constexpr std::uint8_t kVarStatFirst = 31;         // Might .. Luck
-inline constexpr std::uint8_t kVarStatModFirst = 38;      // their modifiers
+// **Corrected again, from the setter's own case bodies.** The property
+// dispatcher at `0x441303` gives each id a case, and the cases spell the
+// mapping out with fixed offsets that leave nothing to read into them:
+// id 32 adds to `+0x14` and id 38 to `+0x2c`, which are Might's and Luck's
+// **bases**; id 25 adds to `+0x16` and id 31 to `+0x2e`, which are the same
+// two **modifiers**. So the bases begin at 32 and the modifiers at 25 — and
+// ids **39..45 land on the modifier bodies too**, a second name for the same
+// seven fields. `observed` at 0x4419bc, 0x441ace, 0x4418ce and 0x44199a.
+inline constexpr std::uint8_t kVarStatModFirst = 25;      // Might .. Luck modifiers
+inline constexpr std::uint8_t kVarStatFirst = 32;         // Might .. Luck
+inline constexpr std::uint8_t kVarStatModAlias = 39;      // the same seven again
 inline constexpr std::uint8_t kVarResistFirst = 46;  // Fire, Elec, Cold, Poison, Magic
+
+// Three more runs the same dispatcher names, each confirmed by the offset its
+// body computes rather than by a fit:
+//
+//   * **56..86** are the thirty-one skills — the body indexes `id + 0x28`,
+//     which is `+0x60` at id 56 and `+0x7e` at id 86, and it masks with
+//     `0x3f`, keeps `0xc0` and stops at sixty, exactly as the trainer does;
+//   * **87..103** are the seventeen conditions — the body writes
+//     `+0x10c8 + 8 × id`, which is `+0x1380` at id 87, and it stamps the
+//     world clock read straight out of the party record;
+//   * **225** is the skill pool at `+0x1410`.
+//
+// `observed` at 0x441d89, 0x441dc3 and 0x44130a.
+inline constexpr std::uint8_t kVarSkillFirst = 56;
+inline constexpr std::uint8_t kVarConditionFirst = 87;
+inline constexpr std::uint8_t kVarSkillPool = 225;
 
 // Where an event sends the party.
 struct MapTravel {

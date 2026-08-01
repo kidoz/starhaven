@@ -351,11 +351,12 @@ TEST_CASE("a quest pays experience and food alongside its gold", "[walk]") {
 
 TEST_CASE("a cure and a barrel land in the outcome, not the variables", "[walk]") {
     // "Cures 10 hit points", "+2 Luck permanent", "+5 Fire resistance":
-    // types 3, 38 and 46 by the prose join.
+    // types 3, 38 and 46 — Luck's stored value is 38, the last of the run
+    // that begins at 32.
     std::vector<std::uint8_t> payload;
     push_step(payload, 9, 0, kOpcodeGive, typed(3, 10));
     push_step(payload, 9, 1, kOpcodeGive, typed(5, 4));
-    push_step(payload, 9, 2, kOpcodeGive, typed(37, 2));
+    push_step(payload, 9, 2, kOpcodeGive, typed(38, 2));
     push_step(payload, 9, 3, kOpcodeGive, typed(46, 5));
     push_step(payload, 9, 4, kOpcodeEnd, {0});
     const MapScript script = parse(payload);
@@ -364,10 +365,10 @@ TEST_CASE("a cure and a barrel land in the outcome, not the variables", "[walk]"
     const auto outcome = starhaven::game::walk_event(script, 9, state);
     REQUIRE(outcome.healed_hp == 10);
     REQUIRE(outcome.healed_sp == 4);
-    REQUIRE(outcome.stat_gains[6] == 2);    // Luck is variable 37, the seventh
+    REQUIRE(outcome.stat_gains[6] == 2);    // Luck is variable 38, the seventh
     REQUIRE(outcome.resist_gains[0] == 5);  // Fire is the first
     REQUIRE(outcome.acted());
-    REQUIRE(state.variables.find(37) == state.variables.end());
+    REQUIRE(state.variables.find(38) == state.variables.end());
 }
 
 TEST_CASE("a quest sets an award and a later check wears it", "[walk]") {
@@ -463,12 +464,13 @@ TEST_CASE("a switch disables and re-enables another event", "[walk]") {
 }
 
 TEST_CASE("both attribute runs reach the same seven gains", "[script]") {
-    // 31..37 are the stored values and 38..44 the modifiers beside them; a
-    // script raising either raises the attribute.
+    // 32..38 are the stored values and 25..31 the modifiers beside them, on
+    // the offsets the property setter's own case bodies compute; a script
+    // raising either raises the attribute.
     std::vector<std::uint8_t> payload;
-    push_step(payload, 4, 0, kOpcodeGive, typed(31, 3));   // Might, stored
-    push_step(payload, 4, 1, kOpcodeGive, typed(38, 2));   // Might, modifier
-    push_step(payload, 4, 2, kOpcodeGive, typed(44, 6));   // Luck, modifier
+    push_step(payload, 4, 0, kOpcodeGive, typed(32, 3));   // Might, stored
+    push_step(payload, 4, 1, kOpcodeGive, typed(25, 2));   // Might, modifier
+    push_step(payload, 4, 2, kOpcodeGive, typed(31, 6));   // Luck, modifier
     push_step(payload, 4, 3, kOpcodeEnd, {0});
     const MapScript script = parse(payload);
     starhaven::game::WalkState state;
@@ -476,4 +478,34 @@ TEST_CASE("both attribute runs reach the same seven gains", "[script]") {
     REQUIRE(outcome.stat_gains[0] == 5);
     REQUIRE(outcome.stat_gains[6] == 6);
     REQUIRE(outcome.stat_gains[3] == 0);
+}
+
+TEST_CASE("the property runs the setter's cases name", "[script]") {
+    // Each of these is fixed by the offset the case body computes, not by a
+    // fit: id 56 lands on `+0x60`, id 87 on `+0x1380`, id 225 on `+0x1410`.
+    REQUIRE(kVarStatModFirst == 25);
+    REQUIRE(kVarStatFirst == 32);
+    REQUIRE(kVarStatModAlias == 39);
+    REQUIRE(kVarSkillFirst == 56);
+    REQUIRE(kVarConditionFirst == 87);
+    REQUIRE(kVarSkillPool == 225);
+    // The two attribute runs do not overlap, and the alias sits past both.
+    REQUIRE(kVarStatModFirst + 7 == kVarStatFirst);
+    REQUIRE(kVarStatFirst + 7 == kVarStatModAlias);
+    // Thirty-one skills and seventeen conditions leave no gap between them.
+    REQUIRE(kVarSkillFirst + 31 == kVarConditionFirst);
+    REQUIRE(kVarConditionFirst + 17 == 104);
+}
+
+TEST_CASE("either name for a modifier raises the same attribute", "[script]") {
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 5, 0, kOpcodeGive, typed(25, 3));  // Might, modifier
+    push_step(payload, 5, 1, kOpcodeGive, typed(39, 4));  // Might again
+    push_step(payload, 5, 2, kOpcodeGive, typed(45, 1));  // Luck, the alias
+    push_step(payload, 5, 3, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 5, state);
+    REQUIRE(outcome.stat_gains[0] == 7);
+    REQUIRE(outcome.stat_gains[6] == 1);
 }

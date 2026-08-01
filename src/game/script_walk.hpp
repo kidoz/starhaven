@@ -305,11 +305,15 @@ struct WalkOutcome {
                     out.stat_gains[static_cast<std::size_t>(type - world::kVarStatFirst)] +=
                         value;
                 } else if (!take && step.opcode == world::kOpcodeGive &&
-                           type >= world::kVarStatModFirst &&
-                           type < world::kVarStatModFirst + 7) {
+                           ((type >= world::kVarStatModFirst &&
+                             type < world::kVarStatModFirst + 7) ||
+                            (type >= world::kVarStatModAlias &&
+                             type < world::kVarStatModAlias + 7))) {
                     // The seven modifiers beside the seven stored values;
                     // a script raising either raises the attribute.
-                    out.stat_gains[static_cast<std::size_t>(type - world::kVarStatModFirst)] +=
+                    out.stat_gains[static_cast<std::size_t>(
+                        type >= world::kVarStatModAlias ? type - world::kVarStatModAlias
+                                                        : type - world::kVarStatModFirst)] +=
                         value;
                 } else if (!take && step.opcode == world::kOpcodeGive &&
                            type >= world::kVarResistFirst &&

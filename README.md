@@ -1270,14 +1270,6 @@ interoperability and compatibility with a legally purchased copy.
   never hold; and the sitting now throws every spell at the caster's real
   points in its school rather than a flat five. Skills and the pool already
   survived a save.
-- **The gamble on `0x55e5d0`: the sine table.** The most-referenced runtime
-  table in the executable — 290 reads and not one write — is read through
-  quadrant folding around a quarter and a half held at `0x55f614` and
-  `0x55f618`, and what comes out goes into a 64-bit multiply shifted back
-  sixteen bits. So the risk landed exactly as named: it is trigonometry. What
-  it settles anyway is the arithmetic every moving thing runs on — the angle
-  scale, the two circle constants by name, and **16.16 fixed point** as the
-  engine's convention. See `docs/formats/fixed-point.md`.
 - **A longer sitting**: `sitting` now takes several maps comma-separated and
   carries the party, the clock, the fatigue counter and the tally across all
   of them; `--level N` makes a party that survives long enough to be
@@ -1306,6 +1298,21 @@ interoperability and compatibility with a legally purchased copy.
   goes; the reads, the pairs and the spacing stand. Either the values arrive
   wholesale from the map or the save, or the three AI actions gated on them
   are unreachable.
+- **The gamble on what a level grants: a negative, and a dispatcher.** The
+  pool grant at `0x441314` turns out to be one case of a general **"add this
+  much to that property of this character"** routine — 225 property ids, a
+  byte selector at `0x441ff0`, 53 case bodies — and the amount is simply what
+  the caller passes. It has four callers in the whole image, two of them
+  reading the id out of an event instruction; none is a level-up. So what a
+  level is worth is still `unknown`, the second approach from the writing side
+  to end there. What it gave instead is the property map, and each row is
+  fixed by the offset its body computes rather than by a fit: **56..86 are the
+  thirty-one skills** (masked `0x3f`, `0xc0` kept, stopped at sixty — the
+  trainer's arithmetic from a second direction), **87..103 the seventeen
+  conditions** at `+0x1380`, stamped with the world clock out of the party
+  record, and **225 the skill pool**. It also **corrected the attribute
+  variable runs**: the modifiers begin at 25 and the bases at 32, not 31 and
+  38. See `docs/formats/character-properties.md`.
 - **The gamble on `0x55e5d0`: the sine table.** The most-referenced runtime
   table in the executable — 290 reads and not one write — is read through
   quadrant folding around a quarter and a half held at `0x55f614` and
