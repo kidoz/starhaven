@@ -393,6 +393,24 @@ inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
     return rank >= 2 ? 3 : rank == 1 ? 2 : 1;
 }
 
+// **Learning has no implementation to copy.** Its row says "Skill increases
+// amount of experience received", doubled at expert and tripled at master, and
+// nothing in MM6.exe applies it. That is not a guess about coverage: the
+// experience field at `+0x1420` is touched by **eighteen instructions in the
+// whole image**, five of them writes — the script property routines' set, add
+// and take for id 13, and character creation — and every read of the skill
+// array is accounted for by training, the trainer's list, the creation
+// chooser, the teacher and two display paths. None of them meet. `observed`
+//
+// So how much a point is worth here is this engine's own: **one percent more
+// experience per point**, before the party's split, doubled and tripled by the
+// rung the way every other silent row is. `inferred`
+inline constexpr int kLearningPercentPerPoint = 1;
+
+[[nodiscard]] inline constexpr int learning_percent(int packed) noexcept {
+    return skill_points(packed) * rank_multiplier(packed) * kLearningPercentPerPoint;
+}
+
 // Identify Item and Repair Item take the packed byte, because their rungs are
 // the plain doublings above.
 [[nodiscard]] inline constexpr int weighted_identify(int packed) noexcept {

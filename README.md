@@ -1318,6 +1318,20 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **What Learning is worth: nothing the executable says.** The experience at
+  `+0x1420` turns out to be **64-bit** — the adder carries into `+0x1424` and
+  clamps at four billion, and the sheet switches fonts past 9,999,999 — and a
+  new character is created with **`rand() % 100 + 251`** of it, in the same
+  breath that sets its level to 1. But `+0x1420` is touched by **eighteen
+  instructions in the whole image**, five of them writes, all of them the
+  script property routines or creation; and every read of the skill array is
+  accounted for by training, the trainer's list, the creation chooser, the
+  teacher and two display paths. **The two sets never meet**: nothing
+  multiplies experience and nothing reads slot 30. So Learning has no
+  implementation to copy, and what a point is worth here says it is this
+  engine's own. One honest open end falls out of the same count — **the award
+  for a kill is not among those eighteen references either**, and has not been
+  found.
 - **The gamble on `0x434e50`: the loading screen.** The routine whose
   forty-byte records disproved the actor buff grid is the constructor of a
   static object at `0x52d0a8` — `atexit` is handed its destructor two

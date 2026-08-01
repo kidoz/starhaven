@@ -552,7 +552,15 @@ public:
         const int each = (experience_ + experience_ * bonus_percent / 100) / standing;
         for (auto& who : party) {
             if (who.hit_points > 0) {
-                who.experience += each;
+                // "Skill increases amount of experience received" — the one
+                // row of the sixteen silent ones that names a number-shaped
+                // effect. It is read per character, because that is where the
+                // skill lives and the row says nothing about the party.
+                int learned = 0;
+                if (const auto it = who.skills.find("Learning"); it != who.skills.end()) {
+                    learned = learning_percent(it->second);
+                }
+                who.experience += each + each * learned / 100;
             }
         }
         experience_ = 0;

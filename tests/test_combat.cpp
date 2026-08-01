@@ -822,3 +822,13 @@ TEST_CASE("the wielder's own weapon skill reaches the attack bonus", "[combat]")
     who.skills["Sword"] = 20;
     REQUIRE(game::wielded_skill_points(who, items) == 0);
 }
+
+TEST_CASE("Learning takes its cut of a share", "[combat]") {
+    // The row says "Skill increases amount of experience received", doubled
+    // at expert and tripled at master. Nothing in the executable applies it,
+    // so the per-point worth is this engine's; the shape is the row's.
+    REQUIRE(game::learning_percent(0) == 0);
+    REQUIRE(game::learning_percent(10) == 10);
+    REQUIRE(game::learning_percent(game::teach_rank(10, 1)) == 20);
+    REQUIRE(game::learning_percent(game::teach_rank(10, 2)) == 30);
+}

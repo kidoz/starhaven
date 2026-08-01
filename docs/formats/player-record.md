@@ -1007,3 +1007,41 @@ buried. Immediately before the resistance call:
 While the pair is greater than zero the blow does no damage at all — so it was
 a **damage-shield window on the actor**. Since nothing ever writes it and every
 actor on disk carries zero, the shield never comes up. `observed`
+
+## The experience field, and what Learning is worth
+
+`+0x1420` is the experience, and it is **64-bit**: the property adder does a
+`cdq`/`add`/`adc` pair across `+0x1420` and `+0x1424` and clamps the result at
+`0xee6b2800` — four billion — while the sheet at `0x41498a` tests the pair
+against **9,999,999** to choose which of two fonts prints it. `observed`
+
+A new character is not created with none of it. `0x483e2b` sets the level word
+at `+0x32` to 1 and, in the same breath, writes `rand() % 100 + 251` to
+`+0x1420` — so every character starts somewhere between **251 and 350**.
+`observed`
+
+**Learning has no implementation in the executable.** That is not a guess
+about how hard the search was: `+0x1420` is touched by **eighteen instructions
+in the whole image**, of which five write —
+
+| where | what |
+| --- | --- |
+| `0x440c12` | the script property setter, id 13 |
+| `0x4416e3`, `0x441707` | the script property adder, id 13, clamped at four billion |
+| `0x4425bb` | the script property taker, as a 64-bit subtract |
+| `0x483e41` | character creation, `rand() % 100 + 251` |
+
+— and every read of the skill array in the image is likewise accounted for:
+the training routine, the trainer's list, the creation chooser, the teacher,
+and two display paths. **The two sets never meet.** No instruction multiplies
+experience by anything, and nothing reads slot 30.
+
+That leaves an honest open end worth stating plainly: **the award for a kill
+is not among those eighteen references either.** Whatever grants experience
+for a dead monster does not write `+0x1420` directly, and it has not been
+found. `unknown`
+
+So what a point of Learning is worth here is this engine's own — one percent
+more experience a point, doubled and tripled by the rung the way every other
+silent row is, applied per character because that is where the skill lives.
+`inferred`
