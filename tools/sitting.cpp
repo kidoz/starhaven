@@ -67,6 +67,13 @@ void print_usage(const char* argv0) {
               << "Set STARHAVEN_GAME_DIR to the install directory.\n";
 }
 
+// The caster's own points in the school the spell answers to. Nothing had
+// read these: every spell in the sitting used to be thrown at a flat five.
+[[nodiscard]] int school_points(const game::Character& who, const data::SpellStatsEntry& row) {
+    const auto it = who.skills.find(std::string(game::school_skill(row.school)));
+    return it == who.skills.end() ? 0 : game::skill_points(it->second);
+}
+
 // The nearest living actor within `reach`, or none. The reach matters: the
 // game gives the party the same 400 units the monsters' own melee uses, and
 // an earlier version of this harness let the party strike at any distance —
@@ -297,23 +304,13 @@ int main(int argc, char** argv) {
     std::int64_t fatigue_hour = 0;
     std::int64_t weak_at = -1;
     std::size_t actors_at_start = 0;
-    // Each character's own skill array and the pool that buys into it: the
-    // thirty-one bytes at `+0x60` and the dword at `+0x1410`. The sitting
-    // starts them where a made party starts — four skills at a point apiece —
-    // and `--train` hands out a pool at every level. How large a pool a level
-    // grants is this engine's number; the executable's grant site adds a
-    // value from further up than has been read. `unknown`
-    std::array<std::array<int, game::kSkillSlots>, 4> skills{};
-    std::array<int, 4> purse{};
-    for (auto& row : skills) {
-        for (const int slot : {1, 4, 9, 12}) {
-            row[static_cast<std::size_t>(slot)] = 1;
-        }
-    }
-    // A made character starts with a pool of its own, as well as earning one
-    // at every level.
-    for (int& pool : purse) {
-        pool = train_points;
+    // The skills are the character's own now — the two its class row grants,
+    // laid in by `derive_start`. `--train` hands out a pool at creation and
+    // again at every level. How large a pool a level grants is this engine's
+    // number; the executable's grant site adds a value from further up than
+    // has been read. `unknown`
+    for (auto& who : party) {
+        who.skill_points += train_points;
     }
 
     for (const std::string& map_name : maps) {
@@ -380,7 +377,9 @@ int main(int argc, char** argv) {
                         party[who].spell_points < row->cost_normal) {
                         continue;
                     }
-                    const int worth = game::roll_spell_damage(id, 5, [] { return 3ULL; });
+                    const int worth =
+                        game::roll_spell_damage(id, school_points(party[who], *row),
+                                                [] { return 3ULL; });
                     if (worth > best) {
                         best = worth;
                         chosen = id;
@@ -388,12 +387,14 @@ int main(int argc, char** argv) {
                 }
                 if (chosen > 0) {
                     const auto* row = spells.at(static_cast<std::size_t>(chosen));
+                    const int points = school_points(party[who], *row);
                     party[who].spell_points -= row->cost_normal;
                     data::SpellRange flat;
                     data::SpellRange scaled;
-                    (void)game::traced_damage_ranges(chosen, 5, flat, scaled);
+                    (void)game::traced_damage_ranges(chosen, points, flat, scaled);
                     const int hp_was = battle.health_of(target).first;
-                    battle.smite(target, flat, scaled, 5, row->element, party[who].name, session,
+                    battle.smite(target, flat, scaled, points, row->element, party[who].name,
+                                 session,
                                  monsters, items, random_items, standard_bonuses,
                                  special_bonuses);
                     ++tally[who].casts;
@@ -454,32 +455,29 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        for (std::size_t who = 0; who < party.size(); ++who) {
-            const int gained = game::level_up(party[who]);
+        for (auto& who : party) {
+            const int gained = game::level_up(who);
             levels += gained;
-            purse[who] += gained * train_points;
+            who.skill_points += gained * train_points;
         }
         // Spend the pool the moment there is anything to spend it on, on the
         // training routine's own terms: the cheapest skill first, `n + 1` a
         // point, and never past sixty.
         if (train_points > 0) {
-            for (std::size_t who = 0; who < party.size(); ++who) {
+            for (auto& who : party) {
                 bool spent = true;
                 while (spent) {
                     spent = false;
-                    std::size_t cheapest = game::kSkillSlots;
-                    for (std::size_t slot = 0; slot < skills[who].size(); ++slot) {
-                        if (skills[who][slot] == 0) {
-                            continue;
-                        }
-                        if (cheapest == game::kSkillSlots ||
-                            game::skill_points(skills[who][slot]) <
-                                game::skill_points(skills[who][cheapest])) {
-                            cheapest = slot;
+                    auto cheapest = who.skills.end();
+                    for (auto it = who.skills.begin(); it != who.skills.end(); ++it) {
+                        if (cheapest == who.skills.end() ||
+                            game::skill_points(it->second) <
+                                game::skill_points(cheapest->second)) {
+                            cheapest = it;
                         }
                     }
-                    if (cheapest < game::kSkillSlots &&
-                        game::train_skill(skills[who][cheapest], purse[who])) {
+                    if (cheapest != who.skills.end() &&
+                        game::train_skill(cheapest->second, who.skill_points)) {
                         ++bought;
                         spent = true;
                     }
@@ -577,8 +575,8 @@ int main(int argc, char** argv) {
         std::cout << " (";
         for (std::size_t who = 0; who < party.size(); ++who) {
             int best = 0;
-            for (const int slot : skills[who]) {
-                best = std::max(best, game::skill_points(slot));
+            for (const auto& [name, packed] : party[who].skills) {
+                best = std::max(best, game::skill_points(packed));
             }
             std::cout << (who == 0 ? "" : " ") << party[who].name.substr(0, 4) << " best "
                       << best;

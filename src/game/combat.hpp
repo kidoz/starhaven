@@ -37,6 +37,25 @@
 
 namespace starhaven::game {
 
+// The wielder's own points in the skill the held weapon answers to, or none
+// when the hand is empty, the weapon broken, or its group not one the skill
+// list names. `ITEMS.TXT`'s group headings are `SKILLDES.TXT`'s own, which is
+// what lets the two be joined by name at all.
+[[nodiscard]] inline int wielded_skill_points(const Character& who,
+                                              const data::ItemStatsTable& items) noexcept {
+    const auto slot = static_cast<std::size_t>(Slot::Weapon);
+    const int held = who.equipped[slot];
+    if (held <= 0 || who.equipped_broken[slot]) {
+        return 0;
+    }
+    const auto* row = items.at(static_cast<std::size_t>(held));
+    if (row == nullptr || row->skill_group.empty()) {
+        return 0;
+    }
+    const auto it = who.skills.find(row->skill_group);
+    return it == who.skills.end() ? 0 : skill_points(it->second);
+}
+
 // How near a monster has to be to swing at the party, in world units.
 // `inferred`
 inline constexpr float kMeleeRange = 400.0f;
@@ -561,8 +580,15 @@ public:
         // gear gives Accuracy, plus Speed cut by the years and by whatever
         // ails, then banded. See src/game/skills.hpp.
         const int aged_speed = ailing_attribute(who, Attribute::Speed, kAgeAttackPercent);
-        const int attack = attribute_bonus(traced_attack_bonus(
+        int attack = attribute_bonus(traced_attack_bonus(
             who.gear_attributes[static_cast<std::size_t>(Attribute::Accuracy)], aged_speed));
+        // "Skill added to Attack Bonus" — every one of the nine weapon rows
+        // in `SKILLDES.TXT` opens with that line, and until now nothing read
+        // it. The wielder's own points in the weapon's skill group go on top
+        // of the ladder, one for one, which is what the line says and no more.
+        // `observed` in the rows; that a point is worth exactly one is this
+        // engine's reading, as it has been since the line was first parsed.
+        attack += wielded_skill_points(who, items);
         // A drawn bow is the shot's own kind — `2 × armour + 30`, which is
         // why archery against armour asks for skill; a swing is the plain
         // bar. Which call site passes which kind is the original's;

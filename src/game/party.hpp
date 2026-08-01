@@ -26,6 +26,7 @@
 #include "core/random.hpp"
 #include "game/buffs.hpp"
 #include "game/conditions.hpp"
+#include "game/skills.hpp"
 
 namespace starhaven::game {
 
@@ -336,6 +337,11 @@ inline constexpr std::array<std::string_view, 18> kClassNames{
     return 0;
 }
 
+// The six families the skill table is indexed by, from a class's name.
+[[nodiscard]] inline int class_family_of(std::string_view name) noexcept {
+    return class_family(class_id(name));
+}
+
 // **Age**, and what it costs. Three routines — the attack bonus, max hit
 // points and recovery — each build a number from the world clock's year,
 // the word at `+0x36`, the party word at `+0x141c` and a constant **1165**,
@@ -494,13 +500,14 @@ inline constexpr int kExperienceStep = 1000;
 inline void derive_start(Character& c) {
     c.max_hit_points = class_hit_points(
         c.class_name, 1, attribute_bonus(c.attribute(Attribute::Endurance)));
-    // One weapon skill at one point, by class; which is this engine's
-    // reading of the class prose (see skills.hpp for the choices).
+    // The two skills the class begins with, at one point each: the pair its
+    // row in `0x4c2694` marks, not a guess off the class prose. `observed`
     c.skills.clear();
-    c.skills[c.class_name == "Knight"                                  ? "Sword"
-             : c.class_name == "Paladin" || c.class_name == "Cleric"   ? "Mace"
-             : c.class_name == "Archer"                                ? "Bow"
-                                                                       : "Staff"] = 1;
+    for (const int slot : class_starting_skills(class_id(c.class_name))) {
+        if (slot >= 0) {
+            c.skills[std::string(kSkillNames[static_cast<std::size_t>(slot)])] = 1;
+        }
+    }
     c.hit_points = c.max_hit_points;
     c.known_spells.clear();
     c.max_spell_points = 0;

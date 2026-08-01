@@ -811,3 +811,14 @@ TEST_CASE("a monster with a preference picks its named victims", "[combat]") {
     REQUIRE(party[1].hit_points == 500);
     REQUIRE(party[3].hit_points == 500);
 }
+
+TEST_CASE("the wielder's own weapon skill reaches the attack bonus", "[combat]") {
+    // "Skill added to Attack Bonus" is the first line of all nine weapon
+    // rows in SKILLDES.TXT, and until the skill array was named nothing read
+    // it.
+    game::Character who;
+    data::ItemStatsTable items;
+    // An empty hand answers zero however skilled the character is.
+    who.skills["Sword"] = 20;
+    REQUIRE(game::wielded_skill_points(who, items) == 0);
+}

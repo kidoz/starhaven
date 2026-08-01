@@ -1261,6 +1261,15 @@ interoperability and compatibility with a legally purchased copy.
   Paladin sword and spirit, Archer bow and air, Druid staff and earth. That
   fit also **corrected an earlier list** that had Light and Dark ahead of the
   three self schools; read that way, no Sorcerer could ever learn Dark.
+- **The skills now reach play.** A made character is given the **two** skills
+  its class row grants, at one point each, replacing an invented single one
+  that had a Paladin starting with Mace and a Sorcerer with Staff; the
+  wielder's own points in the held weapon's group go onto the attack bonus,
+  which is the first line of all nine weapon rows and was never read; the
+  trainer refuses past sixty points and refuses outright what a class may
+  never hold; and the sitting now throws every spell at the caster's real
+  points in its school rather than a flat five. Skills and the pool already
+  survived a save.
 - **The gamble on `0x55e5d0`: the sine table.** The most-referenced runtime
   table in the executable — 290 reads and not one write — is read through
   quadrant folding around a quarter and a half held at `0x55f614` and

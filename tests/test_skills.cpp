@@ -89,10 +89,12 @@ TEST_CASE("the staircase and the haggle behave", "[skills]") {
 }
 
 TEST_CASE("every base class starts with a weapon skill", "[skills]") {
-    REQUIRE(starting_skill("Knight") == "Sword");
-    REQUIRE(starting_skill("Archer") == "Bow");
-    REQUIRE(starting_skill("Cleric") == "Mace");
-    REQUIRE(starting_skill("Sorcerer") == "Staff");
+    REQUIRE(kSkillNames[static_cast<std::size_t>(class_starting_skills(0)[0])] == "Sword");
+    REQUIRE(kSkillNames[static_cast<std::size_t>(class_starting_skills(12)[0])] == "Bow");
+    REQUIRE(kSkillNames[static_cast<std::size_t>(class_starting_skills(3)[0])] == "Mace");
+    // Two of the six guesses this replaces were wrong.
+    REQUIRE(kSkillNames[static_cast<std::size_t>(class_starting_skills(6)[0])] == "Dagger");
+    REQUIRE(kSkillNames[static_cast<std::size_t>(class_starting_skills(9)[0])] == "Sword");
 }
 
 TEST_CASE("the higher lines wake at their ranks", "[skills]") {
@@ -314,4 +316,22 @@ TEST_CASE("the offered list is what a new character picks from", "[skills]") {
     REQUIRE(class_skill_access(3, skill_id("Mace")) == SkillAccess::Granted);
     REQUIRE(class_skill_access(3, skill_id("Light")) == SkillAccess::Later);
     REQUIRE(class_skill_access(3, skill_id("Plate")) == SkillAccess::Never);
+}
+
+TEST_CASE("a class begins with two skills, not one", "[skills]") {
+    // The retraction this replaces gave one invented weapon skill per class.
+    for (int who = 0; who < 18; who += 3) {
+        const auto pair = class_starting_skills(who);
+        REQUIRE(pair[0] >= 0);
+        REQUIRE(pair[1] >= 0);
+        REQUIRE(pair[0] != pair[1]);
+        // Both are granted, and no third slot is.
+        REQUIRE(class_skill_access(who, pair[0]) == SkillAccess::Granted);
+        REQUIRE(class_skill_access(who, pair[1]) == SkillAccess::Granted);
+        int granted = 0;
+        for (int slot = 0; slot < kSkillSlots; ++slot) {
+            granted += class_skill_access(who, slot) == SkillAccess::Granted ? 1 : 0;
+        }
+        REQUIRE(granted == 2);
+    }
 }

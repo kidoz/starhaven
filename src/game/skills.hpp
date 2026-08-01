@@ -151,21 +151,11 @@ struct SkillPower {
 // staircase is the engine's own. `inferred`
 [[nodiscard]] inline int raise_cost(int points) noexcept { return points + 1; }
 
-// The one weapon skill a new character starts with, one point, by class.
-// The class table says which weapons a class may use, in prose; which single
-// skill begins at one point is this engine's reading of it. `inferred`
-[[nodiscard]] inline std::string_view starting_skill(std::string_view class_name) noexcept {
-    if (class_name == "Knight") {
-        return "Sword";
-    }
-    if (class_name == "Paladin" || class_name == "Cleric") {
-        return "Mace";
-    }
-    if (class_name == "Archer") {
-        return "Bow";
-    }
-    return "Staff";  // Druid, Sorcerer
-}
+// **Retracted.** One invented weapon skill per class stood here, read off the
+// class prose. The table at `0x4c2694` says what a class actually begins
+// with, and it is **two** skills rather than one — see `class_starting_skills`
+// below. Two of the six guesses were wrong besides: a Paladin begins with
+// Sword, not Mace, and a Sorcerer with Dagger, not Staff.
 
 // The skill a spell answers to: its school's own name, which is also that
 // skill's SKILLDES.TXT heading.

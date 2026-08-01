@@ -5122,8 +5122,15 @@ int main(int argc, char** argv) {
                         if (index-- != 0) {
                             continue;
                         }
+                        // The training routine's own two refusals: sixty is
+                        // the ceiling, and a class may never be taught what
+                        // its row in `0x4c2694` zeroes.
                         const int cost = game::raise_cost(points);
-                        if (who.skill_points >= cost) {
+                        const bool allowed =
+                            game::skill_points(points) < game::kSkillPointCap &&
+                            game::class_may_learn(game::class_id(who.class_name),
+                                                  game::skill_id(skill));
+                        if (allowed && who.skill_points >= cost) {
                             who.skill_points -= cost;
                             // "Skill adds to Hit Points" / "...Spell
                             // Points": the raise pays its whole delta at
