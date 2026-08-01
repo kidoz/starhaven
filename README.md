@@ -1318,6 +1318,22 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The higher lines fire at last** — and finding out why they never had
+  turned up a real bug. `DescriptionTable` hands over every description column
+  from the second onward, and `SKILLDES.TXT`'s columns are *Skill /
+  Description / Normal / Expert / Master* — so the prose is `lines[0]` and the
+  rank-`r` line is `lines[r + 1]`. `skill_power` walked from `lines[0]`,
+  reading the prose as the normal line, the normal line as the expert one and
+  the expert line as the master one. **Nothing above novice ever did what it
+  says**, in the shell as well as headless. Beside it, four flourishes in the
+  strike were assigning over one another instead of appending, so only the
+  last to fire was ever spoken. With both fixed, `sitting --arm` (which hands
+  each character the cheapest weapon in a group it actually holds — a made
+  party carries nothing, which is why none of this had ever been exercised)
+  shows the ranks doing what the table says: over four world hours on one map,
+  **16 kills at novice against 34 at master, with 4 stuns and 11 second arrows
+  at master and none at either below it**. The triple strike still never fires
+  because no class in the starting four holds Dagger.
 - **Whose resistances are whose.** Two claims stood in the same record and
   both could not be right. `0x421dc0`, which turns an element id into a
   resistance, reads the six bytes at `+0x50`..`+0x55` — and **its argument is

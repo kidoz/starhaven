@@ -98,7 +98,7 @@ TEST_CASE("every base class starts with a weapon skill", "[skills]") {
 }
 
 TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
-    const std::vector<std::string> mace{"Skill added to Attack Bonus",
+    const std::vector<std::string> mace{"the prose column", "Skill added to Attack Bonus",
                                         "Skill added to Attack Damage",
                                         "Chance to stun equal to skill"};
     // Three points: normal only — bonus but no damage, no stun.
@@ -114,14 +114,14 @@ TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
     auto high = skill_power(mace, 8 | 0x80);
     REQUIRE(high.stun_percent == 8);
 
-    const std::vector<std::string> shield{"Skill added to Armor Class",
+    const std::vector<std::string> shield{"the prose column", "Skill added to Armor Class",
                                           "Skill added to Armor Class (double effect)",
                                           "Skill added to Armor Class (triple effect)"};
     REQUIRE(skill_power(shield, 3).armor == 3);
     REQUIRE(skill_power(shield, 4 | 0x40).armor == 8);
     REQUIRE(skill_power(shield, 7 | 0x80).armor == 21);
 
-    const std::vector<std::string> bow{"Skill added to Attack Bonus",
+    const std::vector<std::string> bow{"the prose column", "Skill added to Attack Bonus",
                                        "Skill reduces recovery time",
                                        "Bow fires two arrows on every attack"};
     REQUIRE_FALSE(skill_power(bow, 6 | 0x40).second_arrow);
@@ -129,13 +129,13 @@ TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
     REQUIRE(skill_power(bow, 6 | 0x40).recovery_scale < 1.0f);
     REQUIRE(skill_power(bow, 3).recovery_scale == 1.0f);
 
-    const std::vector<std::string> dagger{"Skill added to Attack Bonus",
+    const std::vector<std::string> dagger{"the prose column", "Skill added to Attack Bonus",
                                           "Permits use of dagger in left hand",
                                           "Chance to cause triple damage equal to skill"};
     REQUIRE(skill_power(dagger, 7 | 0x80).triple_percent == 7);
     REQUIRE(skill_power(dagger, 6 | 0x40).triple_percent == 0);
 
-    const std::vector<std::string> merchant{"Skill adjusts shop prices in your favor",
+    const std::vector<std::string> merchant{"the prose column", "Skill adjusts shop prices in your favor",
                                             "Double effect of skill", "Triple effect of skill"};
     REQUIRE(skill_power(merchant, 3).price_percent == 3);
     REQUIRE(skill_power(merchant, 4 | 0x40).price_percent == 8);
@@ -143,17 +143,17 @@ TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
 }
 
 TEST_CASE("the body's lines grant points and lift the armor's drag", "[skills]") {
-    const std::vector<std::string> body{"Skill adds to Hit Points", "Double effect of skill",
+    const std::vector<std::string> body{"the prose column", "Skill adds to Hit Points", "Double effect of skill",
                                         "Triple effect of skill"};
     REQUIRE(skill_power(body, 3).hp_bonus == 3);
     REQUIRE(skill_power(body, 4 | 0x40).hp_bonus == 8);
     REQUIRE(skill_power(body, 7 | 0x80).hp_bonus == 21);
-    const std::vector<std::string> meditation{"Skill adds to Spell Points",
+    const std::vector<std::string> meditation{"the prose column", "Skill adds to Spell Points",
                                               "Double effect of skill",
                                               "Triple effect of skill"};
     REQUIRE(skill_power(meditation, 5 | 0x40).sp_bonus == 10);
 
-    const std::vector<std::string> plate{"Skill added to Armor Class",
+    const std::vector<std::string> plate{"the prose column", "Skill added to Armor Class",
                                          "Recovery penalty reduced",
                                          "Recovery penalty eliminated"};
     REQUIRE(skill_power(plate, 3).armor_penalty_lift == 0);
@@ -165,12 +165,12 @@ TEST_CASE("the body's lines grant points and lift the armor's drag", "[skills]")
 }
 
 TEST_CASE("the left hand opens at the line's own rank", "[skills]") {
-    const std::vector<std::string> dagger{"Skill added to Attack Bonus",
+    const std::vector<std::string> dagger{"the prose column", "Skill added to Attack Bonus",
                                           "Permits use of dagger in left hand",
                                           "Chance to cause triple damage equal to skill"};
     REQUIRE_FALSE(skill_power(dagger, 3).left_hand);
     REQUIRE(skill_power(dagger, 4 | 0x40).left_hand);  // the expert line
-    const std::vector<std::string> sword{"Skill added to Attack Bonus",
+    const std::vector<std::string> sword{"the prose column", "Skill added to Attack Bonus",
                                          "Skill reduces recovery time",
                                          "Permits use of sword in left hand"};
     REQUIRE_FALSE(skill_power(sword, 6 | 0x40).left_hand);
@@ -377,4 +377,25 @@ TEST_CASE("a rank is bought from a teacher, at the teacher's price", "[skills]")
     for (int rank = 0; rank <= 3; ++rank) {
         REQUIRE(skill_points(teach_rank(37, rank)) == 37);
     }
+}
+
+TEST_CASE("the prose column is not an effect line", "[skills]") {
+    // The row arrives as DescriptionTable hands it over: prose first, then
+    // normal, expert and master. Reading from the prose shifted every rank
+    // down by one and nothing above novice ever did what it says.
+    const std::vector<std::string> bow{"Bow skill covers both bow and crossbow usage.",
+                                       "Skill added to Attack Bonus",
+                                       "Skill reduces recovery time",
+                                       "Bow fires two arrows on every attack"};
+    REQUIRE(skill_power(bow, 5).to_hit == 5);
+    REQUIRE_FALSE(skill_power(bow, 5).second_arrow);
+    REQUIRE(skill_power(bow, 5).recovery_scale == 1.0f);
+    // Expert reaches the second line and no further.
+    REQUIRE(skill_power(bow, 5 | 0x40).recovery_scale < 1.0f);
+    REQUIRE_FALSE(skill_power(bow, 5 | 0x40).second_arrow);
+    // Master reaches the third.
+    REQUIRE(skill_power(bow, 5 | 0x80).second_arrow);
+    // A row with the prose alone grants nothing at any rank.
+    const std::vector<std::string> bare{"only prose here"};
+    REQUIRE(skill_power(bare, 9 | 0x80).to_hit == 0);
 }

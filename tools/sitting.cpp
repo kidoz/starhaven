@@ -51,7 +51,7 @@ void print_usage(const char* argv0) {
               << " [<map>[,<map>...]] [--minutes N] [--seed N] [--fps N]\n"
               << "          [--still] [--teach] [--no-spells] [--age N]\n"
               << "          [--poisoned] [--rest] [--train N] [--level N]\n"
-              << "          [--rank 0|1|2]\n"
+              << "          [--rank 0|1|2] [--arm]\n"
               << "          [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
@@ -66,6 +66,28 @@ void print_usage(const char* argv0) {
               << "30 world minutes, seed 7.\n"
               << "\n"
               << "Set STARHAVEN_GAME_DIR to the install directory.\n";
+}
+
+// What the held weapon's skill grants at the rank its byte carries: the
+// higher lines wake only when a teacher has set the bit.
+[[nodiscard]] game::SkillPower wielded_power(const game::Character& who,
+                                             const data::ItemStatsTable& items,
+                                             const data::DescriptionTable& lines) {
+    const auto slot = static_cast<std::size_t>(game::Slot::Weapon);
+    const int held = who.equipped[slot];
+    if (held <= 0 || who.equipped_broken[slot]) {
+        return {};
+    }
+    const auto* row = items.at(static_cast<std::size_t>(held));
+    if (row == nullptr || row->skill_group.empty()) {
+        return {};
+    }
+    const auto it = who.skills.find(row->skill_group);
+    const auto* described = lines.find(row->skill_group);
+    if (it == who.skills.end() || described == nullptr) {
+        return {};
+    }
+    return game::skill_power(described->text, it->second);
 }
 
 // The caster's own points in the school the spell answers to. Nothing had
@@ -130,6 +152,7 @@ int main(int argc, char** argv) {
     bool resting = false;
     int start_level = 0;
     int start_rank = 0;
+    bool arm = false;
     int train_points = 0;
 
     for (int i = 1; i < argc; ++i) {
@@ -148,6 +171,8 @@ int main(int argc, char** argv) {
             start_level = std::max(1, std::atoi(argv[++i]));
         } else if (a == "--rank" && i + 1 < argc) {
             start_rank = std::max(0, std::min(2, std::atoi(argv[++i])));
+        } else if (a == "--arm") {
+            arm = true;
         } else if (a == "--rest") {
             resting = true;
         } else if (a == "--train" && i + 1 < argc) {
@@ -197,6 +222,16 @@ int main(int argc, char** argv) {
     (void)data::load_spell_stats(data_dir, spells);
     data::NameTable names;
     (void)data::load_names(data_dir, names);
+    // SKILLDES.TXT's own effect lines. Nothing headless had ever read them,
+    // so the stun, the triple damage, the second arrow and the off hand had
+    // never fired in a fight — the strike has carried all four for a while
+    // and no caller here ever handed it a `SkillPower`.
+    data::DescriptionTable skill_lines;
+    if (data::load_descriptions(data_dir, "SKILLDES.TXT", skill_lines) !=
+        data::GameDataError::None) {
+        std::cerr << "error: could not load SKILLDES.TXT\n";
+        return 1;
+    }
 
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -300,6 +335,9 @@ int main(int argc, char** argv) {
     int levels = 0;
     int rests = 0;
     int bought = 0;
+    int stunned = 0;
+    int tripled = 0;
+    int feathered = 0;
     std::int64_t experience = 0;
     std::int64_t gold = 0;
     // The wearing-down the time-advance routine applies: a counter that
@@ -308,6 +346,38 @@ int main(int argc, char** argv) {
     std::int64_t fatigue_hour = 0;
     std::int64_t weak_at = -1;
     std::size_t actors_at_start = 0;
+    // A made party carries nothing at all, which is why the weapon skills and
+    // their higher lines had never once fired in a sitting. `--arm` hands each
+    // character the cheapest weapon in a group it actually holds, and the
+    // cheapest armour it may wear.
+    if (arm) {
+        for (auto& who : party) {
+            for (const auto slot : {game::Slot::Weapon, game::Slot::Armor}) {
+                const bool want_weapon = slot == game::Slot::Weapon;
+                int best = 0;
+                int price = 0;
+                for (const auto& row : items.entries()) {
+                    const bool right_kind =
+                        want_weapon ? (row.equip_type == data::ItemEquipType::Weapon ||
+                                       row.equip_type == data::ItemEquipType::Missile)
+                                    : row.equip_type == data::ItemEquipType::Armor;
+                    if (!right_kind || row.skill_group.empty() || row.value <= 0) {
+                        continue;
+                    }
+                    if (!who.skills.contains(row.skill_group)) {
+                        continue;
+                    }
+                    if (best == 0 || row.value < price) {
+                        best = row.id;
+                        price = row.value;
+                    }
+                }
+                if (best > 0) {
+                    who.equipped[static_cast<std::size_t>(slot)] = best;
+                }
+            }
+        }
+    }
     // The skills are the character's own now — the two its class row grants,
     // laid in by `derive_start`. `--train` hands out a pool at creation and
     // again at every level. How large a pool a level grants is this engine's
@@ -335,6 +405,28 @@ int main(int argc, char** argv) {
     game::Battle battle;
     battle.reset(session, monsters, seed);
     actors_at_start += session.actors.size();
+    if (arm) {
+        std::cout << "\nWhat they carry\n";
+        for (const auto& who : party) {
+            std::cout << "  " << std::setw(12) << std::left << who.name;
+            for (const auto slot : {game::Slot::Weapon, game::Slot::Armor}) {
+                const int piece = who.equipped[static_cast<std::size_t>(slot)];
+                const auto* row = piece > 0 ? items.at(static_cast<std::size_t>(piece)) : nullptr;
+                std::cout << "  " << (row != nullptr ? row->name : std::string("nothing"));
+                if (row != nullptr) {
+                    const auto it = who.skills.find(row->skill_group);
+                    std::cout << " (" << row->skill_group << " "
+                              << (it == who.skills.end() ? 0 : game::skill_points(it->second))
+                              << " "
+                              << game::kRankNames[static_cast<std::size_t>(
+                                     it == who.skills.end() ? 0 : game::skill_rank(it->second))]
+                              << ")";
+                }
+            }
+            std::cout << "\n";
+        }
+    }
+
     // Stand where the actors are, so there is something in reach. The party
     // walks to whatever is nearest and alive, which is what a player does and
     // what keeps a fight going once the first knot is cleared.
@@ -416,13 +508,23 @@ int main(int argc, char** argv) {
                 }
             }
             const int monster_hp_before = battle.health_of(target).first;
+            const game::SkillPower swung = wielded_power(party[who], items, skill_lines);
             const std::string said =
                 battle.strike(target, party[who], packs[who], session, monsters, items,
-                              random_items, standard_bonuses, special_bonuses);
+                              random_items, standard_bonuses, special_bonuses, swung);
             if (said.empty()) {
                 continue;
             }
             ++tally[who].swings;
+            if (said.find("stunned") != std::string::npos) {
+                ++stunned;
+            }
+            if (said.find("vicious") != std::string::npos) {
+                ++tripled;
+            }
+            if (said.find("twice-feathered") != std::string::npos) {
+                ++feathered;
+            }
             const int after = battle.health_of(target).first;
             if (after < monster_hp_before) {
                 ++tally[who].landed;
@@ -621,5 +723,7 @@ int main(int argc, char** argv) {
         std::cout << ")";
     }
     std::cout << "\n";
+    std::cout << "  the higher lines: " << stunned << " stuns, " << tripled
+              << " triple strikes, " << feathered << " second arrows\n";
     return 0;
 }

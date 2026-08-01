@@ -147,6 +147,17 @@ struct SkillPower {
 // `packed` is the skill byte as the character record holds it: the points in
 // the low six bits, the rank in the top two. A byte of zero is a skill the
 // character does not have.
+//
+// `lines` is the row exactly as `DescriptionTable` hands it over — every
+// description column from the second onward. `SKILLDES.TXT`'s columns are
+// **Skill / Description / Normal / Expert / Master**, so the prose is
+// `lines[0]` and the rank-`r` effect line is `lines[r + 1]`.
+//
+// **Corrected.** This walked from `lines[0]`, which read the prose as the
+// normal line, the normal line as the expert one and the expert line as the
+// master one. Nothing above novice ever did what it says: a master bow never
+// fired its second arrow, a master mace never stunned.
+inline constexpr std::size_t kSkillProseColumns = 1;
 [[nodiscard]] inline SkillPower skill_power(const std::vector<std::string>& lines, int packed) {
     SkillPower out;
     const int points = skill_points(packed);
@@ -157,9 +168,13 @@ struct SkillPower {
     int multiplier = 1;
     bool base_attack = false, base_armor = false, base_prices = false, adds_damage = false;
     bool cuts_recovery = false, adds_hp = false, adds_sp = false;
-    for (int i = 0; i <= rank && i < static_cast<int>(lines.size()); ++i) {
+    for (int i = 0; i <= rank; ++i) {
+        const auto at = static_cast<std::size_t>(i) + kSkillProseColumns;
+        if (at >= lines.size()) {
+            break;
+        }
         std::string low;
-        for (const char c : lines[static_cast<std::size_t>(i)]) {
+        for (const char c : lines[at]) {
             low += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
         if (low.find("triple effect") != std::string::npos) {

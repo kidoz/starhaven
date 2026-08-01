@@ -619,6 +619,9 @@ public:
         // the call is here so an elemental one would be answered correctly.
         int damage = data::roll(weapon_of(who, items), random_) +
                      attribute_bonus(who.attribute(Attribute::Might)) + skill.damage;
+        // Each of these appends: a blow may be two-handed *and* tripled *and*
+        // carry a special's name. They used to overwrite one another, so only
+        // the last one to fire was ever spoken.
         std::string flourish;
         // A blade in the left hand — the Shield slot, opened by its skill's
         // own "in left hand" line — swings its own dice alongside.
@@ -627,7 +630,7 @@ public:
             if (const auto* row = items.at(static_cast<std::size_t>(off)); row != nullptr) {
                 if (const data::Dice dice = data::parse_dice(row->modifier_1); !dice.empty()) {
                     damage += data::roll(dice, random_);
-                    flourish = ", both hands";
+                    flourish += ", both hands";
                 }
             }
         }
@@ -635,13 +638,13 @@ public:
         // same weapon joins the blow.
         if (skill.second_arrow) {
             damage += data::roll(weapon_of(who, items), random_);
-            flourish = ", twice-feathered";
+            flourish += ", twice-feathered";
         }
         // "Chance to cause triple damage equal to skill."
         if (skill.triple_percent > 0 &&
             static_cast<int>(random_.next() % 100) < skill.triple_percent) {
             damage *= 3;
-            flourish = ", a vicious strike";
+            flourish += ", a vicious strike";
         }
         damage = after_resistance(damage < 1 ? 1 : damage, resistance_to(monster, "Phys"));
         damage = damage < 1 ? 1 : damage;
@@ -671,7 +674,7 @@ public:
                                                       extra->high - extra->low + 1));
                 damage += after_resistance(
                     rolled, resistance_to(monster, element_column(extra->element)));
-                flourish = ", " + std::string(extra->name);
+                flourish += ", " + std::string(extra->name);
             }
             if (const int flat = artifact_extra(worn); flat > 0) {
                 damage += flat;
