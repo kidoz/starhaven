@@ -583,3 +583,20 @@ TEST_CASE("the character's bits belong to the scripts alone", "[script]") {
     // pair, which is why the ninety-nine-spell reading was refused.
     REQUIRE(kCharacterBitArrayBytes * 8 == 512);
 }
+
+TEST_CASE("both resistance runs reach the same five", "[script]") {
+    // The setter writes five base words at +0x1254 and five modifiers beside
+    // them — ids 46..50 and 51..55. The walk used to know only the bases.
+    REQUIRE(kVarResistModFirst == kVarResistFirst + 5);
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 6, 0, kOpcodeGive, typed(kVarResistFirst, 5));       // Fire, base
+    push_step(payload, 6, 1, kOpcodeGive, typed(kVarResistModFirst, 7));    // Fire, modifier
+    push_step(payload, 6, 2, kOpcodeGive, typed(kVarResistModFirst + 4, 3));  // the fifth
+    push_step(payload, 6, 3, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+    starhaven::game::WalkState state;
+    const auto outcome = starhaven::game::walk_event(script, 6, state);
+    REQUIRE(outcome.resist_gains[0] == 12);
+    REQUIRE(outcome.resist_gains[4] == 3);
+    REQUIRE(outcome.resist_gains[2] == 0);
+}

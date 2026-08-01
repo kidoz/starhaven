@@ -347,10 +347,19 @@ struct WalkOutcome {
                                                         : type - world::kVarStatModFirst)] +=
                         value;
                 } else if (!take && step.opcode == world::kOpcodeGive &&
-                           type >= world::kVarResistFirst &&
-                           type < world::kVarResistFirst + 5) {
-                    out.resist_gains[static_cast<std::size_t>(
-                        type - world::kVarResistFirst)] += value;
+                           ((type >= world::kVarResistFirst &&
+                             type < world::kVarResistFirst + 5) ||
+                            (type >= world::kVarResistModFirst &&
+                             type < world::kVarResistModFirst + 5))) {
+                    // **The modifiers were being dropped.** The setter writes
+                    // five base words at `+0x1254` and five modifiers beside
+                    // them, ids 46..50 and 51..55; the walk only knew the
+                    // bases, so a script raising a resistance the other way
+                    // did nothing at all.
+                    const auto at = static_cast<std::size_t>(
+                        type >= world::kVarResistModFirst ? type - world::kVarResistModFirst
+                                                          : type - world::kVarResistFirst);
+                    out.resist_gains[at] += value;
                 } else if (step.opcode == world::kOpcodeSet) {
                     state.variables[type] = value;
                 } else {

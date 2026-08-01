@@ -1692,6 +1692,14 @@ interoperability and compatibility with a legally purchased copy.
   differences a stored pair against the live position — an actor measuring how
   far it has drifted from where it belongs. Six of the eleven remain unnamed,
   and the write-up says so.
+- **A character's resistances: the premise was half wrong, and the real gap is
+  closed.** The blow that lands on a character *does* consult them — the melee
+  and the spell paths both call `resistance_to(target, ...)`, which sums the
+  base, the temporary and the gear. What was actually missing is that the
+  script walk knew only **five** of the ten property ids: the setter writes
+  five base words at `+0x1254` and **five modifiers beside them**, ids 46..50
+  and 51..55, and a script raising a resistance the modifier way did nothing at
+  all. Both runs now reach the same five.
 - **What an actor takes from `DMONLIST` — and an inference made observed.**
   `0x455cb5` is the preparation, and it reads both tables into one actor: the
   record's `+0x00`, `+0x02` and `+0x04` become the actor's `+0x7a`, `+0x78` and
