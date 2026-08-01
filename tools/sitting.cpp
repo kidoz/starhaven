@@ -344,6 +344,13 @@ int main(int argc, char** argv) {
             for (const int id : {2, 24, 35, 45}) {
                 who.known_spells.insert(id);
             }
+            // And the buffs the switch's own cases carry: two the party
+            // shares — Protection from Fire and Wizard Eye — and two a
+            // character keeps, Bless and Haste. Until now no headless run had
+            // ever cast anything but damage.
+            for (const int id : {3, 12, 46, 5}) {
+                who.known_spells.insert(id);
+            }
         }
     }
     std::array<game::Pack, 4> packs;
@@ -392,6 +399,8 @@ int main(int argc, char** argv) {
     int dropped = 0;
     int trained = 0;
     int rungs = 0;
+    int buffed = 0;
+    game::PartyBuffs party_buffs;
     int picked_up = 0;
     int hired = 0;
     struct Hired {
@@ -539,6 +548,38 @@ int main(int argc, char** argv) {
             // purse and the aimed list all under load at once. The skill is
             // a flat five throughout — a stand-in, since a starting party
             // has one point and the point of the exercise is the dice.
+            // A caster puts its buffs up before it throws anything: the
+            // party's slots first, then its own. The durations and powers are
+            // the switch's; which spell it reaches for first is the harness's.
+            if (casting && party[who].spell_points > 0) {
+                bool raised = false;
+                for (const int id : party[who].known_spells) {
+                    const auto* row = spells.at(static_cast<std::size_t>(id));
+                    if (row == nullptr || party[who].spell_points < row->cost_normal) {
+                        continue;
+                    }
+                    const int points = school_points(party[who], *row);
+                    if (const int slot = game::buff_slot_of_spell(id);
+                        slot >= 0 && !party_buffs.active(slot, clock.minutes())) {
+                        party_buffs.cast(slot, clock.minutes() + 60 * (points + 1), points, points);
+                        raised = true;
+                    } else if (const int mine = game::character_slot_of_spell(id);
+                               mine >= 0 &&
+                               party[who].buffs.power(mine, clock.minutes()) <= 0) {
+                        party[who].buffs.cast(mine, clock.minutes() + 60 * (points + 1), points);
+                        raised = true;
+                    }
+                    if (raised) {
+                        party[who].spell_points -= row->cost_normal;
+                        ++buffed;
+                        recovery[who] = game::recovery_seconds(game::kBareHandRecovery);
+                        break;
+                    }
+                }
+                if (raised) {
+                    continue;
+                }
+            }
             if (casting && !party[who].known_spells.empty() && party[who].spell_points > 0) {
                 int chosen = 0;
                 int best = 0;
@@ -951,6 +992,7 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "nobody went Weak\n";
     }
+    std::cout << "  " << buffed << " buffs raised\n";
     std::cout << "  " << rungs << " rungs bought, " << bought_gear << " pieces of gear, "
               << picked_up << " picked up, " << hired << " hired";
     for (std::size_t at = 0; at < hirelings.size(); ++at) {

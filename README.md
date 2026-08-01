@@ -1465,6 +1465,14 @@ interoperability and compatibility with a legally purchased copy.
   records at `0x6b5dcc`** — the professions, in memory — **adding** the dword
   it finds to a running total. So the cut is a sum, and two hirelings of one
   profession take twice as much.
+- **The party casts more than damage now.** Its casters threw from a fixed
+  list of four damage ids and had never once buffed themselves in a headless
+  run, while the monsters have been casting since the row was read. They now
+  put their slots up first — two the party shares, **Protection from Fire and
+  Wizard Eye**, and two a character keeps, **Bless and Haste** — at the
+  durations and powers the switch's own cases give, before reaching for
+  anything to throw. Over four world hours it raises **20 buffs**, and the same
+  fight that killed 7 with spells and no buffs now kills **10**.
 - **Both monster attacks live: the numbers re-measured.** Every figure this
   project published had the wrong column governing the second attack. With it
   corrected, four world hours on one map against an armed, trained level-twelve
