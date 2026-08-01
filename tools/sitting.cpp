@@ -48,15 +48,20 @@ namespace {
 
 void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0
-              << " [<map>] [--minutes N] [--seed N] [--fps N]\n"
+              << " [<map>[,<map>...]] [--minutes N] [--seed N] [--fps N]\n"
               << "          [--still] [--teach] [--no-spells] [--age N]\n"
-              << "          [--poisoned] [--verbose]\n"
+              << "          [--poisoned] [--rest] [--train N] [--level N]\n"
+              << "          [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
               << "actors a real map places, for N minutes of world time.\n"
               << "Reports what a starting character is, and what the fight did\n"
               << "to it. The party closes on whatever is nearest and alive;\n"
-              << "--still holds it where it started. Default map OutC3.Odm,\n"
+              << "--still holds it where it started. --rest camps when the\n"
+              << "party is spent; --train spends N skill points a level.\n"
+              << "Several maps may be given comma-separated, and the party,\n"
+              << "the clock and the tally carry across all of them.\n"
+              << "Default map OutC3.Odm,\n"
               << "30 world minutes, seed 7.\n"
               << "\n"
               << "Set STARHAVEN_GAME_DIR to the install directory.\n";
@@ -114,6 +119,9 @@ int main(int argc, char** argv) {
     bool teach = false;
     int start_age = 0;
     bool poisoned = false;
+    bool resting = false;
+    int start_level = 0;
+    int train_points = 0;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -127,6 +135,12 @@ int main(int argc, char** argv) {
             start_age = std::atoi(argv[++i]);
         } else if (a == "--poisoned") {
             poisoned = true;
+        } else if (a == "--level" && i + 1 < argc) {
+            start_level = std::max(1, std::atoi(argv[++i]));
+        } else if (a == "--rest") {
+            resting = true;
+        } else if (a == "--train" && i + 1 < argc) {
+            train_points = std::max(0, std::atoi(argv[++i]));
         } else if (a == "--teach") {
             teach = true;
         } else if (a == "--no-spells") {
@@ -175,10 +189,23 @@ int main(int argc, char** argv) {
 
     assets::AssetCache cache;
     cache.open(data_dir);
-    world::MapSession session;
-    if (world::load_map_session(game::resolve_games_lod(), data_dir, map, cache, session) !=
-        world::MapSessionError::None) {
-        std::cerr << "error: could not open " << map << "\n";
+    // One sitting may run several maps in turn. The party, the clock, the
+    // fatigue counter and the tally all carry across; only the actors and the
+    // ground change.
+    std::vector<std::string> maps;
+    for (std::size_t at = 0; at <= map.size();) {
+        const std::size_t comma = map.find(',', at);
+        const std::string one = map.substr(at, comma == std::string::npos ? comma : comma - at);
+        if (!one.empty()) {
+            maps.push_back(one);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        at = comma + 1;
+    }
+    if (maps.empty()) {
+        std::cerr << "error: no map named\n";
         return 1;
     }
 
@@ -186,6 +213,13 @@ int main(int argc, char** argv) {
     // The two things the traces just put in and nothing has played: the age
     // curves and the condition multiplier. Set them before the maxima are
     // derived so both reach the numbers.
+    if (start_level > 1) {
+        for (auto& who : party) {
+            game::level_up_to(who, start_level);
+            who.hit_points = who.max_hit_points;
+            who.spell_points = who.max_spell_points;
+        }
+    }
     if (start_age > 0 || poisoned) {
         for (auto& who : party) {
             if (start_age > 0) {
@@ -214,10 +248,12 @@ int main(int argc, char** argv) {
         }
     }
     std::array<game::Pack, 4> packs;
-    game::Battle battle;
-    battle.reset(session, monsters, seed);
 
-    std::cout << "A sitting on " << map << ", seed " << seed << ", " << minutes
+    std::string named;
+    for (const std::string& one : maps) {
+        named += named.empty() ? one : ", " + one;
+    }
+    std::cout << "A sitting on " << named << ", seed " << seed << ", " << minutes
               << " world minutes at " << fps << " steps a second\n\n";
     std::cout << "What a starting character is\n";
     for (const auto& who : party) {
@@ -236,16 +272,11 @@ int main(int argc, char** argv) {
                   << "  end " << who.attribute(game::Attribute::Endurance) << "\n";
     }
 
-    // Stand where the actors are, so there is something in reach. The party
-    // walks to whatever is nearest and alive, which is what a player does and
-    // what keeps a fight going once the first knot is cleared.
-    render::Vec3 eye{};
-    if (!session.actors.empty()) {
-        eye = session.actors.front().position;
-    }
-
     const float dt = 1.0F / static_cast<float>(fps);
-    const int steps = minutes * 60 * fps /
+    // The minutes are shared out among the maps, so `--minutes` still means
+    // what it says however many are named.
+    const int minutes_each = std::max(1, minutes / static_cast<int>(maps.size()));
+    const int steps = minutes_each * 60 * fps /
                       static_cast<int>(game::kWorldSecondsPerSecond);  // world minutes → steps
     game::GameClock clock{0};
     std::array<float, 4> recovery{};
@@ -256,19 +287,69 @@ int main(int argc, char** argv) {
     int killed = 0;
     int replies = 0;
     int levels = 0;
+    int rests = 0;
+    int bought = 0;
+    std::int64_t experience = 0;
+    std::int64_t gold = 0;
     // The wearing-down the time-advance routine applies: a counter that
     // climbs an hour at a time and lays Weak past its second.
     int hours_awake = 0;
     std::int64_t fatigue_hour = 0;
     std::int64_t weak_at = -1;
-    const std::size_t actors_at_start = session.actors.size();
+    std::size_t actors_at_start = 0;
+    // Each character's own skill array and the pool that buys into it: the
+    // thirty-one bytes at `+0x60` and the dword at `+0x1410`. The sitting
+    // starts them where a made party starts — four skills at a point apiece —
+    // and `--train` hands out a pool at every level. How large a pool a level
+    // grants is this engine's number; the executable's grant site adds a
+    // value from further up than has been read. `unknown`
+    std::array<std::array<int, game::kSkillSlots>, 4> skills{};
+    std::array<int, 4> purse{};
+    for (auto& row : skills) {
+        for (const int slot : {1, 4, 9, 12}) {
+            row[static_cast<std::size_t>(slot)] = 1;
+        }
+    }
+    // A made character starts with a pool of its own, as well as earning one
+    // at every level.
+    for (int& pool : purse) {
+        pool = train_points;
+    }
+
+    for (const std::string& map_name : maps) {
+    world::MapSession session;
+    if (world::load_map_session(game::resolve_games_lod(), data_dir, map_name, cache, session) !=
+        world::MapSessionError::None) {
+        std::cerr << "error: could not open " << map_name << "\n";
+        return 1;
+    }
+    game::Battle battle;
+    battle.reset(session, monsters, seed);
+    actors_at_start += session.actors.size();
+    // Stand where the actors are, so there is something in reach. The party
+    // walks to whatever is nearest and alive, which is what a player does and
+    // what keeps a fight going once the first knot is cleared.
+    render::Vec3 eye{};
+    if (!session.actors.empty()) {
+        eye = session.actors.front().position;
+    }
+    if (maps.size() > 1) {
+        std::cout << "\n" << clock.hhmm() << "  " << map_name << ", " << session.actors.size()
+                  << " actors\n";
+    }
 
     for (int step = 0; step < steps; ++step) {
         clock.advance_seconds(dt);
         // Close on the nearest living thing, so the party is always in a
         // fight rather than standing over the last body.
-        if (const std::size_t near = advance ? nearest_alive(session, battle, eye)
-                                             : game::kNoActor;
+        bool anyone_up = false;
+        for (const auto& who : party) {
+            anyone_up = anyone_up || who.hit_points > 0;
+        }
+        // A party flat on its back does not walk anywhere.
+        if (const std::size_t near = advance && anyone_up
+                                         ? nearest_alive(session, battle, eye)
+                                         : game::kNoActor;
             near != game::kNoActor) {
             eye = session.actors[near].position;
         }
@@ -373,8 +454,70 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        for (auto& who : party) {
-            levels += game::level_up(who);
+        for (std::size_t who = 0; who < party.size(); ++who) {
+            const int gained = game::level_up(party[who]);
+            levels += gained;
+            purse[who] += gained * train_points;
+        }
+        // Spend the pool the moment there is anything to spend it on, on the
+        // training routine's own terms: the cheapest skill first, `n + 1` a
+        // point, and never past sixty.
+        if (train_points > 0) {
+            for (std::size_t who = 0; who < party.size(); ++who) {
+                bool spent = true;
+                while (spent) {
+                    spent = false;
+                    std::size_t cheapest = game::kSkillSlots;
+                    for (std::size_t slot = 0; slot < skills[who].size(); ++slot) {
+                        if (skills[who][slot] == 0) {
+                            continue;
+                        }
+                        if (cheapest == game::kSkillSlots ||
+                            game::skill_points(skills[who][slot]) <
+                                game::skill_points(skills[who][cheapest])) {
+                            cheapest = slot;
+                        }
+                    }
+                    if (cheapest < game::kSkillSlots &&
+                        game::train_skill(skills[who][cheapest], purse[who])) {
+                        ++bought;
+                        spent = true;
+                    }
+                }
+            }
+        }
+        // Camp when the party is spent and nothing is left to fight: eight
+        // world hours, which puts everything back and resets the counter that
+        // lays Weak. That the rest restores in full is this engine's reading;
+        // no rest routine has been traced. `inferred`
+        // A real party would withdraw before camping. The sitting has no
+        // withdrawal in it — it stands in the crowd it was dropped into — so
+        // the camp is taken where it stands, and what it measures is how long
+        // a party lasts between camps rather than whether it may take one.
+        if (resting) {
+            bool spent_party = true;
+            for (const auto& who : party) {
+                if (who.hit_points > who.max_hit_points / 2) {
+                    spent_party = false;
+                }
+            }
+            if (spent_party) {
+                clock.advance_seconds(8.0F * 60.0F * 60.0F /
+                                      static_cast<float>(game::kWorldSecondsPerSecond));
+                for (auto& who : party) {
+                    who.hit_points = who.max_hit_points;
+                    who.spell_points = who.max_spell_points;
+                    if (who.affliction == "Weak") {
+                        who.affliction.clear();
+                    }
+                }
+                hours_awake = 0;
+                fatigue_hour = clock.minutes() / game::kMinutesPerHour;
+                ++rests;
+                if (verbose) {
+                    std::cout << "    " << clock.hhmm() << "  camped, everyone up again\n";
+                }
+            }
         }
         if (verbose && !back.empty() && replies < 4) {
             std::cout << "    " << clock.hhmm() << "  " << back << "\n";
@@ -391,11 +534,17 @@ int main(int argc, char** argv) {
             }
         }
     }
+    experience += battle.unclaimed_experience();
+    gold += battle.take_gold();
+    }
 
-    const double real_minutes =
-        static_cast<double>(steps) / static_cast<double>(fps) / 60.0;
-    std::cout << "\nAfter " << minutes << " world minutes (" << real_minutes
-              << " real, " << steps << " steps) among " << actors_at_start << " actors\n";
+    const double real_minutes = static_cast<double>(steps) *
+                                static_cast<double>(maps.size()) /
+                                static_cast<double>(fps) / 60.0;
+    std::cout << "\nAfter " << minutes_each * static_cast<int>(maps.size())
+              << " world minutes (" << real_minutes << " real, "
+              << steps * static_cast<int>(maps.size()) << " steps) across " << maps.size()
+              << " map(s) and " << actors_at_start << " actors\n";
     for (std::size_t who = 0; who < party.size(); ++who) {
         const Tally& t = tally[who];
         const double per_minute =
@@ -422,6 +571,20 @@ int main(int argc, char** argv) {
         std::cout << "nobody went Weak\n";
     }
     std::cout << "  " << levels << " levels gained; " << killed << " actors killed; "
-              << battle.unclaimed_experience() << " experience, " << battle.take_gold() << " gold\n";
+              << experience << " experience, " << gold << " gold\n";
+    std::cout << "  " << rests << " rests taken; " << bought << " skill points bought";
+    if (train_points > 0) {
+        std::cout << " (";
+        for (std::size_t who = 0; who < party.size(); ++who) {
+            int best = 0;
+            for (const int slot : skills[who]) {
+                best = std::max(best, game::skill_points(slot));
+            }
+            std::cout << (who == 0 ? "" : " ") << party[who].name.substr(0, 4) << " best "
+                      << best;
+        }
+        std::cout << ")";
+    }
+    std::cout << "\n";
     return 0;
 }

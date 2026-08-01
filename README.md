@@ -1251,6 +1251,16 @@ interoperability and compatibility with a legally purchased copy.
   sites), the position triple, the fatigue byte and the buff array; ninety
   more are recorded with their reference counts so the next sitting can start
   with the ones that matter.
+- **A longer sitting**: `sitting` now takes several maps comma-separated and
+  carries the party, the clock, the fatigue counter and the tally across all
+  of them; `--level N` makes a party that survives long enough to be
+  measured, `--train N` hands out a skill pool and spends it on the training
+  routine's own terms, and `--rest` camps for eight world hours when everyone
+  is at or below half. Eight world hours over four outdoor maps, 1236 actors,
+  a level-twelve party: **38 killed, 793 gold, hit rates of 33 to 48 percent**
+  — and the party is overwhelmed inside half an hour, camps once, and three of
+  its four are put straight back down. The camp restores in full, which is
+  this engine's reading; no rest routine has been traced.
 - **The `+0x60` array is the skills**: thirty-one bytes, one a slot, points in
   the low six bits and the mastery in the top two. Training costs `n + 1` to
   buy the `n + 1`th point, stops at sixty, and spends a pool that lives in a
