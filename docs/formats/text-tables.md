@@ -1193,7 +1193,7 @@ says about itself.
 | offset | how it is used |
 | --- | --- |
 | `+0x00` | the **cut of gold found**, summed by `0x41ede0` — 4 references |
-| `+0x04` | an **index into the personality tables**: `0x43adca` takes it and reads `byte [it + 0x6b999a]`, then `dword [it * 4 + 0x6b9d84]` — 28 references, the busiest field |
+| `+0x04` | an **index into a pair of text arrays** — see below — 28 references, the busiest field |
 | `+0x08`, `+0x0c` | two **text pointers**, tried in that order at `0x4111e3` and falling back to a literal at `0x4cb230` when both are empty |
 | `+0x10` | 2 references; `unknown` |
 | `+0x2c` | 2 references; `unknown` |
@@ -1202,3 +1202,29 @@ says about itself.
 sense — the record is 76 bytes and `npcprof.txt` has six columns — so most of
 what the file carries is either kept as text elsewhere or not kept at all.
 `unknown` which.
+
+### What `+0x04` indexes
+
+`0x43adca` shows the shape:
+
+```
+mov cl, byte [eax + 0x6b999a]     ; a byte per index
+test cl, cl
+je  else
+mov ecx, dword [eax*4 + 0x6b9d84] ; one array of text pointers
+jmp ...
+else:
+mov ecx, dword [eax*4 + 0x6b9db8] ; the other
+...
+call 0x489cf0                     ; formatted with [0x4d50e8] - 1, the chosen member
+```
+
+So the profession's `+0x04` indexes **two parallel arrays of text pointers**,
+`0x6b9d84` and `0x6b9db8`, with a **byte flag at `0x6b999a`** choosing between
+them per entry, and the winner is formatted against the currently chosen party
+member. The two arrays are `0x34` apart — **thirteen dwords** each. `observed`
+
+What the thirteen are is `unknown`. They are not the personality greetings this
+project parses from `npcbtb.txt`, which are numbered past sixteen; and the
+arrays are referenced only two and one times respectively, so there is little
+else to read them by.
