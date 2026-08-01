@@ -17,8 +17,10 @@
 #include <vector>
 
 #include "core/data/building_stats.hpp"
+#include "core/data/item_stats.hpp"
 #include "core/data/text_table.hpp"
 #include "game/party.hpp"
+#include "game/shop.hpp"
 
 namespace starhaven::game {
 
@@ -163,6 +165,41 @@ inline TeachRefusal buy_rank(Character& who, int slot, int rank, int& gold) {
     gold -= cost;
     it->second = teach_rank(it->second, rank);
     return TeachRefusal::None;
+}
+
+// **Which door teaches which skill.** No table says it outright, but two
+// halves of it are readable and the third is the shape of the first two:
+//
+//  * a **magic guild's** row names its own school in the `Type = Fire`
+//    cell that also stocks its shelves, so the Fire Guild teaches Fire —
+//    `observed`, since the school is the row's own word;
+//  * a **weapon or armour shop** stocks items whose `skill_group` is a
+//    `SKILLDES.TXT` heading, so what it can teach is what it sells —
+//    `inferred`, but from the shop's own shelf rather than from nothing;
+//  * a **training hall** sells levels and nothing else, which is what its
+//    `Max level` cell and its margin note describe.
+//
+// Everything else — Perception, Diplomacy, Learning and the rest — has no
+// door in the tables at all, and is left without one rather than given an
+// invented one. `unknown`
+[[nodiscard]] inline bool teaches_skill(const data::BuildingStatsEntry& shop, int slot,
+                                        const data::ItemStatsTable& items,
+                                        const std::vector<StockItem>& stock) {
+    if (slot < 0 || slot >= kSkillSlots) {
+        return false;
+    }
+    const std::string_view wanted = kSkillNames[static_cast<std::size_t>(slot)];
+    if (const GuildStock guild = parse_guild_stock(shop.stock_a); !guild.empty()) {
+        return data::school_name(guild.school) == wanted;
+    }
+    for (const StockItem& held : stock) {
+        const auto* row =
+            held.item_id > 0 ? items.at(static_cast<std::size_t>(held.item_id)) : nullptr;
+        if (row != nullptr && row->skill_group == wanted) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // What a character may still be taught here, in slot order.

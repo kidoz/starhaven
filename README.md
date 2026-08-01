@@ -1318,6 +1318,19 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The teacher has a door now**, and the proposal's premise needed correcting
+  on the way: "Teacher", "Arms Master", "Weapons Master" and "Spell Master"
+  are not buildings at all — `npcprof.txt` shows them as **hirelings**, with
+  their own stated numbers (a Teacher gives ten percent more experience for
+  300 a week, an Instructor fifteen for 700, an Arms Master two points to
+  every weapon skill for 300, a Spell Master four to every spell skill for
+  2000). What the building tables *do* give is two thirds of the answer: a
+  magic guild's row names its own school in the same `Type = Fire` cell that
+  stocks its shelves, so the Fire Guild teaches Fire; and a weapon or armour
+  shop stocks items whose `skill_group` is a `SKILLDES.TXT` heading, so what
+  it can teach is what it sells. A rung is now bought only at a door that
+  teaches that skill. The rest — Perception, Diplomacy, Learning — has no door
+  in the tables, and is left without one rather than given an invented one.
 - **What Learning is worth: nothing the executable says.** The experience at
   `+0x1420` turns out to be **64-bit** — the adder carries into `+0x1424` and
   clamps at four billion, and the sheet switches fonts past 9,999,999 — and a

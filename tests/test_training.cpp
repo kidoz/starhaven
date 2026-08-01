@@ -143,3 +143,23 @@ TEST_CASE("what is left to learn is what the class may hold", "[training]") {
     REQUIRE(std::find(after.begin(), after.end(), game::skill_id("Sword")) == after.end());
     REQUIRE(after.size() + 1 == left.size());
 }
+
+TEST_CASE("a door teaches what it sells, or its own school", "[training]") {
+    data::ItemStatsTable items;
+    data::BuildingStatsEntry guild;
+    guild.type = "Fire Guild";
+    guild.stock_a = "Type = Fire, Spells 1-7";
+    // A guild's row names its own school, and it teaches that and nothing
+    // else — with no stock needed to say so.
+    const std::vector<game::StockItem> nothing;
+    REQUIRE(game::teaches_skill(guild, game::skill_id("Fire"), items, nothing));
+    REQUIRE_FALSE(game::teaches_skill(guild, game::skill_id("Water"), items, nothing));
+    REQUIRE_FALSE(game::teaches_skill(guild, game::skill_id("Sword"), items, nothing));
+    // A shop with an empty shelf teaches nothing at all.
+    data::BuildingStatsEntry smith;
+    smith.type = "Weapon Shop";
+    REQUIRE_FALSE(game::teaches_skill(smith, game::skill_id("Sword"), items, nothing));
+    // And out-of-range asks are refused rather than read past the names.
+    REQUIRE_FALSE(game::teaches_skill(guild, -1, items, nothing));
+    REQUIRE_FALSE(game::teaches_skill(guild, game::kSkillSlots, items, nothing));
+}

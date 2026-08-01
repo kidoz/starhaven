@@ -4900,6 +4900,15 @@ int main(int argc, char** argv) {
                         }
                         const int slot = game::skill_id(skill);
                         const int want = game::skill_rank(packed) + 1;
+                        // A rung is bought at a door that teaches that skill:
+                        // a guild its own school, a shop what it sells. With
+                        // no counter open there is no one to ask.
+                        if (open_shop < 0 ||
+                            !game::teaches_skill(*shops_here[static_cast<std::size_t>(open_shop)],
+                                                 slot, item_stats, shop_stock)) {
+                            shop_said = "No one here teaches " + skill + ".";
+                            break;
+                        }
                         switch (game::buy_rank(who, slot, want, gold)) {
                             case game::TeachRefusal::None:
                                 shop_said = who.name + " is taught to " +
