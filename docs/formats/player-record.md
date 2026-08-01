@@ -1115,3 +1115,31 @@ being able to place them: setting hit points to their maximum clears
 `+0x157c` and `+0x157e` are not part of the run. They are words, written with
 `0x21` and `1` at `0x47fe46` and `0x451383`, and read forty and eighteen times.
 `unknown`.
+
+## `+0x157c` is the quick spell
+
+The word just past the row of stored terms is read forty times and was the
+most-referenced unnamed field left anywhere on the record. `0x47fde9` says
+what it is in five instructions:
+
+```
+0x0047fde9  mov  ax, word [esi + 0x157c]
+0x0047fdf0  add  eax, 0xfffffffe        ; -2
+0x0047fdf3  cmp  eax, 0x61              ; 97
+0x0047fdf6  ja   0x47fe07
+0x0047fdfa  mov  dl, byte [eax + 0x47fe78]
+0x0047fe00  jmp  dword [edx*4 + 0x47fe70]
+```
+
+A value bounded to **2..99** dispatching a 98-way switch is a **spell id**, and
+`stats.txt` has a row for it: **Quick Spell**. It is written with **33** at
+`0x47fe46` and tested against **21** — the Fly spell — at `0x41a760`, which is
+a movement path asking whether the bound spell is the one that flies.
+`observed`
+
+It is not the readied spell at `+0x152f`. That is what the cast key throws
+now; this is what stays bound. The two words after it, `+0x157e` and
+`+0x1580`, are zeroed on the same path and are scratch for the cast.
+
+So the gamble's stated risk — an interface index, real but dull — half landed:
+it *is* an interface binding, but one the game's own stat table names.

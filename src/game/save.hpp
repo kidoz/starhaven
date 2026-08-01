@@ -60,6 +60,10 @@ struct SaveState {
     // toggle and the hourglass's count — appended for compatibility; an
     // older save simply reads them absent.
     std::array<int, 4> readied{};
+
+    // The word at `+0x157c` on each character: what stays bound to the quick
+    // key, as against what is readied now.
+    std::array<int, 4> quick{};
     bool turn_based = false;
     int hourglass_turn = 0;
 
@@ -121,6 +125,11 @@ struct SaveState {
     }
     if (state.reputation != 0) {
         out << "reputation\t" << state.reputation << "\n";
+    }
+    if (state.quick[0] != 0 || state.quick[1] != 0 || state.quick[2] != 0 ||
+        state.quick[3] != 0) {
+        out << "quick\t" << state.quick[0] << "\t" << state.quick[1] << "\t" << state.quick[2]
+            << "\t" << state.quick[3] << "\n";
     }
     if (state.readied[0] != 0 || state.readied[1] != 0 || state.readied[2] != 0 ||
         state.readied[3] != 0) {
@@ -333,6 +342,10 @@ struct SaveState {
             out.fly_until = next_int();
         } else if (kind == "reputation") {
             out.reputation = next_int();
+        } else if (kind == "quick") {
+            for (auto& id : out.quick) {
+                id = next_int();
+            }
         } else if (kind == "readied") {
             for (auto& id : out.readied) {
                 id = next_int();

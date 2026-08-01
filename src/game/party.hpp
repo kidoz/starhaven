@@ -171,6 +171,17 @@ struct Character {
     // weapon's own equipment anchor, which suits a damage figure. So: the
     // attack pair and the shot pair, in that order.
     std::array<int, 4> derived_bonus{};
+
+    // The word at `+0x157c`: **the quick spell**, which is `stats.txt`'s own
+    // row 12. `0x47fde9` takes it, subtracts two, bounds it at 97 and jumps
+    // through a byte selector at `0x47fe78` into a table at `0x47fe70` — a
+    // 98-way spell switch — so the field holds a spell id in 2..99. It is
+    // written with 33 at `0x47fe46` and tested against 21, the Fly spell, at
+    // `0x41a760`. `observed`
+    //
+    // It is not the same as the readied spell at `+0x152f`: that is what the
+    // cast key throws now, this is what stays bound.
+    int quick_spell = 0;
     int skill_points = 0;
 
     // What is worn, as ITEMS.TXT ids; zero means the slot is empty. The

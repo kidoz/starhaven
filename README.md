@@ -1318,6 +1318,16 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The gamble on `+0x157c`: the quick spell.** The most-referenced unnamed
+  field left on the record says what it is in five instructions — take the
+  word, subtract two, bound it at 97, and jump through a byte selector into a
+  **98-way switch**. A value in 2..99 dispatching that is a spell id, and
+  `stats.txt` has the row for it: **Quick Spell**. It is written with 33 and
+  tested against 21, the Fly spell, in a movement path asking whether the
+  bound spell is the one that flies. It is not the readied spell at `+0x152f`
+  — that is what the cast key throws now, this is what stays bound — and it
+  now survives a save. The stated risk was an interface index, real but dull;
+  it is an interface binding the game's own stat table names.
 - **The hirelings' stated numbers, finally applied.** `npcprof.txt` gives them
   in plain words and this engine had **parsed** them for a long while — an Arms
   Master's two points to every weapon skill, a Weapons Master's three, a

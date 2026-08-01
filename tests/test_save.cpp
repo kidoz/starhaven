@@ -304,3 +304,19 @@ TEST_CASE("the buff arrays and the level survive a round trip", "[save]") {
     REQUIRE(back.party[2].level == 7);
     REQUIRE(back.party[2].experience == 21000);
 }
+
+TEST_CASE("the quick spell survives a save", "[save]") {
+    game::SaveState state;
+    state.map_file = "OutE3.Odm";
+    state.quick = {33, 0, 21, 4};
+    state.readied = {2, 0, 0, 0};
+    const std::string text = game::save_text(state);
+    game::SaveState back;
+    REQUIRE(game::parse_save(text, back));
+    REQUIRE(back.quick[0] == 33);
+    REQUIRE(back.quick[2] == 21);
+    REQUIRE(back.quick[1] == 0);
+    // And it is not confused with what is readied now.
+    REQUIRE(back.readied[0] == 2);
+    REQUIRE(back.readied[2] == 0);
+}
