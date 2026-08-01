@@ -42,6 +42,7 @@
 #include "game/training.hpp"
 #include "game/inventory.hpp"
 #include "game/party.hpp"
+#include "game/promotion.hpp"
 #include "game/player.hpp"
 #include "game/skills.hpp"
 #include "game/spell_damage.hpp"
@@ -254,6 +255,9 @@ int main(int argc, char** argv) {
     // words in `npcprof.txt` and their weekly fee is a column of it.
     data::NpcProfessionTable professions;
     (void)data::load_npc_professions(data_dir, professions);
+    // Class.txt, for promotions at the hall.
+    data::DescriptionTable class_rows;
+    (void)data::load_descriptions(data_dir, "Class.txt", class_rows);
     data::DescriptionTable skill_lines;
     if (data::load_descriptions(data_dir, "SKILLDES.TXT", skill_lines) !=
         data::GameDataError::None) {
@@ -406,6 +410,7 @@ int main(int argc, char** argv) {
     int trained = 0;
     int rungs = 0;
     int buffed = 0;
+    int promotions = 0;
     game::PartyBuffs party_buffs;
     int picked_up = 0;
     int hired = 0;
@@ -786,6 +791,26 @@ int main(int argc, char** argv) {
                         ++hired;
                     }
                 }
+                // And a promotion, once the levels justify it. The game
+                // gates this on a quest award a sitting cannot earn, so the
+                // trigger here — every eight levels — is the harness's; what
+                // it does when it fires is `promotion.hpp`'s reading of
+                // `Class.txt`'s own per-level gains. `inferred` for the
+                // trigger only.
+                for (auto& who : party) {
+                    const int step = who.level / 8;
+                    const int family = game::class_family(game::class_id(who.class_name));
+                    const int want = family * 3 + (step > 2 ? 2 : step);
+                    if (want <= game::class_id(who.class_name) ||
+                        want >= static_cast<int>(game::kClassNames.size())) {
+                        continue;
+                    }
+                    const std::string target(game::kClassNames[static_cast<std::size_t>(want)]);
+                    if (game::promotes_to(class_rows, who.class_name, target)) {
+                        game::promote(who, class_rows, target);
+                        ++promotions;
+                    }
+                }
                 // A rung first, for the whole party: it is the larger and the
                 // better-traced purchase, and gear would otherwise eat the
                 // purse before anyone reached two thousand.
@@ -1006,7 +1031,7 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "nobody went Weak\n";
     }
-    std::cout << "  " << buffed << " buffs raised\n";
+    std::cout << "  " << buffed << " buffs raised; " << promotions << " promotions\n";
     std::cout << "  " << rungs << " rungs bought, " << bought_gear << " pieces of gear, "
               << picked_up << " picked up, " << hired << " hired";
     for (std::size_t at = 0; at < hirelings.size(); ++at) {

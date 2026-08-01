@@ -1358,6 +1358,17 @@ interoperability and compatibility with a legally purchased copy.
   pay. It takes **128 world hours and 1,224 kills** before the first two rungs
   are bought, and one character reaches Expert. At the game's own prices,
   mastery is not something a party grinds its way to in an afternoon.
+- **Promotions in a sitting — and another premise corrected.** The claim was
+  that nothing in this engine ever promotes anybody. The *shell* does: it calls
+  `promote` when a promotion award lands. What could not was the **sitting**,
+  which has no awards to earn, so a headless party could grow thirty levels and
+  stay a Knight. It promotes now — the trigger, every eight levels, is the
+  harness's and marked as such, since the game gates promotion on a quest
+  award; what fires when it does is `promotion.hpp`'s reading of `Class.txt`'s
+  own per-level gains. Over 128 world hours a party from level one takes **3
+  promotions** alongside its 30 levels. The class-skill table is keyed by
+  family, so a promotion changes nothing about what a character may learn —
+  which is what the traced table says and what the run confirms.
 - **A sitting that grows, and a rule it had been quietly breaking.** Every run
   this project published ended with "0 levels gained", and the reason turned
   out to be worse than "the sitting never visits a trainer": the sitting was
