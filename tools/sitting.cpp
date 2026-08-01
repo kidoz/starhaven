@@ -57,6 +57,7 @@ void print_usage(const char* argv0) {
               << "          [--still] [--teach] [--no-spells] [--age N]\n"
               << "          [--poisoned] [--rest] [--train N] [--level N]\n"
               << "          [--rank 0|1|2] [--arm] [--classes a,b,c,d]\n"
+              << "          [--no-buff <spell id>]\n"
               << "          [--verbose]\n"
               << "\n"
               << "Plays a sitting with no window: a starting party against the\n"
@@ -158,6 +159,7 @@ int main(int argc, char** argv) {
     int start_level = 0;
     int start_rank = 0;
     bool arm = false;
+    int suppress_buff = -1;
     std::string class_list;
     int train_points = 0;
 
@@ -179,6 +181,8 @@ int main(int argc, char** argv) {
             start_rank = std::max(0, std::min(2, std::atoi(argv[++i])));
         } else if (a == "--classes" && i + 1 < argc) {
             class_list = argv[++i];
+        } else if (a == "--no-buff" && i + 1 < argc) {
+            suppress_buff = std::atoi(argv[++i]);
         } else if (a == "--arm") {
             arm = true;
         } else if (a == "--rest") {
@@ -349,7 +353,9 @@ int main(int argc, char** argv) {
             // character keeps, Bless and Haste. Until now no headless run had
             // ever cast anything but damage.
             for (const int id : {3, 12, 46, 5}) {
-                who.known_spells.insert(id);
+                if (id != suppress_buff) {
+                    who.known_spells.insert(id);
+                }
             }
         }
     }

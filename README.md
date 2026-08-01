@@ -1465,6 +1465,16 @@ interoperability and compatibility with a legally purchased copy.
   records at `0x6b5dcc`** — the professions, in memory — **adding** the dword
   it finds to a running total. So the cut is a sum, and two hirelings of one
   profession take twice as much.
+- **What each buff is actually worth, measured.** `sitting --no-buff <id>`
+  suppresses one and runs the same seed and map, so the four can be told apart
+  rather than counted. Four world hours, armed and trained level twelve, all
+  four up: **10 kills, 20 buffs raised**. Suppress **Bless** and it falls to
+  **9**; suppress **Haste** and it falls to **9**; suppress **Wizard Eye** and
+  nothing moves — **10**; suppress **Protection from Fire** and it *rises* to
+  **11**, because the spell points it costs buy a thrown spell instead. So of
+  the four the character's own two carry the fight, the party's shared two do
+  not, and one of them is a net loss at this level. That is the first time this
+  project has been able to tell a buff that works from one that only casts.
 - **The party casts more than damage now.** Its casters threw from a fixed
   list of four damage ids and had never once buffed themselves in a headless
   run, while the monsters have been casting since the row was read. They now
