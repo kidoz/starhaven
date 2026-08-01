@@ -1289,3 +1289,29 @@ add  eax, 0x3c                 ; the next record
 
 That names two more of the roster's fields — **`+0x08` the flags, `+0x18` the
 profession** — and confirms the stride from a third place. `observed`
+
+## The absolute-address sweep, and what survived it
+
+The award hid behind one blind spot: every scan looked for `+ 0xNNN]`
+displacements, and the routine reached the field through the absolute
+`0x90a354`. Every negative this project has filed by counting references is
+suspect for the same reason, so they were re-run with a sweep that collects
+**every four-byte immediate in `.text` that falls inside a data section** and
+then asks, for each field, whether any *instance* of it — every character,
+every actor slot — appears among them.
+
+**The method is validated by its own control.** Character zero's `+0x1420` is
+`0x90a354`, and the sweep finds exactly **one** reference to it: the award. So
+a scan of this shape would have caught what four displacement scans did not.
+
+Re-run against the standing negatives:
+
+| claim | absolute references found | verdict |
+| --- | --- | --- |
+| the actor's five 64-bit pairs are never written — `+0xd4`, `+0xf4`, `+0x104`, `+0x114`, `+0x124`, `+0x144`, over 200 actor slots | only the known **reads** at actor zero | **stands** |
+| the character's 512-bit array at `+0x1530` is touched only by the property routines, over all four characters | **none** | **stands** |
+| the stored terms at `+0x1570`..`+0x157b` are reached only through their getters | **none** | **stands** |
+
+`observed`. Three negatives survive a test they had never been given, and the
+blind spot that cost four batches is closed as a method rather than as a
+one-off.

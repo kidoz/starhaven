@@ -1417,6 +1417,19 @@ interoperability and compatibility with a legally purchased copy.
   takes a speed from the table behind `0x55dd94` indexed by the actor's
   **`+0xb6`** — the same lookup state 12 makes, so `+0xb6` is the actor's
   **speed index**, a second per-actor index beside the monster row at `+0x34`.
+- **The absolute-address sweep: three negatives survive it.** The award hid
+  behind one blind spot — every scan looked for `+ 0xNNN]` displacements while
+  the routine used the absolute `0x90a354` — so every negative filed by
+  counting references was re-run with a sweep that collects **every four-byte
+  immediate in `.text` landing in a data section** and asks whether any
+  *instance* of a field appears among them. **The method validates on its own
+  control**: character zero's `+0x1420` has exactly one reference, the award
+  four displacement scans missed. Against the standing claims it finds nothing
+  new — the actor's five 64-bit pairs across two hundred slots show only their
+  known reads, and the character's 512-bit array and the stored terms show
+  **no absolute references at all**. All three stand, now having been given a
+  test they had never been given, and the blind spot is closed as a method
+  rather than as a one-off.
 - **The award, read to the end.** The two terms **add to the share, they do not
   scale it**: `0x42161a` adds `bonus + share` into the 64-bit field and clamps
   at four billion. And **the nine is a flat nine percent** every character
