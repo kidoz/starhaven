@@ -853,3 +853,16 @@ TEST_CASE("a hired master's points reach the roll", "[combat]") {
     REQUIRE(game::best_hired(two, &game::HireBenefit::weapon_skill_bonus) == 3);
     REQUIRE(game::best_hired(two, &game::HireBenefit::perception_bonus) == 0);
 }
+
+TEST_CASE("the disposition is rolled, not held", "[combat]") {
+    // 0x421c50 answers 2 on a roll against +0x4d, else 1 on a roll against
+    // +0x47, else 0 — every tick, so an afflicted monster wavers.
+    game::Combatant c;
+    REQUIRE(c.second_percent == 0);
+    REQUIRE(c.first_percent == 0);
+    // The two are separate bytes and the second is rolled first, which is
+    // what decides which answer a monster carrying both gives.
+    c.second_percent = 100;
+    c.first_percent = 100;
+    REQUIRE(c.second_percent >= c.first_percent);
+}

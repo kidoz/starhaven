@@ -167,6 +167,19 @@ struct Combatant {
     float slowed = 0.0f;
     float paralyzed = 0.0f;
     float charmed = 0.0f;
+
+    // **The disposition, on the original's own shape.** `0x421c50` does not
+    // read a state: it rolls `rand() % 100` against the byte at `+0x4d` and
+    // answers **2**, else the same against `+0x47` and answers **1**, else
+    // **0** — every tick, for every actor in range. So an afflicted monster
+    // wavers rather than being wholly one thing while a timer runs.
+    // `observed` for the two bytes and the order they are rolled in.
+    //
+    // These two carry them. That an affliction sets its byte to a hundred
+    // while its own timer runs is this engine's, since the spells' words give
+    // durations and not percentages. `inferred`
+    int second_percent = 0;  // +0x4d, rolled first, answers 2
+    int first_percent = 0;   // +0x47, rolled second, answers 1
 };
 
 // The conditions a spell can lay on a monster.
@@ -827,19 +840,28 @@ public:
             tick(c.slowed);
             tick(c.paralyzed);
             tick(c.charmed);
-            c.recovery -= dt;
-            if (c.recovery > 0.0f) {
-                continue;
-            }
-            // The afflicted hold their blows: the fearful flee, the held
-            // cannot retaliate, the calmed have no hostile feelings.
-            if (c.feared > 0.0f || c.paralyzed > 0.0f || c.charmed > 0.0f) {
-                continue;
-            }
+            // Each affliction holds its byte at a hundred while it runs.
+            c.second_percent = c.charmed > 0.0f ? 100 : 0;
+            c.first_percent = c.feared > 0.0f ? 100 : 0;
+
             const auto& actor = session.actors[i];
             const float dx = actor.position.x - eye.x;
             const float dz = actor.position.z - eye.z;
             const float range2 = dx * dx + dz * dz;
+            // **The awareness cut comes first.** The decision routine tests
+            // the distance against 5120 before it considers anything else,
+            // and idles outright beyond it. `observed`
+            if (range2 > kAwarenessRange * kAwarenessRange) {
+                continue;
+            }
+            c.recovery -= dt;
+            if (c.recovery > 0.0f) {
+                continue;
+            }
+            // Then the disposition is rolled, in the original's own order.
+            if (disposition_of(c) != 0 || c.paralyzed > 0.0f) {
+                continue;
+            }
             const auto id = static_cast<std::size_t>(actor.monster_id);
             if (id == 0 || id > monsters.entries().size()) {
                 continue;
@@ -873,6 +895,18 @@ public:
     }
 
 private:
+    // `0x421c50`'s three-way answer, rolled fresh every tick.
+    int disposition_of(const Combatant& c) {
+        if (c.second_percent > 0 &&
+            static_cast<int>(random_.next() % 100) < c.second_percent) {
+            return 2;
+        }
+        if (c.first_percent > 0 && static_cast<int>(random_.next() % 100) < c.first_percent) {
+            return 1;
+        }
+        return 0;
+    }
+
     // One amount from a prose range, inclusive.
     int roll_range(const data::SpellRange& range) noexcept {
         if (range.empty()) {

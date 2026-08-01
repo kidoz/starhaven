@@ -1318,6 +1318,19 @@ interoperability and compatibility with a legally purchased copy.
   exactly. Either that stretch of the numbering is dead in the shipped game or
   the original scribbles on its own sheet text; either way nothing here should
   implement it.
+- **The monsters fight on the AI's own shape now.** Two traced things that had
+  never reached the headless battle. **The awareness cut comes first**: the
+  decision routine tests the distance against **5120** before it considers
+  anything at all and idles outright beyond it, where this engine had been
+  going straight to its missile band. And **the disposition is a roll, not a
+  state**: `0x421c50` rolls `rand() % 100` against the byte at `+0x4d` and
+  answers 2, else the same against `+0x47` and answers 1, else 0 — *every
+  tick*, so an afflicted monster wavers instead of being wholly one thing
+  while a timer runs, which is exactly the divergence the AI reading flagged
+  and nothing had acted on. Both bytes now live on the combatant and are
+  rolled in the original's order; that an affliction holds its byte at a
+  hundred while its own timer runs is this engine's, since the spells give
+  durations and not percentages.
 - **Filed: no instruction awards experience for a kill.** Four routes have now
   been run to the end and the counts are written down so the next pass starts
   elsewhere. From the character's field: `+0x1420` is touched by **eighteen
