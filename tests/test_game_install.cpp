@@ -112,6 +112,22 @@ TEST_CASE("a supported installation and its Data folder both validate", "[game_i
     REQUIRE(from_data.install.root == root);
 }
 
+TEST_CASE("validation leaves the source installation unchanged", "[game_install]") {
+    TempDirectory temporary;
+    const fs::path root = make_install(temporary.path() / "read-only-source");
+    const fs::path archive = root / "Data" / "BITMAPS.LOD";
+    const fs::file_time_type modified_before = fs::last_write_time(archive);
+
+    REQUIRE(validate_game_install(root).valid());
+
+    std::ifstream input(archive, std::ios::binary);
+    std::string contents;
+    input >> contents;
+    REQUIRE(contents == "synthetic");
+    const bool timestamp_unchanged = fs::last_write_time(archive) == modified_before;
+    REQUIRE(timestamp_unchanged);
+}
+
 TEST_CASE("non-ASCII installation paths remain usable", "[game_install]") {
     TempDirectory temporary;
     const fs::path root = make_install(temporary.path() / fs::path{u8"Игры 六"});
