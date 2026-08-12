@@ -50,6 +50,8 @@ behavior stays explicit in the open-question register.
   [portraits](formats/portraits.md) and the
   [paperdoll](formats/paperdoll.md) describe the screen furniture the
   interface wears.
+- [Startup journey](explanation/startup-journey.md) separates the observed MM6
+  launch contract from StarHaven's implementation and remaining gaps.
 - [Software rasterizer](rendering/software-rasterizer.md) explains the
   rendering pipeline; [terrain texturing](rendering/terrain-coloring.md),
   [collision and movement](rendering/collision.md), and
