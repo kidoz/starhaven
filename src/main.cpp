@@ -62,6 +62,7 @@
 #include "game/shop.hpp"
 #include "game/skills.hpp"
 #include "game/sprites.hpp"
+#include "game/startup_flow.hpp"
 #include "game/temple.hpp"
 #include "game/text.hpp"
 #include "game/training.hpp"
@@ -2579,26 +2580,19 @@ int main(int argc, char** argv) {
     // The party is the player's to shape before the world starts: class,
     // face and name from the game's own tables and portraits, the numbers
     // rerolled at will. Every tooling flag means "get to the world", so any
-    // of them skips the door.
-    bool creating = force_create || (screenshot.empty() && bench_frames == 0 &&
-                                     walk_on_start < 0 && start_shop == 0 && open_sheet == 0 &&
-                                     open_pack == 0);
-    // The game opens like the game: the title painting and its four
-    // plates. New Game walks into the creation hall, Load into the saved
-    // slot, Exit out — and the world holds its breath underneath.
-    // The opening movies, and the credits when asked: any key skips the
-    // one that plays. The decoder itself lives with the room player below.
-    std::vector<std::string> movie_queue;
-    bool at_title = start_title || (creating && !force_create);
-    if (at_title && !start_title && screenshot.empty()) {
-        movie_queue = {"3dologo", "MM6Intro"};
-    }
-    bool title_credits = false;
-    if (at_title) {
-        creating = false;
-        if (mouse_look) {
-            SDL_SetWindowRelativeMouseMode(window, false);
-        }
+    // of them skips the door. One explicit flow now owns the opening movies,
+    // title, creation hall and the point at which the world becomes active.
+    const bool wants_creation =
+        force_create || (screenshot.empty() && bench_frames == 0 && walk_on_start < 0 &&
+                         start_shop == 0 && open_sheet == 0 && open_pack == 0);
+    const game::StartupState initial_startup_state =
+        start_title                   ? game::StartupState::Title
+        : force_create                ? game::StartupState::PartyCreation
+        : wants_creation              ? game::StartupState::OpeningLogo
+                                      : game::StartupState::Playing;
+    game::StartupFlow startup{initial_startup_state};
+    if (!startup.world_active() && mouse_look) {
+        SDL_SetWindowRelativeMouseMode(window, false);
     }
     int create_slot = 0;
     Mm6Random create_random{0x51C7E3A9u};
@@ -3921,15 +3915,17 @@ int main(int argc, char** argv) {
             // out in the logical 640x480.
             SDL_ConvertEventToRenderCoordinates(sdl_renderer, &event);
             if (event.type == SDL_EVENT_QUIT) {
+                (void)startup.dispatch(game::StartupAction::Quit);
                 running = false;
-            } else if (!movie_queue.empty() &&
+            } else if (startup.media_active() &&
                        (event.type == SDL_EVENT_KEY_DOWN ||
                         event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
                 // Any key sends the reel forward.
-                movie_queue.erase(movie_queue.begin());
+                (void)startup.dispatch(game::StartupAction::MediaSkipped);
                 movie = {};
+                movie_frame = {};
                 ambient.stop_room();
-            } else if (at_title &&
+            } else if (startup.state() == game::StartupState::Title &&
                        (event.type == SDL_EVENT_KEY_DOWN ||
                         event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
                 // The four plates in a row along the painting's foot.
@@ -3948,28 +3944,28 @@ int main(int argc, char** argv) {
                         chosen = (mx - 20) / 152;
                     }
                 }
-                const auto leave_title = [&] {
-                    at_title = false;
-                    if (mouse_look && !cursor_free) {
-                        SDL_SetWindowRelativeMouseMode(window, true);
-                    }
-                };
                 if (chosen >= 0) {
                     ambient.play_once("ClickStart");
                 }
+                game::StartupTransition transition;
                 if (chosen == 0) {
-                    leave_title();
-                    creating = true;
+                    transition = startup.dispatch(game::StartupAction::ChooseNewGame);
                 } else if (chosen == 1) {
-                    leave_title();
+                    transition = startup.dispatch(game::StartupAction::ChooseLoad);
+                } else if (chosen == 2) {
+                    transition = startup.dispatch(game::StartupAction::ChooseCredits);
+                } else if (chosen == 3) {
+                    transition = startup.dispatch(game::StartupAction::ChooseExit);
+                }
+                if (transition.to == game::StartupState::PartyCreation && mouse_look &&
+                    !cursor_free) {
+                    SDL_SetWindowRelativeMouseMode(window, true);
+                } else if (transition.effect == game::StartupEffect::LoadCurrentSlot) {
                     SDL_Event synthetic{};
                     synthetic.type = SDL_EVENT_KEY_DOWN;
                     synthetic.key.key = SDLK_F9;
                     SDL_PushEvent(&synthetic);
-                } else if (chosen == 2) {
-                    title_credits = !title_credits;
-                    movie_queue = {"credits"};
-                } else if (chosen == 3) {
+                } else if (transition.effect == game::StartupEffect::QuitApplication) {
                     running = false;
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && arena_rank < 0 &&
@@ -4069,10 +4065,17 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 if (ask_event >= 0) {
                     ask_event = -1;  // the question can simply be walked away from
+                } else if (startup.state() == game::StartupState::PartyCreation) {
+                    (void)startup.dispatch(game::StartupAction::Back);
+                    if (mouse_look) {
+                        SDL_SetWindowRelativeMouseMode(window, false);
+                    }
                 } else {
+                    (void)startup.dispatch(game::StartupAction::Quit);
                     running = false;
                 }
-            } else if (event.type == SDL_EVENT_KEY_DOWN && creating) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN &&
+                       startup.state() == game::StartupState::PartyCreation) {
                 // Shaping the party: a slot, then its class, face, name and
                 // numbers. Enter opens the world.
                 auto& who = party[static_cast<std::size_t>(create_slot)];
@@ -4098,7 +4101,10 @@ int main(int argc, char** argv) {
                     game::roll_attributes(who, create_random);
                     game::derive_start(who);
                 } else if (event.key.key == SDLK_RETURN) {
-                    creating = false;
+                    (void)startup.dispatch(game::StartupAction::ConfirmParty);
+                    if (mouse_look && !cursor_free) {
+                        SDL_SetWindowRelativeMouseMode(window, true);
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && ask_event >= 0) {
                 // A question holds the keys: letters and digits spell the
@@ -4138,7 +4144,8 @@ int main(int argc, char** argv) {
                     ask_typed += static_cast<char>('0' + (key - SDLK_0));
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M &&
-                       shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating) {
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0 &&
+                       startup.world_active()) {
                 cursor_free = !cursor_free;
                 if (mouse_look) {
                     SDL_SetWindowRelativeMouseMode(window, !cursor_free);
@@ -4362,6 +4369,8 @@ int main(int argc, char** argv) {
                 pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F9) {
                 // Load: back to the saved map, standing where the party stood.
+                const bool completing_startup_load =
+                    startup.state() == game::StartupState::LoadingWorld;
                 game::SaveState state;
                 std::ifstream file(save_slot_path(save_slot));
                 std::stringstream buffer;
@@ -4377,6 +4386,12 @@ int main(int argc, char** argv) {
                     }
                 }
                 if (!parsed || !open_map(state.map_file)) {
+                    if (completing_startup_load) {
+                        (void)startup.dispatch(game::StartupAction::LoadFailed);
+                        if (mouse_look) {
+                            SDL_SetWindowRelativeMouseMode(window, false);
+                        }
+                    }
                     pick_up_message = "Nothing to load";
                     pick_up_shown = SDL_GetTicks();
                 } else {
@@ -4467,6 +4482,12 @@ int main(int argc, char** argv) {
                     }
                     pick_up_message = "Loaded";
                     pick_up_shown = SDL_GetTicks();
+                    if (completing_startup_load) {
+                        (void)startup.dispatch(game::StartupAction::LoadSucceeded);
+                        if (mouse_look && !cursor_free) {
+                            SDL_SetWindowRelativeMouseMode(window, true);
+                        }
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_U &&
                        shown_pack >= 0) {
@@ -4630,7 +4651,7 @@ int main(int argc, char** argv) {
                 shown_pack = shown_pack < 0 ? 0 : -1;
                 shown_member = -1;
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_T &&
-                       open_shop < 0 && !creating) {
+                       open_shop < 0 && startup.world_active()) {
                 // Stop a passerby: any of the monster table's own civilians
                 // — the hostility-zero Peasant rows — within reach.
                 if (street_talk >= 0) {
@@ -4749,7 +4770,7 @@ int main(int argc, char** argv) {
                                              : "Time flows again: real-time";
                 pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop < 0 &&
-                       event.key.key == SDLK_J && !creating) {
+                       event.key.key == SDLK_J && startup.world_active()) {
                 show_journal = !show_journal;
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_J) {
@@ -5703,8 +5724,8 @@ int main(int argc, char** argv) {
                     }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
-                       shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating &&
-                       !show_journal) {
+                       shown_member < 0 && shown_pack < 0 && open_shop < 0 &&
+                       startup.world_active() && !show_journal) {
                 // Open the book of the first member with anything in it.
                 for (std::size_t i = 0; i < party.size(); ++i) {
                     if (!party[i].known_spells.empty()) {
@@ -6065,7 +6086,8 @@ int main(int argc, char** argv) {
                 } else if (chosen == 3) {
                     rest_screen = false;
                 }
-            } else if (event.type == SDL_EVENT_MOUSE_MOTION && mouse_look && !cursor_free) {
+            } else if (event.type == SDL_EVENT_MOUSE_MOTION && startup.world_active() &&
+                       mouse_look && !cursor_free) {
                 camera.yaw += event.motion.xrel * game::kMouseSensitivity;
                 camera.pitch -= event.motion.yrel * game::kMouseSensitivity;
             } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && cursor_free &&
@@ -6121,12 +6143,13 @@ int main(int argc, char** argv) {
 
         const auto* keys = SDL_GetKeyboardState(nullptr);
         game::MoveInput in;
-        in.forward = !creating && keys[SDL_SCANCODE_W];
-        in.back = keys[SDL_SCANCODE_S];
-        in.left = keys[SDL_SCANCODE_A];
-        in.right = keys[SDL_SCANCODE_D];
-        in.down = keys[SDL_SCANCODE_Q];
-        in.up = keys[SDL_SCANCODE_E];
+        in.forward = startup.world_active() && keys[SDL_SCANCODE_W];
+        in.back = startup.world_active() && keys[SDL_SCANCODE_S];
+        in.left = startup.world_active() && keys[SDL_SCANCODE_A];
+        in.right = startup.world_active() && keys[SDL_SCANCODE_D];
+        in.down = startup.world_active() && keys[SDL_SCANCODE_Q];
+        in.up = startup.world_active() && keys[SDL_SCANCODE_E];
+        in.dt = startup.world_active() ? in.dt : 0.0f;
         // AlwaysRun from the install's own ini: shift walks instead.
         const bool shifted = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
         const bool running_now = ini_always_run ? !shifted : shifted;
@@ -6134,7 +6157,7 @@ int main(int argc, char** argv) {
 
         // Footfalls: the ground's own Walk/Run sound at a walking cadence
         // while the party moves in the world. The cadence is the engine's.
-        if (!at_title && !creating && open_shop < 0 && shown_member < 0 && shown_pack < 0 &&
+        if (startup.world_active() && open_shop < 0 && shown_member < 0 && shown_pack < 0 &&
             book_member < 0 && !rest_screen && mouse_look &&
             (in.forward || in.back || in.left || in.right)) {
             step_timer -= in.dt > 0.0f ? in.dt : 0.0f;
@@ -6157,7 +6180,7 @@ int main(int argc, char** argv) {
                           [&](float x, float z) { return session.terrain_height_at(x, z); });
 
         // And monsters block the party, the way the party blocks them.
-        if (!fly_now) {
+        if (startup.world_active() && !fly_now) {
             for (std::size_t i = 0; i < session.actors.size(); ++i) {
                 if (!battle.alive(i)) {
                     continue;
@@ -6167,13 +6190,13 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (keys[SDL_SCANCODE_LEFT] && shown_pack < 0)
+        if (startup.world_active() && keys[SDL_SCANCODE_LEFT] && shown_pack < 0)
             camera.yaw -= game::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_RIGHT] && shown_pack < 0)
+        if (startup.world_active() && keys[SDL_SCANCODE_RIGHT] && shown_pack < 0)
             camera.yaw += game::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_UP])
+        if (startup.world_active() && keys[SDL_SCANCODE_UP])
             camera.pitch += game::kLookSpeed * in.dt;
-        if (keys[SDL_SCANCODE_DOWN])
+        if (startup.world_active() && keys[SDL_SCANCODE_DOWN])
             camera.pitch -= game::kLookSpeed * in.dt;
         camera.pitch =
             std::clamp(camera.pitch, -render::Camera::kMaxPitch, render::Camera::kMaxPitch);
@@ -6226,8 +6249,9 @@ int main(int argc, char** argv) {
         }
         // Real time flows every frame; turn-based time flows only when a
         // round is owed, one quantum at a time.
-        const float sim_dt =
-            at_title ? 0.0f : (turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt);
+        const float sim_dt = startup.world_active()
+                                 ? (turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt)
+                                 : 0.0f;
         if (turn_based && pending_round) {
             ++hourglass_turn;
         }
@@ -7277,7 +7301,8 @@ int main(int argc, char** argv) {
             }
             known_hp[i] = party[i].hit_points;
         }
-        if (shown_member < 0 && shown_pack < 0 && open_shop < 0 && !creating && !show_journal) {
+        if (shown_member < 0 && shown_pack < 0 && open_shop < 0 && startup.world_active() &&
+            !show_journal) {
             std::array<bool, 4> wincing{};
             for (std::size_t i = 0; i < party.size(); ++i) {
                 wincing[i] = SDL_GetTicks() < wince_until[i];
@@ -7813,16 +7838,20 @@ int main(int argc, char** argv) {
                          script_state.awards, autonote_texts, script_state.autonotes,
                          journal_page);
         }
-        if (creating) {
+        if (startup.state() == game::StartupState::PartyCreation) {
             draw_creation(scene, font, cache, party, create_slot, stat_descriptions,
                           class_descriptions);
         }
 
-        if (!movie_queue.empty()) {
-            const std::string& reel = movie_queue.front();
+        if (startup.media_active()) {
+            // Startup media owns the whole frame. Keep the prepared world
+            // hidden while a reel is opening or handing off to the next.
+            auto pixels = scene.framebuffer().color();
+            std::fill(pixels.begin(), pixels.end(), 0);
+            const std::string reel{startup.movie_name()};
             if (movie.video != reel) {
                 movie = {};
-                movie.video = reel;
+                movie.video = std::string(reel);
                 movie.ready = cache.interior_bytes(reel, movie.bytes) &&
                               video::SmackerDecoder::load(movie.bytes, movie.decoder) ==
                                   video::SmackerError::None &&
@@ -7830,7 +7859,9 @@ int main(int argc, char** argv) {
                 movie.frame = 0;
                 movie.next_at = 0;
                 if (!movie.ready) {
-                    movie_queue.erase(movie_queue.begin());
+                    (void)startup.dispatch(game::StartupAction::MediaUnavailable);
+                    movie = {};
+                    movie_frame = {};
                 }
             }
             if (movie.ready && SDL_GetTicks() >= movie.next_at) {
@@ -7855,8 +7886,9 @@ int main(int argc, char** argv) {
                 }
                 ++movie.frame;
                 if (movie.frame >= movie.decoder.info().frame_count) {
-                    movie_queue.erase(movie_queue.begin());
+                    (void)startup.dispatch(game::StartupAction::MediaFinished);
                     movie = {};
+                    movie_frame = {};
                     ambient.stop_room();
                 } else {
                     const double fps =
@@ -7867,20 +7899,18 @@ int main(int argc, char** argv) {
             }
             if (!movie_frame.empty()) {
                 // Centred on black, at its own size.
-                auto pixels = scene.framebuffer().color();
-                std::fill(pixels.begin(), pixels.end(), 0);
                 blit(scene.framebuffer(), movie_frame,
                      (kWidth - static_cast<int>(movie_frame.width())) / 2,
                      (kHeight - static_cast<int>(movie_frame.height())) / 2);
             }
-        } else if (at_title) {
+        } else if (startup.state() == game::StartupState::Title) {
             blit(scene.framebuffer(), cache.icon("MM6TITLE.PCX"), 0, 0);
             const std::array<const char*, 4> kPlates{"MMNEW1", "MMLOA1", "MMCRE1", "MMESC1"};
             for (int i = 0; i < 4; ++i) {
                 blit(scene.framebuffer(), cache.icon(kPlates[static_cast<std::size_t>(i)]),
                      20 + i * 152, 424);
             }
-            if (title_credits && font.glyph_count() > 0) {
+            if (startup.credits_seen() && font.glyph_count() > 0) {
                 game::draw_text(scene.framebuffer(), font, 24, 24,
                                 "StarHaven, an open engine for your own copy of the game.",
                                 render::Color{235, 225, 180, 255}, render::Color{0, 0, 0, 255});
@@ -7891,8 +7921,8 @@ int main(int argc, char** argv) {
         }
         // The map's name, drawn with the game's own font, inside the
         // viewport's frame rather than across it.
-        if (font.glyph_count() > 0 && !creating && !show_journal && book_member < 0 &&
-            !at_title) {
+        if (font.glyph_count() > 0 && startup.world_active() && !show_journal &&
+            book_member < 0) {
             game::draw_text(scene.framebuffer(), font, 12, 12, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }
