@@ -427,3 +427,9 @@ test('startup_flow',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('game_install',
+  executable('test_game_install', 'test_game_install.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

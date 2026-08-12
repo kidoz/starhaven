@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -27,6 +28,7 @@
 #include "core/image/bitmap.hpp"
 #include "core/image/font.hpp"
 #include "core/lod/lod_archive.hpp"
+#include "core/platform/game_install.hpp"
 #include "core/platform/paths.hpp"
 #include "core/render/scene.hpp"
 #include "core/video/smacker.hpp"
@@ -48,6 +50,7 @@
 #include "game/enchant.hpp"
 #include "game/hire.hpp"
 #include "game/inspect.hpp"
+#include "game/install_prompt.hpp"
 #include "game/inventory.hpp"
 #include "game/interiors.hpp"
 #include "game/launches.hpp"
@@ -126,6 +129,7 @@ void print_usage(const char* argv0) {
               << "  ESC/close  quit\n"
               << "\n"
               << "  --maps              list the maps and exit\n"
+              << "  --game-dir DIR      use this legal MM6 installation\n"
               << "  --pos X,Y,Z         start position (renderer axes, Y up)\n"
               << "  --look YAW,PITCH    start orientation in degrees\n"
               << "  --screenshot FILE   render one frame to a PPM and exit\n"
@@ -141,14 +145,8 @@ void print_usage(const char* argv0) {
               << "  --walk N            use map event N on startup (research)\n"
               << "  --no-music          do not play the map's music track\n"
               << "\n"
-              << "Set " << platform::kInstallEnvVar << " to the install directory.\n";
-}
-
-std::filesystem::path resolve_data_dir() {
-    if (const auto install = platform::install_from_env()) {
-        return *install / "data";
-    }
-    return "data";
+              << "Choose the install in the app, pass --game-dir, or set "
+              << platform::kInstallEnvVar << ".\n";
 }
 
 // Every map the design table lists, which is exactly the set Games.lod ships
@@ -2197,12 +2195,15 @@ int main(int argc, char** argv) {
     bool show_directory = false;
     int bench_frames = 0;
     bool have_pos = false;
+    std::optional<std::filesystem::path> command_line_install;
     render::Camera camera;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--maps") {
             list_only = true;
+        } else if (a == "--game-dir" && i + 1 < argc) {
+            command_line_install = std::filesystem::path{argv[++i]};
         } else if (a == "--bench" && i + 1 < argc) {
             bench_frames = std::atoi(argv[++i]);
         } else if (a == "--sheet" && i + 1 < argc) {
@@ -2270,7 +2271,44 @@ int main(int argc, char** argv) {
         }
     }
 
-    const std::filesystem::path data_dir = resolve_data_dir();
+    const std::optional<std::filesystem::path> settings_directory = platform::user_data_dir();
+    platform::InstallCandidates install_candidates;
+    install_candidates.command_line = command_line_install;
+    if (settings_directory) {
+        install_candidates.persisted_setting =
+            platform::load_game_install_setting(*settings_directory);
+    }
+    install_candidates.environment = platform::install_from_env();
+    platform::InstallResolution install_resolution =
+        platform::resolve_game_install(install_candidates);
+
+    if (!install_resolution.valid()) {
+        const bool command_line_workflow =
+            list_only || !screenshot.empty() || bench_frames > 0;
+        if (command_line_workflow) {
+            std::cerr << "error: "
+                      << platform::install_problem_message(install_resolution.validation) << "\n";
+            std::cerr << "Pass --game-dir DIR or set " << platform::kInstallEnvVar << ".\n";
+            return 2;
+        }
+        const auto selected = game::prompt_for_game_install(install_resolution.validation);
+        if (!selected) {
+            return 2;
+        }
+        install_resolution = {platform::InstallSource::FolderSelection,
+                              {platform::InstallProblem::None, *selected, {}}};
+        if (settings_directory &&
+            !platform::persist_game_install_setting(*settings_directory, *selected)) {
+            std::cerr << "warning: could not save the selected installation path\n";
+        }
+    }
+
+    const std::filesystem::path install_root = install_resolution.validation.install.root;
+    const std::filesystem::path data_dir =
+        install_resolution.validation.install.data_directory;
+    const std::filesystem::path games_lod = data_dir / "Games.lod";
+    std::cout << "MM6 installation: "
+              << platform::install_source_name(install_resolution.source) << "\n";
     if (list_only) {
         return list_maps(data_dir);
     }
@@ -2279,12 +2317,6 @@ int main(int argc, char** argv) {
     // launch is a new game in New Sorpigal rather than a usage message.
     bool new_game_start = false;
     if (map_name.empty()) {
-        if (!platform::install_from_env()) {
-            std::cout << "StarHaven " << STARHAVEN_VERSION << "\n";
-            std::cout << "No game install configured. Set " << platform::kInstallEnvVar << ".\n";
-            print_usage(argv[0]);
-            return 2;
-        }
         map_name = std::string(game::kNewGameMap);
         new_game_start = true;
     }
@@ -2312,7 +2344,7 @@ int main(int argc, char** argv) {
     const auto load_started = std::chrono::steady_clock::now();
     world::MapSession session;
     if (const world::MapSessionError e =
-            world::load_map_session(game::resolve_games_lod(), data_dir, map_name, cache, session);
+            world::load_map_session(games_lod, data_dir, map_name, cache, session);
         e != world::MapSessionError::None) {
         std::cerr << "error: could not load " << map_name << " (code " << static_cast<int>(e)
                   << ")\n";
@@ -2512,16 +2544,14 @@ int main(int argc, char** argv) {
     music.set_loud(ini_loud_music);
     game::AmbientMixer ambient;
     if (screenshot.empty()) {
-        if (const auto install = platform::install_from_env()) {
-            if (music_wanted && session.music_track > 0 &&
-                music.start(*install, session.music_track)) {
-                std::cout << "playing track " << session.music_track << "\n";
-            }
-            // Opened even with no ambient decorations: doors and switches
-            // play their one-shots through the same mixer.
-            if (ambient.open(*install) && !ambient_sources.empty()) {
-                std::cout << ambient_sources.size() << " decorations make a sound\n";
-            }
+        if (music_wanted && session.music_track > 0 &&
+            music.start(install_root, session.music_track)) {
+            std::cout << "playing track " << session.music_track << "\n";
+        }
+        // Opened even with no ambient decorations: doors and switches
+        // play their one-shots through the same mixer.
+        if (ambient.open(install_root) && !ambient_sources.empty()) {
+            std::cout << ambient_sources.size() << " decorations make a sound\n";
         }
     }
 
@@ -3728,7 +3758,7 @@ int main(int argc, char** argv) {
             memory.remembered_day = clock.day();
         }
         world::MapSession next;
-        if (world::load_map_session(game::resolve_games_lod(), data_dir, name, cache, next) !=
+        if (world::load_map_session(games_lod, data_dir, name, cache, next) !=
             world::MapSessionError::None) {
             return false;
         }
@@ -3741,9 +3771,7 @@ int main(int argc, char** argv) {
         }
         music.stop();
         if (screenshot.empty() && music_wanted && session.music_track > 0) {
-            if (const auto install = platform::install_from_env()) {
-                (void)music.start(*install, session.music_track);
-            }
+            (void)music.start(install_root, session.music_track);
         }
         shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
         note_town();

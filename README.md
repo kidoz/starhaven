@@ -3056,11 +3056,16 @@ Generated HTML is written to the ignored `site/` directory.
 
 ## Use
 
-Point the engine at your legal game installation with an environment variable:
+Launch the engine and choose your legal game installation when prompted. The
+selection is validated read-only and remembered in the platform user-data
+directory. Development and command-line runs can override it explicitly:
 
 ```bash
-export STARHAVEN_GAME_DIR=/path/to/your/MM6/install   # contains MM6.exe and data/
 ./buildDir/starhaven
+./buildDir/starhaven --game-dir /path/to/your/MM6/install
+
+# Tools and existing scripts can continue to use the environment.
+export STARHAVEN_GAME_DIR=/path/to/your/MM6/install   # contains MM6.exe and Data/
 ```
 
 Inspect an archive:

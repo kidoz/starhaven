@@ -81,6 +81,7 @@ starhaven_core_sources = files(
   'src/core/audio/mp3.cpp',
   'src/core/video/vid_archive.cpp',
   'src/core/video/smacker.cpp',
+  'src/core/platform/game_install.cpp',
   'src/core/platform/paths.cpp',
   'src/game/startup_flow.cpp',
 )
@@ -107,7 +108,7 @@ sdl3_dep = dependency('sdl3')
 
 # The engine itself: loads any map and renders it as a walkable world. The
 # SDL-dependent parts live under src/game; everything below it is SDL-free.
-executable('starhaven', 'src/main.cpp',
+executable('starhaven', 'src/main.cpp', 'src/game/install_prompt.cpp',
   dependencies : [starhaven_dep, sdl3_dep],
   install : true,
 )
