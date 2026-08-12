@@ -421,3 +421,9 @@ test('journal',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('startup_flow',
+  executable('test_startup_flow', 'test_startup_flow.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)

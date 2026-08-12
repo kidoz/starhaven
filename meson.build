@@ -82,6 +82,7 @@ starhaven_core_sources = files(
   'src/core/video/vid_archive.cpp',
   'src/core/video/smacker.cpp',
   'src/core/platform/paths.cpp',
+  'src/game/startup_flow.cpp',
 )
 
 starhaven_core = static_library('starhaven_core',
