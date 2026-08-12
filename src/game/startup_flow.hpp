@@ -32,6 +32,7 @@ enum class StartupAction : std::uint8_t {
     MediaFinished,
     MediaSkipped,
     MediaUnavailable,
+    MediaDecodeFailed,
     ChooseNewGame,
     ChooseLoad,
     ChooseCredits,

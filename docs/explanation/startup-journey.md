@@ -6,9 +6,11 @@ status: partial
 last_updated: 2026-08-12
 source_files:
   - src/game/startup_flow.cpp
+  - src/game/startup_media.cpp
   - src/core/platform/game_install.cpp
   - src/main.cpp
   - tests/test_startup_flow.cpp
+  - tests/test_startup_media.cpp
   - tests/test_game_install.cpp
 tags:
   - mm6
@@ -118,7 +120,7 @@ the target save-selection UI is complete.
 | Area | Behavior on 2026-08-12 | Compatibility consequence |
 | --- | --- | --- |
 | Resource discovery | `--game-dir`, a persisted per-user setting, then `STARHAVEN_GAME_DIR` are validated without writing to the install. A 640x480 recovery window can select another folder. | Player-facing boot recovery is implemented; opening videos remain optional later in the flow. |
-| Opening and title | `StartupFlow` owns logo, intro, title, credits, and skip transitions. | The order and one-reel-at-a-time skip contract are testable without SDL or proprietary data. |
+| Opening and title | `StartupFlow` owns logo, intro, title, credits, and skip transitions. `StartupMediaController` owns one decoder at a time and reports finished, skipped, unavailable, or failed reels. `--no-movies` reaches Title without changing game state. | Opening playback completes before map construction; the order, one-reel-at-a-time skip contract, and failure cleanup are testable without SDL or proprietary data. |
 | New | Title New enters the existing party-creation screen; Enter activates the preloaded New Sorpigal session. | Destination and spawn match the observed record, but construction is not yet transactional. |
 | Load | Title Load immediately asks the current StarHaven slot to load. Invalid completion returns to Title. | A visible save-slot selector and per-slot validation are still missing. |
 | Loading | The map is prepared before title interaction, and no dedicated loading presentation owns the replacement. | This does not yet satisfy the target lifecycle even though the first location is playable. |
@@ -138,6 +140,6 @@ The evidence above establishes only these startup compatibility requirements:
    return behavior until direct evidence resolves them.
 
 The SDL-free transition contract is covered by `tests/test_startup_flow.cpp`;
-installation precedence and failure diagnostics are covered by
-`tests/test_game_install.cpp`. Both suites use synthetic state and filesystem
-fixtures only.
+media lifecycle behavior by `tests/test_startup_media.cpp`; and installation
+precedence and failure diagnostics by `tests/test_game_install.cpp`. All three
+suites use synthetic state, media structures, and filesystem fixtures only.

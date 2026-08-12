@@ -3113,6 +3113,7 @@ Walk any map, indoor or outdoor, in a 3D software-rasterized view:
 
 ```bash
 ./buildDir/starhaven --maps      # the 67 maps, by file name and title
+./buildDir/starhaven --no-movies # accessibility/development: go directly to Title
 ./buildDir/starhaven Outa1.odm   # WASD move, Q/E fly, arrows look, ESC quits
 ./buildDir/starhaven CD1.blv     # the same program reads indoor levels
 

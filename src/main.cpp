@@ -66,6 +66,8 @@
 #include "game/skills.hpp"
 #include "game/sprites.hpp"
 #include "game/startup_flow.hpp"
+#include "game/startup_media.hpp"
+#include "game/startup_media_player.hpp"
 #include "game/temple.hpp"
 #include "game/text.hpp"
 #include "game/training.hpp"
@@ -144,6 +146,7 @@ void print_usage(const char* argv0) {
               << "  --fly               disable gravity and collision\n"
               << "  --walk N            use map event N on startup (research)\n"
               << "  --no-music          do not play the map's music track\n"
+              << "  --no-movies         go directly to the title screen\n"
               << "\n"
               << "Choose the install in the app, pass --game-dir, or set "
               << platform::kInstallEnvVar << ".\n";
@@ -2190,6 +2193,7 @@ int main(int argc, char** argv) {
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
+    bool movies_wanted = true;
     bool list_only = false;
     bool show_labels = false;
     bool show_directory = false;
@@ -2244,6 +2248,8 @@ int main(int argc, char** argv) {
             fly = true;
         } else if (a == "--no-music") {
             music_wanted = false;
+        } else if (a == "--no-movies") {
+            movies_wanted = false;
         } else if (a == "--pos" && i + 1 < argc) {
             float xyz[3] = {0, 0, 0};
             if (game::parse_floats(argv[++i], xyz, 3) != 3) {
@@ -2312,6 +2318,10 @@ int main(int argc, char** argv) {
     if (list_only) {
         return list_maps(data_dir);
     }
+    const bool interactive_startup =
+        screenshot.empty() && bench_frames == 0 && walk_on_start < 0 && start_shop == 0 &&
+        open_sheet == 0 && open_pack == 0;
+    const bool starts_in_world = !start_title && !force_create && !interactive_startup;
     // With no map named, the game opens where the game opens. `0x453ea0`
     // names `"oute3.odm"` and places the party in the same breath, so a bare
     // launch is a new game in New Sorpigal rather than a usage message.
@@ -2340,6 +2350,22 @@ int main(int argc, char** argv) {
 
     assets::AssetCache cache;
     cache.open(data_dir);
+
+    // Opening media runs before the world exists. The player can skip either
+    // reel independently; --no-movies reaches the same title state without
+    // changing party, save, or map data.
+    if (interactive_startup && !start_title && !force_create && movies_wanted) {
+        const game::OpeningMediaResult opening =
+            game::play_opening_media(cache, window_scale);
+        if (opening == game::OpeningMediaResult::Quit) {
+            return 0;
+        }
+        if (opening == game::OpeningMediaResult::PlatformError) {
+            std::cerr << "error: could not open the startup media window: " << SDL_GetError()
+                      << "\n";
+            return 1;
+        }
+    }
 
     const auto load_started = std::chrono::steady_clock::now();
     world::MapSession session;
@@ -2543,16 +2569,30 @@ int main(int argc, char** argv) {
     game::MusicPlayer music;
     music.set_loud(ini_loud_music);
     game::AmbientMixer ambient;
-    if (screenshot.empty()) {
+    const bool ambient_available = screenshot.empty() && ambient.open(install_root);
+    bool map_audio_ready = false;
+    const auto start_map_audio = [&] {
+        if (!screenshot.empty()) {
+            return;
+        }
         if (music_wanted && session.music_track > 0 &&
             music.start(install_root, session.music_track)) {
             std::cout << "playing track " << session.music_track << "\n";
         }
         // Opened even with no ambient decorations: doors and switches
         // play their one-shots through the same mixer.
-        if (ambient.open(install_root) && !ambient_sources.empty()) {
+        if (ambient_available && !ambient_sources.empty()) {
             std::cout << ambient_sources.size() << " decorations make a sound\n";
         }
+        map_audio_ready = true;
+    };
+    const auto stop_map_audio = [&] {
+        music.stop();
+        ambient.stop();
+        map_audio_ready = false;
+    };
+    if (starts_in_world) {
+        start_map_audio();
     }
 
     // Indoors a fixed overhead lamp, since a level has no sky; outdoors the
@@ -2612,13 +2652,11 @@ int main(int argc, char** argv) {
     // rerolled at will. Every tooling flag means "get to the world", so any
     // of them skips the door. One explicit flow now owns the opening movies,
     // title, creation hall and the point at which the world becomes active.
-    const bool wants_creation =
-        force_create || (screenshot.empty() && bench_frames == 0 && walk_on_start < 0 &&
-                         start_shop == 0 && open_sheet == 0 && open_pack == 0);
+    const bool wants_creation = force_create || interactive_startup;
     const game::StartupState initial_startup_state =
         start_title                   ? game::StartupState::Title
         : force_create                ? game::StartupState::PartyCreation
-        : wants_creation              ? game::StartupState::OpeningLogo
+        : wants_creation              ? game::StartupState::Title
                                       : game::StartupState::Playing;
     game::StartupFlow startup{initial_startup_state};
     if (!startup.world_active() && mouse_look) {
@@ -2992,9 +3030,25 @@ int main(int argc, char** argv) {
         bool ready = false;
     };
     RoomPlayer room;
-    RoomPlayer movie;
+    game::StartupMediaController movie;
     render::Texture movie_frame;
+    std::string media_warning;
+    std::uint64_t media_warning_until = 0;
+    std::uint64_t media_next_frame_at = 0;
 
+    const auto finish_startup_media = [&](const game::StartupMediaReport& report) {
+        ambient.stop_room();
+        movie_frame = {};
+        media_next_frame_at = 0;
+        (void)startup.dispatch(game::startup_action_for_media_outcome(report.outcome));
+        if (report.outcome == game::StartupMediaOutcome::Unavailable) {
+            media_warning = report.reel + " is unavailable; continuing.";
+            media_warning_until = SDL_GetTicks() + 1800;
+        } else if (report.outcome == game::StartupMediaOutcome::DecodeFailed) {
+            media_warning = report.reel + " could not be decoded; continuing.";
+            media_warning_until = SDL_GetTicks() + 1800;
+        }
+    };
 
     // The campfire screen: R opens it, its buttons choose how long.
     bool rest_screen = start_rest;
@@ -3770,7 +3824,8 @@ int main(int argc, char** argv) {
             }
         }
         music.stop();
-        if (screenshot.empty() && music_wanted && session.music_track > 0) {
+        if (startup.world_active() && screenshot.empty() && music_wanted &&
+            session.music_track > 0) {
             (void)music.start(install_root, session.music_track);
         }
         shops_here = all_buildings.on_map(data::map_code_of(session.file_name));
@@ -3854,84 +3909,86 @@ int main(int argc, char** argv) {
 
     while (running) {
         ++frame;
-        music.update();
-        ambient.update(camera.position, ambient_sources, session.sounds);
-        // The fight's own vocabulary: each monster's attack and death play
-        // the `DSOUNDS.BIN` set its DMONLIST record names at +0x08.
-        // A shot from range flies the Miss column's kind at the party: the
-        // sprite for each kind is this engine's pick from the frame table
-        // ("ARRA" for an arrow, the spell bolts for the elements).
-        for (const std::size_t shooter : battle.take_shots()) {
-            if (shooter >= session.actors.size()) {
-                continue;
-            }
-            const int mid = session.actors[shooter].monster_id;
-            const auto* row = mid > 0 && static_cast<std::size_t>(mid) <=
-                                             monster_stats.entries().size()
-                                  ? &monster_stats.entries()[static_cast<std::size_t>(mid) - 1]
-                                  : nullptr;
-            if (row == nullptr) {
-                continue;
-            }
-            const std::string_view kind = game::missile_kind(*row);
-            const std::string_view sprite = kind == "Arrow"  ? "ARRA"
-                                            : kind == "Fire" ? "fire04"
-                                            : kind == "Elec" ? "air04"
-                                            : kind == "Cold" ? "cold04"
-                                            : kind == "Pois" ? "earth04"
-                                                             : "dark08";
-            game::ActiveLaunch bolt;
-            bolt.animation = std::string(sprite);
-            bolt.position = session.actors[shooter].position;
-            bolt.position.y += 32.0f;
-            bolt.target = camera.position;
-            launches.push_back(std::move(bolt));
-        }
-        // A monster's cast flies its school's own bolt and speaks with the
-        // spell's own sound — the same joins the party's casting uses.
-        for (const auto& [caster, spell_id] : battle.take_casts()) {
-            if (caster >= session.actors.size()) {
-                continue;
-            }
-            ambient.play_spell(spell_id);
-            if (const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id))) {
+        if (startup.world_active()) {
+            music.update();
+            ambient.update(camera.position, ambient_sources, session.sounds);
+            // The fight's own vocabulary: each monster's attack and death play
+            // the `DSOUNDS.BIN` set its DMONLIST record names at +0x08.
+            // A shot from range flies the Miss column's kind at the party: the
+            // sprite for each kind is this engine's pick from the frame table
+            // ("ARRA" for an arrow, the spell bolts for the elements).
+            for (const std::size_t shooter : battle.take_shots()) {
+                if (shooter >= session.actors.size()) {
+                    continue;
+                }
+                const int mid = session.actors[shooter].monster_id;
+                const auto* row =
+                    mid > 0 && static_cast<std::size_t>(mid) <= monster_stats.entries().size()
+                        ? &monster_stats.entries()[static_cast<std::size_t>(mid) - 1]
+                        : nullptr;
+                if (row == nullptr) {
+                    continue;
+                }
+                const std::string_view kind = game::missile_kind(*row);
+                const std::string_view sprite = kind == "Arrow"  ? "ARRA"
+                                                : kind == "Fire" ? "fire04"
+                                                : kind == "Elec" ? "air04"
+                                                : kind == "Cold" ? "cold04"
+                                                : kind == "Pois" ? "earth04"
+                                                                 : "dark08";
                 game::ActiveLaunch bolt;
-                bolt.animation = game::spell_sprite_group(spell->school, spell->number);
-                bolt.position = session.actors[caster].position;
+                bolt.animation = std::string(sprite);
+                bolt.position = session.actors[shooter].position;
                 bolt.position.y += 32.0f;
                 bolt.target = camera.position;
                 launches.push_back(std::move(bolt));
             }
-        }
-        for (const int killed : battle.take_kills()) {
-            kills_this_month.insert(killed);
-            // What a death costs the party's standing: fifty, once per body,
-            // as the death handler takes it. Prison waits at the bound.
-            if (game::reputation_after_death(reputation)) {
-                game::PartyRecord standing_record{reputation, party_deaths, prison_terms};
-                game::serve_prison_term(standing_record, script_state.awards);
-                reputation = standing_record.reputation;
-                prison_terms = standing_record.prison_terms;
-                shop_said = "The watch has seen enough. A term is served.";
+            // A monster's cast flies its school's own bolt and speaks with the
+            // spell's own sound — the same joins the party's casting uses.
+            for (const auto& [caster, spell_id] : battle.take_casts()) {
+                if (caster >= session.actors.size()) {
+                    continue;
+                }
+                ambient.play_spell(spell_id);
+                if (const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id))) {
+                    game::ActiveLaunch bolt;
+                    bolt.animation = game::spell_sprite_group(spell->school, spell->number);
+                    bolt.position = session.actors[caster].position;
+                    bolt.position.y += 32.0f;
+                    bolt.target = camera.position;
+                    launches.push_back(std::move(bolt));
+                }
             }
-        }
-        for (const auto& noise : battle.take_noises()) {
-            if (noise.actor >= session.actors.size()) {
-                continue;
+            for (const int killed : battle.take_kills()) {
+                kills_this_month.insert(killed);
+                // What a death costs the party's standing: fifty, once per body,
+                // as the death handler takes it. Prison waits at the bound.
+                if (game::reputation_after_death(reputation)) {
+                    game::PartyRecord standing_record{reputation, party_deaths, prison_terms};
+                    game::serve_prison_term(standing_record, script_state.awards);
+                    reputation = standing_record.reputation;
+                    prison_terms = standing_record.prison_terms;
+                    shop_said = "The watch has seen enough. A term is served.";
+                }
             }
-            const int mid = session.actors[noise.actor].monster_id;
-            const auto* row = mid > 0 ? session.monsters.at(static_cast<std::size_t>(mid) - 1)
-                                      : nullptr;
-            if (row == nullptr || noise.action < 0 ||
-                noise.action >= static_cast<int>(row->sounds.size()) ||
-                row->sounds[static_cast<std::size_t>(noise.action)] == 0) {
-                continue;
-            }
-            // The record states each of the four ids outright; the Guards'
-            // fidget skips one, so arithmetic from the base would miss it.
-            if (const auto* sound = session.sounds.find(static_cast<std::uint32_t>(
-                    row->sounds[static_cast<std::size_t>(noise.action)]))) {
-                ambient.play_once(sound->name);
+            for (const auto& noise : battle.take_noises()) {
+                if (noise.actor >= session.actors.size()) {
+                    continue;
+                }
+                const int mid = session.actors[noise.actor].monster_id;
+                const auto* row =
+                    mid > 0 ? session.monsters.at(static_cast<std::size_t>(mid) - 1) : nullptr;
+                if (row == nullptr || noise.action < 0 ||
+                    noise.action >= static_cast<int>(row->sounds.size()) ||
+                    row->sounds[static_cast<std::size_t>(noise.action)] == 0) {
+                    continue;
+                }
+                // The record states each of the four ids outright; the Guards'
+                // fidget skips one, so arithmetic from the base would miss it.
+                if (const auto* sound = session.sounds.find(static_cast<std::uint32_t>(
+                        row->sounds[static_cast<std::size_t>(noise.action)]))) {
+                    ambient.play_once(sound->name);
+                }
             }
         }
 
@@ -3943,16 +4000,17 @@ int main(int argc, char** argv) {
             // out in the logical 640x480.
             SDL_ConvertEventToRenderCoordinates(sdl_renderer, &event);
             if (event.type == SDL_EVENT_QUIT) {
+                movie.release();
+                ambient.stop_room();
                 (void)startup.dispatch(game::StartupAction::Quit);
                 running = false;
             } else if (startup.media_active() &&
                        (event.type == SDL_EVENT_KEY_DOWN ||
                         event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
-                // Any key sends the reel forward.
-                (void)startup.dispatch(game::StartupAction::MediaSkipped);
-                movie = {};
-                movie_frame = {};
-                ambient.stop_room();
+                // Keyboard and mouse use the same one-reel skip operation.
+                if (const auto report = movie.skip()) {
+                    finish_startup_media(*report);
+                }
             } else if (startup.state() == game::StartupState::Title &&
                        (event.type == SDL_EVENT_KEY_DOWN ||
                         event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
@@ -3982,6 +4040,7 @@ int main(int argc, char** argv) {
                     transition = startup.dispatch(game::StartupAction::ChooseLoad);
                 } else if (chosen == 2) {
                     transition = startup.dispatch(game::StartupAction::ChooseCredits);
+                    stop_map_audio();
                 } else if (chosen == 3) {
                     transition = startup.dispatch(game::StartupAction::ChooseExit);
                 }
@@ -4130,6 +4189,9 @@ int main(int argc, char** argv) {
                     game::derive_start(who);
                 } else if (event.key.key == SDLK_RETURN) {
                     (void)startup.dispatch(game::StartupAction::ConfirmParty);
+                    if (startup.world_active() && !map_audio_ready) {
+                        start_map_audio();
+                    }
                     if (mouse_look && !cursor_free) {
                         SDL_SetWindowRelativeMouseMode(window, true);
                     }
@@ -4512,6 +4574,9 @@ int main(int argc, char** argv) {
                     pick_up_shown = SDL_GetTicks();
                     if (completing_startup_load) {
                         (void)startup.dispatch(game::StartupAction::LoadSucceeded);
+                        if (startup.world_active() && !map_audio_ready) {
+                            start_map_audio();
+                        }
                         if (mouse_look && !cursor_free) {
                             SDL_SetWindowRelativeMouseMode(window, true);
                         }
@@ -7872,57 +7937,43 @@ int main(int argc, char** argv) {
         }
 
         if (startup.media_active()) {
-            // Startup media owns the whole frame. Keep the prepared world
-            // hidden while a reel is opening or handing off to the next.
+            // Credits own the whole frame. The opening reels have already run
+            // before map construction through the same controller.
             auto pixels = scene.framebuffer().color();
             std::fill(pixels.begin(), pixels.end(), 0);
             const std::string reel{startup.movie_name()};
-            if (movie.video != reel) {
-                movie = {};
-                movie.video = std::string(reel);
-                movie.ready = cache.interior_bytes(reel, movie.bytes) &&
-                              video::SmackerDecoder::load(movie.bytes, movie.decoder) ==
-                                  video::SmackerError::None &&
-                              movie.decoder.info().frame_count > 0;
-                movie.frame = 0;
-                movie.next_at = 0;
-                if (!movie.ready) {
-                    (void)startup.dispatch(game::StartupAction::MediaUnavailable);
-                    movie = {};
-                    movie_frame = {};
+            if (!movie.active()) {
+                std::vector<std::byte> bytes;
+                (void)cache.interior_bytes(reel, bytes);
+                if (const auto report = movie.begin(reel, bytes)) {
+                    finish_startup_media(*report);
                 }
             }
-            if (movie.ready && SDL_GetTicks() >= movie.next_at) {
-                std::span<const std::uint8_t> rgba;
-                if (movie.decoder.decode_frame_rgba(movie.frame, rgba) ==
-                    video::SmackerError::None) {
-                    std::vector<std::uint8_t> pixels(rgba.begin(), rgba.end());
-                    (void)render::Texture::create(
-                        static_cast<std::uint16_t>(movie.decoder.info().width),
-                        static_cast<std::uint16_t>(movie.decoder.info().height),
-                        std::move(pixels), movie_frame);
-                    video::SmackerAudioFrame chunk;
-                    if (mouse_look &&
-                        movie.decoder.decode_audio(movie.frame, 0, chunk) ==
-                            video::SmackerError::None &&
-                        !chunk.samples.empty()) {
-                        const auto track = movie.decoder.audio_info(0);
-                        ambient.play_room_chunk(chunk.samples.data(), chunk.samples.size(),
-                                                static_cast<int>(track.sample_rate),
-                                                track.stereo);
+            if (movie.active() && SDL_GetTicks() >= media_next_frame_at) {
+                game::StartupMediaFrame media_frame;
+                if (const auto report = movie.advance(media_frame)) {
+                    finish_startup_media(*report);
+                } else if (!media_frame.rgba.empty()) {
+                    std::vector<std::uint8_t> pixels(media_frame.rgba.begin(),
+                                                     media_frame.rgba.end());
+                    if (!render::Texture::create(static_cast<std::uint16_t>(media_frame.width),
+                                                 static_cast<std::uint16_t>(media_frame.height),
+                                                 std::move(pixels), movie_frame)) {
+                        game::StartupMediaReport report{
+                            game::StartupMediaOutcome::DecodeFailed, std::string(movie.reel())};
+                        movie.release();
+                        finish_startup_media(report);
+                    } else {
+                        if (mouse_look && !media_frame.audio.empty()) {
+                            ambient.play_room_chunk(
+                                media_frame.audio.data(), media_frame.audio.size(),
+                                static_cast<int>(media_frame.audio_rate),
+                                media_frame.audio_channels == 2);
+                        }
+                        const double fps = media_frame.fps > 1.0 ? media_frame.fps : 15.0;
+                        media_next_frame_at =
+                            SDL_GetTicks() + static_cast<std::uint64_t>(1000.0 / fps);
                     }
-                }
-                ++movie.frame;
-                if (movie.frame >= movie.decoder.info().frame_count) {
-                    (void)startup.dispatch(game::StartupAction::MediaFinished);
-                    movie = {};
-                    movie_frame = {};
-                    ambient.stop_room();
-                } else {
-                    const double fps =
-                        movie.decoder.info().fps > 1.0 ? movie.decoder.info().fps : 15.0;
-                    movie.next_at =
-                        SDL_GetTicks() + static_cast<std::uint64_t>(1000.0 / fps);
                 }
             }
             if (!movie_frame.empty()) {
@@ -7946,6 +7997,10 @@ int main(int argc, char** argv) {
                                 "The art, the words and the world belong to their rights holders.",
                                 render::Color{235, 225, 180, 255}, render::Color{0, 0, 0, 255});
             }
+        }
+        if (SDL_GetTicks() < media_warning_until && font.glyph_count() > 0) {
+            game::draw_text(scene.framebuffer(), font, 24, 390, media_warning,
+                            render::Color{245, 205, 135, 255}, render::Color{0, 0, 0, 255});
         }
         // The map's name, drawn with the game's own font, inside the
         // viewport's frame rather than across it.
@@ -7971,6 +8026,8 @@ int main(int argc, char** argv) {
         }
     }
 
+    movie.release();
+    ambient.stop_room();
     SDL_DestroyTexture(screen);
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(window);

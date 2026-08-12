@@ -52,13 +52,15 @@ StartupTransition StartupFlow::dispatch(StartupAction action) noexcept {
         break;
     case StartupState::OpeningLogo:
         if (action == StartupAction::MediaFinished || action == StartupAction::MediaSkipped ||
-            action == StartupAction::MediaUnavailable) {
+            action == StartupAction::MediaUnavailable ||
+            action == StartupAction::MediaDecodeFailed) {
             state_ = StartupState::OpeningIntro;
         }
         break;
     case StartupState::OpeningIntro:
         if (action == StartupAction::MediaFinished || action == StartupAction::MediaSkipped ||
-            action == StartupAction::MediaUnavailable) {
+            action == StartupAction::MediaUnavailable ||
+            action == StartupAction::MediaDecodeFailed) {
             state_ = StartupState::Title;
         }
         break;
@@ -95,7 +97,8 @@ StartupTransition StartupFlow::dispatch(StartupAction action) noexcept {
         break;
     case StartupState::Credits:
         if (action == StartupAction::MediaFinished || action == StartupAction::MediaSkipped ||
-            action == StartupAction::MediaUnavailable || action == StartupAction::Back) {
+            action == StartupAction::MediaUnavailable ||
+            action == StartupAction::MediaDecodeFailed || action == StartupAction::Back) {
             state_ = StartupState::Title;
         }
         break;

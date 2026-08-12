@@ -433,3 +433,9 @@ test('game_install',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('startup_media',
+  executable('test_startup_media', 'test_startup_media.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
