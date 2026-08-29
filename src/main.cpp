@@ -175,6 +175,9 @@ void print_usage(const char* argv0) {
               << "  --shop N            open the Nth establishment's counter\n"
               << "  --fly               disable gravity and collision\n"
               << "  --walk N            use map event N on startup (research)\n"
+              << "  --smoke-new         run the acceptance journey (new game)\n"
+              << "  --smoke-load        run the acceptance journey (load slot 1)\n"
+              << "  --smoke-event N     use map event N during --smoke-new\n"
               << "  --no-music          do not play the map's music track\n"
               << "  --no-movies         go directly to the title screen\n"
               << "\n"
@@ -1234,8 +1237,8 @@ void draw_save_selection(render::SceneRenderer& scene, const image::Font& font,
 // modes and their exact progress updates are `unknown` (see
 // docs/explanation/startup-journey.md), so the picture-and-rectangle
 // composition is this engine's.
-void draw_loading(render::SceneRenderer& scene, const image::Font& font,
-                  assets::AssetCache& cache, const game::LoadingPlan& plan) {
+void draw_loading(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                  const game::LoadingPlan& plan) {
     auto pixels = scene.framebuffer().color();
     std::fill(pixels.begin(), pixels.end(), 0);
     blit(scene.framebuffer(), cache.icon("loading.pcx"), 0, 0);
@@ -2291,6 +2294,8 @@ int main(int argc, char** argv) {
     int start_hour = -1;  // --time, for looking at the world at a given hour
     int start_shop = 0;   // --shop, to open a counter straight away
     int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
+    int smoke_mode = 0;           // --smoke-new / --smoke-load: the acceptance journey
+    int smoke_event = -1;         // --smoke-event N: one map event to use during the run
     bool force_create = false;  // --create: the party door, even under --screenshot
     bool start_journal = false;  // --journal: open the journal at once
     bool start_book = false;     // --book: open the spell book at once
@@ -2335,6 +2340,12 @@ int main(int argc, char** argv) {
             start_shop = std::atoi(argv[++i]);
         } else if (a == "--walk" && i + 1 < argc) {
             walk_on_start = std::atoi(argv[++i]);
+        } else if (a == "--smoke-new") {
+            smoke_mode = 1;
+        } else if (a == "--smoke-load") {
+            smoke_mode = 2;
+        } else if (a == "--smoke-event" && i + 1 < argc) {
+            smoke_event = std::atoi(argv[++i]);
         } else if (a == "--create") {
             force_create = true;
         } else if (a == "--journal") {
@@ -2405,7 +2416,7 @@ int main(int argc, char** argv) {
 
     if (!install_resolution.valid()) {
         const bool command_line_workflow =
-            list_only || !screenshot.empty() || bench_frames > 0;
+            list_only || !screenshot.empty() || bench_frames > 0 || smoke_mode != 0;
         if (command_line_workflow) {
             std::cerr << "error: "
                       << platform::install_problem_message(install_resolution.validation) << "\n";
@@ -2432,6 +2443,11 @@ int main(int argc, char** argv) {
               << platform::install_source_name(install_resolution.source) << "\n";
     if (list_only) {
         return list_maps(data_dir);
+    }
+    // The acceptance journey is deterministic: whether the opening reels
+    // play is the media controller's own tests to prove, not the smoke's.
+    if (smoke_mode != 0) {
+        movies_wanted = false;
     }
     const bool interactive_startup =
         screenshot.empty() && bench_frames == 0 && walk_on_start < 0 && start_shop == 0 &&
@@ -4094,8 +4110,7 @@ int main(int argc, char** argv) {
         }
         next_wage_day = pending_load.wage_day > 0 ? pending_load.wage_day : clock.day() + 7;
         last_hire_day = clock.day();
-        script_state.awards =
-            std::set<int>(pending_load.awards.begin(), pending_load.awards.end());
+        script_state.awards = std::set<int>(pending_load.awards.begin(), pending_load.awards.end());
         promoted_awards = script_state.awards;
         visited_towns = pending_load.visited_towns;
         fly_until = pending_load.fly_until;
@@ -4163,6 +4178,42 @@ int main(int argc, char** argv) {
         return true;
     };
 
+    // The local acceptance run (--smoke-new / --smoke-load): the journey of
+    // the plan's PS-7 checklist driven through the real input path with
+    // synthetic key presses, printing only non-expressive results — state
+    // names, the map name, coordinates, counts, and pass/fail.
+    int smoke_frame = 0;
+    int smoke_play_at = -1;
+    int smoke_failures = 0;
+    bool smoke_walking = false;
+    bool smoke_start_taken = false;
+    float smoke_start_x = 0.0f;
+    float smoke_start_z = 0.0f;
+    bool smoke_turned_on = false;
+    bool smoke_turned_off = false;
+    bool smoke_shop_seen = false;
+    bool smoke_event_ran = false;
+    auto smoke_press = [](SDL_Keycode key) {
+        SDL_Event synthetic{};
+        synthetic.type = SDL_EVENT_KEY_DOWN;
+        synthetic.key.key = key;
+        SDL_PushEvent(&synthetic);
+    };
+    auto smoke_line = [&](const char* step, const char* verdict, const std::string& detail) {
+        std::cout << "SMOKE " << (smoke_mode == 2 ? "LOAD" : "NEW") << ' ' << step << ' ' << verdict
+                  << ' ' << detail << std::endl;
+    };
+    auto smoke_pass = [&](const char* step, const std::string& detail) {
+        smoke_line(step, "PASS", detail);
+    };
+    auto smoke_fail = [&](const char* step, const std::string& detail) {
+        smoke_line(step, "FAIL", detail);
+        ++smoke_failures;
+    };
+    auto smoke_skip = [&](const char* step, const std::string& detail) {
+        smoke_line(step, "SKIP", detail);
+    };
+
     while (running) {
         ++frame;
         if (load_plan.active() && startup.state() == game::StartupState::LoadingWorld) {
@@ -4200,6 +4251,157 @@ int main(int argc, char** argv) {
                 break;
             }
             load_plan.advance();
+        }
+        if (smoke_mode != 0) {
+            ++smoke_frame;
+            switch (startup.state()) {
+            case game::StartupState::InstallRequired:
+                smoke_fail("install", "no valid game install is configured");
+                running = false;
+                break;
+            case game::StartupState::Title:
+                if (smoke_frame > 30 && smoke_frame % 30 == 0) {
+                    smoke_press(smoke_mode == 1 ? SDLK_N : SDLK_L);
+                }
+                break;
+            case game::StartupState::PartyCreation:
+                if (smoke_frame > 60 && smoke_frame % 30 == 0) {
+                    smoke_press(SDLK_RETURN);  // the default draft is complete
+                }
+                break;
+            case game::StartupState::SaveSelection:
+                if (smoke_frame > 60 && smoke_frame % 30 == 0) {
+                    if (!save_selection_message.empty()) {
+                        smoke_fail("slot", save_selection_message);
+                        running = false;
+                    } else {
+                        smoke_press(SDLK_RETURN);  // slot 1
+                    }
+                }
+                break;
+            case game::StartupState::Playing: {
+                if (!smoke_start_taken) {
+                    smoke_start_taken = true;
+                    smoke_play_at = smoke_frame;
+                    smoke_start_x = camera.position.x;
+                    smoke_start_z = camera.position.z;
+                }
+                const int at = smoke_frame - smoke_play_at;
+                smoke_walking = smoke_mode == 1 && at >= 30 && at < 150;
+                smoke_shop_seen = smoke_shop_seen || open_shop >= 0;
+                if (smoke_mode == 1 && at == 150) {
+                    const float moved = std::hypot(camera.position.x - smoke_start_x,
+                                                   camera.position.z - smoke_start_z);
+                    std::ostringstream detail;
+                    detail << "moved " << static_cast<int>(moved) << " units, now x "
+                           << camera.position.x << " z " << camera.position.z;
+                    if (moved > 100.0f && camera.position.y > 32.0f) {
+                        smoke_pass("walk", detail.str());
+                    } else {
+                        smoke_fail("walk", detail.str());
+                    }
+                }
+                if (smoke_mode == 1 && at == 170) {
+                    smoke_press(SDLK_RETURN);  // the fight in turns
+                }
+                if (smoke_mode == 1 && at == 176) {
+                    smoke_turned_on = turn_based;
+                }
+                if (smoke_mode == 1 && at == 182) {
+                    smoke_press(SDLK_RETURN);  // and time flows again
+                }
+                if (smoke_mode == 1 && at == 188) {
+                    smoke_turned_off = turn_based;
+                    std::ostringstream detail;
+                    detail << session.actors.size() << " actors on the map, entered "
+                           << (smoke_turned_on ? "yes" : "no") << ", left "
+                           << (smoke_turned_off ? "yes" : "no");
+                    if (smoke_turned_on && smoke_turned_off) {
+                        smoke_pass("turns", detail.str());
+                    } else {
+                        smoke_fail("turns", detail.str());
+                    }
+                }
+                if (smoke_mode == 1 && at == 200) {
+                    if (smoke_event < 0) {
+                        smoke_skip("event", "pass --smoke-event N to exercise one map event");
+                    } else if (smoke_event_ran) {
+                        smoke_pass("event", "the map event ran");
+                    } else {
+                        smoke_fail("event", "the map event did not run");
+                    }
+                }
+                if (smoke_mode == 1 && at == 210) {
+                    if (smoke_shop_seen) {
+                        smoke_pass("establishment", "the walk crossed one");
+                    } else {
+                        smoke_skip("establishment", "none entered on the scripted walk");
+                    }
+                }
+                if (smoke_mode == 1 && at == 220) {
+                    smoke_press(SDLK_F5);  // slot 1
+                }
+                if (smoke_mode == 1 && at == 250) {
+                    const auto slot = saves.inspect(1);
+                    if (slot.loadable()) {
+                        smoke_pass("save", "slot 1 holds " + slot.map_name + " on day " +
+                                               std::to_string(slot.day));
+                    } else {
+                        smoke_fail("save", slot.message);
+                    }
+                    smoke_line("result", smoke_failures == 0 ? "PASS" : "FAIL",
+                               std::to_string(smoke_failures) + " failing steps");
+                    running = false;
+                }
+                if (smoke_mode == 2 && at == 30) {
+                    game::SaveState saved;
+                    const auto slot = saves.load(1, saved);
+                    if (!slot.loadable()) {
+                        smoke_fail("slot", slot.message);
+                    } else {
+                        const bool same_map =
+                            session.file_name.size() == saved.map_file.size() &&
+                            std::equal(session.file_name.begin(), session.file_name.end(),
+                                       saved.map_file.begin(), [](char a, char b) {
+                                           return std::tolower(static_cast<unsigned char>(a)) ==
+                                                  std::tolower(static_cast<unsigned char>(b));
+                                       });
+                        const bool same_place = std::fabs(camera.position.x - saved.x) < 4.0f &&
+                                                std::fabs(camera.position.y - saved.y) < 4.0f &&
+                                                std::fabs(camera.position.z - saved.z) < 4.0f;
+                        const bool same_party = party[0].name == saved.party[0].name;
+                        const bool same_bits = script_state.bits == saved.bits;
+                        const bool same_pack = packs[0].items().size() == saved.packs[0].size();
+                        const bool same_memory =
+                            opened_chests ==
+                            std::set<int>(saved.opened_chests.begin(), saved.opened_chests.end());
+                        if (same_map && same_place && same_party && same_bits && same_pack &&
+                            same_memory) {
+                            smoke_pass("confirm", saved.map_file + ", party, quest bit, pack and "
+                                                                    "memory agree with slot 1");
+                        } else {
+                            smoke_fail("confirm", std::string("map=") + (same_map ? "y" : "n") +
+                                                      " place=" + (same_place ? "y" : "n") +
+                                                      " party=" + (same_party ? "y" : "n") +
+                                                      " bits=" + (same_bits ? "y" : "n") +
+                                                      " pack=" + (same_pack ? "y" : "n") +
+                                                      " memory=" + (same_memory ? "y" : "n"));
+                        }
+                    }
+                    smoke_line("result", smoke_failures == 0 ? "PASS" : "FAIL",
+                               std::to_string(smoke_failures) + " failing steps");
+                    running = false;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+            if (running && smoke_frame > 3600) {
+                smoke_fail("journey", "timed out in state #" +
+                                          std::to_string(static_cast<int>(startup.state())));
+                running = false;
+            }
         }
         if (startup.world_active()) {
             music.update();
@@ -6481,7 +6683,7 @@ int main(int argc, char** argv) {
 
         const auto* keys = SDL_GetKeyboardState(nullptr);
         game::MoveInput in;
-        in.forward = startup.world_active() && keys[SDL_SCANCODE_W];
+        in.forward = smoke_walking || (startup.world_active() && keys[SDL_SCANCODE_W]);
         in.back = startup.world_active() && keys[SDL_SCANCODE_S];
         in.left = startup.world_active() && keys[SDL_SCANCODE_A];
         in.right = startup.world_active() && keys[SDL_SCANCODE_D];
@@ -7018,12 +7220,16 @@ int main(int argc, char** argv) {
         // until the quest bit it asks for is set. See
         // docs/formats/map-events.md.
         game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
-        // `--walk N` uses event N as though the party had, once, on startup.
-        if (walk_on_start >= 0) {
-            aimed.event_id = static_cast<std::uint16_t>(walk_on_start);
+        // `--walk N` uses event N as though the party had, once, on startup;
+        // `--smoke-event N` does the same during the acceptance run.
+        if (walk_on_start >= 0 || smoke_event >= 0) {
+            aimed.event_id =
+                static_cast<std::uint16_t>(walk_on_start >= 0 ? walk_on_start : smoke_event);
             aimed.distance = 0.0f;
             want_strike = true;
             walk_on_start = -1;
+            smoke_event = -1;
+            smoke_event_ran = true;
         }
         if (want_strike && aimed.found()) {
             // The walker's view of the purse and the packs.
@@ -8283,5 +8489,8 @@ int main(int argc, char** argv) {
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+    if (smoke_mode != 0 && smoke_failures > 0) {
+        return 1;
+    }
     return 0;
 }

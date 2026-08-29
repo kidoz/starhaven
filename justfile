@@ -33,6 +33,20 @@ build: setup
 test: build
     meson test -C {{build_dir}} --print-errorlogs
 
+# The local acceptance journey: the real game driven through the player
+# path — boot, title, party creation, the loading screen, a controlled
+# walk, turn-based combat, and a save that the second run loads back.
+# Needs your own legal installation: set STARHAVEN_GAME_DIR or pass
+# --game-dir DIR. Prints non-expressive PASS/FAIL lines per step.
+smoke *args: build
+    @if [ -z "${STARHAVEN_GAME_DIR:-}" ] && ! printf '%s\n' "{{args}}" | grep -q -- '--game-dir'; then \
+        echo "Set STARHAVEN_GAME_DIR=/path/to/mm6 (or pass --game-dir DIR) to run the acceptance journey"; \
+        exit 2; \
+    fi
+    ./{{build_dir}}/starhaven --smoke-new {{args}} || exit 1
+    ./{{build_dir}}/starhaven --smoke-load {{args}} || exit 1
+    @echo "The acceptance journey passed."
+
 # Build and run the launcher.
 run *args: build
     ./{{build_dir}}/starhaven {{args}}

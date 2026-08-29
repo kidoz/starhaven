@@ -20,6 +20,12 @@ test('loading_plan',
   workdir : meson.current_build_dir(),
 )
 
+test('startup_journey',
+  executable('test_startup_journey', 'test_startup_journey.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('byte_reader',
   executable('test_byte_reader', 'test_byte_reader.cpp',
     dependencies : [starhaven_dep, catch2_main]),
