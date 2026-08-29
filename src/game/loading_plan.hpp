@@ -21,7 +21,7 @@ class LoadingPlan {
 public:
     // The same three steps for either kind: what the maps away from the
     // party remember, the map session itself, then the party's own state.
-    inline static constexpr std::size_t kPhaseCount = 3;
+    static constexpr std::size_t kPhaseCount = 3;
 
     void begin(LoadRequestKind kind, int slot) noexcept;
 

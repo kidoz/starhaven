@@ -5,7 +5,7 @@
 using namespace starhaven::game;
 
 TEST_CASE("a spent plan is inactive and shows nothing", "[loading]") {
-    LoadingPlan plan;
+    const LoadingPlan plan;
 
     REQUIRE_FALSE(plan.active());
     REQUIRE(plan.progress() == 1.0f);

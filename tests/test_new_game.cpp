@@ -83,7 +83,7 @@ TEST_CASE("the opening quest's letter is the only thing the flag adds", "[new_ga
 }
 
 TEST_CASE("an unfinished member keeps the world closed and the seed untouched", "[new_game]") {
-    const auto rejected = [](std::array<Character, 4> party) {
+    const auto rejected = [](const std::array<Character, 4>& party) {
         SaveState seed = marked_seed();
         REQUIRE_FALSE(party_ready(party));
         REQUIRE_FALSE(make_new_game_state(party, true, seed));

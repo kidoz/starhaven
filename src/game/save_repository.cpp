@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <ranges>
 #include <sstream>
 #include <utility>
+
+#include "game/clock.hpp"  // kMinutesPerDay, the day the metadata reports
 
 namespace starhaven::game {
 namespace {
@@ -39,7 +42,7 @@ std::filesystem::path SaveRepository::path_for_slot(int slot) const {
 }
 
 std::filesystem::path SaveRepository::path_for_read(int slot) const {
-    const std::filesystem::path primary = path_for_slot(slot);
+    std::filesystem::path primary = path_for_slot(slot);
     std::error_code error;
     const bool primary_exists = std::filesystem::exists(primary, error);
     if (slot != 1 || !legacy_directory_ || error || primary_exists) {
@@ -49,9 +52,8 @@ std::filesystem::path SaveRepository::path_for_read(int slot) const {
 }
 
 const SaveMapInfo* SaveRepository::find_map(std::string_view file_name) const noexcept {
-    const auto found = std::find_if(maps_.begin(), maps_.end(), [&](const SaveMapInfo& map) {
-        return equal_ascii_case(map.file_name, file_name);
-    });
+    const auto found = std::ranges::find_if(
+        maps_, [&](const SaveMapInfo& map) { return equal_ascii_case(map.file_name, file_name); });
     return found == maps_.end() ? nullptr : &*found;
 }
 
@@ -64,7 +66,7 @@ SaveSlotInfo SaveRepository::load(int slot, SaveState& out) const {
         return info;
     }
 
-    std::ifstream file(path_for_read(slot), std::ios::binary);
+    const std::ifstream file(path_for_read(slot), std::ios::binary);
     if (!file.is_open()) {
         info.status = SaveSlotStatus::Empty;
         info.message = "Empty slot";
@@ -107,7 +109,7 @@ SaveSlotInfo SaveRepository::load(int slot, SaveState& out) const {
 
     info.status = SaveSlotStatus::Valid;
     info.map_name = map->display_name.empty() ? map->file_name : map->display_name;
-    info.day = candidate.minutes / (24 * 60) + 1;
+    info.day = candidate.minutes / kMinutesPerDay + 1;
     info.message = "Ready to load";
     out = std::move(candidate);
     return info;

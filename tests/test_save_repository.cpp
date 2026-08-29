@@ -27,6 +27,9 @@ public:
 
     ~TemporaryDirectory() { std::filesystem::remove_all(path_); }
 
+    TemporaryDirectory(const TemporaryDirectory&) = delete;
+    TemporaryDirectory& operator=(const TemporaryDirectory&) = delete;
+
     [[nodiscard]] const std::filesystem::path& path() const { return path_; }
 
 private:
@@ -45,7 +48,7 @@ SaveRepository repository(const std::filesystem::path& path) {
 }  // namespace
 
 TEST_CASE("all nine empty save slots are enumerated", "[save][repository]") {
-    TemporaryDirectory temporary;
+    const TemporaryDirectory temporary;
     const SaveRepository saves = repository(temporary.path());
     const auto slots = saves.inspect_all();
 
@@ -60,7 +63,7 @@ TEST_CASE("all nine empty save slots are enumerated", "[save][repository]") {
 
 TEST_CASE("save slots distinguish corrupt unsupported and missing-map files",
           "[save][repository]") {
-    TemporaryDirectory temporary;
+    const TemporaryDirectory temporary;
     const SaveRepository saves = repository(temporary.path());
     write(saves.path_for_slot(1), "not-a-save\n");
     write(saves.path_for_slot(2), "starhaven-save\t99\nmap\tOutE3.Odm\n");
@@ -74,7 +77,7 @@ TEST_CASE("save slots distinguish corrupt unsupported and missing-map files",
 }
 
 TEST_CASE("a valid save exposes map and day metadata and loads atomically", "[save][repository]") {
-    TemporaryDirectory temporary;
+    const TemporaryDirectory temporary;
     const SaveRepository saves = repository(temporary.path());
     SaveState state;
     state.map_file = "oute3.odm";
@@ -98,8 +101,8 @@ TEST_CASE("a valid save exposes map and day metadata and loads atomically", "[sa
 }
 
 TEST_CASE("legacy slot one is read only when the per-user slot is absent", "[save][repository]") {
-    TemporaryDirectory primary;
-    TemporaryDirectory legacy;
+    const TemporaryDirectory primary;
+    const TemporaryDirectory legacy;
     const SaveRepository saves{primary.path(), {{"OutE3.Odm", "New Sorpigal"}}, legacy.path()};
     SaveState old;
     old.map_file = "OutE3.Odm";
