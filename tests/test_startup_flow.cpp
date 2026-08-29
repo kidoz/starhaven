@@ -56,6 +56,11 @@ TEST_CASE("load failure returns to its menu and success alone enters play", "[st
     StartupFlow flow{StartupState::Title};
 
     auto transition = flow.dispatch(StartupAction::ChooseLoad);
+    REQUIRE(transition.to == StartupState::SaveSelection);
+    REQUIRE(transition.effect == StartupEffect::None);
+    REQUIRE_FALSE(flow.world_active());
+
+    transition = flow.dispatch(StartupAction::ChooseLoad);
     REQUIRE(transition.to == StartupState::LoadingWorld);
     REQUIRE(transition.effect == StartupEffect::LoadCurrentSlot);
     REQUIRE_FALSE(flow.world_active());
@@ -64,7 +69,7 @@ TEST_CASE("load failure returns to its menu and success alone enters play", "[st
     REQUIRE_FALSE(transition.changed());
     REQUIRE(flow.state() == StartupState::LoadingWorld);
 
-    REQUIRE(flow.dispatch(StartupAction::LoadFailed).to == StartupState::Title);
+    REQUIRE(flow.dispatch(StartupAction::LoadFailed).to == StartupState::SaveSelection);
     REQUIRE(flow.dispatch(StartupAction::ChooseLoad).to == StartupState::LoadingWorld);
     REQUIRE(flow.dispatch(StartupAction::LoadSucceeded).to == StartupState::Playing);
     REQUIRE(flow.world_active());

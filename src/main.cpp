@@ -61,6 +61,7 @@
 #include "game/player.hpp"
 #include "game/rest.hpp"
 #include "game/save.hpp"
+#include "game/save_repository.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/skills.hpp"
@@ -78,18 +79,31 @@ namespace {
 
 using namespace starhaven;
 
-// Where a save lands: beside where the engine was run, in this
-// engine's own text format.
-constexpr const char* kSaveFile = "starhaven.save";  // slot 1's old name, still read
-
-// Nine numbered slots; slot 1 keeps the old single file's name so existing
-// saves survive the change.
-[[nodiscard]] std::string save_slot_path(int slot) {
-    return slot <= 1 ? kSaveFile : "starhaven-" + std::to_string(slot) + ".save";
-}
-
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
+
+void draw_border(render::Framebuffer& framebuffer, int x, int y, int width, int height,
+                 render::Color color) {
+    auto pixels = framebuffer.color();
+    const auto put = [&](int px, int py) {
+        if (px < 0 || py < 0 || px >= framebuffer.width() || py >= framebuffer.height()) {
+            return;
+        }
+        const auto offset = (static_cast<std::size_t>(py) * framebuffer.width() + px) * 4;
+        pixels[offset] = color.r;
+        pixels[offset + 1] = color.g;
+        pixels[offset + 2] = color.b;
+        pixels[offset + 3] = color.a;
+    };
+    for (int px = x; px < x + width; ++px) {
+        put(px, y);
+        put(px, y + height - 1);
+    }
+    for (int py = y; py < y + height; ++py) {
+        put(x, py);
+        put(x + width - 1, py);
+    }
+}
 
 // Sprite pixels are not world units and no table states the absolute scale, so
 // these are calibrated by eye against the models. The frame table's per-sprite
@@ -1145,6 +1159,54 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
                     "1-4 choose, C class, F face, N name, R reroll (the rolls are this "
                     "engine's own), Enter begins",
                     dim, shadow);
+}
+
+void draw_save_selection(render::SceneRenderer& scene, const image::Font& font,
+                         const std::array<game::SaveSlotInfo, game::kSaveSlotCount>& slots,
+                         int selected, std::string_view message) {
+    auto pixels = scene.framebuffer().color();
+    std::fill(pixels.begin(), pixels.end(), 18);
+    if (font.glyph_count() == 0) {
+        return;
+    }
+    const render::Color white{232, 232, 226, 255};
+    const render::Color dim{165, 165, 160, 255};
+    const render::Color mark{245, 220, 135, 255};
+    const render::Color warning{240, 165, 125, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    game::draw_text(scene.framebuffer(), font, 52, 30, "Load a saved party", mark, shadow);
+    game::draw_text(scene.framebuffer(), font, 52, 52,
+                    "Arrows choose, Enter or Load opens, Escape returns", dim, shadow);
+
+    constexpr int kFirstRowY = 84;
+    constexpr int kRowHeight = 32;
+    for (std::size_t index = 0; index < slots.size(); ++index) {
+        const auto& slot = slots[index];
+        const int y = kFirstRowY + static_cast<int>(index) * kRowHeight;
+        if (static_cast<int>(index) == selected) {
+            draw_border(scene.framebuffer(), 48, y - 5, 544, 27, mark);
+        }
+        std::string label = std::to_string(slot.slot) + "  ";
+        if (slot.loadable()) {
+            label += slot.map_name + "  -  day " + std::to_string(slot.day);
+        } else {
+            label += std::string(game::save_slot_status_name(slot.status));
+            if (slot.status == game::SaveSlotStatus::MissingMap && !slot.map_file.empty()) {
+                label += "  -  " + slot.map_file;
+            }
+        }
+        const render::Color color = slot.loadable() ? white
+                                    : slot.status == game::SaveSlotStatus::Empty ? dim
+                                                                                : warning;
+        game::draw_text(scene.framebuffer(), font, 58, y, label, color, shadow);
+    }
+    draw_border(scene.framebuffer(), 390, 392, 92, 31, mark);
+    draw_border(scene.framebuffer(), 492, 392, 92, 31, dim);
+    game::draw_text(scene.framebuffer(), font, 415, 401, "Load", white, shadow);
+    game::draw_text(scene.framebuffer(), font, 516, 401, "Back", white, shadow);
+    if (!message.empty()) {
+        game::draw_text(scene.framebuffer(), font, 52, 440, message, warning, shadow);
+    }
 }
 
 // The journal: what the held quest bits say, in Quests.txt's own words,
@@ -2712,6 +2774,16 @@ int main(int argc, char** argv) {
     // name, so the routes resolve through the map table.
     data::MapStatsTable map_stats;
     (void)data::load_map_stats(data_dir, map_stats);
+    std::vector<game::SaveMapInfo> save_maps;
+    save_maps.reserve(map_stats.size());
+    for (const auto& map : map_stats.entries()) {
+        save_maps.push_back({map.file_name, data::cp1252_to_utf8(map.name)});
+    }
+    const game::SaveRepository saves{
+        settings_directory.value_or(std::filesystem::path{"."}), std::move(save_maps), "."};
+    auto save_slots = saves.inspect_all();
+    int title_focus = 0;
+    std::string save_selection_message;
     data::RandomItemTable random_items;
     data::StandardBonusTable standard_bonuses;
     data::SpecialBonusTable special_bonuses;
@@ -3790,11 +3862,11 @@ int main(int argc, char** argv) {
     };
     std::map<std::string, MapMemory> map_memory;
 
-    const auto open_map = [&](const std::string& name) -> bool {
+    const auto open_map = [&](const std::string& name, bool remember_departure = true) -> bool {
         // What the map being left will remember: the fallen, the opened
         // and the thrown, kept per file the way the original's state
         // files kept them, and forgotten after its own Refil Days.
-        if (!session.file_name.empty()) {
+        if (remember_departure && !session.file_name.empty()) {
             MapMemory& memory = map_memory[session.file_name];
             memory.opened_chests = opened_chests;
             memory.open_doors.clear();
@@ -3904,6 +3976,104 @@ int main(int argc, char** argv) {
         SDL_SetWindowTitle(window,
                            ("StarHaven - " + session.title() + " (" + session.file_name + ")")
                                .c_str());
+        return true;
+    };
+
+    // Apply only a repository-validated state. Map loading happens before any
+    // party values are replaced; if it fails, the current session and its map
+    // memories remain available behind the save-selection screen.
+    const auto apply_save_state = [&](const game::SaveState& state) -> bool {
+        auto previous_memory = map_memory;
+        map_memory.clear();
+        for (const auto& map : state.remembered) {
+            map_memory[map.file] = {map.opened_chests, map.open_doors, map.dead, map.day};
+        }
+        if (!open_map(state.map_file, false)) {
+            map_memory = std::move(previous_memory);
+            return false;
+        }
+
+        camera.position = {state.x, state.y, state.z};
+        camera.yaw = state.yaw;
+        camera.pitch = state.pitch;
+        clock = game::GameClock{state.minutes};
+        next_refill = session.refill_days > 0
+                          ? clock.day() + session.refill_days
+                          : std::numeric_limits<std::int64_t>::max();
+        gold = state.gold;
+        bank_gold = state.bank_gold;
+        party_food = state.food;
+        hirelings.clear();
+        for (const auto& h : state.hired) {
+            const auto* row = professions.at(h.profession_id);
+            if (row == nullptr) {
+                continue;
+            }
+            game::Hireling hire;
+            hire.npc_id = h.npc_id;
+            hire.name = h.name;
+            hire.profession_id = h.profession_id;
+            hire.profession = data::cp1252_to_utf8(row->name);
+            hire.weekly_cost = row->hire_cost;
+            hire.benefit = game::parse_benefit(row->party_benefit);
+            hirelings.push_back(std::move(hire));
+        }
+        next_wage_day = state.wage_day > 0 ? state.wage_day : clock.day() + 7;
+        last_hire_day = clock.day();
+        script_state.awards = std::set<int>(state.awards.begin(), state.awards.end());
+        promoted_awards = script_state.awards;
+        visited_towns = state.visited_towns;
+        fly_until = state.fly_until;
+        reputation = state.reputation;
+        party_deaths = state.deaths;
+        prison_terms = state.prison_terms;
+        torch_until = state.torch_until;
+        readied = state.readied;
+        turn_based = state.turn_based;
+        hourglass_turn = state.hourglass_turn;
+        eye_until = state.eye_until;
+        eye_rank = state.eye_rank;
+        beacons.clear();
+        for (const auto& beacon : state.beacons) {
+            beacons.push_back({beacon.map, {beacon.x, beacon.y, beacon.z}, beacon.until});
+        }
+        note_town();
+        script_state.bits = state.bits;
+        script_state.variables = state.variables;
+        script_state.npc_topics = state.npc_topics;
+        script_state.npc_places = state.npc_places;
+        script_state.autonotes = state.autonotes;
+        party = state.party;
+        party_buffs = state.party_buffs;
+        for (std::size_t i = 0; i < packs.size(); ++i) {
+            packs[i].clear();
+            for (const auto& item : state.packs[i]) {
+                (void)packs[i].place(item);
+            }
+        }
+        opened_chests = std::set<int>(state.opened_chests.begin(), state.opened_chests.end());
+        // The save's open list is the whole door state, so first shut
+        // everything, including doors whose map attributes start them open.
+        bool doors_moved = false;
+        for (auto& door : session.doors) {
+            door.open = false;
+            door.progress = 0.0f;
+            move_door(door);
+            doors_moved = true;
+        }
+        for (const std::uint32_t id : state.open_doors) {
+            for (auto& door : session.doors) {
+                if (door.id == id) {
+                    door.open = true;
+                    door.progress = 1.0f;
+                    move_door(door);
+                    break;
+                }
+            }
+        }
+        if (doors_moved) {
+            world::rebuild_indoor_collision(session);
+        }
         return true;
     };
 
@@ -4018,16 +4188,26 @@ int main(int argc, char** argv) {
                 int chosen = -1;
                 if (event.type == SDL_EVENT_KEY_DOWN) {
                     const auto key = event.key.key;
-                    chosen = key == SDLK_N        ? 0
-                             : key == SDLK_L      ? 1
-                             : key == SDLK_C      ? 2
-                             : key == SDLK_ESCAPE ? 3
-                                                  : -1;
+                    if (key == SDLK_LEFT || key == SDLK_UP) {
+                        title_focus = (title_focus + 3) % 4;
+                    } else if (key == SDLK_RIGHT || key == SDLK_DOWN) {
+                        title_focus = (title_focus + 1) % 4;
+                    } else {
+                        chosen = key == SDLK_N                         ? 0
+                                 : key == SDLK_L                       ? 1
+                                 : key == SDLK_C                       ? 2
+                                 : key == SDLK_ESCAPE                  ? 3
+                                 : key == SDLK_RETURN || key == SDLK_KP_ENTER
+                                     ? title_focus
+                                     : -1;
+                    }
                 } else if (event.button.button == SDL_BUTTON_LEFT) {
                     const int mx = static_cast<int>(event.button.x);
                     const int my = static_cast<int>(event.button.y);
-                    if (my >= 424 && my < 469 && mx >= 20 && (mx - 20) % 152 < 135) {
+                    if (my >= 424 && my < 469 && mx >= 20 && mx < 611 &&
+                        (mx - 20) % 152 < 135) {
                         chosen = (mx - 20) / 152;
+                        title_focus = chosen;
                     }
                 }
                 if (chosen >= 0) {
@@ -4047,13 +4227,75 @@ int main(int argc, char** argv) {
                 if (transition.to == game::StartupState::PartyCreation && mouse_look &&
                     !cursor_free) {
                     SDL_SetWindowRelativeMouseMode(window, true);
-                } else if (transition.effect == game::StartupEffect::LoadCurrentSlot) {
-                    SDL_Event synthetic{};
-                    synthetic.type = SDL_EVENT_KEY_DOWN;
-                    synthetic.key.key = SDLK_F9;
-                    SDL_PushEvent(&synthetic);
+                } else if (transition.to == game::StartupState::SaveSelection) {
+                    save_slots = saves.inspect_all();
+                    save_selection_message.clear();
                 } else if (transition.effect == game::StartupEffect::QuitApplication) {
                     running = false;
+                }
+            } else if (startup.state() == game::StartupState::SaveSelection &&
+                       (event.type == SDL_EVENT_KEY_DOWN ||
+                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+                bool activate = false;
+                bool go_back = false;
+                if (event.type == SDL_EVENT_KEY_DOWN) {
+                    const auto key = event.key.key;
+                    if (key == SDLK_UP) {
+                        save_slot = (save_slot + game::kSaveSlotCount - 2) %
+                                        game::kSaveSlotCount +
+                                    1;
+                        save_selection_message.clear();
+                    } else if (key == SDLK_DOWN) {
+                        save_slot = save_slot % game::kSaveSlotCount + 1;
+                        save_selection_message.clear();
+                    } else if (key >= SDLK_1 && key <= SDLK_9) {
+                        save_slot = static_cast<int>(key - SDLK_1) + 1;
+                        save_selection_message.clear();
+                    } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+                        activate = true;
+                    } else if (key == SDLK_ESCAPE) {
+                        go_back = true;
+                    }
+                } else if (event.button.button == SDL_BUTTON_LEFT) {
+                    const int mx = static_cast<int>(event.button.x);
+                    const int my = static_cast<int>(event.button.y);
+                    if (mx >= 48 && mx < 592 && my >= 79 && my < 367) {
+                        save_slot = std::clamp((my - 79) / 32 + 1, 1, game::kSaveSlotCount);
+                        save_selection_message.clear();
+                    } else if (mx >= 390 && mx < 482 && my >= 392 && my < 423) {
+                        activate = true;
+                    } else if (mx >= 492 && mx < 584 && my >= 392 && my < 423) {
+                        go_back = true;
+                    }
+                }
+                if (go_back) {
+                    (void)startup.dispatch(game::StartupAction::Back);
+                    title_focus = 1;
+                } else if (activate) {
+                    game::SaveState state;
+                    const game::SaveSlotInfo info = saves.load(save_slot, state);
+                    save_slots[static_cast<std::size_t>(save_slot - 1)] = info;
+                    if (!info.loadable()) {
+                        save_selection_message = info.message + ". Choose another slot or Back.";
+                    } else {
+                        const auto transition = startup.dispatch(game::StartupAction::ChooseLoad);
+                        if (transition.effect == game::StartupEffect::LoadCurrentSlot &&
+                            apply_save_state(state)) {
+                            (void)startup.dispatch(game::StartupAction::LoadSucceeded);
+                            pick_up_message = "Loaded slot " + std::to_string(save_slot);
+                            pick_up_shown = SDL_GetTicks();
+                            if (!map_audio_ready) {
+                                start_map_audio();
+                            }
+                            if (mouse_look && !cursor_free) {
+                                SDL_SetWindowRelativeMouseMode(window, true);
+                            }
+                        } else {
+                            (void)startup.dispatch(game::StartupAction::LoadFailed);
+                            save_selection_message =
+                                "The map could not be opened. Choose another slot or Back.";
+                        }
+                    }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && arena_rank < 0 &&
                        session.file_name == "zarena.blv" && event.key.key >= SDLK_1 &&
@@ -4425,7 +4667,7 @@ int main(int argc, char** argv) {
                         state.open_doors.push_back(door.id);
                     }
                 }
-                std::ofstream file(save_slot_path(save_slot));
+                std::ofstream file(saves.path_for_slot(save_slot));
                 file << game::save_text(state);
                 pick_up_message = file.good()
                                       ? "Saved to slot " + std::to_string(save_slot)
@@ -4434,154 +4676,26 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F6) {
                 // The next slot, with what it holds: same format, numbered
                 // files, the map and the day read off the save itself.
-                save_slot = save_slot % 9 + 1;
-                std::ifstream file(save_slot_path(save_slot));
-                std::stringstream buffer;
-                buffer << file.rdbuf();
-                game::SaveState peek;
-                if (file.good() && game::parse_save(buffer.str(), peek)) {
-                    std::string title = peek.map_file;
-                    for (const auto& m : map_stats.entries()) {
-                        if (m.file_name == peek.map_file && !m.name.empty()) {
-                            title = m.name;
-                            break;
-                        }
-                    }
+                save_slot = save_slot % game::kSaveSlotCount + 1;
+                const game::SaveSlotInfo info = saves.inspect(save_slot);
+                if (info.loadable()) {
                     pick_up_message = "Slot " + std::to_string(save_slot) + ": " +
-                                      data::cp1252_to_utf8(title) + ", day " +
-                                      std::to_string(peek.minutes /
-                                                     (game::kMinutesPerHour *
-                                                      game::kHoursPerDay) +
-                                                     1);
+                                      info.map_name + ", day " + std::to_string(info.day);
                 } else {
-                    pick_up_message = "Slot " + std::to_string(save_slot) + ": empty";
+                    pick_up_message = "Slot " + std::to_string(save_slot) + ": " + info.message;
                 }
                 pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F9) {
                 // Load: back to the saved map, standing where the party stood.
-                const bool completing_startup_load =
-                    startup.state() == game::StartupState::LoadingWorld;
                 game::SaveState state;
-                std::ifstream file(save_slot_path(save_slot));
-                std::stringstream buffer;
-                buffer << file.rdbuf();
-                // The maps' memories are restored before the map opens, so
-                // the one being entered finds its own dead already down.
-                const bool parsed = file.good() && game::parse_save(buffer.str(), state);
-                if (parsed) {
-                    map_memory.clear();
-                    for (const auto& map : state.remembered) {
-                        map_memory[map.file] = {map.opened_chests, map.open_doors, map.dead,
-                                                map.day};
-                    }
-                }
-                if (!parsed || !open_map(state.map_file)) {
-                    if (completing_startup_load) {
-                        (void)startup.dispatch(game::StartupAction::LoadFailed);
-                        if (mouse_look) {
-                            SDL_SetWindowRelativeMouseMode(window, false);
-                        }
-                    }
-                    pick_up_message = "Nothing to load";
-                    pick_up_shown = SDL_GetTicks();
+                const game::SaveSlotInfo info = saves.load(save_slot, state);
+                if (!info.loadable() || !apply_save_state(state)) {
+                    pick_up_message =
+                        info.loadable() ? "The saved map could not be opened" : info.message;
                 } else {
-                    camera.position = {state.x, state.y, state.z};
-                    camera.yaw = state.yaw;
-                    camera.pitch = state.pitch;
-                    clock = game::GameClock{state.minutes};
-                    next_refill = session.refill_days > 0
-                                      ? clock.day() + session.refill_days
-                                      : std::numeric_limits<std::int64_t>::max();
-                    gold = state.gold;
-                    bank_gold = state.bank_gold;
-                    party_food = state.food;
-                    hirelings.clear();
-                    for (const auto& h : state.hired) {
-                        const auto* row = professions.at(h.profession_id);
-                        if (row == nullptr) {
-                            continue;
-                        }
-                        game::Hireling hire;
-                        hire.npc_id = h.npc_id;
-                        hire.name = h.name;
-                        hire.profession_id = h.profession_id;
-                        hire.profession = data::cp1252_to_utf8(row->name);
-                        hire.weekly_cost = row->hire_cost;
-                        hire.benefit = game::parse_benefit(row->party_benefit);
-                        hirelings.push_back(std::move(hire));
-                    }
-                    next_wage_day = state.wage_day > 0 ? state.wage_day : clock.day() + 7;
-                    last_hire_day = clock.day();
-                    script_state.awards = std::set<int>(state.awards.begin(), state.awards.end());
-                    promoted_awards = script_state.awards;
-                    visited_towns = state.visited_towns;
-                    fly_until = state.fly_until;
-                    reputation = state.reputation;
-                    party_deaths = state.deaths;
-                    prison_terms = state.prison_terms;
-                    torch_until = state.torch_until;
-                    readied = state.readied;
-                    turn_based = state.turn_based;
-                    hourglass_turn = state.hourglass_turn;
-                    eye_until = state.eye_until;
-                    eye_rank = state.eye_rank;
-                    beacons.clear();
-                    for (const auto& beacon : state.beacons) {
-                        beacons.push_back({beacon.map,
-                                           {beacon.x, beacon.y, beacon.z},
-                                           beacon.until});
-                    }
-                    note_town();
-                    script_state.bits = state.bits;
-                    script_state.variables = state.variables;
-                    script_state.npc_topics = state.npc_topics;
-                    script_state.npc_places = state.npc_places;
-                    script_state.autonotes = state.autonotes;
-                    party = state.party;
-                    party_buffs = state.party_buffs;
-                    for (std::size_t i = 0; i < packs.size(); ++i) {
-                        packs[i].clear();
-                        for (const auto& item : state.packs[i]) {
-                            (void)packs[i].place(item);
-                        }
-                    }
-                    opened_chests =
-                        std::set<int>(state.opened_chests.begin(), state.opened_chests.end());
-                    // The save's open list is the whole door state, so
-                    // first shut everything — including doors that start
-                    // open by their attribute bit — then open the listed.
-                    bool doors_moved = false;
-                    for (auto& door : session.doors) {
-                        door.open = false;
-                        door.progress = 0.0f;
-                        move_door(door);
-                        doors_moved = true;
-                    }
-                    for (const std::uint32_t id : state.open_doors) {
-                        for (auto& door : session.doors) {
-                            if (door.id == id) {
-                                door.open = true;
-                                door.progress = 1.0f;
-                                move_door(door);
-                                break;
-                            }
-                        }
-                    }
-                    if (doors_moved) {
-                        world::rebuild_indoor_collision(session);
-                    }
                     pick_up_message = "Loaded";
-                    pick_up_shown = SDL_GetTicks();
-                    if (completing_startup_load) {
-                        (void)startup.dispatch(game::StartupAction::LoadSucceeded);
-                        if (startup.world_active() && !map_audio_ready) {
-                            start_map_audio();
-                        }
-                        if (mouse_look && !cursor_free) {
-                            SDL_SetWindowRelativeMouseMode(window, true);
-                        }
-                    }
                 }
+                pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_U &&
                        shown_pack >= 0) {
                 // Drink or eat the first thing the use table knows. The
@@ -7989,6 +8103,8 @@ int main(int argc, char** argv) {
                 blit(scene.framebuffer(), cache.icon(kPlates[static_cast<std::size_t>(i)]),
                      20 + i * 152, 424);
             }
+            draw_border(scene.framebuffer(), 18 + title_focus * 152, 422, 139, 49,
+                        render::Color{250, 225, 145, 255});
             if (startup.credits_seen() && font.glyph_count() > 0) {
                 game::draw_text(scene.framebuffer(), font, 24, 24,
                                 "StarHaven, an open engine for your own copy of the game.",
@@ -7997,6 +8113,8 @@ int main(int argc, char** argv) {
                                 "The art, the words and the world belong to their rights holders.",
                                 render::Color{235, 225, 180, 255}, render::Color{0, 0, 0, 255});
             }
+        } else if (startup.state() == game::StartupState::SaveSelection) {
+            draw_save_selection(scene, font, save_slots, save_slot - 1, save_selection_message);
         }
         if (SDL_GetTicks() < media_warning_until && font.glyph_count() > 0) {
             game::draw_text(scene.framebuffer(), font, 24, 390, media_warning,

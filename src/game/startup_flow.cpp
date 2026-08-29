@@ -68,9 +68,7 @@ StartupTransition StartupFlow::dispatch(StartupAction action) noexcept {
         if (action == StartupAction::ChooseNewGame) {
             state_ = StartupState::PartyCreation;
         } else if (action == StartupAction::ChooseLoad) {
-            loading_return_ = StartupState::Title;
-            state_ = StartupState::LoadingWorld;
-            effect = StartupEffect::LoadCurrentSlot;
+            state_ = StartupState::SaveSelection;
         } else if (action == StartupAction::ChooseCredits) {
             credits_seen_ = !credits_seen_;
             state_ = StartupState::Credits;

@@ -85,6 +85,7 @@ starhaven_core_sources = files(
   'src/core/platform/paths.cpp',
   'src/game/startup_flow.cpp',
   'src/game/startup_media.cpp',
+  'src/game/save_repository.cpp',
 )
 
 starhaven_core = static_library('starhaven_core',
