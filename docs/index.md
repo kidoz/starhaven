@@ -23,6 +23,9 @@ behavior stays explicit in the open-question register.
 
 ## Explore the documentation
 
+- [Play StarHaven](how-to/play.md) walks the player journey: launch,
+  installation recovery, the title screen, party creation, saves, and what
+  each recovery message means.
 - [LOD archives](formats/lod.md) and
   [Games.lod](formats/games-lod.md) describe the game's resource containers.
 - [Outdoor maps](formats/odm.md), [terrain](formats/odm-terrain.md), and

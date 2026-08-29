@@ -3056,16 +3056,32 @@ Generated HTML is written to the ignored `site/` directory.
 
 ## Use
 
-Launch the engine and choose your legal game installation when prompted. The
-selection is validated read-only and remembered in the platform user-data
-directory. Development and command-line runs can override it explicitly:
+Play with your own installation — no arguments needed:
 
 ```bash
 ./buildDir/starhaven
+```
+
+The first launch asks for your game folder once; the folder is validated
+read-only and remembered in the platform user-data directory, and every launch
+after that runs the journey — opening movies (skippable), the title screen,
+party creation or the nine save slots, and New Sorpigal. The whole
+keyboard-and-mouse path, including what each recovery message means, is
+documented in [`docs/how-to/play.md`](docs/how-to/play.md).
+
+### Developer flags and tools
+
+Development and command-line runs can override the installation explicitly:
+
+```bash
 ./buildDir/starhaven --game-dir /path/to/your/MM6/install
 
 # Tools and existing scripts can continue to use the environment.
 export STARHAVEN_GAME_DIR=/path/to/your/MM6/install   # contains MM6.exe and Data/
+
+# The acceptance journey: boot, title, creation, loading, walk, turns,
+# save, reload — printing non-expressive PASS/FAIL lines per step.
+just smoke
 ```
 
 Inspect an archive:

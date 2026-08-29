@@ -12,6 +12,8 @@ theme:
 
 nav:
   - Home: index.md
+  - How-to guides:
+      - Play StarHaven: how-to/play.md
   - Open-question register: open-questions.md
   - Contributing:
       - Documentation standard: contributing/documentation-standard.md
