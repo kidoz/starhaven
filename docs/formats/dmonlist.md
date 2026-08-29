@@ -184,7 +184,7 @@ reaches is **this file, loaded**. `DMONLIST.BIN` ships 173 records of 148
 bytes and `MONSTERS.TXT` ships 173 monsters; the runtime pointer is
 `0x5e217c`, and the rows are indexed **one-based**:
 
-```
+```asm
 lea ecx, [eax + eax*8]              ; x9
 lea edx, [eax + ecx*4]              ; x37
 mov eax, dword [0x5e217c]
@@ -202,7 +202,7 @@ the record from **`+0x30` in steps of ten** â€” the eight 10-byte name fields â€
 copies each onto the stack, hands it to `0x444020` on the object at
 `0x55dd88`, and writes the returned word into the actor at **`+0xac + 2i`**:
 
-```
+```asm
 add ebp, 0xa       ; the next 10-byte name
 add ebx, 2         ; the next word on the actor
 ```
@@ -235,7 +235,7 @@ actor's `+0x28`, which confirms both offsets at once.
 at `+0x7e`, `+0x80` and `+0x82` are written again to **`+0x92`, `+0x94` and
 `+0x96`**:
 
-```
+```asm
 mov word [ebx + 0x92], ax
 mov word [ebx + 0x7e], ax
 mov word [ebx + 0x94], ax

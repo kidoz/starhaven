@@ -521,7 +521,7 @@ The three weapon-figure getters — stat ids 17, 18 and 21 — take the item at
 the weapon's equipment anchor and read exactly two columns of its 40-byte
 runtime row, summing them with the skill group:
 
-```
+```asm
 cmp byte [edx + 0x560c28], cl     ; +0x14, the equip type, must be 2 or less
 mov al,  byte [edx + 0x560c2c]    ; +0x18
 mov bl,  byte [edx + 0x560c2a]    ; +0x16

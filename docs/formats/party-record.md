@@ -112,7 +112,7 @@ the death bit `0x20000` in the flags at `+0x24` when the state is **7**, sets
 the death animation `+0x3e = 4`, and then, once per death and with no test
 above it:
 
-```
+```asm
 0x00403778  mov eax, dword [0x908d48]
 0x0040377d  sub eax, 0x32              ; 50
 0x00403780  mov dword [0x908d48], eax
@@ -141,7 +141,7 @@ moves the party's standing.
 While looking for the experience column, the table's own indexing came out.
 `0x403efc` shows it whole:
 
-```
+```asm
 mov al, byte [ebx + 0x34]      ; the actor's monster row
 lea ecx, [eax + eax*8]         ; x9
 mov eax, dword [ecx*8 + 0x56c1c8]   ; x8 -> a stride of 72
@@ -162,7 +162,7 @@ actor's `+0x134`/`+0x138` pair is positive — one more behaviour gated on a
 at `+0xa0` to 4 and the sub-state to 5 — and the second penalty sits above it
 behind two guards:
 
-```
+```asm
 mov  al, byte [edx*8 + 0x56c19a]   ; the monster row's byte at +0x12
 test al, al
 jne  skip                          ; only when that byte is zero
@@ -241,7 +241,7 @@ hold.
 
 `0x487680` is what spends it:
 
-```
+```asm
 mov edx, dword [0x908d50]
 cmp ecx, edx
 jbe ...
@@ -288,7 +288,7 @@ it is now a bounded one rather than a report of not having found something.
 
 `0x453ea0` names the map and places the party in the same breath:
 
-```
+```asm
 mov  eax, 0xa0
 mov  dword [0x908ca0], eax         ; the party's z, +0x30  = 160
 push str.oute3.odm                 ; "oute3.odm"

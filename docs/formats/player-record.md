@@ -1051,7 +1051,7 @@ silent row is, applied per character because that is where the skill lives.
 **`+0x30` is an armour-class term.** The getter at `0x482860` builds the
 armour class from four things and nothing else:
 
-```
+```asm
 0x00482866  call 0x483800          ; the gear getter, stat id 9
 0x00482875  call 0x482e80          ; the other getter, stat id 9
 0x0048287a  movsx ecx, word [esi + 0x30]
@@ -1091,7 +1091,7 @@ on a full restore. **The negative is withdrawn.** The run is the same thing
 Every getter that reads it has the identical shape: ask both stat getters for
 one stat id, add the stored byte, add the attribute ladder's byte, sum.
 
-```
+```asm
 0x0047e3da  call 0x483800                     ; the gear getter
 0x0047e3e5  call 0x482e80                     ; the other getter
 0x0047e3ea  movsx ecx, byte [esi + 0x1570]    ; the stored term
@@ -1122,7 +1122,7 @@ The word just past the row of stored terms is read forty times and was the
 most-referenced unnamed field left anywhere on the record. `0x47fde9` says
 what it is in five instructions:
 
-```
+```asm
 0x0047fde9  mov  ax, word [esi + 0x157c]
 0x0047fdf0  add  eax, 0xfffffffe        ; -2
 0x0047fdf3  cmp  eax, 0x61              ; 97
@@ -1251,7 +1251,7 @@ does, and what `0x467f30` is.
 
 **The terms add to the share; they do not scale it.** `0x42161a` is the tail:
 
-```
+```asm
 mov ecx, dword [esi]          ; the character's experience, low half
 add eax, ebp                  ; the bonus, plus the share
 add ecx, eax
@@ -1264,7 +1264,7 @@ add esi, 0x161c               ; on to the next character
 
 So the whole shape is
 
-```
+```text
 share = experience / eligible
 bonus = share x (learning + hireling% + 9) / 100
 each  = share + bonus,  64-bit, clamped at 4,000,000,000
@@ -1279,7 +1279,7 @@ profession id and the `0x80` bit at `+0x08` â€” the flag property id 214 sets â€
 and falls back to comparing the party global at `0x90e7bc` when no record
 matches:
 
-```
+```asm
 mov  esi, dword [0x6ba534]     ; the count
 mov  eax, 0x6aef30             ; the flag field of record 0
 cmp  dword [eax + 0x10], ecx   ; the profession id, at +0x18 of the record
@@ -1326,7 +1326,7 @@ of no return.
 **Nothing does.** `+0x1380` is referenced eighty-four times and the pattern is
 always the same two instructions:
 
-```
+```asm
 mov ecx, dword [ebx + edx*8 + 0x1380]
 mov esi, dword [ebx + edx*8 + 0x1384]
 or  ecx, esi
@@ -1339,7 +1339,7 @@ against one anywhere in the window.
 
 **One site does arithmetic, and it is display.** `0x49e93d`:
 
-```
+```asm
 fild qword [esi + eax*8 + 0x1380]
 fmul dword [0x4b9374]     ; the 30/128 calendar float
 call 0x4ae24c             ; back to an integer

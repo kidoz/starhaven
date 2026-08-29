@@ -650,7 +650,7 @@ fields from tables. Both are worth having, and one of them costs a name.
 
 **The radius comes from a second monster table.** 
 
-```
+```asm
 mov  al, byte [ebp + 0x34]        ; the monster's row
 lea  ecx, [eax + eax*8]           ; x9
 lea  edx, [eax + ecx*4]           ; x37
@@ -665,7 +665,7 @@ columns. `observed` — the 72-byte table at `0x56c188` is not the only one.
 
 **And the retraction.** Eight instructions later:
 
-```
+```asm
 mov  al, byte [ebp + 0x34]
 lea  edx, [eax + eax*8]
 mov  al, byte [edx*8 + 0x56c19a]      ; the 72-byte row's +0x12
@@ -709,7 +709,7 @@ misreading is what kept the award hidden through four searches.
 
 **And a one-in-five remark.** Immediately after:
 
-```
+```asm
 0x00431a9c  call 0x4ae22b            ; rand()
 0x00431aa7  idiv ecx                 ; % 100
 0x00431aa9  cmp  edx, 0x14           ; 20
@@ -735,7 +735,7 @@ gold and 17 items** — rings, a crossbow, a staff.
 `0x4080c0` is the **line of sight**. States 2, 12 and 13 all open by calling
 it, and in 12 and 13 the opening is byte-identical:
 
-```
+```asm
 fild dword [esp + 0xc]              ; the radius, from +0x7a
 fmul qword [0x4b9340]               ; x -0.75
 call 0x4ae24c                       ; back to an integer
@@ -777,7 +777,7 @@ the party's eye height has one too.
 Both state 12 (`0x403f80`) and state 13 (`0x404160`) end their "cannot see"
 branch identically, and it names another action:
 
-```
+```asm
 test eax, eax          ; the line of sight
 jne  can_see
 push 0x40              ; 64
@@ -794,7 +794,7 @@ their arguments, which fits a helper rather than a decision. `observed`
 **State 13 has a second gate.** Even with sight it tests a 64-bit pair before
 acting:
 
-```
+```asm
 mov eax, dword [ebx + 0x148]
 ...
 mov eax, dword [ebx + 0x144]
@@ -810,7 +810,7 @@ is the one that always runs and the fallback never fires from this gate.
 
 **State 12's sighted branch** opens by building a handle:
 
-```
+```asm
 lea ebp, [esi*8]
 or  ebp, 3
 ```
@@ -947,7 +947,7 @@ to begin with**. The withdrawal was over-cautious and is itself withdrawn.
 
 **State 12, with sight** (`0x404004`), builds the handle and asks for a move:
 
-```
+```asm
 lea  ebp, [esi*8] ; or ebp, 3      ; the actor's handle
 lea  eax, [esp + 0x14]             ; a 28-byte buffer
 call 0x4046f0                      ; -> a record
@@ -969,7 +969,7 @@ its own frame rather than from the record. **State 12 is the approach.**
 **State 2, without sight** (`0x4043f9`), does something none of the others do
 before falling back:
 
-```
+```asm
 push 0x40                  ; 64, the same constant
 call 0x4ae22b              ; rand()
 and  eax, 0x80000001       ; ... reduced to +1 or -1
@@ -986,7 +986,7 @@ the party is near and cannot see it, turning one way or the other at random.
 The routine state 12 calls is not a pathfinder. It opens by taking its
 argument apart:
 
-```
+```asm
 mov eax, ecx
 and ecx, 7        ; the type tag
 sar eax, 3        ; the index
@@ -1051,7 +1051,7 @@ base and the count are now right, and they were not before.
 State 16 (`0x4034f0`) is short enough to read whole, and it is a **movement
 transition**:
 
-```
+```asm
 movsx eax, word [edx*4 + 0x56f52e]   ; the actor's +0xb6
 mov  word [esi + 0xa0], 0x10         ; the AI state, 16
 mov  word [esi + 0xa2], 5            ; the sub-state
@@ -1113,7 +1113,7 @@ the same doubling this engine already applies to a slowed monster.
 State 1-and-3 gives it away. It differences the stored pair at `+0x92`/`+0x94`
 against the position at `+0x7e`/`+0x80`, takes both absolute values, and then:
 
-```
+```asm
 cmp ecx, eax
 jle ...
 sar eax, 1
@@ -1138,7 +1138,7 @@ one distinguishing feature remains that nothing inside the AI calls it.
 **State 7** opens by testing the actor's `+0x114`/`+0x118` pair and then
 `+0x124`/`+0x128` — the two 64-bit pairs nothing ever writes:
 
-```
+```asm
 mov eax, dword [eax*4 + 0x56f590]   ; +0x118
 ...
 mov eax, dword [ebx + 0x114]
@@ -1155,7 +1155,7 @@ timers guard. `observed`
 
 `0x405d60` walks every actor, and the first thing it does to each is this:
 
-```
+```asm
 mov ebx, 0x56f53c          ; actor 0 + 0xc4
 lea ebp, [ebx - 0xc4]      ; the actor itself
 mov esi, ebx
@@ -1186,7 +1186,7 @@ clothes. An absolute-address sweep cannot see it either.
 What the slots do is visible in the next few instructions. When the `+0xf4`
 pair has lapsed, the actor's **radius at `+0x7a` is restored from `DMONLIST`**:
 
-```
+```asm
 cmp dword [ebp + 0xf8], esi
 jg  skip
 cmp dword [ebp + 0xf4], esi
@@ -1210,7 +1210,7 @@ The base is **`+0xc4`**, the stride sixteen, the count **nine**. `observed`
 `0x44ab00` is handed one sixteen-byte record and the world clock as two
 dwords, and its first eleven instructions give the layout outright:
 
-```
+```asm
 mov  ecx, dword [esi]          ; +0x00, the expiry, low half
 mov  eax, dword [esi + 4]      ; +0x04, high half
 or   edx, eax
@@ -1237,7 +1237,7 @@ and out of range the routine trips an assertion whose string is
 `"D:\MM6Src\code\ITEMS.CPP"`. And in range, the expiry clears a **twenty-byte
 record** elsewhere and raises a redraw flag at `0x5e257c`:
 
-```
+```asm
 lea ecx, [eax + eax*4] ; lea eax, [ecx*4 + 0x5e217c]   ; x20
 mov word [eax + 2] ... [eax + 0xe], 0
 mov dword [eax + 0x10], 0x10000
@@ -1257,7 +1257,7 @@ before. `unknown` for the eight.
 
 The actor case of `0x4046f0` fills the caller's buffer like this:
 
-```
+```asm
 movsx ecx, word [esi + 0x56f4f2]   ; the actor's +0x7a, the radius
 movsx edx, word [esi + 0x56f4f6]   ; +0x7e, x
 movsx eax, word [esi + 0x56f4f8]   ; +0x80, y
@@ -1293,7 +1293,7 @@ expiry family (`0x44aa03`, `0x44aab7`, `0x44ab79`) do `lea eax, [ecx*4 +
 **zero would be the pointer itself** — and it is never reached, because the
 expiry skips a slot whose effect id is zero two instructions earlier:
 
-```
+```asm
 cmp ax, di        ; di is zero here
 je  done
 ```
@@ -1311,7 +1311,7 @@ array's records run from `0x5e2190` at twenty bytes apiece.
 
 `0x44a840` is the startup constructor, and it states the array outright:
 
-```
+```asm
 mov esi, 0x56f478          ; actor zero
 mov edi, 0x1f4             ; 500 of them
 loop:
@@ -1345,7 +1345,7 @@ over the block.
 
 State 12's stretch after the position call, read straight:
 
-```
+```asm
 mov  ecx, 7
 lea  edi, [esp + 0x14]
 rep  movsd                       ; the record's seven dwords, copied out

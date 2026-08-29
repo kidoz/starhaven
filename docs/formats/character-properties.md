@@ -300,7 +300,7 @@ Party `+0x95` and `+0x96` were believed to be the two hireling slots because
 id 214 clears them when it flags a roster record. **They are not.** The gold
 routine at `0x41edfc` shows where the hirelings actually live:
 
-```
+```asm
 mov eax, 0x90e7a4
 ...
 add eax, 0x3c        ; stride 60 — the roster's own record

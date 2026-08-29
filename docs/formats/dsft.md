@@ -266,7 +266,7 @@ The object that turns each of `DMONLIST`'s eight 10-byte animation names into
 the word id an actor carries at `+0xac` is a **binary-searched name index**,
 and `0x444050` is the search:
 
-```
+```asm
 sub  esi, edi          ; high - low
 sar  eax, 1            ; the midpoint
 mov  edx, dword [ecx + ebx*4]   ; [obj + 0x10] is an array of name pointers
@@ -275,7 +275,7 @@ call 0x4af370                   ; strcmp against the key
 
 and `0x444020` turns the position it lands on into the answer:
 
-```
+```asm
 mov   eax, dword [esi + 8]      ; where the search stopped, or negative
 mov   edx, dword [esi + 0x14]   ; a parallel array of words
 movsx eax, word [edx + eax*2]

@@ -1166,7 +1166,7 @@ roster at `0x6aef28` skipping anyone whose name matches either. `observed`
 **The professions are seventy-six-byte records at `0x6b5dcc`.** The cut is
 summed like this:
 
-```
+```asm
 mov cl, byte [esi + 0x55cde0]     ; which hireling, from a short list
 lea eax, [eax + eax*2] ; *5 ; shl 2   ; x 60 — a roster record
 cmp cl, 2
@@ -1207,7 +1207,7 @@ what the file carries is either kept as text elsewhere or not kept at all.
 
 `0x43adca` shows the shape:
 
-```
+```asm
 mov cl, byte [eax + 0x6b999a]     ; a byte per index
 test cl, cl
 je  else
