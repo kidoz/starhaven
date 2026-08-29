@@ -8,6 +8,12 @@ test('save_repository',
   workdir : meson.current_build_dir(),
 )
 
+test('new_game',
+  executable('test_new_game', 'test_new_game.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('byte_reader',
   executable('test_byte_reader', 'test_byte_reader.cpp',
     dependencies : [starhaven_dep, catch2_main]),

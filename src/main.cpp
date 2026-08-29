@@ -56,6 +56,7 @@
 #include "game/launches.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
+#include "game/new_game.hpp"
 #include "game/party.hpp"
 #include "game/promotion.hpp"
 #include "game/player.hpp"
@@ -1088,7 +1089,7 @@ void draw_party_strip(render::SceneRenderer& scene, assets::AssetCache& cache,
 void draw_creation(render::SceneRenderer& scene, const image::Font& font,
                    assets::AssetCache& cache, const std::array<game::Character, 4>& party,
                    int slot, const data::DescriptionTable& stats,
-                   const data::DescriptionTable& classes) {
+                   const data::DescriptionTable& classes, std::string_view message) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1159,6 +1160,10 @@ void draw_creation(render::SceneRenderer& scene, const image::Font& font,
                     "1-4 choose, C class, F face, N name, R reroll (the rolls are this "
                     "engine's own), Enter begins",
                     dim, shadow);
+    if (!message.empty()) {
+        game::draw_text(scene.framebuffer(), font, 8, 6 + line + 2, message,
+                        render::Color{240, 165, 125, 255}, shadow);
+    }
 }
 
 void draw_save_selection(render::SceneRenderer& scene, const image::Font& font,
@@ -2726,6 +2731,11 @@ int main(int argc, char** argv) {
     }
     int create_slot = 0;
     Mm6Random create_random{0x51C7E3A9u};
+    // The creation hall shapes a draft; the world's own party is replaced
+    // only when a confirmed draft's seed is published through the loading
+    // boundary.
+    std::array<game::Character, 4> creation_draft = party;
+    std::string creation_message;
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
     int sheet_page = 0;  // which of the sheet's four framed pages shows
@@ -2794,9 +2804,8 @@ int main(int argc, char** argv) {
 
     int gold = game::kStartingGold;
     // Food rations, the counter quest events give to and take from and a
-    // camp eats. A week's worth to start with is this engine's own choice;
-    // the tables do not say.
-    int party_food = 7;
+    // camp eats.
+    int party_food = game::kStartingFood;
     int bank_gold = 0;  // what the vault keeps; no table pays interest
     int open_shop = -1;  // an index into shops_here, or none
     int shop_pick = 0;   // which shelf cell the gold border holds
@@ -4396,6 +4405,10 @@ int main(int argc, char** argv) {
                     ask_event = -1;  // the question can simply be walked away from
                 } else if (startup.state() == game::StartupState::PartyCreation) {
                     (void)startup.dispatch(game::StartupAction::Back);
+                    // Cancelling discards the draft: a fresh one is dealt from
+                    // the same names, so re-entry starts clean.
+                    creation_draft = game::make_party(given_names, 1);
+                    creation_message.clear();
                     if (mouse_look) {
                         SDL_SetWindowRelativeMouseMode(window, false);
                     }
@@ -4406,10 +4419,11 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN &&
                        startup.state() == game::StartupState::PartyCreation) {
                 // Shaping the party: a slot, then its class, face, name and
-                // numbers. Enter opens the world.
-                auto& who = party[static_cast<std::size_t>(create_slot)];
+                // numbers. Enter opens the world through a validated seed.
+                auto& who = creation_draft[static_cast<std::size_t>(create_slot)];
                 if (event.key.key >= SDLK_1 && event.key.key <= SDLK_4) {
                     create_slot = static_cast<int>(event.key.key - SDLK_1);
+                    creation_message.clear();
                 } else if (event.key.key == SDLK_C) {
                     const auto at = std::find(game::kBaseClasses.begin(),
                                               game::kBaseClasses.end(), who.class_name);
@@ -4419,23 +4433,47 @@ int main(int argc, char** argv) {
                                           : at + 1;
                     who.class_name = std::string(*next);
                     game::derive_start(who);
+                    creation_message.clear();
                 } else if (event.key.key == SDLK_F) {
                     who.face = (who.face + 1) % game::kFaceCount;
                     who.name = std::string(
                         given_names.name(game::face_is_female(who.face), create_random.next()));
+                    creation_message.clear();
                 } else if (event.key.key == SDLK_N) {
                     who.name = std::string(
                         given_names.name(game::face_is_female(who.face), create_random.next()));
+                    creation_message.clear();
                 } else if (event.key.key == SDLK_R) {
                     game::roll_attributes(who, create_random);
                     game::derive_start(who);
+                    creation_message.clear();
                 } else if (event.key.key == SDLK_RETURN) {
-                    (void)startup.dispatch(game::StartupAction::ConfirmParty);
-                    if (startup.world_active() && !map_audio_ready) {
-                        start_map_audio();
-                    }
-                    if (mouse_look && !cursor_free) {
-                        SDL_SetWindowRelativeMouseMode(window, true);
+                    // Enter cannot confirm an unfinished member: the world
+                    // opens only through a validated seed, applied the same
+                    // way a loaded save is.
+                    if (!game::party_ready(creation_draft)) {
+                        creation_message =
+                            "Every member needs a name, class, face and rolled numbers.";
+                    } else {
+                        const auto transition =
+                            startup.dispatch(game::StartupAction::ConfirmParty);
+                        if (transition.effect == game::StartupEffect::LoadNewGame) {
+                            game::SaveState seed;
+                            if (game::make_new_game_state(creation_draft, seed_start, seed) &&
+                                apply_save_state(seed)) {
+                                (void)startup.dispatch(game::StartupAction::LoadSucceeded);
+                                if (!map_audio_ready) {
+                                    start_map_audio();
+                                }
+                                if (mouse_look && !cursor_free) {
+                                    SDL_SetWindowRelativeMouseMode(window, true);
+                                }
+                            } else {
+                                (void)startup.dispatch(game::StartupAction::LoadFailed);
+                                creation_message =
+                                    "The world could not be opened. Press Enter to try again.";
+                            }
+                        }
                     }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && ask_event >= 0) {
@@ -8046,8 +8084,8 @@ int main(int argc, char** argv) {
                          journal_page);
         }
         if (startup.state() == game::StartupState::PartyCreation) {
-            draw_creation(scene, font, cache, party, create_slot, stat_descriptions,
-                          class_descriptions);
+            draw_creation(scene, font, cache, creation_draft, create_slot, stat_descriptions,
+                          class_descriptions, creation_message);
         }
 
         if (startup.media_active()) {

@@ -79,7 +79,11 @@ StartupTransition StartupFlow::dispatch(StartupAction action) noexcept {
         break;
     case StartupState::PartyCreation:
         if (action == StartupAction::ConfirmParty) {
-            state_ = StartupState::Playing;
+            // A confirmed draft still has to open the world; only a
+            // published session reaches Playing.
+            loading_return_ = StartupState::PartyCreation;
+            state_ = StartupState::LoadingWorld;
+            effect = StartupEffect::LoadNewGame;
         } else if (action == StartupAction::Back) {
             state_ = StartupState::Title;
         }

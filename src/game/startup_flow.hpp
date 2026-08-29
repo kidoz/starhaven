@@ -50,6 +50,7 @@ enum class StartupAction : std::uint8_t {
 enum class StartupEffect : std::uint8_t {
     None,
     LoadCurrentSlot,
+    LoadNewGame,
     QuitApplication,
 };
 

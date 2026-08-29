@@ -29,14 +29,28 @@ TEST_CASE("opening movies can be bypassed without entering the world", "[startup
     REQUIRE_FALSE(flow.world_active());
 }
 
-TEST_CASE("new game can be cancelled or confirmed from party creation", "[startup]") {
+TEST_CASE("a confirmed party loads the new game through the world boundary", "[startup]") {
     StartupFlow flow{StartupState::Title};
 
     REQUIRE(flow.dispatch(StartupAction::ChooseNewGame).to == StartupState::PartyCreation);
     REQUIRE(flow.dispatch(StartupAction::Back).to == StartupState::Title);
     REQUIRE(flow.dispatch(StartupAction::ChooseNewGame).to == StartupState::PartyCreation);
-    REQUIRE(flow.dispatch(StartupAction::ConfirmParty).to == StartupState::Playing);
+
+    const auto transition = flow.dispatch(StartupAction::ConfirmParty);
+    REQUIRE(transition.to == StartupState::LoadingWorld);
+    REQUIRE(transition.effect == StartupEffect::LoadNewGame);
+    REQUIRE_FALSE(flow.world_active());
+
+    REQUIRE(flow.dispatch(StartupAction::LoadSucceeded).to == StartupState::Playing);
     REQUIRE(flow.world_active());
+}
+
+TEST_CASE("a failed new-game load returns to the party draft", "[startup]") {
+    StartupFlow flow{StartupState::PartyCreation};
+
+    REQUIRE(flow.dispatch(StartupAction::ConfirmParty).effect == StartupEffect::LoadNewGame);
+    REQUIRE(flow.dispatch(StartupAction::LoadFailed).to == StartupState::PartyCreation);
+    REQUIRE_FALSE(flow.world_active());
 }
 
 TEST_CASE("credits return to the title after completion or skip", "[startup]") {
