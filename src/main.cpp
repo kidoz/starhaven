@@ -54,6 +54,7 @@
 #include "game/inventory.hpp"
 #include "game/interiors.hpp"
 #include "game/launches.hpp"
+#include "game/loading_plan.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/new_game.hpp"
@@ -103,6 +104,20 @@ void draw_border(render::Framebuffer& framebuffer, int x, int y, int width, int 
     for (int py = y; py < y + height; ++py) {
         put(x, py);
         put(x + width - 1, py);
+    }
+}
+
+void fill_rect(render::Framebuffer& framebuffer, int x, int y, int width, int height,
+               render::Color color) {
+    auto pixels = framebuffer.color();
+    for (int py = std::max(y, 0); py < std::min(y + height, framebuffer.height()); ++py) {
+        for (int px = std::max(x, 0); px < std::min(x + width, framebuffer.width()); ++px) {
+            const auto offset = (static_cast<std::size_t>(py) * framebuffer.width() + px) * 4;
+            pixels[offset] = color.r;
+            pixels[offset + 1] = color.g;
+            pixels[offset + 2] = color.b;
+            pixels[offset + 3] = color.a;
+        }
     }
 }
 
@@ -1212,6 +1227,39 @@ void draw_save_selection(render::SceneRenderer& scene, const image::Font& font,
     if (!message.empty()) {
         game::draw_text(scene.framebuffer(), font, 52, 440, message, warning, shadow);
     }
+}
+
+// The loading screen: the game's own `loading.pcx` picture, a progress
+// rectangle and the name of the step under way. The original's two loading
+// modes and their exact progress updates are `unknown` (see
+// docs/explanation/startup-journey.md), so the picture-and-rectangle
+// composition is this engine's.
+void draw_loading(render::SceneRenderer& scene, const image::Font& font,
+                  assets::AssetCache& cache, const game::LoadingPlan& plan) {
+    auto pixels = scene.framebuffer().color();
+    std::fill(pixels.begin(), pixels.end(), 0);
+    blit(scene.framebuffer(), cache.icon("loading.pcx"), 0, 0);
+
+    constexpr int kBarX = 170;
+    constexpr int kBarY = 428;
+    constexpr int kBarWidth = 300;
+    constexpr int kBarHeight = 18;
+    const render::Color edge{232, 226, 200, 255};
+    draw_border(scene.framebuffer(), kBarX - 2, kBarY - 2, kBarWidth + 4, kBarHeight + 4, edge);
+    const int filled = static_cast<int>(plan.progress() * static_cast<float>(kBarWidth));
+    fill_rect(scene.framebuffer(), kBarX, kBarY, filled, kBarHeight, edge);
+
+    if (font.glyph_count() == 0 || !plan.active()) {
+        return;
+    }
+    const render::Color white{232, 232, 226, 255};
+    const render::Color shadow{0, 0, 0, 255};
+    std::string what{game::LoadingPlan::phase_name(plan.phase())};
+    if (plan.kind() == game::LoadRequestKind::SavedSlot) {
+        what = "Slot " + std::to_string(plan.slot()) + " - " + what;
+    }
+    game::draw_text(scene.framebuffer(), font, kBarX, kBarY - font.height() - 6, what, white,
+                    shadow);
 }
 
 // The journal: what the held quest bits say, in Quests.txt's own words,
@@ -3988,32 +4036,49 @@ int main(int argc, char** argv) {
         return true;
     };
 
-    // Apply only a repository-validated state. Map loading happens before any
-    // party values are replaced; if it fails, the current session and its map
-    // memories remain available behind the save-selection screen.
-    const auto apply_save_state = [&](const game::SaveState& state) -> bool {
-        auto previous_memory = map_memory;
+    // A world request is applied across named phases, one per frame, so the
+    // loading screen can report each step and the window keeps answering
+    // while the world comes up. Map loading happens before any party values
+    // are replaced; if it fails, the current session and its map memories
+    // remain available behind the menu the request came from.
+    game::SaveState pending_load;
+    std::map<std::string, MapMemory> memory_before_load;
+    game::LoadingPlan load_plan;
+
+    // The first phase: what the maps away from the party will remember.
+    auto stage_load_memory = [&]() {
+        memory_before_load = map_memory;
         map_memory.clear();
-        for (const auto& map : state.remembered) {
+        for (const auto& map : pending_load.remembered) {
             map_memory[map.file] = {map.opened_chests, map.open_doors, map.dead, map.day};
         }
-        if (!open_map(state.map_file, false)) {
-            map_memory = std::move(previous_memory);
+    };
+
+    // The second phase: the map session itself. Only the memory has been
+    // touched so far, so a failure here just gives the party's maps back.
+    auto open_pending_world = [&]() -> bool {
+        if (!open_map(pending_load.map_file, false)) {
+            map_memory = std::move(memory_before_load);
             return false;
         }
+        return true;
+    };
 
-        camera.position = {state.x, state.y, state.z};
-        camera.yaw = state.yaw;
-        camera.pitch = state.pitch;
-        clock = game::GameClock{state.minutes};
+    // The last phase: the party and everything it owns, published from the
+    // validated state in one pass.
+    auto apply_pending_world = [&]() {
+        camera.position = {pending_load.x, pending_load.y, pending_load.z};
+        camera.yaw = pending_load.yaw;
+        camera.pitch = pending_load.pitch;
+        clock = game::GameClock{pending_load.minutes};
         next_refill = session.refill_days > 0
                           ? clock.day() + session.refill_days
                           : std::numeric_limits<std::int64_t>::max();
-        gold = state.gold;
-        bank_gold = state.bank_gold;
-        party_food = state.food;
+        gold = pending_load.gold;
+        bank_gold = pending_load.bank_gold;
+        party_food = pending_load.food;
         hirelings.clear();
-        for (const auto& h : state.hired) {
+        for (const auto& h : pending_load.hired) {
             const auto* row = professions.at(h.profession_id);
             if (row == nullptr) {
                 continue;
@@ -4027,40 +4092,42 @@ int main(int argc, char** argv) {
             hire.benefit = game::parse_benefit(row->party_benefit);
             hirelings.push_back(std::move(hire));
         }
-        next_wage_day = state.wage_day > 0 ? state.wage_day : clock.day() + 7;
+        next_wage_day = pending_load.wage_day > 0 ? pending_load.wage_day : clock.day() + 7;
         last_hire_day = clock.day();
-        script_state.awards = std::set<int>(state.awards.begin(), state.awards.end());
+        script_state.awards =
+            std::set<int>(pending_load.awards.begin(), pending_load.awards.end());
         promoted_awards = script_state.awards;
-        visited_towns = state.visited_towns;
-        fly_until = state.fly_until;
-        reputation = state.reputation;
-        party_deaths = state.deaths;
-        prison_terms = state.prison_terms;
-        torch_until = state.torch_until;
-        readied = state.readied;
-        turn_based = state.turn_based;
-        hourglass_turn = state.hourglass_turn;
-        eye_until = state.eye_until;
-        eye_rank = state.eye_rank;
+        visited_towns = pending_load.visited_towns;
+        fly_until = pending_load.fly_until;
+        reputation = pending_load.reputation;
+        party_deaths = pending_load.deaths;
+        prison_terms = pending_load.prison_terms;
+        torch_until = pending_load.torch_until;
+        readied = pending_load.readied;
+        turn_based = pending_load.turn_based;
+        hourglass_turn = pending_load.hourglass_turn;
+        eye_until = pending_load.eye_until;
+        eye_rank = pending_load.eye_rank;
         beacons.clear();
-        for (const auto& beacon : state.beacons) {
+        for (const auto& beacon : pending_load.beacons) {
             beacons.push_back({beacon.map, {beacon.x, beacon.y, beacon.z}, beacon.until});
         }
         note_town();
-        script_state.bits = state.bits;
-        script_state.variables = state.variables;
-        script_state.npc_topics = state.npc_topics;
-        script_state.npc_places = state.npc_places;
-        script_state.autonotes = state.autonotes;
-        party = state.party;
-        party_buffs = state.party_buffs;
+        script_state.bits = pending_load.bits;
+        script_state.variables = pending_load.variables;
+        script_state.npc_topics = pending_load.npc_topics;
+        script_state.npc_places = pending_load.npc_places;
+        script_state.autonotes = pending_load.autonotes;
+        party = pending_load.party;
+        party_buffs = pending_load.party_buffs;
         for (std::size_t i = 0; i < packs.size(); ++i) {
             packs[i].clear();
-            for (const auto& item : state.packs[i]) {
+            for (const auto& item : pending_load.packs[i]) {
                 (void)packs[i].place(item);
             }
         }
-        opened_chests = std::set<int>(state.opened_chests.begin(), state.opened_chests.end());
+        opened_chests =
+            std::set<int>(pending_load.opened_chests.begin(), pending_load.opened_chests.end());
         // The save's open list is the whole door state, so first shut
         // everything, including doors whose map attributes start them open.
         bool doors_moved = false;
@@ -4070,7 +4137,7 @@ int main(int argc, char** argv) {
             move_door(door);
             doors_moved = true;
         }
-        for (const std::uint32_t id : state.open_doors) {
+        for (const std::uint32_t id : pending_load.open_doors) {
             for (auto& door : session.doors) {
                 if (door.id == id) {
                     door.open = true;
@@ -4083,11 +4150,57 @@ int main(int argc, char** argv) {
         if (doors_moved) {
             world::rebuild_indoor_collision(session);
         }
+    };
+
+    // An in-world load (the F9 key) runs the same three phases in one breath.
+    const auto apply_save_state = [&](const game::SaveState& state) -> bool {
+        pending_load = state;
+        stage_load_memory();
+        if (!open_pending_world()) {
+            return false;
+        }
+        apply_pending_world();
         return true;
     };
 
     while (running) {
         ++frame;
+        if (load_plan.active() && startup.state() == game::StartupState::LoadingWorld) {
+            // One named phase per frame: the loading screen redraws between
+            // steps and the window keeps answering Quit throughout.
+            switch (load_plan.phase()) {
+            case 0:
+                stage_load_memory();
+                break;
+            case 1:
+                if (!open_pending_world()) {
+                    if (load_plan.kind() == game::LoadRequestKind::NewGame) {
+                        creation_message =
+                            "The world could not be opened. Press Enter to try again.";
+                    } else {
+                        save_selection_message =
+                            "The map could not be opened. Choose another slot or Back.";
+                    }
+                    (void)startup.dispatch(game::StartupAction::LoadFailed);
+                }
+                break;
+            case 2:
+                apply_pending_world();
+                (void)startup.dispatch(game::StartupAction::LoadSucceeded);
+                if (load_plan.kind() == game::LoadRequestKind::SavedSlot) {
+                    pick_up_message = "Loaded slot " + std::to_string(load_plan.slot());
+                    pick_up_shown = SDL_GetTicks();
+                }
+                if (!map_audio_ready) {
+                    start_map_audio();
+                }
+                if (mouse_look && !cursor_free) {
+                    SDL_SetWindowRelativeMouseMode(window, true);
+                }
+                break;
+            }
+            load_plan.advance();
+        }
         if (startup.world_active()) {
             music.update();
             ambient.update(camera.position, ambient_sources, session.sounds);
@@ -4287,23 +4400,12 @@ int main(int argc, char** argv) {
                     if (!info.loadable()) {
                         save_selection_message = info.message + ". Choose another slot or Back.";
                     } else {
-                        const auto transition = startup.dispatch(game::StartupAction::ChooseLoad);
-                        if (transition.effect == game::StartupEffect::LoadCurrentSlot &&
-                            apply_save_state(state)) {
-                            (void)startup.dispatch(game::StartupAction::LoadSucceeded);
-                            pick_up_message = "Loaded slot " + std::to_string(save_slot);
-                            pick_up_shown = SDL_GetTicks();
-                            if (!map_audio_ready) {
-                                start_map_audio();
-                            }
-                            if (mouse_look && !cursor_free) {
-                                SDL_SetWindowRelativeMouseMode(window, true);
-                            }
-                        } else {
-                            (void)startup.dispatch(game::StartupAction::LoadFailed);
-                            save_selection_message =
-                                "The map could not be opened. Choose another slot or Back.";
-                        }
+                        // The slot is validated; the world itself opens
+                        // across the loading screen's named phases.
+                        pending_load = std::move(state);
+                        load_plan.begin(game::LoadRequestKind::SavedSlot, save_slot);
+                        save_selection_message.clear();
+                        (void)startup.dispatch(game::StartupAction::ChooseLoad);
                     }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && arena_rank < 0 &&
@@ -4455,24 +4557,12 @@ int main(int argc, char** argv) {
                         creation_message =
                             "Every member needs a name, class, face and rolled numbers.";
                     } else {
-                        const auto transition =
-                            startup.dispatch(game::StartupAction::ConfirmParty);
-                        if (transition.effect == game::StartupEffect::LoadNewGame) {
-                            game::SaveState seed;
-                            if (game::make_new_game_state(creation_draft, seed_start, seed) &&
-                                apply_save_state(seed)) {
-                                (void)startup.dispatch(game::StartupAction::LoadSucceeded);
-                                if (!map_audio_ready) {
-                                    start_map_audio();
-                                }
-                                if (mouse_look && !cursor_free) {
-                                    SDL_SetWindowRelativeMouseMode(window, true);
-                                }
-                            } else {
-                                (void)startup.dispatch(game::StartupAction::LoadFailed);
-                                creation_message =
-                                    "The world could not be opened. Press Enter to try again.";
-                            }
+                        // The seed is built from the validated draft first;
+                        // only then does the state leave for the loading
+                        // screen's named phases.
+                        if (game::make_new_game_state(creation_draft, seed_start, pending_load)) {
+                            (void)startup.dispatch(game::StartupAction::ConfirmParty);
+                            load_plan.begin(game::LoadRequestKind::NewGame, 0);
                         }
                     }
                 }
@@ -4628,7 +4718,8 @@ int main(int argc, char** argv) {
                     pick_up_shown = SDL_GetTicks();
                     break;
                 }
-            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F5) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F5 &&
+                       startup.world_active()) {
                 // Save: the engine's own format, next to where it was run.
                 game::SaveState state;
                 state.map_file = session.file_name;
@@ -4711,7 +4802,8 @@ int main(int argc, char** argv) {
                                       ? "Saved to slot " + std::to_string(save_slot)
                                       : "Could not write the save";
                 pick_up_shown = SDL_GetTicks();
-            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F6) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F6 &&
+                       startup.world_active()) {
                 // The next slot, with what it holds: same format, numbered
                 // files, the map and the day read off the save itself.
                 save_slot = save_slot % game::kSaveSlotCount + 1;
@@ -4723,7 +4815,8 @@ int main(int argc, char** argv) {
                     pick_up_message = "Slot " + std::to_string(save_slot) + ": " + info.message;
                 }
                 pick_up_shown = SDL_GetTicks();
-            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F9) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F9 &&
+                       startup.world_active()) {
                 // Load: back to the saved map, standing where the party stood.
                 game::SaveState state;
                 const game::SaveSlotInfo info = saves.load(save_slot, state);
@@ -8153,6 +8246,8 @@ int main(int argc, char** argv) {
             }
         } else if (startup.state() == game::StartupState::SaveSelection) {
             draw_save_selection(scene, font, save_slots, save_slot - 1, save_selection_message);
+        } else if (startup.state() == game::StartupState::LoadingWorld) {
+            draw_loading(scene, font, cache, load_plan);
         }
         if (SDL_GetTicks() < media_warning_until && font.glyph_count() > 0) {
             game::draw_text(scene.framebuffer(), font, 24, 390, media_warning,
