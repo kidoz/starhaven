@@ -61,8 +61,8 @@ state.
 
 ## The title screen
 
-The painting's foot carries four plates: **New**, **Load**, **Credits** and
-**Exit**.
+Four stone plates hang on the sky at the painting's right edge, top to
+bottom: **New**, **Load**, **Credits** and **Exit**.
 
 - `←` `→` `↑` `↓` move the highlighted plate; `Enter` activates it. A gold
   border marks the focus.

@@ -84,6 +84,17 @@ using namespace starhaven;
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
 
+// The title menu's four stone plates hang on the sky at the painting's
+// right edge, New to Exit top to bottom. The install's own `Title.pcx`
+// bakes them in at these spots; each 135x45 `MM*1` bitmap matches one
+// plate. Measured off the original's menu at an 800x600 view scaled to
+// the engine's 640x480. `observed`
+constexpr int kTitlePlateX = 490;
+constexpr int kTitlePlateY = 10;
+constexpr int kTitlePlatePitch = 60;
+constexpr int kTitlePlateWidth = 135;
+constexpr int kTitlePlateHeight = 45;
+
 void draw_border(render::Framebuffer& framebuffer, int x, int y, int width, int height,
                  render::Color color) {
     auto pixels = framebuffer.color();
@@ -4504,9 +4515,13 @@ int main(int argc, char** argv) {
                 } else if (event.button.button == SDL_BUTTON_LEFT) {
                     const int mx = static_cast<int>(event.button.x);
                     const int my = static_cast<int>(event.button.y);
-                    if (my >= 424 && my < 469 && mx >= 20 && mx < 611 && (mx - 20) % 152 < 135) {
-                        chosen = (mx - 20) / 152;
-                        title_focus = chosen;
+                    for (int i = 0; i < 4; ++i) {
+                        if (mx >= kTitlePlateX && mx < kTitlePlateX + kTitlePlateWidth &&
+                            my >= kTitlePlateY + i * kTitlePlatePitch &&
+                            my < kTitlePlateY + i * kTitlePlatePitch + kTitlePlateHeight) {
+                            chosen = i;
+                            title_focus = i;
+                        }
                     }
                 }
                 if (chosen >= 0) {
@@ -8323,14 +8338,15 @@ int main(int argc, char** argv) {
                      (kHeight - static_cast<int>(movie_frame.height())) / 2);
             }
         } else if (startup.state() == game::StartupState::Title) {
-            blit(scene.framebuffer(), cache.icon("MM6TITLE.PCX"), 0, 0);
-            const std::array<const char*, 4> kPlates{"MMNEW1", "MMLOA1", "MMCRE1", "MMESC1"};
-            for (int i = 0; i < 4; ++i) {
-                blit(scene.framebuffer(), cache.icon(kPlates[static_cast<std::size_t>(i)]),
-                     20 + i * 152, 424);
-            }
-            draw_border(scene.framebuffer(), 18 + title_focus * 152, 422, 139, 49,
-                        render::Color{250, 225, 145, 255});
+            // The original's own menu: the install's `Title.pcx` is the
+            // painting with its four stone plates baked into the sky at
+            // the right edge. (`MM6TITLE.PCX` is the same art without
+            // them.) The border around the focused plate is this engine's
+            // own; the original's keyboard-focus look is not established.
+            blit(scene.framebuffer(), cache.icon("Title.pcx"), 0, 0);
+            draw_border(scene.framebuffer(), kTitlePlateX - 2,
+                        kTitlePlateY + title_focus * kTitlePlatePitch - 2, kTitlePlateWidth + 4,
+                        kTitlePlateHeight + 4, render::Color{250, 225, 145, 255});
             if (startup.credits_seen() && font.glyph_count() > 0) {
                 game::draw_text(scene.framebuffer(), font, 24, 24,
                                 "StarHaven, an open engine for your own copy of the game.",

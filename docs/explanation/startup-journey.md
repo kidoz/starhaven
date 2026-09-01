@@ -63,6 +63,7 @@ references are the [VID container](../formats/vid.md),
 | Opening order | observed | Normal startup presents `3dologo`, then `MM6Intro`, then the title screen. |
 | Skip | observed | A keyboard input advances the active opening reel; the next input advances the next reel rather than skipping the whole sequence. Original mouse-button skip behavior is `unknown`. |
 | Title choices | observed | The title art presents New, Load, Credits, and Exit. |
+| Title plate geometry | observed | The menu's four stone plates stack on the sky at the painting's right edge: the install's `Title.pcx` (640x480) bakes them in, and the separate `MMNEW1`/`MMLOA1`/`MMCRE1`/`MMESC1` bitmaps match one plate each at 135x45. At the engine's size the stack sits at about x 486, y 8, with a 60-pixel pitch. `MM6TITLE.PCX` is the same painting without any plates; the original's keyboard-focus look is `unknown`. |
 | New destination | observed | New creates the party for `oute3.odm`, New Sorpigal. |
 | New position | observed | MM6 coordinates are x = -9728, y = -11319, z = 160, facing 512 of 2048, with level pitch. The render-space axis conversion is documented in the [party runtime record](../formats/party-record.md#where-a-new-game-begins). |
 | Loading pictures | observed | The loading-screen object names `loading.pcx`, four travel/game-over variants, a `fireball` sprite, and `bardata`; it has two modes and a progress rectangle. |
