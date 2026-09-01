@@ -4164,6 +4164,7 @@ int main(int argc, char** argv) {
     bool smoke_turned_off = false;
     bool smoke_shop_seen = false;
     bool smoke_event_ran = false;
+    std::string smoke_trace;
     auto smoke_press = [](SDL_Keycode key) {
         SDL_Event synthetic{};
         synthetic.type = SDL_EVENT_KEY_DOWN;
@@ -4275,6 +4276,9 @@ int main(int argc, char** argv) {
                 if (smoke_mode == 1 && at == 170) {
                     smoke_press(SDLK_RETURN);  // the fight in turns
                 }
+                if (smoke_mode == 1 && at >= 178 && at <= 190) {
+                    smoke_trace += turn_based ? '1' : '0';
+                }
                 if (smoke_mode == 1 && at == 176) {
                     smoke_turned_on = turn_based;
                 }
@@ -4282,11 +4286,14 @@ int main(int argc, char** argv) {
                     smoke_press(SDLK_RETURN);  // and time flows again
                 }
                 if (smoke_mode == 1 && at == 188) {
-                    smoke_turned_off = turn_based;
+                    // Left means the toggle is off again.
+                    smoke_turned_off = !turn_based;
                     std::ostringstream detail;
                     detail << session.actors.size() << " actors on the map, entered "
                            << (smoke_turned_on ? "yes" : "no") << ", left "
-                           << (smoke_turned_off ? "yes" : "no");
+                           << (smoke_turned_off ? "yes" : "no") << ", trace " << smoke_trace
+                           << ", line \"" << pick_up_message << "\", ask " << ask_event
+                           << ", porting " << porting << ", shop " << open_shop;
                     if (smoke_turned_on && smoke_turned_off) {
                         smoke_pass("turns", detail.str());
                     } else {
@@ -8365,7 +8372,11 @@ int main(int argc, char** argv) {
     }
 
     movie.release();
-    ambient.stop_room();
+    // Every audio stream must be released while SDL audio is still up:
+    // SDL_Quit tears the streams down itself, and the mixers' destructors
+    // would otherwise free what SDL already freed.
+    music.stop();
+    ambient.stop();
     SDL_DestroyTexture(screen);
     SDL_DestroyRenderer(sdl_renderer);
     SDL_DestroyWindow(window);
