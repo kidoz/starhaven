@@ -40,6 +40,7 @@
 #include "game/buffs.hpp"
 #include "game/clock.hpp"
 #include "game/combat.hpp"
+#include "game/completion.hpp"
 #include "game/conversation.hpp"
 #include "game/daylight.hpp"
 #include "game/enchant.hpp"
@@ -1326,6 +1327,20 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
         y += line;
     };
 
+    if (page == 0) {
+        // The campaign's own yardstick: the frozen contract measured live.
+        const auto report =
+            game::audit_completion(game::completion_manifest(), bits, earned, collected);
+        game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
+                        std::string("Quests ") + std::to_string(report.quests.done) + " of " +
+                            std::to_string(report.quests.total) + ", awards " +
+                            std::to_string(report.awards.done) + " of " +
+                            std::to_string(report.awards.total) + ", chronicle " +
+                            std::to_string(report.autonotes.done) + " of " +
+                            std::to_string(report.autonotes.total) + " - " +
+                            std::to_string(report.percent()) + "% complete",
+                        dim, shadow);
+    }
     if (page == 1) {
         // The obelisk grid first: the fifteen fragments are columns, and
         // side by side they spell the sentence. A missing stone leaves

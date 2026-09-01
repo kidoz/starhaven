@@ -88,6 +88,7 @@ starhaven_core_sources = files(
   'src/game/save_repository.cpp',
   'src/game/new_game.cpp',
   'src/game/loading_plan.cpp',
+  'src/game/completion.cpp',
 )
 
 starhaven_core = static_library('starhaven_core',
@@ -182,6 +183,11 @@ executable('doll_info', 'tools/doll_info.cpp',
 executable('ddm_info', 'tools/ddm_info.cpp',
   dependencies : starhaven_dep,
   install : true,
+)
+
+executable('completion_census', 'tools/completion_census.cpp',
+  dependencies : starhaven_dep,
+  install : false,
 )
 
 # Data-table inspector: reads the tab-separated design tables in icons.lod.

@@ -26,6 +26,12 @@ test('startup_journey',
   workdir : meson.current_build_dir(),
 )
 
+test('completion',
+  executable('test_completion', 'test_completion.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('byte_reader',
   executable('test_byte_reader', 'test_byte_reader.cpp',
     dependencies : [starhaven_dep, catch2_main]),
