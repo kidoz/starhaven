@@ -17,7 +17,7 @@ using namespace starhaven::world;
 namespace {
 
 struct DecorationSpec {
-    std::string group_name;   // set on a group's first frame
+    std::string group_name;  // set on a group's first frame
     std::string sprite_name;
     std::uint16_t flags = 0;
     std::uint16_t frame_count = 0;

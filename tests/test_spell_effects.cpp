@@ -9,8 +9,8 @@ using namespace starhaven::data;
 
 namespace {
 
-SpellStatsEntry spell(const char* description, const char* normal = "",
-                      const char* expert = "", const char* master = "") {
+SpellStatsEntry spell(const char* description, const char* normal = "", const char* expert = "",
+                      const char* master = "") {
     SpellStatsEntry out;
     out.description = description;
     out.normal = normal;
@@ -23,8 +23,8 @@ SpellStatsEntry spell(const char* description, const char* normal = "",
 
 TEST_CASE("flat damage reads from its own phrasing", "[spells]") {
     // Static Charge's wording.
-    const auto effect = parse_spell_effect(
-        spell("It only does 2-6 points of damage, but it always hits."), 0);
+    const auto effect =
+        parse_spell_effect(spell("It only does 2-6 points of damage, but it always hits."), 0);
     REQUIRE(effect.damage.low == 2);
     REQUIRE(effect.damage.high == 6);
     REQUIRE(effect.damage_per_skill.empty());
@@ -57,8 +57,8 @@ TEST_CASE("healing reads from the rank cell first, then the description", "[spel
     REQUIRE(parse_spell_effect(aid, 2).heal.low == 10);
 
     // Healing Touch: the amount only in the description.
-    const auto touch = parse_spell_effect(
-        spell("Cheaply heals a single character of 3-7 hit points."), 0);
+    const auto touch =
+        parse_spell_effect(spell("Cheaply heals a single character of 3-7 hit points."), 0);
     REQUIRE(touch.heal.low == 3);
     REQUIRE(touch.heal.high == 7);
 }
@@ -66,8 +66,7 @@ TEST_CASE("healing reads from the rank cell first, then the description", "[spel
 TEST_CASE("a spell's reach is read from its own prose", "[spells]") {
     // The designers' own words: a single target unless the description
     // says the blast catches others or names everything in sight.
-    REQUIRE(parse_spell_effect(spell("Does 5 points of damage."), 0).reach ==
-            SpellReach::Single);
+    REQUIRE(parse_spell_effect(spell("Does 5 points of damage."), 0).reach == SpellReach::Single);
     REQUIRE(parse_spell_effect(
                 spell("targets a single monster, but explodes to hurt anyone else caught in "
                       "the blast."),
@@ -77,11 +76,11 @@ TEST_CASE("a spell's reach is read from its own prose", "[spells]") {
                                      "surrounding your chosen target."),
                                0)
                 .reach == SpellReach::Blast);
-    REQUIRE(parse_spell_effect(
-                spell("Inflicts 25 points of damage plus 1 per point of skill on all "
-                      "creatures in sight."),
-                0)
-                .reach == SpellReach::Sight);
+    REQUIRE(
+        parse_spell_effect(spell("Inflicts 25 points of damage plus 1 per point of skill on all "
+                                 "creatures in sight."),
+                           0)
+            .reach == SpellReach::Sight);
 }
 
 TEST_CASE("prose without numbers casts nothing", "[spells]") {
@@ -93,20 +92,20 @@ TEST_CASE("prose without numbers casts nothing", "[spells]") {
 
 TEST_CASE("durations read hours and per-skill minutes apart", "[spells]") {
     // The four buff spells all write it this way.
-    const auto bless = parse_spell_duration(
-        spell("", "Duration 1 hour + 5 minutes per point of skill"), 0);
+    const auto bless =
+        parse_spell_duration(spell("", "Duration 1 hour + 5 minutes per point of skill"), 0);
     REQUIRE(bless.base_minutes == 60);
     REQUIRE(bless.per_skill_minutes == 5);
     REQUIRE(bless.minutes(4) == 80);
 
-    const auto haste = parse_spell_duration(
-        spell("", "Duration 1 hour + 1 minute per skill point"), 0);
+    const auto haste =
+        parse_spell_duration(spell("", "Duration 1 hour + 1 minute per skill point"), 0);
     REQUIRE(haste.base_minutes == 60);
     REQUIRE(haste.per_skill_minutes == 1);
 
     // Minutes alone, scaling alone.
-    const auto scaling = parse_spell_duration(
-        spell("", "Duration 5 minutes per point of skill"), 0);
+    const auto scaling =
+        parse_spell_duration(spell("", "Duration 5 minutes per point of skill"), 0);
     REQUIRE(scaling.base_minutes == 0);
     REQUIRE(scaling.per_skill_minutes == 5);
 
@@ -180,7 +179,6 @@ TEST_CASE("a duration written as 'lasts' is read like one", "[spells]") {
 TEST_CASE("days and weeks read as their minutes", "[spells]") {
     const auto days = starhaven::data::parse_duration_text("decays in 1 day per point of skill");
     REQUIRE(days.per_skill_minutes == 60 * 24);
-    const auto weeks =
-        starhaven::data::parse_duration_text("decays in 1 week per point of skill");
+    const auto weeks = starhaven::data::parse_duration_text("decays in 1 week per point of skill");
     REQUIRE(weeks.per_skill_minutes == 60 * 24 * 7);
 }

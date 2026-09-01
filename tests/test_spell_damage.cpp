@@ -53,11 +53,11 @@ TEST_CASE("the unscaled spells match the bands their rows print", "[spelldmg]") 
         int high;
     };
     const std::array<Band, 5> bands{{
-        {2, 1, 8},    // Flame Arrow  "1-8 points"
-        {13, 2, 6},   // Static Charge "2-6 points"
-        {24, 2, 6},   // Cold Beam    "2-6 points"
-        {35, 3, 8},   // Magic Arrow  "3-8 points"
-        {45, 1, 6},   // Spirit Arrow "1-6 points"
+        {2, 1, 8},   // Flame Arrow  "1-8 points"
+        {13, 2, 6},  // Static Charge "2-6 points"
+        {24, 2, 6},  // Cold Beam    "2-6 points"
+        {35, 3, 8},  // Magic Arrow  "3-8 points"
+        {45, 1, 6},  // Spirit Arrow "1-6 points"
     }};
     for (const auto& band : bands) {
         REQUIRE(roll_spell_damage(band.spell, 0, Lowest{}) == band.low);

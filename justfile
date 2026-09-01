@@ -52,6 +52,9 @@ run *args: build
     ./{{build_dir}}/starhaven {{args}}
 
 # Rewrite all owned sources in place per .clang-format.
+# The tree is formatted with clang-format 23.x; other major versions lay
+# some lines out differently, so pin or match this version for a green
+# `just fmt-check`.
 fmt:
     @find src tools tests \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
         | xargs -0 clang-format -i --style=file

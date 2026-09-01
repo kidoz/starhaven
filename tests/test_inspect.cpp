@@ -463,9 +463,9 @@ TEST_CASE("a face names itself from its header's label", "[inspect]") {
     push_script_step(payload, 3, 0, world::kOpcodeName, {1});
     REQUIRE(world::MapScript::parse(wrap_payload(payload), s.script) ==
             world::MapScriptError::None);
-    REQUIRE(world::MapStrings::parse(wrap_payload({' ', 0, 'S', 'i', 'g', 'n', 0, 'D', 'o',
-                                                   'o', 'r', ' ', 0}),
-                                     s.script_strings) == world::MapScriptError::None);
+    REQUIRE(world::MapStrings::parse(
+                wrap_payload({' ', 0, 'S', 'i', 'g', 'n', 0, 'D', 'o', 'o', 'r', ' ', 0}),
+                s.script_strings) == world::MapScriptError::None);
 
     // The label, with its trailing space trimmed.
     REQUIRE(game::face_name(s, 1) == "Door");

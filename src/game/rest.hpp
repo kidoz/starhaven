@@ -38,8 +38,8 @@ enum class RestResult : std::uint8_t {
 // Rest the party: eight hours, and everyone who is still standing wakes up
 // whole — if the party can eat. `food_cost` is what this camp consumes, the
 // caller's to reduce by a Porter's or a Gypsy's savings.
-inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool disturbed,
-                       int& food, int food_cost) {
+inline RestResult rest(std::array<Character, 4>& party, GameClock& clock, bool disturbed, int& food,
+                       int food_cost) {
     if (disturbed) {
         return RestResult::Disturbed;
     }

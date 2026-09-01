@@ -8,13 +8,13 @@
 #include <span>
 #include <string>
 
+#include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/npc_stats.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
-#include "core/data/building_stats.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/travel.hpp"
@@ -24,8 +24,8 @@
 #include "core/lod/game_lod_archive.hpp"
 #include "core/world/blv_map.hpp"
 #include "core/world/object_table.hpp"
-#include "core/world/sprite_frame_table.hpp"
 #include "core/world/sound_table.hpp"
+#include "core/world/sprite_frame_table.hpp"
 
 namespace {
 
@@ -65,8 +65,8 @@ int do_scan(const starhaven::lod::LodArchive& icons) {
         std::size_t uses = 0;
         std::size_t min_size = static_cast<std::size_t>(-1);
         std::size_t max_size = 0;
-        std::size_t file_names = 0;         // arguments holding ".odm"/".blv"
-        std::string example;                // one such name, with its map
+        std::size_t file_names = 0;  // arguments holding ".odm"/".blv"
+        std::string example;         // one such name, with its map
     };
     std::map<int, OpcodeShape> shapes;
     std::size_t scripts = 0;
@@ -128,8 +128,7 @@ int do_scan(const starhaven::lod::LodArchive& icons) {
 // Research mode: every use of opcode 6 across every script, read as four
 // little-endian i32s and a NUL-terminated destination, tested against the
 // design table's own set of 67 map file names.
-int do_transitions(const starhaven::lod::LodArchive& icons,
-                   const std::filesystem::path& data_dir) {
+int do_transitions(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
     namespace data = starhaven::data;
@@ -245,10 +244,10 @@ int do_transitions(const starhaven::lod::LodArchive& icons,
             std::map<int, std::size_t> tails;
             for (const auto& [pattern, count] : middle_patterns) {
                 // The pattern is hex bytes "xx " * 10; the last two are 24, 25.
-                const int b24 = static_cast<int>(std::strtol(pattern.substr(24, 2).c_str(),
-                                                             nullptr, 16));
-                const int b25 = static_cast<int>(std::strtol(pattern.substr(27, 2).c_str(),
-                                                             nullptr, 16));
+                const int b24 =
+                    static_cast<int>(std::strtol(pattern.substr(24, 2).c_str(), nullptr, 16));
+                const int b25 =
+                    static_cast<int>(std::strtol(pattern.substr(27, 2).c_str(), nullptr, 16));
                 tails[b24 | (b25 << 8)] += count;
             }
             std::cout << "bytes 24..25 as u16 vs DSOUNDS:\n";
@@ -324,8 +323,8 @@ int do_variables(const starhaven::lod::LodArchive& icons) {
     };
     struct OpcodeUse {
         std::map<std::size_t, std::size_t> sizes;
-        std::map<int, TypeUse> by_type;      // first byte -> value stats
-        std::size_t jump_in_range = 0;       // trailing byte <= event's max sequence
+        std::map<int, TypeUse> by_type;  // first byte -> value stats
+        std::size_t jump_in_range = 0;   // trailing byte <= event's max sequence
         std::size_t jump_total = 0;
         std::size_t max_trailing = 0;
     };
@@ -417,8 +416,7 @@ int do_out(const starhaven::lod::LodArchive& icons, const std::string& entry_nam
     namespace world = starhaven::world;
 
     std::span<const std::byte> raw;
-    if (icons.payload(entry_name, raw) != lod::LodArchive::PayloadError::None ||
-        raw.size() < 48) {
+    if (icons.payload(entry_name, raw) != lod::LodArchive::PayloadError::None || raw.size() < 48) {
         std::cerr << "error: no OUT.EVT\n";
         return 1;
     }
@@ -446,8 +444,8 @@ int do_out(const starhaven::lod::LodArchive& icons, const std::string& entry_nam
             static_cast<std::uint16_t>(payload[at + 1] | (payload[at + 2] << 8));
         const std::uint8_t opcode = payload[at + 3];
         const std::size_t arg_count = size - 3;
-        std::cout << "event " << id << "\topcode " << static_cast<int>(opcode) << " ("
-                  << arg_count << " bytes)";
+        std::cout << "event " << id << "\topcode " << static_cast<int>(opcode) << " (" << arg_count
+                  << " bytes)";
         if (opcode == world::kOpcodeTravel && arg_count >= 27) {
             world::ScriptStep step;
             step.opcode = world::kOpcodeTravel;
@@ -472,8 +470,7 @@ int do_out(const starhaven::lod::LodArchive& icons, const std::string& entry_nam
 // Research mode: opcode 11, whose arguments read as a u32 and a
 // NUL-terminated name. The names are texture names, testable against
 // BITMAPS.LOD; the u32 reads as the face to re-texture.
-int do_sounds(const starhaven::lod::LodArchive& icons,
-              const starhaven::lod::LodArchive& bitmaps) {
+int do_sounds(const starhaven::lod::LodArchive& icons, const starhaven::lod::LodArchive& bitmaps) {
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
 
@@ -596,9 +593,8 @@ int do_unheaded(const starhaven::lod::LodArchive& icons) {
 
     // The 33 face event ids that resolve in no map script: are they GLOBAL's?
     lod::GameLodArchive games;
-    if (lod::GameLodArchive::open(
-            *starhaven::platform::install_from_env() / "data" / "Games.lod", games) !=
-        lod::GameLodError::None) {
+    if (lod::GameLodArchive::open(*starhaven::platform::install_from_env() / "data" / "Games.lod",
+                                  games) != lod::GameLodError::None) {
         return 0;
     }
     std::size_t faces_unresolved = 0;
@@ -634,8 +630,7 @@ int do_unheaded(const starhaven::lod::LodArchive& icons) {
                     continue;
                 }
                 ++npc_events;
-                npc_in_global +=
-                    global_ids.contains(static_cast<std::uint16_t>(id)) ? 1 : 0;
+                npc_in_global += global_ids.contains(static_cast<std::uint16_t>(id)) ? 1 : 0;
             }
         }
         std::cout << npc_events << " NPC event ids; " << npc_in_global
@@ -730,7 +725,7 @@ int do_headers(const starhaven::lod::LodArchive& icons) {
         std::size_t events = 0;
         std::size_t agree = 0;
     };
-    std::map<int, Match> by_body;   // body opcode -> header arg equality
+    std::map<int, Match> by_body;  // body opcode -> header arg equality
     std::map<int, std::size_t> header_values;
     // The other candidate: the header as an index into the map's own .STR —
     // the thing's mouseover name. Measured separately for events that open an
@@ -879,7 +874,8 @@ int do_npc_mutations(const starhaven::lod::LodArchive& icons,
                 const std::uint32_t topic = u32_at(step.arguments, 5);
                 op39_npc_ok += npc >= 1 && npc <= npc_count ? 1 : 0;
                 ++op39_slots[slot];
-                op39_topic_ok += dialogue.at(static_cast<int>(topic)) != nullptr || topic == 0 ? 1 : 0;
+                op39_topic_ok +=
+                    dialogue.at(static_cast<int>(topic)) != nullptr || topic == 0 ? 1 : 0;
                 if (dialogue.at(static_cast<int>(topic)) == nullptr && topic != 0)
                     std::cout << "  unresolved topic " << topic << "\n";
             } else if (step.opcode == 40 && step.arguments.size() >= 8) {
@@ -928,8 +924,7 @@ int do_catalog(const starhaven::lod::LodArchive& icons, int wanted) {
                 continue;
             }
             ++shown;
-            std::cout << entry.name.substr(0, entry.name.size() - 4) << " " << step.event_id
-                      << ":";
+            std::cout << entry.name.substr(0, entry.name.size() - 4) << " " << step.event_id << ":";
             const auto& a = step.arguments;
             if (wanted == 19 && a.size() >= 15) {
                 // Candidate shape: a kind, then three i32 coordinates.
@@ -940,9 +935,9 @@ int do_catalog(const starhaven::lod::LodArchive& icons, int wanted) {
                     }
                     return static_cast<std::int32_t>(v);
                 };
-                std::cout << " (" << static_cast<int>(a[0]) << "," << static_cast<int>(a[1])
-                          << "," << static_cast<int>(a[2]) << ") at " << i32_at(3) << ","
-                          << i32_at(7) << "," << i32_at(11);
+                std::cout << " (" << static_cast<int>(a[0]) << "," << static_cast<int>(a[1]) << ","
+                          << static_cast<int>(a[2]) << ") at " << i32_at(3) << "," << i32_at(7)
+                          << "," << i32_at(11);
             } else {
                 for (const std::uint8_t b : a) {
                     std::cout << " " << static_cast<int>(b);
@@ -991,8 +986,8 @@ int do_projectiles(const starhaven::lod::LodArchive& icons) {
                 continue;
             }
             ++uses;
-            const auto id = static_cast<std::uint16_t>(step.arguments[0] |
-                                                       (step.arguments[1] << 8));
+            const auto id =
+                static_cast<std::uint16_t>(step.arguments[0] | (step.arguments[1] << 8));
             if (!ids.contains(id)) {
                 continue;
             }
@@ -1059,19 +1054,17 @@ int do_launches(const starhaven::lod::LodArchive& icons) {
                 return static_cast<std::int32_t>(v);
             };
             const bool as_group = id < group_names.size();
-            const bool as_frame_start =
-                id < table.size() && table.frames()[id].starts_group();
+            const bool as_frame_start = id < table.size() && table.frames()[id].starts_group();
             group_hits += as_group ? 1 : 0;
             frame_start_hits += as_frame_start ? 1 : 0;
             std::cout << entry.name.substr(0, entry.name.size() - 4) << " " << step.event_id
                       << ": group " << id << " = "
                       << (as_group ? group_names[id] : std::string("<out of range>"))
-                      << (as_frame_start
-                              ? " (as frame: " + table.frames()[id].group_name + ")"
-                              : " (as frame: not a group start)")
+                      << (as_frame_start ? " (as frame: " + table.frames()[id].group_name + ")"
+                                         : " (as frame: not a group start)")
                       << " speed? " << static_cast<int>(a[2]) << " from " << i32_at(3) << ","
-                      << i32_at(7) << "," << i32_at(11) << " to " << i32_at(15) << ","
-                      << i32_at(19) << "," << i32_at(23) << "\n";
+                      << i32_at(7) << "," << i32_at(11) << " to " << i32_at(15) << "," << i32_at(19)
+                      << "," << i32_at(23) << "\n";
         }
     }
     std::cout << uses << " uses; u16 in group range on " << group_hits
@@ -1132,8 +1125,8 @@ int do_asks(const starhaven::lod::LodArchive& icons) {
                 const std::uint32_t prompt = u32_at(a, 0);
                 const std::uint32_t first = u32_at(a, 4);
                 const std::uint32_t second = u32_at(a, 8);
-                const bool resolve = prompt < strings.size() && first < strings.size() &&
-                                     second < strings.size();
+                const bool resolve =
+                    prompt < strings.size() && first < strings.size() && second < strings.size();
                 ask_strings += resolve ? 1 : 0;
                 ask_steps += step_of(step.event_id, a[12]) ? 1 : 0;
                 if (resolve) {
@@ -1150,9 +1143,9 @@ int do_asks(const starhaven::lod::LodArchive& icons) {
                                         low1.find(low2) != std::string::npos
                                     ? 1
                                     : 0;
-                    std::cout << stem << " " << step.event_id << ": \""
-                              << strings.at(prompt) << "\" -> \"" << strings.at(first)
-                              << "\" / \"" << strings.at(second) << "\"\n";
+                    std::cout << stem << " " << step.event_id << ": \"" << strings.at(prompt)
+                              << "\" -> \"" << strings.at(first) << "\" / \"" << strings.at(second)
+                              << "\"\n";
                 }
             } else if (step.opcode == 25 && a.size() >= 6) {
                 ++jump_uses;
@@ -1172,8 +1165,8 @@ int do_asks(const starhaven::lod::LodArchive& icons) {
                 if (!defined && id != 0) {
                     switch_global += global_script.defines(id) ? 1 : 0;
                     if (!global_script.defines(id)) {
-                        std::cout << "op32 miss: " << stem << " " << step.event_id << " -> "
-                                  << id << "\n";
+                        std::cout << "op32 miss: " << stem << " " << step.event_id << " -> " << id
+                                  << "\n";
                     }
                 }
                 switch_flags += a[4] <= 1 ? 1 : 0;
@@ -1197,8 +1190,7 @@ int do_asks(const starhaven::lod::LodArchive& icons) {
 // numbers their own events speak. A quest's reward step and its reward prose
 // sit in the same event; when the prose says "500 experience" and a give of
 // an unnamed type carries 500, the type has told its name.
-int do_currencies(const starhaven::lod::LodArchive& icons,
-                  const std::filesystem::path& data_dir) {
+int do_currencies(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
     namespace data = starhaven::data;
@@ -1276,8 +1268,7 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
                 std::string word;
                 while (p < prose.size() &&
                        std::isalpha(static_cast<unsigned char>(prose[p])) != 0) {
-                    word += static_cast<char>(
-                        std::tolower(static_cast<unsigned char>(prose[p])));
+                    word += static_cast<char>(std::tolower(static_cast<unsigned char>(prose[p])));
                     ++p;
                 }
                 spoken.emplace_back(value, word);
@@ -1336,10 +1327,9 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
                     continue;
                 }
                 for (const auto& step : script.steps()) {
-                    const bool typed = step.opcode == world::kOpcodeCheck ||
-                                       step.opcode == world::kOpcodeGive ||
-                                       step.opcode == world::kOpcodeTake ||
-                                       step.opcode == world::kOpcodeSet;
+                    const bool typed =
+                        step.opcode == world::kOpcodeCheck || step.opcode == world::kOpcodeGive ||
+                        step.opcode == world::kOpcodeTake || step.opcode == world::kOpcodeSet;
                     if (!typed || step.arguments.size() < 5) {
                         continue;
                     }
@@ -1356,9 +1346,8 @@ int do_currencies(const starhaven::lod::LodArchive& icons,
                         }
                     } else if (step.arguments[0] == 22) {
                         ++fame_uses;
-                        fame_min = fame_uses == 1
-                                       ? static_cast<long>(value)
-                                       : std::min(fame_min, static_cast<long>(value));
+                        fame_min = fame_uses == 1 ? static_cast<long>(value)
+                                                  : std::min(fame_min, static_cast<long>(value));
                         fame_max = std::max(fame_max, static_cast<long>(value));
                     }
                 }
@@ -1411,8 +1400,8 @@ int do_ledger(const starhaven::lod::LodArchive& icons, const std::filesystem::pa
     std::map<int, std::pair<world::MapScript, std::uint16_t>> grantor_event;
     for (const auto& entry : icons.entries()) {
         const std::string& name = entry.name;
-        if (name.size() < 4 || (name.substr(name.size() - 4) != ".EVT" &&
-                                name.substr(name.size() - 4) != ".evt")) {
+        if (name.size() < 4 ||
+            (name.substr(name.size() - 4) != ".EVT" && name.substr(name.size() - 4) != ".evt")) {
             continue;
         }
         std::span<const std::byte> raw;
@@ -1571,11 +1560,9 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         const auto outcome = game::walk_event(global, 1, state);
         // The event never takes the letter — its steps hold no item-take —
         // so the scroll stays a keepsake; only the bits and the topic move.
-        const bool ok = outcome.ran && state.gold == 1000 &&
-                        state.npc_topics.at({1, 0}) == 2 && !state.bits.contains(81) &&
-                        state.bits.contains(82) &&
-                        std::find(state.items.begin(), state.items.end(), 505) !=
-                            state.items.end();
+        const bool ok = outcome.ran && state.gold == 1000 && state.npc_topics.at({1, 0}) == 2 &&
+                        !state.bits.contains(81) && state.bits.contains(82) &&
+                        std::find(state.items.begin(), state.items.end(), 505) != state.items.end();
         if (!beat(ok, "the letter pays 1000, rotates Andover and moves bit 81 to 82")) {
             return 1;
         }
@@ -1691,11 +1678,11 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         state.bits.insert(82);
         state.items.push_back(505);
         const auto outcome = game::walk_event(global, 9, state);
-        const bool ok = outcome.ran && state.gold == 5000 && state.experience == 3000 &&
-                        state.awards.contains(58) && !state.bits.contains(82) &&
-                        std::find(state.items.begin(), state.items.end(), 505) ==
-                            state.items.end() &&
-                        state.npc_topics.at({4, 0}) == 10;
+        const bool ok =
+            outcome.ran && state.gold == 5000 && state.experience == 3000 &&
+            state.awards.contains(58) && !state.bits.contains(82) &&
+            std::find(state.items.begin(), state.items.end(), 505) == state.items.end() &&
+            state.npc_topics.at({4, 0}) == 10;
         if (!beat(ok, "Humphrey pays 5000 and 3000 experience, takes the letter, "
                       "grants award 58")) {
             return 1;
@@ -1705,8 +1692,7 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
     {
         game::WalkState state;
         const auto outcome = game::walk_event(global, 10, state);
-        const bool ok =
-            outcome.ran && state.bits.contains(86) && state.npc_topics.at({4, 0}) == 11;
+        const bool ok = outcome.ran && state.bits.contains(86) && state.npc_topics.at({4, 0}) == 11;
         if (!beat(ok, "his next word sets bit 86 and turns to the shield topic")) {
             return 1;
         }
@@ -1717,11 +1703,11 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         state.bits.insert(86);
         state.items.push_back(499);
         const auto outcome = game::walk_event(global, 11, state);
-        const bool ok = outcome.ran && state.gold == 5000 && state.experience == 40000 &&
-                        state.awards.contains(2) && !state.bits.contains(86) &&
-                        std::find(state.items.begin(), state.items.end(), 499) ==
-                            state.items.end() &&
-                        state.npc_topics.at({4, 0}) == 12;
+        const bool ok =
+            outcome.ran && state.gold == 5000 && state.experience == 40000 &&
+            state.awards.contains(2) && !state.bits.contains(86) &&
+            std::find(state.items.begin(), state.items.end(), 499) == state.items.end() &&
+            state.npc_topics.at({4, 0}) == 12;
         if (!beat(ok, "the shield pays 5000 and 40000 experience and grants award 2, "
                       "the first council seal")) {
             return 1;
@@ -1732,10 +1718,10 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         game::WalkState state;
         state.items.push_back(433);
         const auto outcome = game::walk_event(global, 52, state);
-        const bool ok = outcome.ran && state.experience == 50000 && state.awards.contains(3) &&
-                        std::find(state.items.begin(), state.items.end(), 433) ==
-                            state.items.end() &&
-                        state.npc_topics.at({5, 0}) == 54;
+        const bool ok =
+            outcome.ran && state.experience == 50000 && state.awards.contains(3) &&
+            std::find(state.items.begin(), state.items.end(), 433) == state.items.end() &&
+            state.npc_topics.at({5, 0}) == 54;
         if (!beat(ok, "the Hourglass pays 50000 experience and seals award 3")) {
             return 1;
         }
@@ -1745,10 +1731,10 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         game::WalkState state;
         state.items.push_back(506);
         const auto outcome = game::walk_event(global, 62, state);
-        const bool ok = outcome.ran && state.experience == 40000 && state.awards.contains(4) &&
-                        std::find(state.items.begin(), state.items.end(), 506) ==
-                            state.items.end() &&
-                        state.npc_topics.at({6, 0}) == 64;
+        const bool ok =
+            outcome.ran && state.experience == 40000 && state.awards.contains(4) &&
+            std::find(state.items.begin(), state.items.end(), 506) == state.items.end() &&
+            state.npc_topics.at({6, 0}) == 64;
         if (!beat(ok, "the Devil's Post proof pays 40000 experience and seals award 4")) {
             return 1;
         }
@@ -1807,10 +1793,10 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         game::WalkState state;
         state.items.push_back(502);
         const auto outcome = game::walk_event(global, 380, state);
-        const bool ok = outcome.ran && state.awards.contains(32) && state.bits.contains(168) &&
-                        std::find(state.items.begin(), state.items.end(), 502) ==
-                            state.items.end() &&
-                        state.npc_topics.at({4, 0}) == 103;
+        const bool ok =
+            outcome.ran && state.awards.contains(32) && state.bits.contains(168) &&
+            std::find(state.items.begin(), state.items.end(), 502) == state.items.end() &&
+            state.npc_topics.at({4, 0}) == 103;
         if (!beat(ok, "the proof unseats the traitor: award 32, and bit 168 remembers")) {
             return 1;
         }
@@ -1834,10 +1820,10 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         state.bits.insert(166);
         state.items.push_back(456);
         const auto outcome = game::walk_event(global, 76, state);
-        const bool ok = outcome.ran && state.experience == 500000 && state.awards.contains(34) &&
-                        std::find(state.items.begin(), state.items.end(), 456) ==
-                            state.items.end() &&
-                        state.npc_topics.at({8, 0}) == 77;
+        const bool ok =
+            outcome.ran && state.experience == 500000 && state.awards.contains(34) &&
+            std::find(state.items.begin(), state.items.end(), 456) == state.items.end() &&
+            state.npc_topics.at({8, 0}) == 77;
         if (!beat(ok, "the Cube pays 500000 experience and grants award 34, the Center's key")) {
             return 1;
         }
@@ -1847,8 +1833,7 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         game::WalkState state;
         const auto outcome = game::walk_event(global, 30, state);
         const bool ok = outcome.ran && state.experience == 50000 && state.bits.contains(177) &&
-                        std::find(state.items.begin(), state.items.end(), 544) !=
-                            state.items.end();
+                        std::find(state.items.begin(), state.items.end(), 544) != state.items.end();
         if (!beat(ok, "Archibald gives the Ritual of the Void, item 544, and 50000 experience")) {
             return 1;
         }
@@ -1872,8 +1857,7 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         const auto flushed = game::walk_event(hive, 60, ready);
         const bool ok = refused.ran && !bare.awards.contains(36) && flushed.ran &&
                         ready.awards.contains(36) && ready.bits.contains(237) &&
-                        std::find(ready.items.begin(), ready.items.end(), 544) ==
-                            ready.items.end();
+                        std::find(ready.items.begin(), ready.items.end(), 544) == ready.items.end();
         if (!beat(ok, "the flush spends the Ritual for award 36, Destroyed the Hive and "
                       "Saved Enroth")) {
             return 1;
@@ -1887,9 +1871,8 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         game::WalkState back;
         back.items.push_back(498);
         const auto paid = game::walk_event(global, 291, back);
-        const bool ok = sent.ran && ask.bits.contains(124) &&
-                        ask.npc_topics.at({32, 0}) == 291 && paid.ran &&
-                        back.experience == 20000 && back.awards.contains(37) &&
+        const bool ok = sent.ran && ask.bits.contains(124) && ask.npc_topics.at({32, 0}) == 291 &&
+                        paid.ran && back.experience == 20000 && back.awards.contains(37) &&
                         back.bits.contains(27) && back.npc_topics.at({32, 0}) == 207;
         if (!beat(ok, "Snergle's Axe pays 20000 experience and seals award 37, "
                       "Killed Snergle")) {
@@ -1953,12 +1936,10 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         const auto shown = game::walk_event(global, 102, warned);
         game::WalkState bare;
         const auto given = game::walk_event(global, 102, bare);
-        const bool ok = shown.ran && !warned.bits.contains(200) && warned.bits.contains(201) &&
-                        std::find(warned.items.begin(), warned.items.end(), 502) !=
-                            warned.items.end() &&
-                        given.ran &&
-                        std::find(bare.items.begin(), bare.items.end(), 485) !=
-                            bare.items.end();
+        const bool ok =
+            shown.ran && !warned.bits.contains(200) && warned.bits.contains(201) &&
+            std::find(warned.items.begin(), warned.items.end(), 502) != warned.items.end() &&
+            given.ran && std::find(bare.items.begin(), bare.items.end(), 485) != bare.items.end();
         if (!beat(ok, "showing Slicker the letter tips the traitor; empty hands get a Cloak "
                       "of Baa")) {
             return 1;
@@ -1978,8 +1959,7 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         // The Candelabra (449), Andrew's Harp (479) and the Pearl of
         // Putrescence (458), each read off its own event's gives.
         static constexpr std::array<SideQuest, 3> kFetches{
-            {{297, 449, 39, 1000, 2000,
-              "the Candelabra pays 1000 gold, 2000 experience, award 39"},
+            {{297, 449, 39, 1000, 2000, "the Candelabra pays 1000 gold, 2000 experience, award 39"},
              {304, 479, 40, 5000, 10000,
               "Andrew's Harp pays 5000 gold, 10000 experience, award 40"},
              {341, 458, 51, 0, 5000,
@@ -1988,10 +1968,10 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
             game::WalkState state;
             state.items.push_back(quest.item);
             const auto outcome = game::walk_event(global, quest.event, state);
-            const bool ok = outcome.ran && state.awards.contains(quest.award) &&
-                            state.gold == quest.gold && state.experience == quest.experience &&
-                            std::find(state.items.begin(), state.items.end(), quest.item) ==
-                                state.items.end();
+            const bool ok =
+                outcome.ran && state.awards.contains(quest.award) && state.gold == quest.gold &&
+                state.experience == quest.experience &&
+                std::find(state.items.begin(), state.items.end(), quest.item) == state.items.end();
             if (!beat(ok, quest.what)) {
                 return 1;
             }
@@ -2071,9 +2051,8 @@ int do_actor_timers(const starhaven::lod::LodArchive& icons) {
     (void)icons;
 
     lod::GameLodArchive games;
-    if (lod::GameLodArchive::open(
-            *starhaven::platform::install_from_env() / "data" / "Games.lod", games) !=
-        lod::GameLodError::None) {
+    if (lod::GameLodArchive::open(*starhaven::platform::install_from_env() / "data" / "Games.lod",
+                                  games) != lod::GameLodError::None) {
         std::cerr << "error: could not open Games.lod\n";
         return 1;
     }
@@ -2082,8 +2061,8 @@ int do_actor_timers(const starhaven::lod::LodArchive& icons) {
         const char* name;
         std::size_t nonzero = 0;
     };
-    std::array<Field, 4> fields{{{0xf4, "+0xf4"}, {0x104, "+0x104"}, {0x114, "+0x114"},
-                                {0x124, "+0x124"}}};
+    std::array<Field, 4> fields{
+        {{0xf4, "+0xf4"}, {0x104, "+0x104"}, {0x114, "+0x114"}, {0x124, "+0x124"}}};
     std::size_t maps = 0;
     std::size_t actors = 0;
     for (const auto& entry : games.entries()) {

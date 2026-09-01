@@ -14,7 +14,7 @@ constexpr std::size_t kEntryHeaderSize = 48;
 }  // namespace
 
 DecorationFrameTableError DecorationFrameTable::parse(std::span<const std::byte> entry,
-                                                     DecorationFrameTable& out) {
+                                                      DecorationFrameTable& out) {
     out.entries_.clear();
     if (entry.size() <= kEntryHeaderSize) {
         return DecorationFrameTableError::TooSmall;

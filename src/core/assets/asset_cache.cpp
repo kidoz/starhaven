@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <span>
-#include <vector>
 #include <utility>
+#include <vector>
 
 namespace starhaven::assets {
 
@@ -65,8 +65,7 @@ bool AssetCache::interior_bytes(const std::string& name, std::vector<std::byte>&
             const bool ok =
                 video::VidArchive::open(install_root_ / "Anims" / file, anims_[k]) ==
                     video::VidError::None ||
-                video::VidArchive::open(install_root_ / file, anims_[k]) ==
-                    video::VidError::None;
+                video::VidArchive::open(install_root_ / file, anims_[k]) == video::VidError::None;
             any = any || ok;
         }
         anims_open_ = any;

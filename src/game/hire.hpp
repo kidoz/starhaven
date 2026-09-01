@@ -13,11 +13,11 @@
 // find" tail names a share no column of the table carries; it stays
 // `unknown` and untaken. See docs/formats/text-tables.md.
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <string>
 #include <string_view>
-#include <algorithm>
 #include <utility>
 
 #include "core/data/npc_stats.hpp"
@@ -42,8 +42,8 @@ struct HireBenefit {
     int elemental_protection = 0;  // to the four elemental resistances
     int food_per_day = 0;          // a cook's make, capped by their own words
     int food_cap = 0;
-    int food_saved_camping = 0;    // a porter's "less days of food use"
-    int bless_hours = 0;    // cast at dawn, at the row's own duration
+    int food_saved_camping = 0;  // a porter's "less days of food use"
+    int bless_hours = 0;         // cast at dawn, at the row's own duration
     int heroism_hours = 0;
     int fly_hours = 0;         // the Wind Master's daily Fly, its written hours
     bool town_portal = false;  // the Gate Master's daily master-rank portal
@@ -64,13 +64,11 @@ struct HireBenefit {
     [[nodiscard]] bool any() const noexcept {
         return experience_percent != 0 || gold_percent != 0 || coach_days_faster != 0 ||
                boat_days_faster != 0 || heal_level != 0 || repairs_weapons || repairs_armor ||
-               identifies || reputation_drop ||
-               luck_bonus != 0 || elemental_protection != 0 || food_per_day != 0 ||
-               food_saved_camping != 0 || bless_hours != 0 || heroism_hours != 0 ||
-               fly_hours != 0 || town_portal || wizard_eye ||
-               weapon_skill_bonus != 0 || spell_skill_bonus != 0 ||
-               merchant_skill_bonus != 0 || armor_skill_bonus != 0 || disarm_bonus != 0 ||
-               perception_bonus != 0;
+               identifies || reputation_drop || luck_bonus != 0 || elemental_protection != 0 ||
+               food_per_day != 0 || food_saved_camping != 0 || bless_hours != 0 ||
+               heroism_hours != 0 || fly_hours != 0 || town_portal || wizard_eye ||
+               weapon_skill_bonus != 0 || spell_skill_bonus != 0 || merchant_skill_bonus != 0 ||
+               armor_skill_bonus != 0 || disarm_bonus != 0 || perception_bonus != 0;
     }
 };
 
@@ -78,7 +76,7 @@ struct HireBenefit {
 // bonuses stack, and two masters of the same trade are not two bonuses, so
 // the largest stands. `inferred`
 template <typename Hirelings, typename Member>
-[[nodiscard]] inline int best_hired(const Hirelings& hired, Member HireBenefit::*field) {
+[[nodiscard]] inline int best_hired(const Hirelings& hired, Member HireBenefit::* field) {
     int best = 0;
     for (const auto& one : hired) {
         best = std::max(best, one.benefit.*field);
@@ -109,21 +107,20 @@ namespace hire_detail {
         }
         return value;
     }
-    constexpr std::array<std::pair<std::string_view, int>, 14> kWords{
-        {{"one", 1},
-         {"two", 2},
-         {"three", 3},
-         {"four", 4},
-         {"five", 5},
-         {"six", 6},
-         {"seven", 7},
-         {"eight", 8},
-         {"nine", 9},
-         {"ten", 10},
-         {"eleven", 11},
-         {"twelve", 12},
-         {"fifteen", 15},
-         {"twenty", 20}}};
+    constexpr std::array<std::pair<std::string_view, int>, 14> kWords{{{"one", 1},
+                                                                       {"two", 2},
+                                                                       {"three", 3},
+                                                                       {"four", 4},
+                                                                       {"five", 5},
+                                                                       {"six", 6},
+                                                                       {"seven", 7},
+                                                                       {"eight", 8},
+                                                                       {"nine", 9},
+                                                                       {"ten", 10},
+                                                                       {"eleven", 11},
+                                                                       {"twelve", 12},
+                                                                       {"fifteen", 15},
+                                                                       {"twenty", 20}}};
     for (const auto& [name, value] : kWords) {
         if (word.substr(0, name.size()) == name) {
             return value;
@@ -240,8 +237,7 @@ namespace hire_detail {
     // "One less day of food use when camping, (minimum of one used)", and
     // the Gypsy's "Food use is reduced by one day's worth of food when
     // resting (minimum one day)".
-    if (text.find("less day") != std::string::npos &&
-        text.find("food use") != std::string::npos) {
+    if (text.find("less day") != std::string::npos && text.find("food use") != std::string::npos) {
         out.food_saved_camping = number_before(text, "less day");
     } else if (text.find("food use is reduced by") != std::string::npos) {
         out.food_saved_camping = number_after(text, "food use is reduced by");

@@ -186,9 +186,9 @@ int main(int argc, char** argv) {
                         continue;
                     }
                     const auto n = static_cast<long>(f.vertex_count);
-                    std::cout << "event " << f.event_id << "\tat " << cx / n << "," << cy / n
-                              << "," << cz / n << "\t"
-                              << (f.texture_name.empty() ? "-" : f.texture_name) << "\n";
+                    std::cout << "event " << f.event_id << "\tat " << cx / n << "," << cy / n << ","
+                              << cz / n << "\t" << (f.texture_name.empty() ? "-" : f.texture_name)
+                              << "\n";
                 }
             }
             return 0;

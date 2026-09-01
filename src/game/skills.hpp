@@ -17,9 +17,9 @@
 #include <cctype>
 #include <cstdint>
 #include <map>
-#include <vector>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "core/data/spell_stats.hpp"
 
@@ -45,14 +45,15 @@ struct SkillEffect {
         for (const char c : line) {
             low += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
-        out.attack_bonus = out.attack_bonus || low.find("added to attack bonus") != std::string::npos;
+        out.attack_bonus =
+            out.attack_bonus || low.find("added to attack bonus") != std::string::npos;
         out.attack_damage =
             out.attack_damage || low.find("added to attack damage") != std::string::npos;
         out.armor_class = out.armor_class || low.find("added to armor class") != std::string::npos;
         out.hit_points = out.hit_points || low.find("adds to hit points") != std::string::npos;
-        out.spell_points = out.spell_points || low.find("adds to spell points") != std::string::npos;
-        out.shop_prices =
-            out.shop_prices || low.find("adjusts shop prices") != std::string::npos;
+        out.spell_points =
+            out.spell_points || low.find("adds to spell points") != std::string::npos;
+        out.shop_prices = out.shop_prices || low.find("adjusts shop prices") != std::string::npos;
     }
     return out;
 }
@@ -117,16 +118,18 @@ inline constexpr int kMasterPrice = kExpertPrice + 3000;
     return skill_points(packed) | (held << kSkillRankShift);
 }
 
-[[nodiscard]] inline int rank_of(int packed) noexcept { return skill_rank(packed); }
+[[nodiscard]] inline int rank_of(int packed) noexcept {
+    return skill_rank(packed);
+}
 
 // Everything a skill grants at a rank, each from the table's own line for
 // that rank; a line beyond the held rank grants nothing yet.
 struct SkillPower {
-    int to_hit = 0;          // "Skill added to Attack Bonus", times any doubling
-    int damage = 0;          // "Skill added to Attack Damage"
-    int armor = 0;           // "Skill added to Armor Class", times any doubling
-    int stun_percent = 0;    // "Chance to stun equal to skill"
-    int triple_percent = 0;  // "Chance to cause triple damage equal to skill"
+    int to_hit = 0;             // "Skill added to Attack Bonus", times any doubling
+    int damage = 0;             // "Skill added to Attack Damage"
+    int armor = 0;              // "Skill added to Armor Class", times any doubling
+    int stun_percent = 0;       // "Chance to stun equal to skill"
+    int triple_percent = 0;     // "Chance to cause triple damage equal to skill"
     bool second_arrow = false;  // "Bow fires two arrows on every attack"
     // "Skill reduces recovery time": how much per point is unnamed, so one
     // percent per point to at most half is the engine's own. `inferred`
@@ -189,9 +192,9 @@ inline constexpr std::size_t kSkillProseColumns = 1;
         out.stun_percent = low.find("chance to stun equal to skill") != std::string::npos
                                ? points
                                : out.stun_percent;
-        out.triple_percent =
-            low.find("triple damage equal to skill") != std::string::npos ? points
-                                                                          : out.triple_percent;
+        out.triple_percent = low.find("triple damage equal to skill") != std::string::npos
+                                 ? points
+                                 : out.triple_percent;
         out.second_arrow = out.second_arrow || low.find("fires two arrows") != std::string::npos;
         out.left_hand = out.left_hand || low.find("in left hand") != std::string::npos;
         cuts_recovery = cuts_recovery || low.find("reduces recovery time") != std::string::npos;
@@ -219,7 +222,9 @@ inline constexpr std::size_t kSkillProseColumns = 1;
 // Raising a skill from `points` costs the next number of skill points: the
 // second point costs 2, the third 3. The tables never state the price; this
 // staircase is the engine's own. `inferred`
-[[nodiscard]] inline int raise_cost(int points) noexcept { return points + 1; }
+[[nodiscard]] inline int raise_cost(int points) noexcept {
+    return points + 1;
+}
 
 // **Retracted.** One invented weapon skill per class stood here, read off the
 // class prose. The table at `0x4c2694` says what a class actually begins
@@ -248,13 +253,11 @@ inline constexpr std::size_t kSkillProseColumns = 1;
 // plays. The first twelve names are unchanged, so nothing that indexed the
 // weapon groups moves.
 inline constexpr std::array<std::string_view, 31> kSkillNames{
-    "Staff",        "Sword",      "Dagger",     "Axe",        "Spear",
-    "Bow",          "Mace",       "Blaster",    "Shield",     "Leather",
-    "Chain",        "Plate",      "Fire",       "Air",        "Water",
-    "Earth",        "Spirit",     "Mind",       "Body",       "Light",
-    "Dark",         "Identify",   "Merchant",   "Repair",     "Bodybuilding",
-    "Meditation",   "Perception", "Diplomacy",  "Thievery",   "Disarm Traps",
-    "Learning"};
+    "Staff",    "Sword",        "Dagger",  "Axe",          "Spear",      "Bow",        "Mace",
+    "Blaster",  "Shield",       "Leather", "Chain",        "Plate",      "Fire",       "Air",
+    "Water",    "Earth",        "Spirit",  "Mind",         "Body",       "Light",      "Dark",
+    "Identify", "Merchant",     "Repair",  "Bodybuilding", "Meditation", "Perception", "Diplomacy",
+    "Thievery", "Disarm Traps", "Learning"};
 
 [[nodiscard]] inline int skill_id(std::string_view name) noexcept {
     for (std::size_t i = 0; i < kSkillNames.size(); ++i) {
@@ -282,8 +285,8 @@ inline constexpr std::array<std::string_view, 31> kSkillNames{
 // **100, bare-handed** — and then replaces it with the entry the equipped
 // weapon's skill group names, indexing this fourteen-word table at
 // `0x4c2750` by the skill id plus one. `observed`
-inline constexpr std::array<int, 14> kRecoveryBySkill{100, 100, 90,  60, 100, 80, 100,
-                                                     80,  30,  10, 10,  20, 30,  0};
+inline constexpr std::array<int, 14> kRecoveryBySkill{100, 100, 90, 60, 100, 80, 100,
+                                                      80,  30,  10, 10, 20,  30, 0};
 
 // With nothing in hand.
 inline constexpr int kBareHandRecovery = kRecoveryBySkill[0];
@@ -354,7 +357,6 @@ inline constexpr std::array<int, 2> kSwiftArtifacts{404, 405};
 [[nodiscard]] inline int traced_attack_bonus(int accuracy_bonus, int aged_ailed_speed) noexcept {
     return accuracy_bonus + aged_ailed_speed;
 }
-
 
 // What wearing armor costs the swing before skill lifts it: a tenth slower
 // in leather, a fifth in chain, three tenths in plate. The table names the
@@ -469,7 +471,9 @@ inline constexpr int kFreeSkillPointsOffset = 0x1410;
     return skill_rank(packed);
 }
 
-[[nodiscard]] inline constexpr int skill_raise_cost(int points) noexcept { return points + 1; }
+[[nodiscard]] inline constexpr int skill_raise_cost(int points) noexcept {
+    return points + 1;
+}
 
 // Spend from the pool to buy one point, on the routine's own terms. Returns
 // false and touches nothing when the skill is unlearned, already at the
@@ -520,26 +524,26 @@ enum class SkillAccess : int {
     Later = 3,
 };
 
-inline constexpr std::array<std::array<std::uint8_t, kSkillSlots>, kSkillFamilies>
-    kClassSkillTable{{
+inline constexpr std::array<std::array<std::uint8_t, kSkillSlots>, kSkillFamilies> kClassSkillTable{
+    {
         // Knight
-        {3, 1, 2, 2, 2, 2, 3, 3, 2, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 2, 0, 2, 3, 0,
-         2, 3},
+        {3, 1, 2, 2, 2, 2, 3, 3, 2, 1, 2, 3, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 3, 3, 3, 2, 0, 2, 3, 0, 2, 3},
         // Cleric
-        {2, 0, 0, 0, 0, 3, 1, 3, 2, 2, 3, 0, 0, 0, 0, 0, 2, 2, 1, 3, 3, 2, 3, 2, 3, 2, 3, 2, 0,
-         3, 3},
+        {2, 0, 0, 0, 0, 3, 1, 3, 2, 2, 3, 0, 0, 0, 0, 0,
+         2, 2, 1, 3, 3, 2, 3, 2, 3, 2, 3, 2, 0, 3, 3},
         // Sorcerer
-        {2, 0, 1, 0, 0, 3, 0, 3, 0, 2, 0, 0, 1, 2, 2, 2, 0, 0, 0, 3, 3, 2, 3, 2, 3, 2, 3, 2, 0,
-         3, 3},
+        {2, 0, 1, 0, 0, 3, 0, 3, 0, 2, 0, 0, 1, 2, 2, 2,
+         0, 0, 0, 3, 3, 2, 3, 2, 3, 2, 3, 2, 0, 3, 3},
         // Paladin
-        {3, 1, 2, 3, 2, 3, 2, 3, 2, 2, 2, 3, 0, 0, 0, 0, 1, 3, 3, 0, 0, 3, 3, 3, 3, 3, 2, 2, 0,
-         2, 3},
+        {3, 1, 2, 3, 2, 3, 2, 3, 2, 2, 2, 3, 0, 0, 0, 0,
+         1, 3, 3, 0, 0, 3, 3, 3, 3, 3, 2, 2, 0, 2, 3},
         // Archer
-        {3, 2, 2, 2, 3, 1, 3, 3, 0, 2, 3, 0, 2, 1, 3, 3, 0, 0, 0, 0, 0, 2, 3, 3, 3, 3, 2, 2, 0,
-         2, 3},
+        {3, 2, 2, 2, 3, 1, 3, 3, 0, 2, 3, 0, 2, 1, 3, 3,
+         0, 0, 0, 0, 0, 2, 3, 3, 3, 3, 2, 2, 0, 2, 3},
         // Druid
-        {1, 0, 3, 0, 0, 3, 2, 3, 3, 2, 0, 0, 3, 3, 2, 1, 2, 3, 2, 0, 0, 2, 3, 2, 3, 2, 3, 3, 0,
-         3, 2},
+        {1, 0, 3, 0, 0, 3, 2, 3, 3, 2, 0, 0, 3, 3, 2, 1,
+         2, 3, 2, 0, 0, 2, 3, 2, 3, 2, 3, 3, 0, 3, 2},
     }};
 
 [[nodiscard]] inline constexpr int class_family(int class_id) noexcept {
@@ -551,9 +555,8 @@ inline constexpr std::array<std::array<std::uint8_t, kSkillSlots>, kSkillFamilie
     if (slot < 0 || slot >= kSkillSlots) {
         return SkillAccess::Never;
     }
-    return static_cast<SkillAccess>(
-        kClassSkillTable[static_cast<std::size_t>(class_family(class_id))]
-                        [static_cast<std::size_t>(slot)]);
+    return static_cast<SkillAccess>(kClassSkillTable[static_cast<std::size_t>(
+        class_family(class_id))][static_cast<std::size_t>(slot)]);
 }
 
 // What the trainer's list tests, and nothing finer.
@@ -578,8 +581,7 @@ inline constexpr std::array<std::array<std::uint8_t, kSkillSlots>, kSkillFamilie
 // four** non-zero skills in each. `observed`
 inline constexpr int kStartingSkillsRequired = 4;
 
-template <typename SkillOf>
-[[nodiscard]] inline bool character_skills_chosen(SkillOf&& skill_of) {
+template <typename SkillOf> [[nodiscard]] inline bool character_skills_chosen(SkillOf&& skill_of) {
     int learned = 0;
     for (int slot = 0; slot < kSkillSlots; ++slot) {
         if (skill_of(slot) != 0) {
@@ -588,7 +590,6 @@ template <typename SkillOf>
     }
     return learned >= kStartingSkillsRequired;
 }
-
 
 }  // namespace starhaven::game
 

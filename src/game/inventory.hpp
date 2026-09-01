@@ -71,9 +71,8 @@ public:
     // Put an item in the first place it fits, reading left to right and top to
     // bottom. Returns false when there is no such place, which is the only
     // reason a pick-up fails.
-    bool add(int item_id, int width, int height, bool identified = true,
-             int standard_bonus = 0, int standard_strength = 0, int special_bonus = 0,
-             int charges = 0) {
+    bool add(int item_id, int width, int height, bool identified = true, int standard_bonus = 0,
+             int standard_strength = 0, int special_bonus = 0, int charges = 0) {
         if (item_id <= 0 || width <= 0 || height <= 0 || width > kPackWidth ||
             height > kPackHeight) {
             return false;
@@ -93,8 +92,8 @@ public:
     // Reveal the item at a cell; false when nothing unknown is there.
     bool identify_at(int x, int y) {
         for (auto& item : items_) {
-            if (x >= item.x && x < item.x + item.width && y >= item.y &&
-                y < item.y + item.height && !item.identified) {
+            if (x >= item.x && x < item.x + item.width && y >= item.y && y < item.y + item.height &&
+                !item.identified) {
                 item.identified = true;
                 return true;
             }
@@ -105,9 +104,8 @@ public:
     // Put an item back exactly where it was, which is what a load does.
     // Refuses what would overlap or overflow, like any other placement.
     bool place(const PackedItem& item) {
-        if (item.item_id <= 0 || item.x < 0 || item.y < 0 || item.width <= 0 ||
-            item.height <= 0 || item.x + item.width > kPackWidth ||
-            item.y + item.height > kPackHeight ||
+        if (item.item_id <= 0 || item.x < 0 || item.y < 0 || item.width <= 0 || item.height <= 0 ||
+            item.x + item.width > kPackWidth || item.y + item.height > kPackHeight ||
             !free_at(item.x, item.y, item.width, item.height)) {
             return false;
         }

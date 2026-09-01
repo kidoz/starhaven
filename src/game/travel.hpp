@@ -31,10 +31,10 @@ inline constexpr int kFarePerVal = 25;
 
 // One route a travel establishment offers.
 struct TravelRoute {
-    std::string destination;      // the cell's own words, e.g. "Castle Ironfist"
-    std::string map_file;         // "OutD3.Odm"; empty when unresolved
+    std::string destination;       // the cell's own words, e.g. "Castle Ironfist"
+    std::string map_file;          // "OutD3.Odm"; empty when unresolved
     std::array<bool, 7> leaves{};  // by kWeekdays index, Sunday first
-    int days = 0;                 // how long the ride takes
+    int days = 0;                  // how long the ride takes
 
     [[nodiscard]] bool empty() const noexcept { return map_file.empty(); }
     [[nodiscard]] bool leaves_on(std::int64_t day) const noexcept {

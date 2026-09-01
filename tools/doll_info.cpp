@@ -198,11 +198,11 @@ int main(int argc, char** argv) {
         return &b.rgba[(static_cast<std::size_t>(y) * b.width + static_cast<std::size_t>(x)) * 4];
     };
     std::cout << "arm anchors on their own body (best pixel match):\n";
-    for (const auto& [body, arm] : std::vector<std::pair<std::string, std::string>>{
-             {"mlabod", "mlaarm1"},
-             {"mlabod", "mlaarm2"},
-             {"grlabod", "grlaarm1"},
-             {"grlabod", "grlaarm2"}}) {
+    for (const auto& [body, arm] :
+         std::vector<std::pair<std::string, std::string>>{{"mlabod", "mlaarm1"},
+                                                          {"mlabod", "mlaarm2"},
+                                                          {"grlabod", "grlaarm1"},
+                                                          {"grlabod", "grlaarm2"}}) {
         image::Bitmap whole;
         image::Bitmap part;
         if (!decode(body, whole) || !decode(arm, part)) {

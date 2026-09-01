@@ -16,8 +16,9 @@ TEST_CASE("a standard bonus grants its named stat at its rolled strength", "[enc
 
     data::StandardBonusEntry fire;
     fire.stat = "Fire Resistance";
-    REQUIRE(standard_power(fire, 12)
-                .resistances[static_cast<std::size_t>(data::Resistance::Fire)] == 12);
+    REQUIRE(
+        standard_power(fire, 12).resistances[static_cast<std::size_t>(data::Resistance::Fire)] ==
+        12);
 
     data::StandardBonusEntry armor;
     armor.stat = "Armor Class";

@@ -185,14 +185,14 @@ TEST_CASE("rest wakes the unconscious but not the dead", "[party]") {
         who.max_hit_points = 20;
         who.hit_points = 15;
     }
-    party[1].hit_points = 0;               // knocked out
+    party[1].hit_points = 0;  // knocked out
     party[2].hit_points = 0;
     party[2].affliction = "Dead";
     game::GameClock clock;
     REQUIRE(game::rest(party, clock, false) == game::RestResult::Rested);
     REQUIRE(party[0].hit_points == 20);
-    REQUIRE(party[1].hit_points == 1);     // comes to, barely
-    REQUIRE(party[2].hit_points == 0);     // the night does nothing for them
+    REQUIRE(party[1].hit_points == 1);  // comes to, barely
+    REQUIRE(party[2].hit_points == 0);  // the night does nothing for them
     REQUIRE(party[2].dead());
 }
 
@@ -228,8 +228,7 @@ TEST_CASE("the base classes are six and every one is a Class.txt heading shape",
     }
     // Every starting-party class is one of them.
     for (const auto name : kStartingClasses) {
-        REQUIRE(std::find(kBaseClasses.begin(), kBaseClasses.end(), name) !=
-                kBaseClasses.end());
+        REQUIRE(std::find(kBaseClasses.begin(), kBaseClasses.end(), name) != kBaseClasses.end());
     }
 }
 
@@ -328,8 +327,7 @@ TEST_CASE("what ails a character cuts its numbers", "[party]") {
     hale.hit_points = 10;
     hale.poisoned = 0;
     hale.diseased = 0;
-    REQUIRE(attribute_bonus(ailing_attribute(hale, Attribute::Speed)) >
-            attribute_bonus(30));
+    REQUIRE(attribute_bonus(ailing_attribute(hale, Attribute::Speed)) > attribute_bonus(30));
 }
 
 TEST_CASE("age bands and their three curves", "[party]") {
@@ -400,8 +398,7 @@ TEST_CASE("the armour class is three terms and a floor", "[party]") {
     REQUIRE(game::traced_armor_class(0, 7, 0) == 7);
 }
 
-TEST_CASE("a stored term rides on a pool's ceiling until it is refilled",
-          "[party]") {
+TEST_CASE("a stored term rides on a pool's ceiling until it is refilled", "[party]") {
     // +0x1578 and +0x157a are added by the maximum getters beside the class
     // table and the ladder, and the property setter's two "restore to the
     // maximum" cases clear them.

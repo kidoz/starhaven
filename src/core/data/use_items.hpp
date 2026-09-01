@@ -31,7 +31,7 @@ enum class MixKind : std::uint8_t {
 
 struct MixResult {
     MixKind kind = MixKind::None;
-    int item_id = 0;         // when a new potion
+    int item_id = 0;          // when a new potion
     int explosion_grade = 0;  // 1..4 when it blows up
 };
 

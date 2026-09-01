@@ -11,29 +11,29 @@
 #include <string>
 #include <vector>
 
+#include "core/assets/asset_cache.hpp"
 #include "core/data/building_stats.hpp"
 #include "core/data/dice.hpp"
 #include "core/data/game_data.hpp"
-#include "game/clock.hpp"
-#include "game/combat.hpp"
-#include "game/interiors.hpp"
-#include "game/skills.hpp"
-#include "game/player.hpp"
-#include "core/assets/asset_cache.hpp"
-#include "core/world/blv_map.hpp"
-#include "core/world/map_session.hpp"
 #include "core/data/interface_strings.hpp"
 #include "core/data/item_stats.hpp"
 #include "core/data/map_stats.hpp"
 #include "core/data/monster_stats.hpp"
 #include "core/data/npc_stats.hpp"
-#include "core/data/spell_stats.hpp"
 #include "core/data/spell_effects.hpp"
+#include "core/data/spell_stats.hpp"
 #include "core/data/text_table.hpp"
 #include "core/data/treasure.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
+#include "core/world/blv_map.hpp"
+#include "core/world/map_session.hpp"
 #include "core/world/monster_list.hpp"
+#include "game/clock.hpp"
+#include "game/combat.hpp"
+#include "game/interiors.hpp"
+#include "game/player.hpp"
+#include "game/skills.hpp"
 
 namespace {
 
@@ -885,8 +885,8 @@ int do_pace(const std::filesystem::path& data_dir) {
             ++always;
             continue;
         }
-        const int span = row.closes > row.opens ? row.closes - row.opens
-                                                : 24 - row.opens + row.closes;
+        const int span =
+            row.closes > row.opens ? row.closes - row.opens : 24 - row.opens + row.closes;
         shortest = std::min(shortest, span * 60);
         longest = std::max(longest, span * 60);
     }
@@ -913,11 +913,11 @@ int do_pace(const std::filesystem::path& data_dir) {
     }
     std::cout << "Monsters coming back\n";
     std::cout << "  MapStats refills between " << quickest << " and " << slowest << " days: "
-              << static_cast<double>(quickest) *
-                     static_cast<double>(game::kMinutesPerDay) * real_per_world_minute / 3600.0
+              << static_cast<double>(quickest) * static_cast<double>(game::kMinutesPerDay) *
+                     real_per_world_minute / 3600.0
               << " to "
-              << static_cast<double>(slowest) *
-                     static_cast<double>(game::kMinutesPerDay) * real_per_world_minute / 3600.0
+              << static_cast<double>(slowest) * static_cast<double>(game::kMinutesPerDay) *
+                     real_per_world_minute / 3600.0
               << " real hours\n";
 
     std::cout << "A strike, at sixty Rec points a real second\n";
@@ -925,14 +925,13 @@ int do_pace(const std::filesystem::path& data_dir) {
         const char* what;
         int points;
     };
-    const std::array<Hand, 6> hands{{{"a bare fist", game::kBareHandRecovery},
-                                     {"a dagger", game::gear_recovery("Dagger")},
-                                     {"a sword", game::gear_recovery("Sword")},
-                                     {"a staff, axe or bow", game::gear_recovery("Staff")},
-                                     {"a sword under plate",
-                                      game::gear_recovery("Sword") + game::gear_recovery("Plate")},
-                                     {"a sword under leather", game::gear_recovery("Sword") +
-                                                                   game::gear_recovery("Leather")}}};
+    const std::array<Hand, 6> hands{
+        {{"a bare fist", game::kBareHandRecovery},
+         {"a dagger", game::gear_recovery("Dagger")},
+         {"a sword", game::gear_recovery("Sword")},
+         {"a staff, axe or bow", game::gear_recovery("Staff")},
+         {"a sword under plate", game::gear_recovery("Sword") + game::gear_recovery("Plate")},
+         {"a sword under leather", game::gear_recovery("Sword") + game::gear_recovery("Leather")}}};
     for (const auto& hand : hands) {
         std::cout << "  " << hand.what << ": " << hand.points << " points, "
                   << game::recovery_seconds(hand.points) << " s a blow\n";
@@ -1003,8 +1002,8 @@ int do_smoke(const std::filesystem::path& data_dir) {
     std::cout << loaded << " maps load, " << failed << " fail, " << placeholders
               << " are the table's own placeholders\n";
     std::cout << "  " << actors << " placed actors, " << chests << " chests, " << doors
-              << " doors, " << lights << " lights, " << buildings << " establishments, "
-              << scripts << " with scripts\n";
+              << " doors, " << lights << " lights, " << buildings << " establishments, " << scripts
+              << " with scripts\n";
     return failed == 0 ? 0 : 1;
 }
 
@@ -1330,18 +1329,30 @@ int do_skill_audit(const std::filesystem::path& data_dir) {
                       << game::kRankNames[static_cast<std::size_t>(rank)] << " "
                       << (at < entry.text.size() ? entry.text[at] : std::string("(no column)"))
                       << "\n         ->";
-            if (p.to_hit != 0) std::cout << " hit+" << p.to_hit;
-            if (p.damage != 0) std::cout << " dmg+" << p.damage;
-            if (p.armor != 0) std::cout << " ac+" << p.armor;
-            if (p.hp_bonus != 0) std::cout << " hp+" << p.hp_bonus;
-            if (p.sp_bonus != 0) std::cout << " sp+" << p.sp_bonus;
-            if (p.price_percent != 0) std::cout << " price-" << p.price_percent << "%";
-            if (p.stun_percent != 0) std::cout << " stun " << p.stun_percent << "%";
-            if (p.triple_percent != 0) std::cout << " triple " << p.triple_percent << "%";
-            if (p.second_arrow) std::cout << " second-arrow";
-            if (p.left_hand) std::cout << " left-hand";
-            if (p.armor_penalty_lift != 0) std::cout << " lift " << p.armor_penalty_lift;
-            if (p.recovery_scale < 1.0f) std::cout << " recovery x" << p.recovery_scale;
+            if (p.to_hit != 0)
+                std::cout << " hit+" << p.to_hit;
+            if (p.damage != 0)
+                std::cout << " dmg+" << p.damage;
+            if (p.armor != 0)
+                std::cout << " ac+" << p.armor;
+            if (p.hp_bonus != 0)
+                std::cout << " hp+" << p.hp_bonus;
+            if (p.sp_bonus != 0)
+                std::cout << " sp+" << p.sp_bonus;
+            if (p.price_percent != 0)
+                std::cout << " price-" << p.price_percent << "%";
+            if (p.stun_percent != 0)
+                std::cout << " stun " << p.stun_percent << "%";
+            if (p.triple_percent != 0)
+                std::cout << " triple " << p.triple_percent << "%";
+            if (p.second_arrow)
+                std::cout << " second-arrow";
+            if (p.left_hand)
+                std::cout << " left-hand";
+            if (p.armor_penalty_lift != 0)
+                std::cout << " lift " << p.armor_penalty_lift;
+            if (p.recovery_scale < 1.0f)
+                std::cout << " recovery x" << p.recovery_scale;
             std::cout << "\n";
             anything = anything || p.to_hit != 0 || p.damage != 0 || p.armor != 0 ||
                        p.hp_bonus != 0 || p.sp_bonus != 0 || p.price_percent != 0 ||
@@ -1350,8 +1361,8 @@ int do_skill_audit(const std::filesystem::path& data_dir) {
         }
         silent += anything ? 0 : 1;
     }
-    std::cout << "\n" << rows << " rows; " << silent
-              << " grant nothing this engine reads at any rank\n";
+    std::cout << "\n"
+              << rows << " rows; " << silent << " grant nothing this engine reads at any rank\n";
     return 0;
 }
 
@@ -1556,8 +1567,8 @@ int main(int argc, char** argv) {
             std::cout << "\n";
         }
         std::cout << use_items.size() << " usable items; " << cures << " cure, " << transforms
-                  << " become another item; " << mixes << " mixes yield a potion and "
-                  << explosions << " blow up\n";
+                  << " become another item; " << mixes << " mixes yield a potion and " << explosions
+                  << " blow up\n";
         return 0;
     }
     if (command == "--treasure")

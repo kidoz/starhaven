@@ -251,9 +251,8 @@ private:
             }
             auto& actor = session.actors[i];
             // The party keeps a body's radius plus its old margin away.
-            actor.position = push_out(
-                actor.position, party,
-                states_[i].motion.radius + (kPartySpacing - kMonsterRadius));
+            actor.position = push_out(actor.position, party,
+                                      states_[i].motion.radius + (kPartySpacing - kMonsterRadius));
             buckets_[key_of(actor.position)].push_back(i);
         }
 

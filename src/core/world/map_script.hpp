@@ -207,11 +207,11 @@ inline constexpr std::uint8_t kVarFood = 23;
 
 // The rest of the setter's fifty-three bodies, each fixed by the offset its
 // own first two instructions compute. `observed`
-inline constexpr std::uint8_t kVarClass = 2;             // byte at +0x12
-inline constexpr std::uint8_t kVarSex = 1;               // byte at +0x11
-inline constexpr std::uint8_t kVarArmorClass = 8;        // the word at +0x30
-inline constexpr std::uint8_t kVarHitPointsFull = 4;     // set to the maximum
-inline constexpr std::uint8_t kVarSpellPointsFull = 6;   // set to the maximum
+inline constexpr std::uint8_t kVarClass = 2;              // byte at +0x12
+inline constexpr std::uint8_t kVarSex = 1;                // byte at +0x11
+inline constexpr std::uint8_t kVarArmorClass = 8;         // the word at +0x30
+inline constexpr std::uint8_t kVarHitPointsFull = 4;      // set to the maximum
+inline constexpr std::uint8_t kVarSpellPointsFull = 6;    // set to the maximum
 inline constexpr std::uint8_t kVarClearConditions = 104;  // wipes all eighteen
 
 // **Six clocks that belong to no one but the scripts.** Ids 216..221 write
@@ -276,16 +276,16 @@ inline constexpr int kScriptTimerCount = 6;
 // two **modifiers**. So the bases begin at 32 and the modifiers at 25 — and
 // ids **39..45 land on the modifier bodies too**, a second name for the same
 // seven fields. `observed` at 0x4419bc, 0x441ace, 0x4418ce and 0x44199a.
-inline constexpr std::uint8_t kVarStatModFirst = 25;      // Might .. Luck modifiers
-inline constexpr std::uint8_t kVarStatFirst = 32;         // Might .. Luck
-inline constexpr std::uint8_t kVarStatModAlias = 39;      // the same seven again
+inline constexpr std::uint8_t kVarStatModFirst = 25;  // Might .. Luck modifiers
+inline constexpr std::uint8_t kVarStatFirst = 32;     // Might .. Luck
+inline constexpr std::uint8_t kVarStatModAlias = 39;  // the same seven again
 // The five resistances are **words at `+0x1254`, in base and modifier pairs**,
 // sitting immediately below the character's buff array at `+0x1268` — the
 // same shape the attributes keep. Ids 46..50 write the bases and 51..55 the
 // modifiers, and the two runs are not laid out in id order: by offset they
 // go 46, 48, 47, 49, 50. `observed` at 0x441af0..0x441c5e.
-inline constexpr std::uint8_t kVarResistFirst = 46;      // Fire, Elec, Cold, Poison, Magic
-inline constexpr std::uint8_t kVarResistModFirst = 51;   // their modifiers
+inline constexpr std::uint8_t kVarResistFirst = 46;     // Fire, Elec, Cold, Poison, Magic
+inline constexpr std::uint8_t kVarResistModFirst = 51;  // their modifiers
 
 // Three more runs the same dispatcher names, each confirmed by the offset its
 // body computes rather than by a fit:

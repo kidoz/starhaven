@@ -27,8 +27,7 @@ OverlayTableError OverlayTable::parse(std::span<const std::byte> entry, OverlayT
 
     io::ByteReader r(std::as_bytes(std::span<const std::uint8_t>(raw)));
     const std::uint32_t count = r.read_u32_le();
-    if (!r.ok() ||
-        static_cast<std::uint64_t>(count) * kOverlayRecordSize + 4U != raw.size()) {
+    if (!r.ok() || static_cast<std::uint64_t>(count) * kOverlayRecordSize + 4U != raw.size()) {
         return OverlayTableError::BadCount;
     }
 

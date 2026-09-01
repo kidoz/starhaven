@@ -27,7 +27,8 @@ void put_u16(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint16_t
     bytes[offset + 1] = static_cast<std::uint8_t>(value >> 8);
 }
 
-std::vector<std::byte> make_entry(const std::vector<ChestSpec>& chests, bool corrupt_count = false) {
+std::vector<std::byte> make_entry(const std::vector<ChestSpec>& chests,
+                                  bool corrupt_count = false) {
     std::vector<std::uint8_t> raw(4 + chests.size() * kChestRecordSize, 0);
     const auto count =
         static_cast<std::uint32_t>(corrupt_count ? chests.size() + 1 : chests.size());
@@ -81,5 +82,6 @@ TEST_CASE("chest table rejects malformed input", "[chest_table]") {
     REQUIRE(ChestTable::parse(std::vector<std::byte>(16), table) == ChestTableError::TooSmall);
     REQUIRE(ChestTable::parse(std::vector<std::byte>(80, std::byte{0xAB}), table) ==
             ChestTableError::NotCompressed);
-    REQUIRE(ChestTable::parse(make_entry({{"chest", 1}}, true), table) == ChestTableError::BadCount);
+    REQUIRE(ChestTable::parse(make_entry({{"chest", 1}}, true), table) ==
+            ChestTableError::BadCount);
 }

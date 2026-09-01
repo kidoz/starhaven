@@ -100,16 +100,26 @@ std::string ground_kind_of(std::string_view tile_name) {
         }
         return true;
     };
-    if (begins("gras")) return "Grass";
-    if (begins("snow")) return "Snow";
-    if (begins("dese") || begins("sand")) return "Desert";
-    if (begins("swmp") || begins("swamp")) return "Swamp";
-    if (begins("dirt") || begins("mud")) return "Mud";
-    if (begins("wtrtyl") || begins("watr")) return "Water";
-    if (begins("road") || begins("cobb")) return "Road";
-    if (begins("crak") || begins("bad")) return "Badlands";
-    if (begins("volc") || begins("lava")) return "CooledLava";
-    if (begins("ice")) return "Ice";
+    if (begins("gras"))
+        return "Grass";
+    if (begins("snow"))
+        return "Snow";
+    if (begins("dese") || begins("sand"))
+        return "Desert";
+    if (begins("swmp") || begins("swamp"))
+        return "Swamp";
+    if (begins("dirt") || begins("mud"))
+        return "Mud";
+    if (begins("wtrtyl") || begins("watr"))
+        return "Water";
+    if (begins("road") || begins("cobb"))
+        return "Road";
+    if (begins("crak") || begins("bad"))
+        return "Badlands";
+    if (begins("volc") || begins("lava"))
+        return "CooledLava";
+    if (begins("ice"))
+        return "Ice";
     return "Dirt";
 }
 
@@ -196,7 +206,6 @@ int load_ground_tiles(const std::filesystem::path& data_dir, const OdmTerrain& t
     }
     return resolved;
 }
-
 
 // Does this installation have art for an animation? The sprite frame table
 // names the entries, so ask it rather than guessing at a view digit.
@@ -440,8 +449,8 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
         return MapSessionError::BadMap;
     }
     out.terrain_mesh = render::build_terrain_mesh(out.terrain, {});
-    if (load_ground_tiles(data_dir, out.terrain, out.tiles, out.tile_grounds,
-                          out.water_tiles) <= 0) {
+    if (load_ground_tiles(data_dir, out.terrain, out.tiles, out.tile_grounds, out.water_tiles) <=
+        0) {
         out.tiles = render::TileSet::make_placeholder();
     }
     if (extract_models(out.odm, out.models) != OdmError::None) {
@@ -733,17 +742,17 @@ MapSessionError load_map_session(const std::filesystem::path& games_lod,
             // one of this map's establishments can arrive from anywhere —
             // even from no establishment at all.
             for (const auto& n : npcs.entries()) {
-            SessionNpc person;
-            person.name = data::cp1252_to_utf8(n.name);
-            person.npc_id = n.id;
-            person.profession_id = n.profession_id;
-            if (const auto* p = professions.at(n.profession_id); p != nullptr) {
-                person.profession = p->name;
-                person.personality = p->personality;
-            }
-            for (std::size_t k = 0; k < person.topics.size() && k < n.events.size(); ++k) {
-                person.topics[k] = n.events[k];
-            }
+                SessionNpc person;
+                person.name = data::cp1252_to_utf8(n.name);
+                person.npc_id = n.id;
+                person.profession_id = n.profession_id;
+                if (const auto* p = professions.at(n.profession_id); p != nullptr) {
+                    person.profession = p->name;
+                    person.personality = p->personality;
+                }
+                for (std::size_t k = 0; k < person.topics.size() && k < n.events.size(); ++k) {
+                    person.topics[k] = n.events[k];
+                }
                 out.everyone.push_back(std::move(person));
             }
         }

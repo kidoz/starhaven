@@ -106,8 +106,8 @@ public:
     [[nodiscard]] std::string hhmm() const {
         const int h = hour();
         const int m = minute();
-        return (h < 10 ? "0" : "") + std::to_string(h) + ":" +
-               (m < 10 ? "0" : "") + std::to_string(m);
+        return (h < 10 ? "0" : "") + std::to_string(h) + ":" + (m < 10 ? "0" : "") +
+               std::to_string(m);
     }
 
     [[nodiscard]] std::string text() const {

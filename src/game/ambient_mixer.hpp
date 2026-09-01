@@ -131,8 +131,8 @@ public:
         audio::WavAudio decoded;
         const std::size_t index = archive_.find(name);
         if (index < archive_.size() && archive_.read(index, riff) == audio::SndError::None &&
-            audio::decode_wav(riff, decoded) == audio::WavError::None &&
-            !decoded.samples.empty() && SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+            audio::decode_wav(riff, decoded) == audio::WavError::None && !decoded.samples.empty() &&
+            SDL_InitSubSystem(SDL_INIT_AUDIO)) {
             const SDL_AudioSpec spec{SDL_AUDIO_S16LE, decoded.channels,
                                      static_cast<int>(decoded.sample_rate)};
             effect_.stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
@@ -190,8 +190,8 @@ public:
         audio::WavAudio decoded;
         const std::size_t index = archive_.find(name);
         if (index < archive_.size() && archive_.read(index, riff) == audio::SndError::None &&
-            audio::decode_wav(riff, decoded) == audio::WavError::None &&
-            !decoded.samples.empty() && SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+            audio::decode_wav(riff, decoded) == audio::WavError::None && !decoded.samples.empty() &&
+            SDL_InitSubSystem(SDL_INIT_AUDIO)) {
             const SDL_AudioSpec spec{SDL_AUDIO_S16LE, decoded.channels,
                                      static_cast<int>(decoded.sample_rate)};
             step_.stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,

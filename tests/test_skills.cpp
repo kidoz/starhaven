@@ -23,12 +23,11 @@ TEST_CASE("the attack bonus mixes two attributes", "[skills]") {
     REQUIRE(traced_attack_bonus(5, 30 * 75 / 100) == 27);
 }
 
-
 TEST_CASE("a skill's effect lines say what it grants", "[skills]") {
     // The table's own phrasings, one per shipped kind.
-    const auto axe = parse_skill_effect({"Skill added to Attack Bonus",
-                                         "Skill reduces recovery time",
-                                         "Skill added to Attack Damage"});
+    const auto axe =
+        parse_skill_effect({"Skill added to Attack Bonus", "Skill reduces recovery time",
+                            "Skill added to Attack Damage"});
     REQUIRE(axe.attack_bonus);
     REQUIRE(axe.attack_damage);
     REQUIRE_FALSE(axe.armor_class);
@@ -136,7 +135,8 @@ TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
     REQUIRE(skill_power(dagger, 7 | 0x80).triple_percent == 7);
     REQUIRE(skill_power(dagger, 6 | 0x40).triple_percent == 0);
 
-    const std::vector<std::string> merchant{"the prose column", "Skill adjusts shop prices in your favor",
+    const std::vector<std::string> merchant{"the prose column",
+                                            "Skill adjusts shop prices in your favor",
                                             "Double effect of skill", "Triple effect of skill"};
     REQUIRE(skill_power(merchant, 3).price_percent == 3);
     REQUIRE(skill_power(merchant, 4 | 0x40).price_percent == 8);
@@ -144,19 +144,17 @@ TEST_CASE("the higher lines wake at their rank bits", "[skills]") {
 }
 
 TEST_CASE("the body's lines grant points and lift the armor's drag", "[skills]") {
-    const std::vector<std::string> body{"the prose column", "Skill adds to Hit Points", "Double effect of skill",
-                                        "Triple effect of skill"};
+    const std::vector<std::string> body{"the prose column", "Skill adds to Hit Points",
+                                        "Double effect of skill", "Triple effect of skill"};
     REQUIRE(skill_power(body, 3).hp_bonus == 3);
     REQUIRE(skill_power(body, 4 | 0x40).hp_bonus == 8);
     REQUIRE(skill_power(body, 7 | 0x80).hp_bonus == 21);
     const std::vector<std::string> meditation{"the prose column", "Skill adds to Spell Points",
-                                              "Double effect of skill",
-                                              "Triple effect of skill"};
+                                              "Double effect of skill", "Triple effect of skill"};
     REQUIRE(skill_power(meditation, 5 | 0x40).sp_bonus == 10);
 
     const std::vector<std::string> plate{"the prose column", "Skill added to Armor Class",
-                                         "Recovery penalty reduced",
-                                         "Recovery penalty eliminated"};
+                                         "Recovery penalty reduced", "Recovery penalty eliminated"};
     REQUIRE(skill_power(plate, 3).armor_penalty_lift == 0);
     REQUIRE(skill_power(plate, 4 | 0x40).armor_penalty_lift == 1);
     REQUIRE(skill_power(plate, 7 | 0x80).armor_penalty_lift == 2);
@@ -341,7 +339,7 @@ TEST_CASE("the rank lives in the byte, not in the point count", "[skills]") {
     // The retraction this replaces made expert begin at four points and
     // master at seven. Neither number is in the game.
     REQUIRE(skill_rank(3) == 0);
-    REQUIRE(skill_rank(30) == 0);   // thirty points and still a novice
+    REQUIRE(skill_rank(30) == 0);    // thirty points and still a novice
     REQUIRE(skill_rank(0x42) == 1);  // two points and an expert
     REQUIRE(skill_rank(0x81) == 2);
     REQUIRE(skill_points(0x81) == 1);
@@ -385,8 +383,7 @@ TEST_CASE("the prose column is not an effect line", "[skills]") {
     // normal, expert and master. Reading from the prose shifted every rank
     // down by one and nothing above novice ever did what it says.
     const std::vector<std::string> bow{"Bow skill covers both bow and crossbow usage.",
-                                       "Skill added to Attack Bonus",
-                                       "Skill reduces recovery time",
+                                       "Skill added to Attack Bonus", "Skill reduces recovery time",
                                        "Bow fires two arrows on every attack"};
     REQUIRE(skill_power(bow, 5).to_hit == 5);
     REQUIRE_FALSE(skill_power(bow, 5).second_arrow);
@@ -401,8 +398,7 @@ TEST_CASE("the prose column is not an effect line", "[skills]") {
     REQUIRE(skill_power(bare, 9 | 0x80).to_hit == 0);
 }
 
-TEST_CASE("the bare doublings are what a rank is worth to the silent rows",
-          "[skills]") {
+TEST_CASE("the bare doublings are what a rank is worth to the silent rows", "[skills]") {
     // Sixteen of the thirty-one rows say nothing skill_power can parse: prose
     // at normal, then the bare "Double effect of skill" and "Triple effect of
     // skill". That much is readable and it is the whole of their rungs.
@@ -438,8 +434,7 @@ TEST_CASE("the stat id space is twenty-three ids with one gap", "[skills]") {
     REQUIRE(static_cast<int>(StatId::ArmorClass) == 9);
 }
 
-TEST_CASE("the four unnamed ids say where they take their number from",
-          "[skills]") {
+TEST_CASE("the four unnamed ids say where they take their number from", "[skills]") {
     // Anchors: sixteen from +0x1428, the weapon's at +0x142c, the next at
     // +0x1430 — which is what makes 17 and 18 the wielded weapon's numbers
     // and 21 the hand beside it.

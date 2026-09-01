@@ -4,8 +4,8 @@
 // docs/formats/dmonlist.md. No bytes from the game are involved.
 #include <catch2/catch_test_macros.hpp>
 
-#include <cstdint>
 #include <array>
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <vector>

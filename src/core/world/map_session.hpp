@@ -109,11 +109,11 @@ enum class MapSessionError : std::uint8_t {
 struct MapSession {
     MapKind kind = MapKind::Unknown;
 
-    std::string file_name;     // the Games.lod entry, e.g. "OutA1.Odm"
-    std::string display_name;  // from MapStats.txt; empty when unlisted
-    int music_track = 0;       // the N in Sounds/N.mp3; 0 when unlisted
-    int refill_days = 0;       // how long this map takes to refill with monsters
-    int treasure_level = 0;    // MapStats' "Tres 0-6"; what its chests hold
+    std::string file_name;                   // the Games.lod entry, e.g. "OutA1.Odm"
+    std::string display_name;                // from MapStats.txt; empty when unlisted
+    int music_track = 0;                     // the N in Sounds/N.mp3; 0 when unlisted
+    int refill_days = 0;                     // how long this map takes to refill with monsters
+    int treasure_level = 0;                  // MapStats' "Tres 0-6"; what its chests hold
     std::vector<std::uint16_t> chest_looks;  // each chest's DCHEST row
     std::vector<std::uint16_t> chest_flags;  // each chest's flags; bit 0 is the trap
     // Each chest's authored slots: fixed item ids and −1..−6 generation
@@ -138,8 +138,8 @@ struct MapSession {
     // The ground under a point, in the footstep sounds' vocabulary:
     // outdoor by the tile's art, indoor always the stone hall. `inferred`
     [[nodiscard]] std::string_view ground_at(float x, float z) const;
-    int trap_difficulty = 0;   // MapStats' "Trap 0-10"; the blast's d20 count
-    int lock_difficulty = 0;   // MapStats' "Lock 0-10"; what a chest's trap checks against
+    int trap_difficulty = 0;  // MapStats' "Trap 0-10"; the blast's d20 count
+    int lock_difficulty = 0;  // MapStats' "Lock 0-10"; what a chest's trap checks against
 
     // Outdoor geometry.
     OdmMap odm;

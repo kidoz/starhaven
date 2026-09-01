@@ -28,11 +28,11 @@
 #include "core/data/treasure.hpp"
 #include "core/random.hpp"
 #include "core/world/map_session.hpp"
-#include "game/inventory.hpp"
 #include "game/conditions.hpp"
+#include "game/fire_dark.hpp"
+#include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/skills.hpp"
-#include "game/fire_dark.hpp"
 #include "game/weapon_specials.hpp"
 
 namespace starhaven::game {
@@ -111,8 +111,8 @@ inline constexpr float kCloseRange = 1024.0f;
 }
 
 // The Miss column's kind, for the caller that flies a sprite for it.
-[[nodiscard]] inline std::string_view missile_kind(
-    const data::MonsterStatsEntry& monster) noexcept {
+[[nodiscard]] inline std::string_view
+missile_kind(const data::MonsterStatsEntry& monster) noexcept {
     for (const auto& attack : monster.attacks) {
         if (attack.flies) {
             return attack.missile;
@@ -673,12 +673,11 @@ public:
     // Mace's stun, the Bow's second arrow.
     std::string strike(std::size_t actor, Character& who, const Pack& pack,  // NOLINT
                        const world::MapSession& session, const data::MonsterStatsTable& monsters,
-                       const data::ItemStatsTable& items,
-                       const data::RandomItemTable& random_items,
+                       const data::ItemStatsTable& items, const data::RandomItemTable& random_items,
                        const data::StandardBonusTable& standard_bonuses,
-                       const data::SpecialBonusTable& special_bonuses,
-                       const SkillPower& skill = {}, const data::Dice& rider = {},
-                       std::string_view rider_element = {}, int hired_weapon_points = 0) {
+                       const data::SpecialBonusTable& special_bonuses, const SkillPower& skill = {},
+                       const data::Dice& rider = {}, std::string_view rider_element = {},
+                       int hired_weapon_points = 0) {
         if (!alive(actor) || who.hit_points <= 0) {
             return {};
         }
@@ -721,10 +720,10 @@ public:
         // reading the party's bow as kind 3 is `inferred`.
         const int held = who.equipped[static_cast<std::size_t>(Slot::Weapon)];
         const auto* held_row = held > 0 ? items.at(static_cast<std::size_t>(held)) : nullptr;
-        const bool shooting = held_row != nullptr &&
-                              held_row->equip_type == data::ItemEquipType::Missile;
-        if (!blow_lands(monster.armor_class, attack,
-                        shooting ? BlowKind::Shot : BlowKind::Plain, 0, random_)) {
+        const bool shooting =
+            held_row != nullptr && held_row->equip_type == data::ItemEquipType::Missile;
+        if (!blow_lands(monster.armor_class, attack, shooting ? BlowKind::Shot : BlowKind::Plain, 0,
+                        random_)) {
             return who.name + " misses " + monster.name;
         }
 
@@ -766,8 +765,8 @@ public:
         // A weapon's elemental rider — "Adds 6-8 points of Cold damage" —
         // rolls apart and is answered by its own element.
         if (!rider.empty()) {
-            damage += after_resistance(data::roll(rider, random_),
-                                       resistance_to(monster, rider_element));
+            damage +=
+                after_resistance(data::roll(rider, random_), resistance_to(monster, rider_element));
         }
 
         // Every worn special the executable's own table answers for: each
@@ -784,11 +783,11 @@ public:
             const int special = who.worn_special[slot];
             if (const auto* extra = special_rider(special); extra != nullptr) {
                 const int rolled =
-                    extra->low + static_cast<int>(random_.next() %
-                                                  static_cast<std::uint64_t>(
-                                                      extra->high - extra->low + 1));
-                damage += after_resistance(
-                    rolled, resistance_to(monster, element_column(extra->element)));
+                    extra->low +
+                    static_cast<int>(random_.next() %
+                                     static_cast<std::uint64_t>(extra->high - extra->low + 1));
+                damage += after_resistance(rolled,
+                                           resistance_to(monster, element_column(extra->element)));
                 flourish += ", " + std::string(extra->name);
             }
             if (const int flat = artifact_extra(worn); flat > 0) {
@@ -831,17 +830,16 @@ public:
     static constexpr float kBlastRadius = static_cast<float>(kRingOfFireRadius[0]);
 
     std::string smite_area(std::size_t actor, const data::SpellRange& flat,
-                           const data::SpellRange& per_skill, int skill,
-                           std::string_view element, const std::string& caster,
-                           data::SpellReach reach, const world::MapSession& session,
+                           const data::SpellRange& per_skill, int skill, std::string_view element,
+                           const std::string& caster, data::SpellReach reach,
+                           const world::MapSession& session,
                            const data::MonsterStatsTable& monsters,
                            const data::ItemStatsTable& items,
                            const data::RandomItemTable& random_items,
                            const data::StandardBonusTable& standard_bonuses,
                            const data::SpecialBonusTable& special_bonuses) {
-        std::string last = smite(actor, flat, per_skill, skill, element, caster, session,
-                                 monsters, items, random_items, standard_bonuses,
-                                 special_bonuses);
+        std::string last = smite(actor, flat, per_skill, skill, element, caster, session, monsters,
+                                 items, random_items, standard_bonuses, special_bonuses);
         if (reach == data::SpellReach::Single || actor >= session.actors.size()) {
             return last;
         }
@@ -899,9 +897,9 @@ public:
     // The monsters take their turn. Anything alive and in reach swings at a
     // character who is still standing.
     std::string update(float dt, const world::MapSession& session,
-                       const data::MonsterStatsTable& monsters,
-                       const data::SpellStatsTable& spells, std::array<Character, 4>& party,
-                       const render::Vec3& eye, std::int64_t now = 0) {
+                       const data::MonsterStatsTable& monsters, const data::SpellStatsTable& spells,
+                       std::array<Character, 4>& party, const render::Vec3& eye,
+                       std::int64_t now = 0) {
         std::string last;
         if (combatants_.size() != session.actors.size()) {
             return last;
@@ -912,9 +910,7 @@ public:
                 continue;
             }
             c.wince = c.wince > dt ? c.wince - dt : 0.0f;
-            const auto tick = [dt](float& left) {
-                left = left > dt ? left - dt : 0.0f;
-            };
+            const auto tick = [dt](float& left) { left = left > dt ? left - dt : 0.0f; };
             tick(c.feared);
             tick(c.slowed);
             tick(c.paralyzed);
@@ -986,8 +982,7 @@ public:
 private:
     // `0x421c50`'s three-way answer, rolled fresh every tick.
     int disposition_of(const Combatant& c) {
-        if (c.second_percent > 0 &&
-            static_cast<int>(random_.next() % 100) < c.second_percent) {
+        if (c.second_percent > 0 && static_cast<int>(random_.next() % 100) < c.second_percent) {
             return 2;
         }
         if (c.first_percent > 0 && static_cast<int>(random_.next() % 100) < c.first_percent) {
@@ -1002,8 +997,7 @@ private:
             return 0;
         }
         return range.low +
-               static_cast<int>(random_.next() %
-                                static_cast<unsigned>(range.high - range.low + 1));
+               static_cast<int>(random_.next() % static_cast<unsigned>(range.high - range.low + 1));
     }
 
     // A landed blow, whoever struck it: the wound, the flinch, and on a kill
@@ -1037,12 +1031,11 @@ private:
                 }
                 data::GeneratedItem rolled;
                 if (drop.item_level > 0 &&
-                    data::generate_random_item(random_items, items, standard_bonuses,
-                                               special_bonuses,
-                                               static_cast<std::size_t>(drop.item_level),
-                                               data::treasure_item_type(drop.item_kind), random_,
-                                               artifacts_,
-                                               rolled) == data::ItemGenerationError::None &&
+                    data::generate_random_item(
+                        random_items, items, standard_bonuses, special_bonuses,
+                        static_cast<std::size_t>(drop.item_level),
+                        data::treasure_item_type(drop.item_kind), random_, artifacts_,
+                        rolled) == data::ItemGenerationError::None &&
                     rolled.item_id > 0) {  // a kind nothing matches rolls the blank row
                     loot_.push_back(rolled);
                 }
@@ -1055,7 +1048,8 @@ private:
     // One monster's blow at whoever in the party is not yet dead — the
     // unconscious can still be hit, and a blow that lands on one kills them.
     // `inferred`
-    std::string swing(const data::MonsterStatsEntry& monster, const data::SpellStatsTable& spells,  // NOLINT
+    std::string swing(const data::MonsterStatsEntry& monster,
+                      const data::SpellStatsTable& spells,  // NOLINT
                       std::array<Character, 4>& party, std::int64_t now = 0) {
         std::vector<std::size_t> standing;
         for (std::size_t i = 0; i < party.size(); ++i) {
@@ -1133,9 +1127,8 @@ private:
         // first block and `Use%` the second, and each attack carries its own
         // chance. `observed`
         const data::Dice& second = monster.attacks[1].damage_dice;
-        const bool use_second =
-            !second.empty() && monster.attacks[1].chance > 0 &&
-            static_cast<int>(random_.next() % 100) < monster.attacks[1].chance;
+        const bool use_second = !second.empty() && monster.attacks[1].chance > 0 &&
+                                static_cast<int>(random_.next() % 100) < monster.attacks[1].chance;
         for (const auto& attack :
              {use_second ? monster.attacks[1] : monster.attacks[0], monster.attacks[0]}) {
             const data::Dice& dice = attack.damage_dice;
@@ -1208,10 +1201,9 @@ private:
                 } else if (bonus.substr(0, 7) == "BrkItem" || bonus.substr(0, 6) == "BrkArm" ||
                            bonus.substr(0, 9) == "Brkweapon") {
                     const Slot slot = bonus.substr(0, 9) == "Brkweapon" ? Slot::Weapon
-                                      : bonus.substr(0, 6) == "BrkArm"  ? Slot::Armor
-                                                                        : static_cast<Slot>(
-                                                                            random_.next() %
-                                                                            kSlotCount);
+                                      : bonus.substr(0, 6) == "BrkArm"
+                                          ? Slot::Armor
+                                          : static_cast<Slot>(random_.next() % kSlotCount);
                     const auto at = static_cast<std::size_t>(slot);
                     if (target.equipped[at] > 0 && !target.equipped_broken[at]) {
                         target.equipped_broken[at] = true;

@@ -226,8 +226,8 @@ TEST_CASE("a trap's event names what it summons and where", "[walk]") {
     std::vector<std::uint8_t> args{1, 2, 3};
     for (const std::int32_t v : {-7522, 14848, -240}) {
         for (int i = 0; i < 4; ++i) {
-            args.push_back(static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) &
-                                                     0xFF));
+            args.push_back(
+                static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) & 0xFF));
         }
     }
     std::vector<std::uint8_t> payload;
@@ -252,8 +252,8 @@ TEST_CASE("a trap's event puts a sprite in the air", "[walk]") {
     std::vector<std::uint8_t> args{6, 0, 3};
     for (const std::int32_t v : {2496, 4864, 360, 0, 0, 0}) {
         for (int i = 0; i < 4; ++i) {
-            args.push_back(static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) &
-                                                     0xFF));
+            args.push_back(
+                static_cast<std::uint8_t>((static_cast<std::uint32_t>(v) >> (8 * i)) & 0xFF));
         }
     }
     std::vector<std::uint8_t> payload;
@@ -468,9 +468,9 @@ TEST_CASE("both attribute runs reach the same seven gains", "[script]") {
     // the offsets the property setter's own case bodies compute; a script
     // raising either raises the attribute.
     std::vector<std::uint8_t> payload;
-    push_step(payload, 4, 0, kOpcodeGive, typed(32, 3));   // Might, stored
-    push_step(payload, 4, 1, kOpcodeGive, typed(25, 2));   // Might, modifier
-    push_step(payload, 4, 2, kOpcodeGive, typed(31, 6));   // Luck, modifier
+    push_step(payload, 4, 0, kOpcodeGive, typed(32, 3));  // Might, stored
+    push_step(payload, 4, 1, kOpcodeGive, typed(25, 2));  // Might, modifier
+    push_step(payload, 4, 2, kOpcodeGive, typed(31, 6));  // Luck, modifier
     push_step(payload, 4, 3, kOpcodeEnd, {0});
     const MapScript script = parse(payload);
     starhaven::game::WalkState state;
@@ -589,8 +589,8 @@ TEST_CASE("both resistance runs reach the same five", "[script]") {
     // them — ids 46..50 and 51..55. The walk used to know only the bases.
     REQUIRE(kVarResistModFirst == kVarResistFirst + 5);
     std::vector<std::uint8_t> payload;
-    push_step(payload, 6, 0, kOpcodeGive, typed(kVarResistFirst, 5));       // Fire, base
-    push_step(payload, 6, 1, kOpcodeGive, typed(kVarResistModFirst, 7));    // Fire, modifier
+    push_step(payload, 6, 0, kOpcodeGive, typed(kVarResistFirst, 5));         // Fire, base
+    push_step(payload, 6, 1, kOpcodeGive, typed(kVarResistModFirst, 7));      // Fire, modifier
     push_step(payload, 6, 2, kOpcodeGive, typed(kVarResistModFirst + 4, 3));  // the fifth
     push_step(payload, 6, 3, kOpcodeEnd, {0});
     const MapScript script = parse(payload);

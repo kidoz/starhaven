@@ -300,7 +300,7 @@ constexpr std::uint32_t kBlvSectorSlotCount = 8;
 // Offsets of the eight list counts within a 116-byte record, in walk order.
 constexpr std::array<std::uint32_t, kBlvSectorSlotCount> kBlvSectorSlotOffsets{
     0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x3C, 0x44};
-constexpr std::uint32_t kBlvSectorSlotFaces = 1;  // slot 2 is the face list
+constexpr std::uint32_t kBlvSectorSlotFaces = 1;      // slot 2 is the face list
 constexpr std::uint32_t kBlvSectorAabbOffset = 0x68;  // xmin..zmax, 6 x i16
 constexpr std::uint16_t kBlvFaceNoSector = 0xFFFF;
 

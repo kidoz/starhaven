@@ -20,8 +20,8 @@
 #include "core/data/building_stats.hpp"
 #include "core/data/item_generation.hpp"
 #include "core/data/item_stats.hpp"
-#include "core/data/merchant_text.hpp"
 #include "core/data/journal.hpp"
+#include "core/data/merchant_text.hpp"
 #include "core/data/spell_stats.hpp"
 #include "core/data/use_items.hpp"
 #include "core/random.hpp"
@@ -128,8 +128,7 @@ struct GuildStock {
 // engine's. `observed` for the rows, `inferred` for the sale.
 [[nodiscard]] inline int guild_award_of(data::SpellSchool school,
                                         const data::JournalTable& awards) {
-    const std::string wanted =
-        "Joined the " + std::string(data::school_name(school)) + " Guild";
+    const std::string wanted = "Joined the " + std::string(data::school_name(school)) + " Guild";
     for (const auto& row : awards.entries()) {
         if (row.text == wanted) {
             return row.bit;
@@ -200,9 +199,9 @@ struct GuildStock {
 // A guild's shelves: the books of its school's spells in its own range,
 // priced at the books' values times the row's Val. Empty for anything that
 // is not a magic guild, so the caller can fall back to generated stock.
-[[nodiscard]] inline std::vector<StockItem>
-guild_stock_of(const data::BuildingStatsEntry& shop, const data::SpellStatsTable& spells,
-               const data::ItemStatsTable& items) {
+[[nodiscard]] inline std::vector<StockItem> guild_stock_of(const data::BuildingStatsEntry& shop,
+                                                           const data::SpellStatsTable& spells,
+                                                           const data::ItemStatsTable& items) {
     std::vector<StockItem> out;
     const GuildStock wanted = parse_guild_stock(shop.stock_a);
     if (wanted.empty()) {
@@ -282,10 +281,10 @@ stock_of(const data::BuildingStatsEntry& shop, const data::RandomItemTable& rand
 // table (see docs/formats/items.md and event-tables.md). The seed keeps a
 // chest's rolls its own; an unknown negative id is dropped, not invented.
 [[nodiscard]] inline std::vector<data::GeneratedItem>
-chest_contents(const std::vector<world::MapItemInstance>& slots,
-               std::size_t map_treasure_class, const data::RandomItemTable& random_items,
-               const data::ItemStatsTable& items, const data::StandardBonusTable& standard,
-               const data::SpecialBonusTable& special, std::uint32_t seed) {
+chest_contents(const std::vector<world::MapItemInstance>& slots, std::size_t map_treasure_class,
+               const data::RandomItemTable& random_items, const data::ItemStatsTable& items,
+               const data::StandardBonusTable& standard, const data::SpecialBonusTable& special,
+               std::uint32_t seed) {
     std::vector<data::GeneratedItem> out;
     Mm6Random random{seed};
     data::ArtifactGenerationState artifacts;
@@ -308,8 +307,8 @@ chest_contents(const std::vector<world::MapItemInstance>& slots,
         if (placeholder == 0) {
             continue;
         }
-        const auto level = data::roll_chest_treasure_level(
-            static_cast<std::size_t>(placeholder), map_treasure_class, random);
+        const auto level = data::roll_chest_treasure_level(static_cast<std::size_t>(placeholder),
+                                                           map_treasure_class, random);
         if (!level) {
             continue;
         }

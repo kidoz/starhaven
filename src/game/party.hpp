@@ -12,8 +12,8 @@
 // they are defined.
 
 #include <array>
-#include <map>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
@@ -70,7 +70,6 @@ inline constexpr int kPortraitFrameCount = 53;
 [[nodiscard]] inline bool face_is_female(int face) noexcept {
     return face >= kMaleFaceCount;
 }
-
 
 // The places a character can wear something. `ITEMS.TXT`'s equip type says
 // which slot an item belongs in, so the list is the table's, not this
@@ -317,9 +316,9 @@ struct Character {
 inline constexpr std::array<int, 29> kAttributeLadder{
     500, 400, 350, 300, 275, 250, 225, 200, 175, 150, 125, 100, 75, 50, 40,
     35,  30,  25,  21,  19,  17,  15,  13,  11,  9,   7,   5,   3,  0};
-inline constexpr std::array<int, 29> kAttributeBonus{
-    30, 25, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8,
-    7,  6,  5,  4,  3,  2,  1,  0,  -1, -2, -3, -4, -5, -6};
+inline constexpr std::array<int, 29> kAttributeBonus{30, 25, 20, 19, 18, 17, 16, 15, 14, 13,
+                                                     12, 11, 10, 9,  8,  7,  6,  5,  4,  3,
+                                                     2,  1,  0,  -1, -2, -3, -4, -5, -6};
 
 [[nodiscard]] inline int attribute_bonus(int value) noexcept {
     if (value >= kAttributeLadder[0]) {
@@ -356,7 +355,7 @@ inline constexpr std::string_view kNewGameMap = "OutE3.Odm";
 inline constexpr float kNewGameX = -9728.0f;
 inline constexpr float kNewGameHeight = 160.0f;
 inline constexpr float kNewGameZ = -11319.0f;
-inline constexpr int kNewGameFacing = 512;   // of 2048 to the turn
+inline constexpr int kNewGameFacing = 512;  // of 2048 to the turn
 inline constexpr int kFacingTurn = 2048;
 
 // The four classes a party starts as. The names are `Class.txt` headings, and
@@ -368,7 +367,7 @@ inline constexpr std::array<std::string_view, 4> kStartingClasses{"Knight", "Pal
 // The six a new character may be: `Class.txt`'s every third heading, the
 // rows the promotion prose names as starting points. `observed` for the
 // headings, `inferred` for reading the other twelve as promotions only.
-inline constexpr std::array<std::string_view, 6> kBaseClasses{"Knight", "Cleric", "Sorcerer",
+inline constexpr std::array<std::string_view, 6> kBaseClasses{"Knight",  "Cleric", "Sorcerer",
                                                               "Paladin", "Archer", "Druid"};
 
 // Which of those learn spells, and so start with spell points. `inferred`
@@ -380,9 +379,9 @@ inline constexpr std::array<std::string_view, 6> kBaseClasses{"Knight", "Cleric"
 // the id, which is also the order the two class tables below are indexed in.
 // `observed`
 inline constexpr std::array<std::string_view, 18> kClassNames{
-    "Knight",   "Cavalier",    "Champion",     "Cleric", "Priest",        "High Priest",
-    "Sorcerer", "Wizard",      "Archmage",     "Paladin", "Crusader",     "Hero",
-    "Archer",   "Battle Mage", "Warrior Mage", "Druid",  "Greater Druid", "Arch Druid"};
+    "Knight",   "Cavalier",    "Champion",     "Cleric",  "Priest",        "High Priest",
+    "Sorcerer", "Wizard",      "Archmage",     "Paladin", "Crusader",      "Hero",
+    "Archer",   "Battle Mage", "Warrior Mage", "Druid",   "Greater Druid", "Arch Druid"};
 
 [[nodiscard]] inline int class_id(std::string_view name) noexcept {
     for (std::size_t i = 0; i < kClassNames.size(); ++i) {
@@ -511,9 +510,9 @@ inline constexpr std::array<int, 6> kClassBaseSpellPoints{0, 10, 10, 5, 5, 10};
 // a byte at `+0x1578`) are read but not named, and are left out.
 [[nodiscard]] inline int class_hit_points(std::string_view name, int level, int endurance_bonus) {
     const int id = class_id(name);
-    const int total = kClassBaseHitPoints[static_cast<std::size_t>(id / 3)] +
-                      (level + endurance_bonus) *
-                          kClassHitPointsPerLevel[static_cast<std::size_t>(id)];
+    const int total =
+        kClassBaseHitPoints[static_cast<std::size_t>(id / 3)] +
+        (level + endurance_bonus) * kClassHitPointsPerLevel[static_cast<std::size_t>(id)];
     return total < 1 ? 1 : total;
 }
 
@@ -544,9 +543,9 @@ inline constexpr int kExperienceStep = 1000;
     if (kClassSpellPointsPerLevel[static_cast<std::size_t>(id)] == 0) {
         return 0;
     }
-    const int total = kClassBaseSpellPoints[static_cast<std::size_t>(id / 3)] +
-                      (level + personality_bonus) *
-                          kClassSpellPointsPerLevel[static_cast<std::size_t>(id)];
+    const int total =
+        kClassBaseSpellPoints[static_cast<std::size_t>(id / 3)] +
+        (level + personality_bonus) * kClassSpellPointsPerLevel[static_cast<std::size_t>(id)];
     return total < 0 ? 0 : total;
 }
 
@@ -576,8 +575,8 @@ inline constexpr std::array<int, 4> kDerivedBonusStatIds{15, 16, 19, 20};
 // points, armour and the starting spell. Rerolling a character at creation
 // runs this again; every number is this engine's. `inferred`
 inline void derive_start(Character& c) {
-    c.max_hit_points = class_hit_points(
-        c.class_name, 1, attribute_bonus(c.attribute(Attribute::Endurance)));
+    c.max_hit_points =
+        class_hit_points(c.class_name, 1, attribute_bonus(c.attribute(Attribute::Endurance)));
     // The two skills the class begins with, at one point each: the pair its
     // row in `0x4c2694` marks, not a guess off the class prose. `observed`
     c.skills.clear();
@@ -598,8 +597,8 @@ inline void derive_start(Character& c) {
     }
     c.spell_points = c.max_spell_points;
     c.armor_bonus = 0;
-    c.armor_class = traced_armor_class(0, c.armor_bonus,
-                                       attribute_bonus(c.attribute(Attribute::Speed)));
+    c.armor_class =
+        traced_armor_class(0, c.armor_bonus, attribute_bonus(c.attribute(Attribute::Speed)));
     c.skill_points = 0;
 }
 
@@ -616,15 +615,14 @@ inline void level_up_to(Character& c, int level) {
     c.level = level;
     // Both routines scale their attribute term by the worst condition before
     // the ladder reads it.
-    c.max_hit_points =
-        class_hit_points(c.class_name, c.level,
-                         attribute_bonus(ailing_attribute(c, Attribute::Endurance,
-                                                          kAgeHitPointPercent)));
+    c.max_hit_points = class_hit_points(
+        c.class_name, c.level,
+        attribute_bonus(ailing_attribute(c, Attribute::Endurance, kAgeHitPointPercent)));
     c.max_spell_points =
         casts_spells(c.class_name)
             ? class_spell_points(c.class_name, c.level,
-                                 attribute_bonus(ailing_attribute(
-                                     c, Attribute::Personality, kAgeSpellPointPercent)))
+                                 attribute_bonus(ailing_attribute(c, Attribute::Personality,
+                                                                  kAgeSpellPointPercent)))
             : 0;
     c.max_hit_points += c.max_hit_point_bonus;
     if (c.max_spell_points > 0) {
@@ -691,9 +689,9 @@ inline void roll_attributes(Character& c, Mm6Random& random) {
 //
 // The names come from `npcnames.txt`, the game's own list, picked by the seed
 // so a party is reproducible. Everything numeric is this engine's.
-[[nodiscard]] inline std::array<Character, 4> make_party(
-    const data::NameTable& names, std::uint32_t seed,
-    const std::array<std::string_view, 4>& classes = kStartingClasses) {
+[[nodiscard]] inline std::array<Character, 4>
+make_party(const data::NameTable& names, std::uint32_t seed,
+           const std::array<std::string_view, 4>& classes = kStartingClasses) {
     std::array<Character, 4> party;
     Mm6Random random{seed};
 

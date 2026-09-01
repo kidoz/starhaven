@@ -7,8 +7,8 @@
 #include <string>
 
 #include "core/data/game_data.hpp"
-#include "core/data/map_stats.hpp"
 #include "core/data/item_stats.hpp"
+#include "core/data/map_stats.hpp"
 #include "core/lod/game_lod_archive.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
@@ -114,8 +114,7 @@ int do_variants() {
         for (const auto& actor : world::extract_actors(ev)) {
             // The record names the display name; the letter lives on the
             // DMONLIST row its monster id points at.
-            const auto* row =
-                actor.monster_id > 0 ? monsters.at(actor.monster_id - 1u) : nullptr;
+            const auto* row = actor.monster_id > 0 ? monsters.at(actor.monster_id - 1u) : nullptr;
             if (row == nullptr || row->name.empty()) {
                 continue;
             }
@@ -154,9 +153,9 @@ int do_variants() {
         std::cout << "  " << static_cast<char>('A' + letter) << ":";
         for (int v = 0; v < 16; ++v) {
             if (variant_byte[static_cast<std::size_t>(letter)][static_cast<std::size_t>(v)] > 0) {
-                std::cout << "  byte " << v << " x"
-                          << variant_byte[static_cast<std::size_t>(letter)]
-                                         [static_cast<std::size_t>(v)];
+                std::cout
+                    << "  byte " << v << " x"
+                    << variant_byte[static_cast<std::size_t>(letter)][static_cast<std::size_t>(v)];
             }
         }
         std::cout << "\n";
@@ -247,10 +246,10 @@ int main(int argc, char** argv) {
         const auto doors = world::extract_doors(ev);
         for (const auto& door : doors) {
             std::cout << "  door " << door.id << ": attr 0x" << std::hex << door.attributes
-                      << std::dec << " dir " << door.dx << "," << door.dy << ","
-                      << door.dz << " distance " << door.distance << " speeds "
-                      << door.open_speed << "/" << door.close_speed << " vertices "
-                      << door.vertex_ids.size() << " faces " << door.face_ids.size() << "\n";
+                      << std::dec << " dir " << door.dx << "," << door.dy << "," << door.dz
+                      << " distance " << door.distance << " speeds " << door.open_speed << "/"
+                      << door.close_speed << " vertices " << door.vertex_ids.size() << " faces "
+                      << door.face_ids.size() << "\n";
             array_bytes += 2 * (4 * door.vertex_ids.size() + 3 * door.face_ids.size() +
                                 door.sector_ids.size());
             if (!have_level) {
@@ -276,8 +275,8 @@ int main(int argc, char** argv) {
         }
         std::cout << "  " << doors.size() << " doors, arrays " << array_bytes << " bytes; "
                   << vertex_ids_ok << "/" << vertex_ids_all << " vertex ids in range, "
-                  << face_ids_ok << "/" << face_ids_all << " face ids in range, " << base_ok
-                  << "/" << base_all << " bases equal the shipped vertex\n";
+                  << face_ids_ok << "/" << face_ids_all << " face ids in range, " << base_ok << "/"
+                  << base_all << " bases equal the shipped vertex\n";
     }
 
     // The paired level declares how much saved state this file carries. It is

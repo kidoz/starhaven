@@ -66,7 +66,8 @@ BitmapError decode_pcx_entry(std::span<const std::byte> entry, Bitmap& out) {
         return BitmapError::TooSmall;
     }
     const auto u16 = [&](std::size_t at) {
-        return static_cast<std::uint32_t>(file[at]) | (static_cast<std::uint32_t>(file[at + 1]) << 8);
+        return static_cast<std::uint32_t>(file[at]) |
+               (static_cast<std::uint32_t>(file[at + 1]) << 8);
     };
     const std::uint32_t width = u16(8) - u16(4) + 1;
     const std::uint32_t height = u16(10) - u16(6) + 1;

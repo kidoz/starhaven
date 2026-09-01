@@ -15,8 +15,8 @@
 #include "core/data/npc_stats.hpp"
 #include "core/data/profession_text.hpp"
 #include "core/data/spell_stats.hpp"
-#include "core/data/use_items.hpp"
 #include "core/data/text_table.hpp"
+#include "core/data/use_items.hpp"
 
 namespace starhaven::data {
 

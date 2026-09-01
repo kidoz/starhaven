@@ -420,30 +420,30 @@ TEST_CASE("an indoor door decodes its record and its id arrays", "[map_event]") 
     // heap addresses walk at runtime: vertex ids, face ids, sector ids,
     // texture deltas, and the shut position.
     const std::size_t arrays = 2 * (4 * 2 + 3 * 1 + 1);
-    auto payload = make_indoor_payload(
-        {}, {}, 20, kIndoorStateBlockSize + arrays + kOutdoorEventTrailerSize);
+    auto payload =
+        make_indoor_payload({}, {}, 20, kIndoorStateBlockSize + arrays + kOutdoorEventTrailerSize);
     MapEventFile file{payload};
     EventLayout layout;
     REQUIRE(parse_event_layout(file, layout) == EventLayoutError::None);
 
     auto& p = file.payload;
     const std::size_t slot = layout.state_offset;
-    put_u32(p, slot + 0x04, 7);                    // the id opcode 15 throws
-    put_u32(p, slot + 0x14, 1 << 16);              // dz = +1.0 in 16.16
-    put_u32(p, slot + 0x18, 120);                  // distance
-    put_u32(p, slot + 0x1C, 90);                   // open speed
-    put_u32(p, slot + 0x20, 85);                   // close speed
-    put_u32(p, slot + 0x44, 2 | (1 << 16));        // 2 vertices, 1 face
-    put_u32(p, slot + 0x48, 1);                    // 1 sector
+    put_u32(p, slot + 0x04, 7);              // the id opcode 15 throws
+    put_u32(p, slot + 0x14, 1 << 16);        // dz = +1.0 in 16.16
+    put_u32(p, slot + 0x18, 120);            // distance
+    put_u32(p, slot + 0x1C, 90);             // open speed
+    put_u32(p, slot + 0x20, 85);             // close speed
+    put_u32(p, slot + 0x44, 2 | (1 << 16));  // 2 vertices, 1 face
+    put_u32(p, slot + 0x48, 1);              // 1 sector
     std::size_t at = layout.state_offset + kIndoorStateBlockSize;
-    for (const std::uint16_t value : {5, 6,            // vertex ids
-                                      3,               // face ids
-                                      9,               // sector ids
-                                      1,               // delta u per face
-                                      2,               // delta v per face
-                                      10, 20,          // x base
-                                      30, 40,          // y base
-                                      50, 60}) {       // z base
+    for (const std::uint16_t value : {5, 6,       // vertex ids
+                                      3,          // face ids
+                                      9,          // sector ids
+                                      1,          // delta u per face
+                                      2,          // delta v per face
+                                      10, 20,     // x base
+                                      30, 40,     // y base
+                                      50, 60}) {  // z base
         put_u16(p, at, value);
         at += 2;
     }
@@ -476,8 +476,8 @@ TEST_CASE("an indoor door decodes its record and its id arrays", "[map_event]") 
 TEST_CASE("a door whose arrays run past the region is dropped", "[map_event]") {
     // The declared counts must fit before the trailer; a malformed file must
     // not read into it.
-    auto payload = make_indoor_payload(
-        {}, {}, 20, kIndoorStateBlockSize + 4 + kOutdoorEventTrailerSize);
+    auto payload =
+        make_indoor_payload({}, {}, 20, kIndoorStateBlockSize + 4 + kOutdoorEventTrailerSize);
     MapEventFile file{payload};
     EventLayout layout;
     REQUIRE(parse_event_layout(file, layout) == EventLayoutError::None);

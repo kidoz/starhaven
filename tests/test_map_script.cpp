@@ -181,13 +181,12 @@ TEST_CASE("a chest event names which chest", "[script]") {
 TEST_CASE("a travel event says where the party goes", "[script]") {
     // Four little-endian i32s — X, Y, Z, facing — ten bytes not yet decoded,
     // then the NUL-terminated destination map at byte 26.
-    std::vector<std::uint8_t> args{
-        0x95, 0x1e, 0x00, 0x00,                      // x = 7829
-        0xfb, 0xe3, 0xff, 0xff,                      // y = -7173
-        0xe0, 0x00, 0x00, 0x00,                      // z = 224
-        0x38, 0x02, 0x00, 0x00,                      // facing = 568
-        0,    0,    0,    0,    0, 0, 0, 0, 0, 8,    // undecoded
-        'O',  'u',  't',  'D',  '1', '.', 'O', 'd', 'm', 0};
+    std::vector<std::uint8_t> args{0x95, 0x1e, 0x00, 0x00,  // x = 7829
+                                   0xfb, 0xe3, 0xff, 0xff,  // y = -7173
+                                   0xe0, 0x00, 0x00, 0x00,  // z = 224
+                                   0x38, 0x02, 0x00, 0x00,  // facing = 568
+                                   0,    0,    0,    0,    0,   0,   0,   0,   0,   8,  // undecoded
+                                   'O',  'u',  't',  'D',  '1', '.', 'O', 'd', 'm', 0};
     std::vector<std::uint8_t> payload;
     push_step(payload, 7, 0, kOpcodeTravel, args);
     MapScript script;

@@ -243,8 +243,7 @@ TEST_CASE("a death costs fifty, and a thousand costs a prison term", "[talk]") {
     REQUIRE(reputation == 0);
 }
 
-TEST_CASE("provoking the peaceful costs double, and a term is served",
-          "[talk]") {
+TEST_CASE("provoking the peaceful costs double, and a term is served", "[talk]") {
     REQUIRE(game::kReputationPerProvocation == 100);
     REQUIRE(game::kDeathsAward == 82);
     int reputation = 0;

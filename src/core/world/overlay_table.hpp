@@ -35,7 +35,8 @@ enum class OverlayTableError : std::uint8_t {
 // The overlay table.
 class OverlayTable {
 public:
-    [[nodiscard]] static OverlayTableError parse(std::span<const std::byte> entry, OverlayTable& out);
+    [[nodiscard]] static OverlayTableError parse(std::span<const std::byte> entry,
+                                                 OverlayTable& out);
 
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
     [[nodiscard]] const std::vector<OverlayEntry>& entries() const noexcept { return entries_; }

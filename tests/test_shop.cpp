@@ -147,8 +147,7 @@ TEST_CASE("a guild's school names its own membership award", "[shop]") {
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
     data::JournalTable awards;
     REQUIRE(data::JournalTable::parse(table, 1, data::JournalTable::kNoColumn,
-                                      data::JournalTable::kNoColumn,
-                                      data::JournalTable::kNoColumn,
+                                      data::JournalTable::kNoColumn, data::JournalTable::kNoColumn,
                                       awards) == data::JournalError::None);
     REQUIRE(game::guild_award_of(data::SpellSchool::Fire, awards) == 74);
     REQUIRE(game::guild_award_of(data::SpellSchool::Dark, awards) == 80);

@@ -89,15 +89,15 @@ TEST_CASE("the executable's own list of aimed spells", "[body]") {
     // Forty-seven of the ninety-nine are thrown at the world.
     REQUIRE(kAimedSpells.size() == 47);
     // Every direct-damage spell.
-    REQUIRE(spell_is_aimed(2));    // Flame Arrow
-    REQUIRE(spell_is_aimed(18));   // Lightning Bolt
-    REQUIRE(spell_is_aimed(70));   // Harm, the Body school's own
-    REQUIRE(spell_is_aimed(97));   // Dragon Breath
+    REQUIRE(spell_is_aimed(2));   // Flame Arrow
+    REQUIRE(spell_is_aimed(18));  // Lightning Bolt
+    REQUIRE(spell_is_aimed(70));  // Harm, the Body school's own
+    REQUIRE(spell_is_aimed(97));  // Dragon Breath
     // And the aimed status spells, which carry no damage at all.
-    REQUIRE(spell_is_aimed(42));   // Turn to Stone
-    REQUIRE(spell_is_aimed(61));   // Charm
-    REQUIRE(spell_is_aimed(81));   // Slow
-    REQUIRE(spell_is_aimed(86));   // Paralyze
+    REQUIRE(spell_is_aimed(42));  // Turn to Stone
+    REQUIRE(spell_is_aimed(61));  // Charm
+    REQUIRE(spell_is_aimed(81));  // Slow
+    REQUIRE(spell_is_aimed(86));  // Paralyze
     // The party-facing spells are not on it.
     REQUIRE_FALSE(spell_is_aimed(kSpellFirstAid));
     REQUIRE_FALSE(spell_is_aimed(kSpellCureWounds));
@@ -217,9 +217,8 @@ TEST_CASE("the two cure ladders sort the whole game's cures", "[body]") {
     for (const int id : {kSpellRemoveCurse, kSpellRaiseDead}) {
         REQUIRE(cure_uses_plain_ladder(id));
     }
-    for (const int id : {kSpellCureWeakness, kSpellCurePoison, kSpellCureDisease,
-                         kSpellRemoveFear, kSpellCureParalysis, kSpellCureInsanity,
-                         kSpellResurrection}) {
+    for (const int id : {kSpellCureWeakness, kSpellCurePoison, kSpellCureDisease, kSpellRemoveFear,
+                         kSpellCureParalysis, kSpellCureInsanity, kSpellResurrection}) {
         REQUIRE_FALSE(cure_uses_plain_ladder(id));
     }
 }
@@ -227,11 +226,9 @@ TEST_CASE("the two cure ladders sort the whole game's cures", "[body]") {
 TEST_CASE("the last four cases close", "[body]") {
     // Healing Touch's band is 2d3 plus one, three or five.
     REQUIRE(kHealingTouchDice * 1 + kHealingTouchAdd[0] == kHealingTouchLow[0]);
-    REQUIRE(kHealingTouchDice * kHealingTouchSides + kHealingTouchAdd[0] ==
-            kHealingTouchHigh[0]);
+    REQUIRE(kHealingTouchDice * kHealingTouchSides + kHealingTouchAdd[0] == kHealingTouchHigh[0]);
     REQUIRE(kHealingTouchDice * 1 + kHealingTouchAdd[2] == kHealingTouchLow[2]);
-    REQUIRE(kHealingTouchDice * kHealingTouchSides + kHealingTouchAdd[2] ==
-            kHealingTouchHigh[2]);
+    REQUIRE(kHealingTouchDice * kHealingTouchSides + kHealingTouchAdd[2] == kHealingTouchHigh[2]);
     // Sun Ray by day, Moon Ray by night, and they never both shine.
     REQUIRE(sun_ray_shines(12));
     REQUIRE(sun_ray_shines(5));

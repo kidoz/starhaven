@@ -98,16 +98,16 @@ inline constexpr int kAres = 416;
 // monster table's columns use.
 [[nodiscard]] inline constexpr std::string_view element_column(SpecialElement element) noexcept {
     switch (element) {
-        case SpecialElement::Cold:
-            return "Cold";
-        case SpecialElement::Electric:
-            return "Elec";
-        case SpecialElement::Poison:
-            return "Poison";
-        case SpecialElement::Fire:
-            return "Fire";
-        default:
-            return {};
+    case SpecialElement::Cold:
+        return "Cold";
+    case SpecialElement::Electric:
+        return "Elec";
+    case SpecialElement::Poison:
+        return "Poison";
+    case SpecialElement::Fire:
+        return "Fire";
+    default:
+        return {};
     }
 }
 

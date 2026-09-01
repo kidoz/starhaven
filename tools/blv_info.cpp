@@ -316,8 +316,8 @@ int main(int argc, char** argv) {
                     const std::int32_t x = i16_at(r);
                     const std::int32_t y = i16_at(r + 2);
                     const std::int32_t z = i16_at(r + 4);
-                    hits += (x >= min_x && x <= max_x && y >= min_y && y <= max_y &&
-                             z >= min_z && z <= max_z)
+                    hits += (x >= min_x && x <= max_x && y >= min_y && y <= max_y && z >= min_z &&
+                             z <= max_z)
                                 ? 1
                                 : 0;
                 }
@@ -409,9 +409,7 @@ int main(int argc, char** argv) {
                 min_f[k] = std::min(min_f[k], f[k]);
                 max_f[k] = std::max(max_f[k], f[k]);
             }
-            const auto child_ok = [&](int v) {
-                return v >= 0 && v < static_cast<int>(count);
-            };
+            const auto child_ok = [&](int v) { return v >= 0 && v < static_cast<int>(count); };
             a_in += child_ok(f[0]) ? 1 : 0;
             a_leaf += f[0] == -1 ? 1 : 0;
             c_in += child_ok(f[2]) ? 1 : 0;
@@ -463,8 +461,8 @@ int main(int argc, char** argv) {
                 }
                 end = std::max(end, off + len);
             }
-            std::cout << "  fields 2+3 as [offset,count): sum " << total << ", span " << lo
-                      << ".." << end << ", overlaps " << overlaps << ", gaps " << gaps << "\n";
+            std::cout << "  fields 2+3 as [offset,count): sum " << total << ", span " << lo << ".."
+                      << end << ", overlaps " << overlaps << ", gaps " << gaps << "\n";
         }
         return 0;
     }

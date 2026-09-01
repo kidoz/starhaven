@@ -113,8 +113,8 @@ struct SaveState {
     std::ostringstream out;
     out << kSaveMagic << "\t" << kSaveVersion << "\n";
     out << "map\t" << state.map_file << "\n";
-    out << "camera\t" << state.x << "\t" << state.y << "\t" << state.z << "\t" << state.yaw
-        << "\t" << state.pitch << "\n";
+    out << "camera\t" << state.x << "\t" << state.y << "\t" << state.z << "\t" << state.yaw << "\t"
+        << state.pitch << "\n";
     out << "clock\t" << state.minutes << "\n";
     out << "gold\t" << state.gold << "\t" << state.food << "\n";
     out << "bank\t" << state.bank_gold << "\n";
@@ -133,8 +133,7 @@ struct SaveState {
     if (state.deaths != 0 || state.prison_terms != 0) {
         out << "standing\t" << state.deaths << "\t" << state.prison_terms << "\n";
     }
-    if (state.quick[0] != 0 || state.quick[1] != 0 || state.quick[2] != 0 ||
-        state.quick[3] != 0) {
+    if (state.quick[0] != 0 || state.quick[1] != 0 || state.quick[2] != 0 || state.quick[3] != 0) {
         out << "quick\t" << state.quick[0] << "\t" << state.quick[1] << "\t" << state.quick[2]
             << "\t" << state.quick[3] << "\n";
     }
@@ -144,8 +143,7 @@ struct SaveState {
             << state.readied[2] << "\t" << state.readied[3] << "\n";
     }
     if (state.turn_based || state.hourglass_turn > 0) {
-        out << "turnbased\t" << (state.turn_based ? 1 : 0) << "\t" << state.hourglass_turn
-            << "\n";
+        out << "turnbased\t" << (state.turn_based ? 1 : 0) << "\t" << state.hourglass_turn << "\n";
     }
     if (state.torch_until > 0) {
         out << "torch\t" << state.torch_until << "\n";
@@ -203,17 +201,16 @@ struct SaveState {
     for (std::size_t slot = 0; slot < kPartyBuffCount; ++slot) {
         if (state.party_buffs.until(slot) != 0) {
             out << "partybuff\t" << slot << "\t" << state.party_buffs.until(slot) << "\t"
-                << state.party_buffs.raw_power(slot) << "\t"
-                << state.party_buffs.raw_skill(slot) << "\n";
+                << state.party_buffs.raw_power(slot) << "\t" << state.party_buffs.raw_skill(slot)
+                << "\n";
         }
     }
     for (std::size_t i = 0; i < state.party.size(); ++i) {
         const Character& who = state.party[i];
-        out << "character\t" << i << "\t" << who.face << "\t" << who.level << "\t"
-            << who.experience << "\t" << who.age << "\t" << who.hit_points << "\t"
-            << who.max_hit_points << "\t" << who.spell_points << "\t" << who.max_spell_points
-            << "\t" << who.armor_class << "\t" << who.skill_points << "\t" << who.name << "\t"
-            << who.class_name << "\n";
+        out << "character\t" << i << "\t" << who.face << "\t" << who.level << "\t" << who.experience
+            << "\t" << who.age << "\t" << who.hit_points << "\t" << who.max_hit_points << "\t"
+            << who.spell_points << "\t" << who.max_spell_points << "\t" << who.armor_class << "\t"
+            << who.skill_points << "\t" << who.name << "\t" << who.class_name << "\n";
         out << "attributes\t" << i;
         for (const int a : who.attributes) {
             out << "\t" << a;
@@ -278,11 +275,10 @@ struct SaveState {
             << who.affliction_minute;
         out << "\n";
         for (const auto& item : state.packs[i]) {
-            out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y
-                << "\t" << item.width << "\t" << item.height << "\t"
-                << (item.identified ? 1 : 0) << "\t" << item.standard_bonus << "\t"
-                << item.standard_strength << "\t" << item.special_bonus << "\t"
-                << item.charges << "\n";
+            out << "item\t" << i << "\t" << item.item_id << "\t" << item.x << "\t" << item.y << "\t"
+                << item.width << "\t" << item.height << "\t" << (item.identified ? 1 : 0) << "\t"
+                << item.standard_bonus << "\t" << item.standard_strength << "\t"
+                << item.special_bonus << "\t" << item.charges << "\n";
         }
     }
     return out.str();

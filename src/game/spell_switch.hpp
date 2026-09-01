@@ -29,9 +29,8 @@ namespace starhaven::game {
 // in `SPELLS.TXT` states this partition; the table is its only source.
 // `observed`
 inline constexpr std::array<int, 47> kAimedSpells{
-    2,  4,  6,  7,  8,  9,  10, 11, 13, 15, 18, 20, 22, 24, 26, 28,
-    30, 32, 34, 35, 37, 39, 41, 42, 43, 44, 45, 58, 61, 62, 63, 65,
-    70, 76, 80, 81, 82, 86, 87, 90, 91, 92, 93, 95, 96, 97, 99};
+    2,  4,  6,  7,  8,  9,  10, 11, 13, 15, 18, 20, 22, 24, 26, 28, 30, 32, 34, 35, 37, 39, 41, 42,
+    43, 44, 45, 58, 61, 62, 63, 65, 70, 76, 80, 81, 82, 86, 87, 90, 91, 92, 93, 95, 96, 97, 99};
 
 [[nodiscard]] inline constexpr bool spell_is_aimed(int spell_id) noexcept {
     for (const int id : kAimedSpells) {

@@ -75,17 +75,17 @@ struct WalkState {
 
 // What one use of one event did.
 struct WalkOutcome {
-    bool ran = false;             // the map defines the event
-    std::vector<int> said;        // message string indices, in walk order
+    bool ran = false;       // the map defines the event
+    std::vector<int> said;  // message string indices, in walk order
     // A location title (opcode 5) and the interactable noun (opcode 35):
     // each a string index like `said`, but singled out because they head the
     // dialogue rather than running through it. At most one of each per event.
     int title = -1;
     int name = -1;
-    std::vector<int> given;       // item ids that entered the packs
-    std::vector<int> taken;       // item ids that left them
-    std::uint32_t building = 0;   // a counter to open, or 0
-    int chest = -1;               // a chest to open, or -1
+    std::vector<int> given;      // item ids that entered the packs
+    std::vector<int> taken;      // item ids that left them
+    std::uint32_t building = 0;  // a counter to open, or 0
+    int chest = -1;              // a chest to open, or -1
     std::optional<world::MapTravel> travel;
 
     // Faces to re-texture: a thrown switch is drawn thrown.
@@ -148,15 +148,11 @@ struct WalkOutcome {
     // strike that ran the event was consumed by it.
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
-               building != 0 ||
-               chest >= 0 || travel.has_value() || !retextures.empty() || !doors.empty() ||
-               !summons.empty() || !launches.empty() || ask.has_value() || !harms.empty() ||
-               gold_found != 0 ||
-               healed_hp != 0 ||
-               healed_sp != 0 ||
+               building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
+               !doors.empty() || !summons.empty() || !launches.empty() || ask.has_value() ||
+               !harms.empty() || gold_found != 0 || healed_hp != 0 || healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
-               std::any_of(resist_gains.begin(), resist_gains.end(),
-                           [](int g) { return g != 0; });
+               std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
 };
 
@@ -217,8 +213,8 @@ struct WalkOutcome {
                 passes = state.awards.contains(value);
                 break;
             case world::kVarItem:
-                passes = std::find(state.items.begin(), state.items.end(), value) !=
-                         state.items.end();
+                passes =
+                    std::find(state.items.begin(), state.items.end(), value) != state.items.end();
                 break;
             case world::kVarGold:
                 passes = state.gold >= value;
@@ -331,10 +327,9 @@ struct WalkOutcome {
                 }
                 break;
             default:
-                if (!take && step.opcode == world::kOpcodeGive &&
-                    type >= world::kVarStatFirst && type < world::kVarStatFirst + 7) {
-                    out.stat_gains[static_cast<std::size_t>(type - world::kVarStatFirst)] +=
-                        value;
+                if (!take && step.opcode == world::kOpcodeGive && type >= world::kVarStatFirst &&
+                    type < world::kVarStatFirst + 7) {
+                    out.stat_gains[static_cast<std::size_t>(type - world::kVarStatFirst)] += value;
                 } else if (!take && step.opcode == world::kOpcodeGive &&
                            ((type >= world::kVarStatModFirst &&
                              type < world::kVarStatModFirst + 7) ||
@@ -344,11 +339,9 @@ struct WalkOutcome {
                     // a script raising either raises the attribute.
                     out.stat_gains[static_cast<std::size_t>(
                         type >= world::kVarStatModAlias ? type - world::kVarStatModAlias
-                                                        : type - world::kVarStatModFirst)] +=
-                        value;
+                                                        : type - world::kVarStatModFirst)] += value;
                 } else if (!take && step.opcode == world::kOpcodeGive &&
-                           ((type >= world::kVarResistFirst &&
-                             type < world::kVarResistFirst + 5) ||
+                           ((type >= world::kVarResistFirst && type < world::kVarResistFirst + 5) ||
                             (type >= world::kVarResistModFirst &&
                              type < world::kVarResistModFirst + 5))) {
                     // **The modifiers were being dropped.** The setter writes
@@ -356,9 +349,9 @@ struct WalkOutcome {
                     // them, ids 46..50 and 51..55; the walk only knew the
                     // bases, so a script raising a resistance the other way
                     // did nothing at all.
-                    const auto at = static_cast<std::size_t>(
-                        type >= world::kVarResistModFirst ? type - world::kVarResistModFirst
-                                                          : type - world::kVarResistFirst);
+                    const auto at = static_cast<std::size_t>(type >= world::kVarResistModFirst
+                                                                 ? type - world::kVarResistModFirst
+                                                                 : type - world::kVarResistFirst);
                     out.resist_gains[at] += value;
                 } else if (step.opcode == world::kOpcodeSet) {
                     state.variables[type] = value;
@@ -520,8 +513,7 @@ struct WalkOutcome {
                 WalkOutcome::Harm harm;
                 harm.target = a[0];
                 harm.element = a[1];
-                harm.amount = static_cast<int>(a[2]) | (a[3] << 8) | (a[4] << 16) |
-                              (a[5] << 24);
+                harm.amount = static_cast<int>(a[2]) | (a[3] << 8) | (a[4] << 16) | (a[5] << 24);
                 out.harms.push_back(harm);
             }
             break;

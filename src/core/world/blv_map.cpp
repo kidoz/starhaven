@@ -580,7 +580,6 @@ std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
     return out;
 }
 
-
 std::vector<BlvLight> extract_lights(const BlvMap& map) {
     std::vector<BlvLight> out;
     const BlvDecorationBlock block = find_decoration_block(map);

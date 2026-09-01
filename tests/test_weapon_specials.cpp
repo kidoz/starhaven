@@ -39,10 +39,8 @@ TEST_CASE("each element's three specials climb, and none overlap", "[specials]")
         int c;
         std::string_view column;
     };
-    const std::array<Ladder, 4> ladders{{{4, 5, 6, "Cold"},
-                                         {7, 8, 9, "Elec"},
-                                         {10, 11, 12, "Fire"},
-                                         {13, 14, 15, "Poison"}}};
+    const std::array<Ladder, 4> ladders{
+        {{4, 5, 6, "Cold"}, {7, 8, 9, "Elec"}, {10, 11, 12, "Fire"}, {13, 14, 15, "Poison"}}};
     for (const auto& rung : ladders) {
         const auto* low = special_rider(rung.a);
         const auto* mid = special_rider(rung.b);

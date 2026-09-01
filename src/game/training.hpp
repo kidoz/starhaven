@@ -47,7 +47,8 @@ namespace starhaven::game {
 // What a hall charges to train to a level: its own `Val`, per level trained
 // to. The margin note names the shape — `"for (cost)"` — and the scale is
 // this engine's reading of `Val`. `inferred`
-[[nodiscard]] inline int training_cost(const data::BuildingStatsEntry& shop, int to_level) noexcept {
+[[nodiscard]] inline int training_cost(const data::BuildingStatsEntry& shop,
+                                       int to_level) noexcept {
     const auto cost = static_cast<int>(shop.price_factor * static_cast<float>(to_level));
     return cost < 1 ? 1 : cost;
 }

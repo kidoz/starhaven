@@ -62,13 +62,12 @@ struct ActiveLaunch {
 
 // Put a walked launch in the air. `party` is where an aimless one flies,
 // in renderer axes. Returns nothing when the animation does not resolve.
-[[nodiscard]] inline std::vector<ActiveLaunch> start_launches(
-    const std::vector<world::MapLaunch>& launches, const world::SpriteFrameTable& frames,
-    const render::Vec3& party) {
+[[nodiscard]] inline std::vector<ActiveLaunch>
+start_launches(const std::vector<world::MapLaunch>& launches, const world::SpriteFrameTable& frames,
+               const render::Vec3& party) {
     std::vector<ActiveLaunch> out;
     for (const auto& l : launches) {
-        const std::string_view name =
-            frames.group_name_at(static_cast<std::size_t>(l.animation));
+        const std::string_view name = frames.group_name_at(static_cast<std::size_t>(l.animation));
         if (name.empty()) {
             continue;
         }

@@ -137,10 +137,10 @@ TEST_CASE("every character spell knows its slot", "[buffs]") {
 TEST_CASE("the attribute slots answer for the stat their spell names", "[buffs]") {
     // Slots 4..11 are the eight the stat getter reads, in its own order.
     REQUIRE(kAttributeBuffStat.size() == 8);
-    REQUIRE(buff_slot_for_stat(6) == static_cast<int>(CharacterBuff::LuckyDay));      // Luck
+    REQUIRE(buff_slot_for_stat(6) == static_cast<int>(CharacterBuff::LuckyDay));  // Luck
     REQUIRE(buff_slot_for_stat(1) == static_cast<int>(CharacterBuff::MeditationIntellect));
     REQUIRE(buff_slot_for_stat(2) == static_cast<int>(CharacterBuff::MeditationPersonality));
-    REQUIRE(buff_slot_for_stat(4) == static_cast<int>(CharacterBuff::Precision));     // Accuracy
+    REQUIRE(buff_slot_for_stat(4) == static_cast<int>(CharacterBuff::Precision));  // Accuracy
     REQUIRE(buff_slot_for_stat(5) == static_cast<int>(CharacterBuff::Speed));
     REQUIRE(buff_slot_for_stat(0) == static_cast<int>(CharacterBuff::PowerMight));
     REQUIRE(buff_slot_for_stat(3) == static_cast<int>(CharacterBuff::PowerEndurance));

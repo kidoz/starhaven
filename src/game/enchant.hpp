@@ -28,8 +28,8 @@ struct EnchantPower {
     int armor_class = 0;
     int hit_points = 0;
     int spell_points = 0;
-    data::Dice extra_damage{};      // a weapon rider, e.g. "of Frost"
-    std::string damage_element;     // what answers it: "Cold", "Fire"...
+    data::Dice extra_damage{};   // a weapon rider, e.g. "of Frost"
+    std::string damage_element;  // what answers it: "Cold", "Fire"...
 
     [[nodiscard]] bool any() const noexcept {
         for (const int a : attributes) {
@@ -42,8 +42,7 @@ struct EnchantPower {
                 return true;
             }
         }
-        return armor_class != 0 || hit_points != 0 || spell_points != 0 ||
-               !extra_damage.empty();
+        return armor_class != 0 || hit_points != 0 || spell_points != 0 || !extra_damage.empty();
     }
 };
 
@@ -126,9 +125,8 @@ namespace enchant_detail {
         if (amount > 0) {
             if (rest.find("all Resistances") != std::string_view::npos) {
                 for (const auto resistance :
-                     {data::Resistance::Fire, data::Resistance::Electricity,
-                      data::Resistance::Cold, data::Resistance::Poison,
-                      data::Resistance::Magic}) {
+                     {data::Resistance::Fire, data::Resistance::Electricity, data::Resistance::Cold,
+                      data::Resistance::Poison, data::Resistance::Magic}) {
                     out.resistances[static_cast<std::size_t>(resistance)] = amount;
                 }
             } else if (rest.find("Spell point") != std::string_view::npos) {
@@ -145,8 +143,7 @@ namespace enchant_detail {
                     ++w;
                 }
                 std::size_t e = w;
-                while (e < rest.size() &&
-                       std::isalpha(static_cast<unsigned char>(rest[e])) != 0) {
+                while (e < rest.size() && std::isalpha(static_cast<unsigned char>(rest[e])) != 0) {
                     ++e;
                 }
                 if (const std::size_t a = attribute_named(rest.substr(w, e - w));

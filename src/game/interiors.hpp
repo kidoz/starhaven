@@ -19,26 +19,21 @@
 namespace starhaven::game {
 
 inline constexpr std::array<std::string_view, 118> kInteriorVideos{
-    "blcksrch", "Blcksmid", "blcksPor", "Apthcrch", "Apthcmid", "Apthcwch",
-    "magrch",   "magmid",   "magicpor", "genstrch", "genstmid", "genstpor",
-    "Cityrich", "Citymid",  "CityPoor", "CitySpec", "Citytrtr", "throne06",
-    "throne03", "throne02", "throne01", "throne05", "throne04", "tavpoor1",
-    "tavrich",  "tavpoor2", "TavMid",   "tavpirat", "tavgob",   "temppoor",
-    "tempmid",  "temprich", "tempevil", "tempruin", "t7",       "t6",
-    "t1",       "t4",       "t5",       "t8",       "oracrich", "oracpoor",
-    "circus1",  "Bank",     "stables",  "ship",     "jail",     "thfrich",
-    "thfpoor",  "thfpirat", "mercrich", "mercmid",  "mercpoor", "elemFire",
-    "elemerth", "elemair",  "elemwatr", "elemall",  "mirpthl",  "mirpthd",
-    "mirpthdl", "selfspir", "selfmind", "selfbody", "selfall",  "roompor1",
-    "roompor2", "roompor3", "roompor4", "roommid1", "roommid2", "roommid3",
-    "roommid4", "roomrch1", "roomrch2", "roomrch3", "roomrch4", "ArmRich",
-    "Armmid",   "Armpoor",  "train1",   "train2",   "train3",   "train4",
-    "train5",   "train6",   "Pyramid",  "hive",     "d14",      "d06",
-    "d16",      "d05",      "d15",      "d13",      "d17",      "d03",
-    "d09",      "d12",      "t2",       "t3",       "d10",      "d11",
-    "d02",      "d04",      "d18",      "d19",      "d07",      "d20",
-    "d08",      "CstlGood", "d01",      "cd1",      "cd2",      "cd3",
-    "circus2",  "statue",   "archloop", "noarchie"};
+    "blcksrch", "Blcksmid", "blcksPor", "Apthcrch", "Apthcmid", "Apthcwch", "magrch",   "magmid",
+    "magicpor", "genstrch", "genstmid", "genstpor", "Cityrich", "Citymid",  "CityPoor", "CitySpec",
+    "Citytrtr", "throne06", "throne03", "throne02", "throne01", "throne05", "throne04", "tavpoor1",
+    "tavrich",  "tavpoor2", "TavMid",   "tavpirat", "tavgob",   "temppoor", "tempmid",  "temprich",
+    "tempevil", "tempruin", "t7",       "t6",       "t1",       "t4",       "t5",       "t8",
+    "oracrich", "oracpoor", "circus1",  "Bank",     "stables",  "ship",     "jail",     "thfrich",
+    "thfpoor",  "thfpirat", "mercrich", "mercmid",  "mercpoor", "elemFire", "elemerth", "elemair",
+    "elemwatr", "elemall",  "mirpthl",  "mirpthd",  "mirpthdl", "selfspir", "selfmind", "selfbody",
+    "selfall",  "roompor1", "roompor2", "roompor3", "roompor4", "roommid1", "roommid2", "roommid3",
+    "roommid4", "roomrch1", "roomrch2", "roomrch3", "roomrch4", "ArmRich",  "Armmid",   "Armpoor",
+    "train1",   "train2",   "train3",   "train4",   "train5",   "train6",   "Pyramid",  "hive",
+    "d14",      "d06",      "d16",      "d05",      "d15",      "d13",      "d17",      "d03",
+    "d09",      "d12",      "t2",       "t3",       "d10",      "d11",      "d02",      "d04",
+    "d18",      "d19",      "d07",      "d20",      "d08",      "CstlGood", "d01",      "cd1",
+    "cd2",      "cd3",      "circus2",  "statue",   "archloop", "noarchie"};
 
 // The side panel each interior wears: the same executable table that
 // names the videos carries it. The records are 16 bytes at `0x4be88c` —
@@ -47,16 +42,11 @@ inline constexpr std::array<std::string_view, 118> kInteriorVideos{
 // above. All 52 distinct panel numbers ship in `icons.lod`. `observed`
 // Reproduce the join with `data_info --backdrops`.
 inline constexpr std::array<std::uint8_t, 118> kInteriorPanels{
-    4, 22, 13, 23, 10, 14, 42, 30, 7, 36, 14, 12,
-    11, 16, 41, 14, 30, 16, 25, 9, 34, 19, 18, 38,
-    13, 15, 21, 36, 13, 20, 36, 31, 18, 30, 32, 24,
-    49, 24, 49, 20, 49, 17, 33, 55, 6, 33, 15, 49,
-    37, 35, 36, 39, 39, 39, 28, 27, 29, 26, 43, 24,
-    24, 24, 25, 38, 25, 18, 8, 3, 13, 2, 36, 36,
-    1, 15, 9, 41, 30, 24, 22, 36, 13, 40, 44, 45,
-    24, 22, 8, 53, 54, 52, 24, 49, 13, 46, 25, 25,
-    30, 51, 25, 25, 47, 49, 13, 20, 49, 49, 20, 51,
-    49, 19, 14, 49, 25, 49, 36, 55, 55, 55};
+    4,  22, 13, 23, 10, 14, 42, 30, 7,  36, 14, 12, 11, 16, 41, 14, 30, 16, 25, 9,  34, 19, 18, 38,
+    13, 15, 21, 36, 13, 20, 36, 31, 18, 30, 32, 24, 49, 24, 49, 20, 49, 17, 33, 55, 6,  33, 15, 49,
+    37, 35, 36, 39, 39, 39, 28, 27, 29, 26, 43, 24, 24, 24, 25, 38, 25, 18, 8,  3,  13, 2,  36, 36,
+    1,  15, 9,  41, 30, 24, 22, 36, 13, 40, 44, 45, 24, 22, 8,  53, 54, 52, 24, 49, 13, 46, 25, 25,
+    30, 51, 25, 25, 47, 49, 13, 20, 49, 49, 20, 51, 49, 19, 14, 49, 25, 49, 36, 55, 55, 55};
 
 // The dword at +4, kept as measured and read as nothing: it is **not** a
 // `DSOUNDS` id (none of 500, 501, 505, 513, 532, 549 resolves in the
@@ -65,16 +55,13 @@ inline constexpr std::array<std::uint8_t, 118> kInteriorPanels{
 // taverns and temples carry ids that read as town names in another
 // table — and what it indexes is `unknown`.
 inline constexpr std::array<std::uint16_t, 118> kInteriorField4{
-    500, 505, 506, 507, 501, 502, 503, 516, 517, 518, 513, 514,
-    515, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    175, 530, 20, 297, 358, 552, 550, 549, 548, 551, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 504, 385, 72, 0,
-    533, 534, 535, 519, 520, 521, 510, 509, 508, 511, 512, 332,
-    91, 0, 260, 61, 549, 256, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 545, 546, 547, 532, 532, 532,
-    532, 532, 532, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    500, 505, 506, 507, 501, 502, 503, 516, 517, 518, 513, 514, 515, 0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   175, 530, 20,  297, 358, 552, 550, 549, 548, 551,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   504, 385, 72,  0,   533, 534, 535,
+    519, 520, 521, 510, 509, 508, 511, 512, 332, 91,  0,   260, 61,  549, 256, 0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   545, 546, 547, 532, 532, 532, 532,
+    532, 532, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0};
 
 // The record's kind byte at `+8`: the room's own category. Measured
 // against `2DEvents.txt`'s type column, 17 of the 32 kinds seen speak
@@ -85,16 +72,11 @@ inline constexpr std::array<std::uint16_t, 118> kInteriorField4{
 // entrances. `observed` So it is the interior's category, not the
 // establishment's type. Reproduce with `data_info --backdrops`.
 inline constexpr std::array<std::uint8_t, 118> kInteriorKinds{
-    0, 1, 1, 1, 3, 3, 3, 3, 3, 3, 4, 4,
-    4, 19, 19, 19, 19, 19, 20, 20, 20, 20, 20, 20,
-    21, 21, 21, 21, 21, 21, 23, 23, 23, 23, 29, 25,
-    25, 25, 25, 25, 25, 26, 26, 32, 22, 27, 28, 31,
-    17, 17, 17, 18, 18, 18, 5, 8, 6, 7, 14, 12,
-    13, 16, 9, 10, 11, 15, 29, 29, 29, 29, 29, 29,
-    29, 29, 29, 29, 29, 29, 2, 2, 2, 30, 30, 30,
-    30, 30, 30, 25, 25, 25, 25, 25, 25, 25, 25, 25,
-    25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25,
-    25, 25, 24, 25, 25, 25, 25, 32, 29, 29};
+    0,  1,  1,  1,  3,  3,  3,  3,  3,  3,  4,  4,  4,  19, 19, 19, 19, 19, 20, 20, 20, 20, 20, 20,
+    21, 21, 21, 21, 21, 21, 23, 23, 23, 23, 29, 25, 25, 25, 25, 25, 25, 26, 26, 32, 22, 27, 28, 31,
+    17, 17, 17, 18, 18, 18, 5,  8,  6,  7,  14, 12, 13, 16, 9,  10, 11, 15, 29, 29, 29, 29, 29, 29,
+    29, 29, 29, 29, 29, 29, 2,  2,  2,  30, 30, 30, 30, 30, 30, 25, 25, 25, 25, 25, 25, 25, 25, 25,
+    25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 24, 25, 25, 25, 25, 32, 29, 29};
 
 // The panel a Picture value wears, or 0 when out of the table's reach.
 [[nodiscard]] inline int interior_panel(int picture) noexcept {

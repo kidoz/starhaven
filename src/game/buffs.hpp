@@ -72,34 +72,33 @@ inline constexpr std::size_t kPartyBuffCount = 16;
 // is also `data::Resistance`'s.
 inline constexpr std::array<PartyBuff, 5> kResistanceBuffs{
     PartyBuff::ProtectionFromFire, PartyBuff::ProtectionFromElectricity,
-    PartyBuff::ProtectionFromCold, PartyBuff::ProtectionFromPoison,
-    PartyBuff::ProtectionFromMagic};
+    PartyBuff::ProtectionFromCold, PartyBuff::ProtectionFromPoison, PartyBuff::ProtectionFromMagic};
 
 // Which slot a spell fills, or none.
 [[nodiscard]] inline constexpr int buff_slot_of_spell(int spell_id) noexcept {
     switch (spell_id) {
-        case 3:
-            return static_cast<int>(PartyBuff::ProtectionFromFire);
-        case 25:
-            return static_cast<int>(PartyBuff::ProtectionFromCold);
-        case 14:
-            return static_cast<int>(PartyBuff::ProtectionFromElectricity);
-        case 36:
-            return static_cast<int>(PartyBuff::ProtectionFromMagic);
-        case 69:
-            return static_cast<int>(PartyBuff::ProtectionFromPoison);
-        case 27:
-            return static_cast<int>(PartyBuff::WaterWalk);
-        case 21:
-            return static_cast<int>(PartyBuff::Fly);
-        case 50:
-            return static_cast<int>(PartyBuff::GuardianAngel);
-        case 12:
-            return static_cast<int>(PartyBuff::WizardEye);
-        case 1:
-            return static_cast<int>(PartyBuff::TorchLight);
-        default:
-            return -1;
+    case 3:
+        return static_cast<int>(PartyBuff::ProtectionFromFire);
+    case 25:
+        return static_cast<int>(PartyBuff::ProtectionFromCold);
+    case 14:
+        return static_cast<int>(PartyBuff::ProtectionFromElectricity);
+    case 36:
+        return static_cast<int>(PartyBuff::ProtectionFromMagic);
+    case 69:
+        return static_cast<int>(PartyBuff::ProtectionFromPoison);
+    case 27:
+        return static_cast<int>(PartyBuff::WaterWalk);
+    case 21:
+        return static_cast<int>(PartyBuff::Fly);
+    case 50:
+        return static_cast<int>(PartyBuff::GuardianAngel);
+    case 12:
+        return static_cast<int>(PartyBuff::WizardEye);
+    case 1:
+        return static_cast<int>(PartyBuff::TorchLight);
+    default:
+        return -1;
     }
 }
 
@@ -177,30 +176,30 @@ private:
 // The name each named slot shows, for the sheet and the save file.
 [[nodiscard]] inline constexpr std::string_view buff_name(int slot) noexcept {
     switch (static_cast<PartyBuff>(slot)) {
-        case PartyBuff::ProtectionFromFire:
-            return "Protection from Fire";
-        case PartyBuff::ProtectionFromCold:
-            return "Protection from Cold";
-        case PartyBuff::ProtectionFromElectricity:
-            return "Protection from Electricity";
-        case PartyBuff::ProtectionFromMagic:
-            return "Protection from Magic";
-        case PartyBuff::ProtectionFromPoison:
-            return "Protection from Poison";
-        case PartyBuff::DayOfProtection:
-            return "Day of Protection";
-        case PartyBuff::WaterWalk:
-            return "Water Walk";
-        case PartyBuff::Fly:
-            return "Fly";
-        case PartyBuff::GuardianAngel:
-            return "Guardian Angel";
-        case PartyBuff::WizardEye:
-            return "Wizard Eye";
-        case PartyBuff::TorchLight:
-            return "Torch Light";
-        default:
-            return {};
+    case PartyBuff::ProtectionFromFire:
+        return "Protection from Fire";
+    case PartyBuff::ProtectionFromCold:
+        return "Protection from Cold";
+    case PartyBuff::ProtectionFromElectricity:
+        return "Protection from Electricity";
+    case PartyBuff::ProtectionFromMagic:
+        return "Protection from Magic";
+    case PartyBuff::ProtectionFromPoison:
+        return "Protection from Poison";
+    case PartyBuff::DayOfProtection:
+        return "Day of Protection";
+    case PartyBuff::WaterWalk:
+        return "Water Walk";
+    case PartyBuff::Fly:
+        return "Fly";
+    case PartyBuff::GuardianAngel:
+        return "Guardian Angel";
+    case PartyBuff::WizardEye:
+        return "Wizard Eye";
+    case PartyBuff::TorchLight:
+        return "Torch Light";
+    default:
+        return {};
     }
 }
 
@@ -272,24 +271,24 @@ enum class CharacterBuff : std::size_t {
 // Which slot a spell fills on a character, or none.
 [[nodiscard]] inline constexpr int character_slot_of_spell(int spell_id) noexcept {
     switch (spell_id) {
-        case 46:
-            return static_cast<int>(CharacterBuff::Bless);
-        case 51:
-            return static_cast<int>(CharacterBuff::Heroism);
-        case 5:
-            return static_cast<int>(CharacterBuff::Haste);
-        case 17:
-            return static_cast<int>(CharacterBuff::Shield);
-        case 38:
-            return static_cast<int>(CharacterBuff::StoneSkin);
-        case 48:
-            return static_cast<int>(CharacterBuff::LuckyDay);
-        case 59:
-            return static_cast<int>(CharacterBuff::Precision);
-        case 73:
-            return static_cast<int>(CharacterBuff::Speed);
-        default:
-            return -1;
+    case 46:
+        return static_cast<int>(CharacterBuff::Bless);
+    case 51:
+        return static_cast<int>(CharacterBuff::Heroism);
+    case 5:
+        return static_cast<int>(CharacterBuff::Haste);
+    case 17:
+        return static_cast<int>(CharacterBuff::Shield);
+    case 38:
+        return static_cast<int>(CharacterBuff::StoneSkin);
+    case 48:
+        return static_cast<int>(CharacterBuff::LuckyDay);
+    case 59:
+        return static_cast<int>(CharacterBuff::Precision);
+    case 73:
+        return static_cast<int>(CharacterBuff::Speed);
+    default:
+        return -1;
     }
 }
 
@@ -332,9 +331,8 @@ public:
     }
 
     [[nodiscard]] bool active(CharacterBuff slot, std::int64_t now) const noexcept {
-        return power(slot, now) > 0 ||
-               (static_cast<std::size_t>(slot) < kCharacterBuffCount &&
-                slots_[static_cast<std::size_t>(slot)].until > now);
+        return power(slot, now) > 0 || (static_cast<std::size_t>(slot) < kCharacterBuffCount &&
+                                        slots_[static_cast<std::size_t>(slot)].until > now);
     }
 
     [[nodiscard]] std::int64_t until(std::size_t slot) const noexcept {

@@ -24,9 +24,8 @@ data::MonsterStatsTable monsters(const char* hp, const char* ac, const char* dam
         "\tPref\tBonus\tType\tDamage\tMiss\tAtt%\tType\tDamage\tMiss\tUse%\tSpells\tFire\tElec"
         "\tCold\tPois\tPhys\tMag\tSpecial\r\n";
     body += std::string("1\tRatA\tCommon Rat\t2\t") + hp + "\t" + ac + "\t24\t" + treasure +
-            "\t0\tN\tMed\tAggress\t4\t200\t100\t0\t0\tCold\t" + damage +
-            "\t0\t100\t0\t0\t0\t" + use_percent + "\t" + spells + "\t0\t0\t" + cold +
-            "\t0\t0\t0\t0\r\n";
+            "\t0\tN\tMed\tAggress\t4\t200\t100\t0\t0\tCold\t" + damage + "\t0\t100\t0\t0\t0\t" +
+            use_percent + "\t" + spells + "\t0\t0\t" + cold + "\t0\t0\t0\t0\r\n";
     data::TextTable table;
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
     data::MonsterStatsTable out;
@@ -442,16 +441,15 @@ namespace {
 // no enchantment chances, so what a kill leaves is exact and the two bonus
 // tables can stay empty.
 data::RandomItemTable random_items() {
-    const std::string body =
-        "Item #\tPic File\t1\t2\t3\t4\t5\t6\r\n"
-        "0\tblank\t0\t0\t0\t0\t0\t0\r\n"
-        "1\tlsword1\t5\t0\t0\t0\t0\t0\r\n"
-        "2\tring1\t5\t0\t0\t0\t0\t0\r\n"
-        "\r\n"
-        "Bonus chance by level %\t\t1\t2\t3\t4\t5\t6\r\n"
-        "\tStandard\t0\t40\t40\t40\t40\t75\r\n"
-        "\tSpecial\t0\t0\t10\t15\t20\t25\r\n"
-        "Weapons\tSpecial %\t0\t0\t10\t20\t30\t50\r\n";
+    const std::string body = "Item #\tPic File\t1\t2\t3\t4\t5\t6\r\n"
+                             "0\tblank\t0\t0\t0\t0\t0\t0\r\n"
+                             "1\tlsword1\t5\t0\t0\t0\t0\t0\r\n"
+                             "2\tring1\t5\t0\t0\t0\t0\t0\r\n"
+                             "\r\n"
+                             "Bonus chance by level %\t\t1\t2\t3\t4\t5\t6\r\n"
+                             "\tStandard\t0\t40\t40\t40\t40\t75\r\n"
+                             "\tSpecial\t0\t0\t10\t15\t20\t25\r\n"
+                             "Weapons\tSpecial %\t0\t0\t10\t20\t30\t50\r\n";
     data::TextTable table;
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
     data::RandomItemTable out;
@@ -599,8 +597,7 @@ TEST_CASE("a caster monster throws its table's own spell", "[combat]") {
     // An immune party takes nothing from the same fire.
     std::array<Character, 4> immune{fighter(), fighter(), fighter(), fighter()};
     for (auto& who : immune) {
-        who.resistances[static_cast<std::size_t>(data::Resistance::Fire)] =
-            data::kResistanceImmune;
+        who.resistances[static_cast<std::size_t>(data::Resistance::Fire)] = data::kResistanceImmune;
     }
     Battle again;
     again.reset(session, table, 9);

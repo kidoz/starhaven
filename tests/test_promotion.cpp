@@ -13,16 +13,14 @@ namespace {
 data::DescriptionTable ladders() {
     std::string body = "\r\nSkill\tDescription\r\n";
     body += "Knight\tThe Knight class is the workhorse fighting class.\r\n";
-    body +=
-        "Cavalier\tCavaliers enjoy the benefit of an extra two hit points per level, and can "
-        "be promoted once more to Champion status.\r\n";
+    body += "Cavalier\tCavaliers enjoy the benefit of an extra two hit points per level, and can "
+            "be promoted once more to Champion status.\r\n";
     body += "Champion\tChampions enjoy the benefit of an extra four hit points per level.\r\n";
     body += "Cleric\tClerics are adventuring, spell casting holy men.\r\n";
     body +=
         "Priest\tPriests enjoy the benefit of an extra hit point and spell point per level.\r\n";
-    body +=
-        "High Priest\tHigh Priests enjoy the benefit of an extra two hit points and spell "
-        "points per level.\r\n";
+    body += "High Priest\tHigh Priests enjoy the benefit of an extra two hit points and spell "
+            "points per level.\r\n";
     data::TextTable table;
     REQUIRE(data::TextTable::parse_body(body, table) == data::TextTableError::None);
     data::DescriptionTable out;
@@ -34,19 +32,20 @@ data::DescriptionTable ladders() {
 }  // namespace
 
 TEST_CASE("a class's own prose states its per-level worth", "[promotion]") {
-    REQUIRE(parse_class_gains("enjoy the benefit of an extra two hit points per level")
-                .hp_per_level == 2);
-    REQUIRE(parse_class_gains("enjoy the benefit of an extra four hit points per level")
-                .hp_per_level == 4);
+    REQUIRE(
+        parse_class_gains("enjoy the benefit of an extra two hit points per level").hp_per_level ==
+        2);
+    REQUIRE(
+        parse_class_gains("enjoy the benefit of an extra four hit points per level").hp_per_level ==
+        4);
     const auto priest =
         parse_class_gains("enjoy the benefit of an extra hit point and spell point per level");
     REQUIRE(priest.hp_per_level == 1);
     REQUIRE(priest.sp_per_level == 1);
-    const auto high =
-        parse_class_gains("an extra two hit points and spell points per level");
+    const auto high = parse_class_gains("an extra two hit points and spell points per level");
     REQUIRE(high.hp_per_level == 0);  // needs the full "benefit of" anchor
-    REQUIRE(parse_class_gains("The Knight class is the workhorse fighting class.")
-                .hp_per_level == 0);
+    REQUIRE(parse_class_gains("The Knight class is the workhorse fighting class.").hp_per_level ==
+            0);
 }
 
 TEST_CASE("an award names its class, honorary names none", "[promotion]") {

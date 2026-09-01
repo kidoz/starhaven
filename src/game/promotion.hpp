@@ -132,8 +132,8 @@ namespace promotion_detail {
             target_at = i;
         }
     }
-    return current_at < rows.size() && target_at < rows.size() &&
-           current_at / 3 == target_at / 3 && target_at > current_at;
+    return current_at < rows.size() && target_at < rows.size() && current_at / 3 == target_at / 3 &&
+           target_at > current_at;
 }
 
 // Step a character up, paying the difference between the target's stated

@@ -259,9 +259,7 @@ inline void count_death(PartyRecord& party, std::set<int>& awards) {
 // personality has no wording for a rung.
 [[nodiscard]] inline int greeting_number(const data::NpcPersonality& personality,
                                          const Standing& standing) {
-    const auto has = [&personality](int number) {
-        return !personality.message(number).empty();
-    };
+    const auto has = [&personality](int number) { return !personality.message(number).empty(); };
     if (standing.fame < kFameWanted && has(6)) {
         return 6;
     }
@@ -318,10 +316,9 @@ talk_to(const world::SessionNpc& person, const data::NpcDialogueTable& dialogue,
 
     // The personality's opening line, and which approaches it entertains.
     if (const auto* personality = personalities.find(person.personality); personality != nullptr) {
-        out.greeting = substitute(
-            data::cp1252_to_utf8(std::string(
-                personality->message(greeting_number(*personality, standing)))),
-            who, words);
+        out.greeting = substitute(data::cp1252_to_utf8(std::string(personality->message(
+                                      greeting_number(*personality, standing)))),
+                                  who, words);
         static constexpr std::array<std::pair<data::NpcApproach, const char*>, 3> kApproaches{
             {{data::NpcApproach::Beg, "beg"},
              {data::NpcApproach::Bribe, "bribe"},

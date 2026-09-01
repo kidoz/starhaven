@@ -20,9 +20,9 @@ struct DecorationFrame {
     std::string group_name;
     // A sprite reference for the frame.
     std::string sprite_name;
-    std::uint16_t flags = 0;       // 0 or 1 on every shipped frame
-    std::uint16_t frame_count = 0; // on a group's first frame, equals the group's length
-    std::uint16_t duration = 0;    // per-frame, in the frame tables' shared unit
+    std::uint16_t flags = 0;        // 0 or 1 on every shipped frame
+    std::uint16_t frame_count = 0;  // on a group's first frame, equals the group's length
+    std::uint16_t duration = 0;     // per-frame, in the frame tables' shared unit
 };
 
 enum class DecorationFrameTableError : std::uint8_t {
@@ -38,7 +38,7 @@ enum class DecorationFrameTableError : std::uint8_t {
 class DecorationFrameTable {
 public:
     [[nodiscard]] static DecorationFrameTableError parse(std::span<const std::byte> entry,
-                                                        DecorationFrameTable& out);
+                                                         DecorationFrameTable& out);
 
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
     [[nodiscard]] const std::vector<DecorationFrame>& entries() const noexcept { return entries_; }

@@ -20,8 +20,8 @@
 namespace starhaven::world {
 
 struct TextureFrame {
-    std::string name;   // a BITMAPS.LOD entry
-    int duration = 0;   // in the frame tables' shared time unit
+    std::string name;  // a BITMAPS.LOD entry
+    int duration = 0;  // in the frame tables' shared time unit
     bool starts = false;
     bool more = false;
 };
@@ -48,8 +48,8 @@ struct TextureAnimation {
 
 // Parse the raw stored entry. Returns the animations in file order; an
 // entry that does not inflate or divide into 20-byte records parses empty.
-[[nodiscard]] inline std::vector<TextureAnimation> parse_texture_frames(
-    std::span<const std::byte> entry) {
+[[nodiscard]] inline std::vector<TextureAnimation>
+parse_texture_frames(std::span<const std::byte> entry) {
     std::vector<TextureAnimation> out;
     if (entry.size() < 48) {
         return out;

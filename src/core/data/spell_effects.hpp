@@ -145,8 +145,8 @@ namespace detail {
     if (out.heal.empty()) {
         for (const std::string_view phrase : {"cures ", "character of ", "heals "}) {
             out.heal = range_after(text, phrase);
-            if (!out.heal.empty() && find_ignoring_case(text, "hit point") !=
-                                         std::string_view::npos) {
+            if (!out.heal.empty() &&
+                find_ignoring_case(text, "hit point") != std::string_view::npos) {
                 break;
             }
             out.heal = {};
@@ -175,9 +175,8 @@ namespace detail {
     if (find_ignoring_case(text, "damage") == std::string_view::npos) {
         return out;
     }
-    const std::size_t per_skill =
-        std::min(find_ignoring_case(text, "per point of skill"),
-                 find_ignoring_case(text, "per skill point"));
+    const std::size_t per_skill = std::min(find_ignoring_case(text, "per point of skill"),
+                                           find_ignoring_case(text, "per skill point"));
     for (const std::string_view phrase : {"does ", "damage is ", "damage is equal to "}) {
         std::size_t end = 0;
         const SpellRange flat = range_after(text, phrase, &end);
@@ -214,9 +213,7 @@ struct SpellCure {
     bool disease = false;
     std::string affliction;  // the column's spelling, e.g. "Affraid"
 
-    [[nodiscard]] bool empty() const noexcept {
-        return !poison && !disease && affliction.empty();
-    }
+    [[nodiscard]] bool empty() const noexcept { return !poison && !disease && affliction.empty(); }
 };
 
 [[nodiscard]] inline SpellCure parse_spell_cure(const SpellStatsEntry& spell) {
@@ -307,8 +304,7 @@ struct SpellDuration {
     return out;
 }
 
-[[nodiscard]] inline SpellDuration parse_spell_duration(const SpellStatsEntry& spell,
-                                                        int mastery) {
+[[nodiscard]] inline SpellDuration parse_spell_duration(const SpellStatsEntry& spell, int mastery) {
     using detail::find_ignoring_case;
 
     const std::string_view rank = mastery >= 2   ? spell.master

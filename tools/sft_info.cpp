@@ -10,14 +10,14 @@
 #include <vector>
 
 #include "core/image/palette.hpp"
-#include "core/image/zlib_util.hpp"
 #include "core/image/sprite.hpp"
+#include "core/image/zlib_util.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/monster_list.hpp"
-#include "core/world/texture_frame_table.hpp"
 #include "core/world/sound_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
+#include "core/world/texture_frame_table.hpp"
 
 namespace {
 
@@ -267,8 +267,8 @@ int do_sounds(const lod::LodArchive& icons) {
         return 1;
     }
     std::vector<std::uint8_t> inflated;
-    if (raw.size() < 48 ||
-        !starhaven::image::detail::inflate_all(raw.subspan(48), inflated) || inflated.size() < 4) {
+    if (raw.size() < 48 || !starhaven::image::detail::inflate_all(raw.subspan(48), inflated) ||
+        inflated.size() < 4) {
         std::cerr << "error: could not inflate DMONLIST.BIN\n";
         return 1;
     }
@@ -309,8 +309,8 @@ int do_sounds(const lod::LodArchive& icons) {
         resolve += sounds.find(static_cast<std::uint32_t>(value)) != nullptr ? 1 : 0;
         in_block += value >= 1000 && value < 1570 ? 1 : 0;
     }
-    std::cout << "at +0x8 across all " << count << ": " << resolve
-              << " are DSOUNDS ids, " << in_block << " sit inside the monster block\n";
+    std::cout << "at +0x8 across all " << count << ": " << resolve << " are DSOUNDS ids, "
+              << in_block << " sit inside the monster block\n";
     return 0;
 }
 
@@ -361,10 +361,10 @@ int do_body(const lod::LodArchive& icons) {
                       << m.sounds[1] << " " << m.sounds[2] << " " << m.sounds[3] << "\n";
         }
     }
-    std::cout << "heights " << height_low << ".." << height_high << ", radii " << radius_low
-              << ".." << radius_high << " across " << monsters.size() << "\n";
-    std::cout << "+0x04 is 140 on " << const140 << ", +0x06 zero on " << zero6
-              << ", tail zero on " << zero_tail << "\n";
+    std::cout << "heights " << height_low << ".." << height_high << ", radii " << radius_low << ".."
+              << radius_high << " across " << monsters.size() << "\n";
+    std::cout << "+0x04 is 140 on " << const140 << ", +0x06 zero on " << zero6 << ", tail zero on "
+              << zero_tail << "\n";
     std::cout << consecutive << " sound quads are consecutive; the rest are printed above\n";
     return 0;
 }

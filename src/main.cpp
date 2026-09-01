@@ -37,36 +37,36 @@
 #include "core/world/texture_frame_table.hpp"
 #include "game/ambient_mixer.hpp"
 #include "game/body_magic.hpp"
-#include "game/spell_damage.hpp"
-#include "game/special_stats.hpp"
-#include "game/spell_switch.hpp"
 #include "game/buffs.hpp"
-#include "game/spirit_mind_light.hpp"
 #include "game/clock.hpp"
-#include "game/fire_dark.hpp"
 #include "game/combat.hpp"
 #include "game/conversation.hpp"
 #include "game/daylight.hpp"
 #include "game/enchant.hpp"
+#include "game/fire_dark.hpp"
 #include "game/hire.hpp"
 #include "game/inspect.hpp"
 #include "game/install_prompt.hpp"
-#include "game/inventory.hpp"
 #include "game/interiors.hpp"
+#include "game/inventory.hpp"
 #include "game/launches.hpp"
 #include "game/loading_plan.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/new_game.hpp"
 #include "game/party.hpp"
-#include "game/promotion.hpp"
 #include "game/player.hpp"
+#include "game/promotion.hpp"
 #include "game/rest.hpp"
 #include "game/save.hpp"
 #include "game/save_repository.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/skills.hpp"
+#include "game/special_stats.hpp"
+#include "game/spell_damage.hpp"
+#include "game/spell_switch.hpp"
+#include "game/spirit_mind_light.hpp"
 #include "game/sprites.hpp"
 #include "game/startup_flow.hpp"
 #include "game/startup_media.hpp"
@@ -224,16 +224,18 @@ void draw_sky(render::SceneRenderer& scene, assets::AssetCache& cache,
     for (int y = 0; y < kHeight; ++y) {
         // The row's world pitch: negative looks above the horizon.
         const float row = (static_cast<float>(y) / kHeight - 0.5f) * kFov + pitch;
-        const int tv = ((static_cast<int>((row + 1.6f) * static_cast<float>(th) * 0.6f) % th) +
-                        th) % th;
+        const int tv =
+            ((static_cast<int>((row + 1.6f) * static_cast<float>(th) * 0.6f) % th) + th) % th;
         for (int x = 0; x < kWidth; ++x) {
             const float column = yaw + (static_cast<float>(x) / kWidth - 0.5f) * kFov;
             const int tu =
-                ((static_cast<int>(column / 6.2832f * static_cast<float>(tw) * 4.0f) % tw) +
-                 tw) % tw;
+                ((static_cast<int>(column / 6.2832f * static_cast<float>(tw) * 4.0f) % tw) + tw) %
+                tw;
             const auto si = (static_cast<std::size_t>(tv) * static_cast<std::size_t>(tw) +
-                             static_cast<std::size_t>(tu)) * 4;
-            const auto di = (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
+                             static_cast<std::size_t>(tu)) *
+                            4;
+            const auto di =
+                (static_cast<std::size_t>(y) * kWidth + static_cast<std::size_t>(x)) * 4;
             pixels[di] = static_cast<std::uint8_t>(static_cast<float>(source[si]) * level);
             pixels[di + 1] = static_cast<std::uint8_t>(static_cast<float>(source[si + 1]) * level);
             pixels[di + 2] = static_cast<std::uint8_t>(static_cast<float>(source[si + 2]) * level);
@@ -568,8 +570,8 @@ void draw_book(render::SceneRenderer& scene, const image::Font& font, assets::As
                             render::Color{70, 45, 20, 255}, render::Color{0, 0, 0, 0});
         }
         game::draw_text(scene.framebuffer(), font, x, y + 54,
-                        data::cp1252_to_utf8(page[i]->short_name),
-                        render::Color{80, 55, 25, 255}, render::Color{0, 0, 0, 0});
+                        data::cp1252_to_utf8(page[i]->short_name), render::Color{80, 55, 25, 255},
+                        render::Color{0, 0, 0, 0});
         if (static_cast<int>(i) == pick) {
             box(x - 3, y - 3, 100, 60, render::Color{170, 120, 30, 255});
         }
@@ -627,8 +629,8 @@ void draw_map_eyes(const world::MapSession& session, const game::Battle& battle,
 
 void draw_map_page(render::SceneRenderer& scene, const world::MapSession& session,
                    const render::Vec3& party, const render::Vec3& forward,
-                   std::array<render::Color, 256>& tile_colors, bool& colors_ready,
-                   int eye_rank, const game::Battle& battle) {
+                   std::array<render::Color, 256>& tile_colors, bool& colors_ready, int eye_rank,
+                   const game::Battle& battle) {
     auto pixels = scene.framebuffer().color();
     const auto put = [&](int x, int y, render::Color c) {
         if (x < 8 || x >= 468 || y < 8 || y >= 352) {
@@ -697,8 +699,7 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
         const int top = 8 + (344 - dim * kCell) / 2;
         for (int gz = 0; gz < dim; ++gz) {
             for (int gx = 0; gx < dim; ++gx) {
-                const auto tile =
-                    session.terrain.tilemap[static_cast<std::size_t>(gz) * dim + gx];
+                const auto tile = session.terrain.tilemap[static_cast<std::size_t>(gz) * dim + gx];
                 const render::Color c = tile_colors[tile];
                 const int x = left + gx * kCell;
                 const int y = top + (dim - 1 - gz) * kCell;
@@ -712,11 +713,11 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
         const render::TerrainScale scale{};
         const float half = (dim - 1) * scale.cell_size * 0.5f;
         const auto to_screen = [&](const render::Vec3& at, int& sx, int& sy) {
-            sx = left + static_cast<int>((at.x + half) / scale.cell_size *
-                                         static_cast<float>(kCell));
-            sy = top + static_cast<int>((static_cast<float>(dim) - 1.0f -
-                                         (at.z + half) / scale.cell_size) *
-                                        static_cast<float>(kCell));
+            sx = left +
+                 static_cast<int>((at.x + half) / scale.cell_size * static_cast<float>(kCell));
+            sy = top + static_cast<int>(
+                           (static_cast<float>(dim) - 1.0f - (at.z + half) / scale.cell_size) *
+                           static_cast<float>(kCell));
         };
         draw_map_eyes(session, battle, eye_rank, to_screen, put);
         px = static_cast<float>(left) + (party.x + half) / scale.cell_size * kCell;
@@ -775,8 +776,8 @@ void draw_map_page(render::SceneRenderer& scene, const world::MapSession& sessio
             put(ax + ox, ay + oy, {235, 60, 40, 255});
         }
     }
-    line(ax, ay, ax + static_cast<int>(heading_x * 9.0f),
-         ay - static_cast<int>(heading_z * 9.0f), {235, 60, 40, 255});
+    line(ax, ay, ax + static_cast<int>(heading_x * 9.0f), ay - static_cast<int>(heading_z * 9.0f),
+         {235, 60, 40, 255});
 }
 
 void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
@@ -787,8 +788,7 @@ void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
 // characters at 86, 180, 274 and 368 — with the party read across at a
 // glance. `observed` for the columns, `inferred` for which rows to show.
 void draw_quick_reference(render::SceneRenderer& scene, const image::Font& font,
-                          assets::AssetCache& cache,
-                          const std::array<game::Character, 4>& party,
+                          assets::AssetCache& cache, const std::array<game::Character, 4>& party,
                           const data::DescriptionTable& stats, int gold, int food) {
     if (font.glyph_count() == 0) {
         return;
@@ -818,18 +818,17 @@ void draw_quick_reference(render::SceneRenderer& scene, const image::Font& font,
     const auto row = [&](const std::string& label, auto value) {
         game::draw_text(scene.framebuffer(), font, 26, y, label, dim, shadow);
         for (std::size_t i = 0; i < party.size(); ++i) {
-            game::draw_text(scene.framebuffer(), font, 8 + kColumns[i], y, value(party[i]),
-                            white, shadow);
+            game::draw_text(scene.framebuffer(), font, 8 + kColumns[i], y, value(party[i]), white,
+                            shadow);
         }
         y += line;
     };
     row("Class", [](const game::Character& who) { return who.class_name; });
     row("Level", [](const game::Character& who) { return std::to_string(who.level); });
     for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
-        row(std::string(game::stat_label(stats, a)).substr(0, 8),
-            [a](const game::Character& who) {
-                return std::to_string(who.attribute(static_cast<game::Attribute>(a)));
-            });
+        row(std::string(game::stat_label(stats, a)).substr(0, 8), [a](const game::Character& who) {
+            return std::to_string(who.attribute(static_cast<game::Attribute>(a)));
+        });
     }
     row("Hits", [](const game::Character& who) {
         return std::to_string(who.hit_points) + "/" + std::to_string(who.max_hit_points);
@@ -846,9 +845,8 @@ void draw_quick_reference(render::SceneRenderer& scene, const image::Font& font,
 }
 
 // The options the engine actually has to offer, on the game's own panel.
-void draw_options(render::SceneRenderer& scene, const image::Font& font,
-                  assets::AssetCache& cache, int scale, bool fullscreen, bool turn_based,
-                  bool always_run, bool loud_music) {
+void draw_options(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                  int scale, bool fullscreen, bool turn_based, bool always_run, bool loud_music) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -920,9 +918,8 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
     if (page != 2) {
         blit(scene.framebuffer(), cache.icon(kPages[static_cast<std::size_t>(page)]), 8, 100);
     }
-    blit(scene.framebuffer(), cache.icon(game::portrait_entry(
-                                  who.face, game::portrait_frame_of(who, false))),
-         24, 28);
+    blit(scene.framebuffer(),
+         cache.icon(game::portrait_entry(who.face, game::portrait_frame_of(who, false))), 24, 28);
     game::draw_text(scene.framebuffer(), font, 100, 30, who.name, white, shadow);
     game::draw_text(scene.framebuffer(), font, 100, 30 + line,
                     who.class_name + ", level " + std::to_string(who.level), dim, shadow);
@@ -1025,8 +1022,8 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
             // print it raw, so a master's five points read as 133.
             const int points = game::skill_points(packed);
             const int rank = game::skill_rank(packed);
-            std::string label = (numbered <= 9 ? std::to_string(numbered) + "  " : "   ") +
-                                skill + "  " + std::to_string(points) + " " +
+            std::string label = (numbered <= 9 ? std::to_string(numbered) + "  " : "   ") + skill +
+                                "  " + std::to_string(points) + " " +
                                 std::string(game::kRankNames[static_cast<std::size_t>(rank)]) +
                                 "  (raise for " + std::to_string(game::raise_cost(points)) + ")";
             if (rank < 2) {
@@ -1059,8 +1056,8 @@ void draw_sheet(render::SceneRenderer& scene, const image::Font& font, assets::A
                 game::draw_text(scene.framebuffer(), font, 32, y, "...", dim, shadow);
                 break;
             }
-            game::draw_text(scene.framebuffer(), font, 32, y, data::cp1252_to_utf8(row.text),
-                            dim, shadow);
+            game::draw_text(scene.framebuffer(), font, 32, y, data::cp1252_to_utf8(row.text), dim,
+                            shadow);
             y += line;
         }
         if (earned.empty()) {
@@ -1084,15 +1081,15 @@ void draw_party_strip(render::SceneRenderer& scene, assets::AssetCache& cache,
         const int frame = game::portrait_frame_of(who, wincing[i]);
         blit(scene.framebuffer(), cache.icon(game::portrait_entry(who.face, frame)), left, 361);
         if (who.max_hit_points > 0) {
-            const float hits = std::clamp(
-                static_cast<float>(who.hit_points) / static_cast<float>(who.max_hit_points),
-                0.0f, 1.0f);
+            const float hits = std::clamp(static_cast<float>(who.hit_points) /
+                                              static_cast<float>(who.max_hit_points),
+                                          0.0f, 1.0f);
             blit_gauge(scene.framebuffer(), cache.icon("HITSFULL"), left - 8, 361, hits);
         }
         if (who.max_spell_points > 0) {
-            const float mana = std::clamp(
-                static_cast<float>(who.spell_points) / static_cast<float>(who.max_spell_points),
-                0.0f, 1.0f);
+            const float mana = std::clamp(static_cast<float>(who.spell_points) /
+                                              static_cast<float>(who.max_spell_points),
+                                          0.0f, 1.0f);
             blit_gauge(scene.framebuffer(), cache.icon("MANAFULL"), left + 65, 361, mana);
         }
     }
@@ -1104,10 +1101,10 @@ void draw_party_strip(render::SceneRenderer& scene, assets::AssetCache& cache,
 // The seats sit at x 17, 176, 334 and 493, measured from the art. The
 // twelve portraits, the six base classes and the names are the game's
 // own; the rolled numbers are this engine's and the sheet says so.
-void draw_creation(render::SceneRenderer& scene, const image::Font& font,
-                   assets::AssetCache& cache, const std::array<game::Character, 4>& party,
-                   int slot, const data::DescriptionTable& stats,
-                   const data::DescriptionTable& classes, std::string_view message) {
+void draw_creation(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                   const std::array<game::Character, 4>& party, int slot,
+                   const data::DescriptionTable& stats, const data::DescriptionTable& classes,
+                   std::string_view message) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1218,9 +1215,9 @@ void draw_save_selection(render::SceneRenderer& scene, const image::Font& font,
                 label += "  -  " + slot.map_file;
             }
         }
-        const render::Color color = slot.loadable() ? white
+        const render::Color color = slot.loadable()                              ? white
                                     : slot.status == game::SaveSlotStatus::Empty ? dim
-                                                                                : warning;
+                                                                                 : warning;
         game::draw_text(scene.framebuffer(), font, 58, y, label, color, shadow);
     }
     draw_border(scene.framebuffer(), 390, 392, 92, 31, mark);
@@ -1362,9 +1359,7 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
             for (std::size_t r = 0; r < depth && y < kHeight - line * 3; ++r) {
                 std::string across;
                 for (const auto& column : columns) {
-                    across += column.empty() ? '?'
-                              : r < column.size() ? column[r]
-                                                  : ' ';
+                    across += column.empty() ? '?' : r < column.size() ? column[r] : ' ';
                 }
                 game::draw_text(scene.framebuffer(), font, 24, y, across, white, shadow);
                 y += line - 2;
@@ -1406,8 +1401,8 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
         }
     }
     if (noted == 0) {
-        game::draw_text(scene.framebuffer(), font, 24, y, "Nothing is asked of the party yet.",
-                        dim, shadow);
+        game::draw_text(scene.framebuffer(), font, 24, y, "Nothing is asked of the party yet.", dim,
+                        shadow);
         y += line * 2;
     }
     if (!earned.empty() && y < kHeight - line * 4) {
@@ -1418,8 +1413,8 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
             if (!earned.contains(row.bit) || !row.has_text() || y >= kHeight - line * 2 - 8) {
                 continue;
             }
-            game::draw_text(scene.framebuffer(), font, 32, y, data::cp1252_to_utf8(row.text),
-                            dim, shadow);
+            game::draw_text(scene.framebuffer(), font, 32, y, data::cp1252_to_utf8(row.text), dim,
+                            shadow);
             y += line;
         }
     }
@@ -1477,8 +1472,8 @@ void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
         // the shoulder line. The rule is calibrated by eye. `inferred`
         const std::string stem = armor->picture.substr(0, armor->picture.size() - 4);
         const render::Texture& torso = cache.icon(stem + "bod");
-        blit(scene.framebuffer(), torso,
-             kBodyLeft + (114 - static_cast<int>(torso.width())) / 2, kBodyTop + 60);
+        blit(scene.framebuffer(), torso, kBodyLeft + (114 - static_cast<int>(torso.width())) / 2,
+             kBodyTop + 60);
     }
 
     for (const int id : who.equipped) {
@@ -1490,7 +1485,6 @@ void draw_doll(render::SceneRenderer& scene, assets::AssetCache& cache,
             blit(scene.framebuffer(), cache.icon(row->picture), row->equip_x, row->equip_y);
         }
     }
-
 }
 
 void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
@@ -1553,12 +1547,13 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         const int px = kLeft + cursor_x * game::kCellSize;
         const int py = kTop + cursor_y * game::kCellSize;
         for (int d = 0; d < game::kCellSize; ++d) {
-            for (const auto [ex, ey] : {std::pair{px + d, py}, {px + d, py + game::kCellSize},
-                                        {px, py + d}, {px + game::kCellSize, py + d}}) {
+            for (const auto [ex, ey] : {std::pair{px + d, py},
+                                        {px + d, py + game::kCellSize},
+                                        {px, py + d},
+                                        {px + game::kCellSize, py + d}}) {
                 if (ex >= 0 && ex < kWidth && ey >= 0 && ey < kHeight) {
                     const auto i =
-                        (static_cast<std::size_t>(ey) * kWidth + static_cast<std::size_t>(ex)) *
-                        4;
+                        (static_cast<std::size_t>(ey) * kWidth + static_cast<std::size_t>(ex)) * 4;
                     pixels[i] = 230;
                     pixels[i + 1] = 220;
                     pixels[i + 2] = 150;
@@ -1573,8 +1568,8 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
                         ? data::cp1252_to_utf8(row->name)
                         : data::cp1252_to_utf8(row->unidentified_name) + " (unidentified)";
                 if (sale_offer >= 0) {
-                    line += "   the counter pays " + std::to_string(sale_offer) +
-                            " gold, S sells";
+                    line +=
+                        "   the counter pays " + std::to_string(sale_offer) + " gold, S sells";
                 }
                 game::draw_text(scene.framebuffer(), font, kLeft + 200, 24, line, white, shadow);
             }
@@ -1614,17 +1609,17 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
         if (row == nullptr) {
             continue;
         }
-        game::draw_text(scene.framebuffer(), font, kLeft + game::kPackWidth * game::kCellSize + 12,
-                        worn_y,
-                        std::string(game::slot_name(static_cast<game::Slot>(i))) + ": " +
-                            data::cp1252_to_utf8(row->name) +
-                            (who.equipped_broken[i] ? " (broken)" : ""),
-                        white, shadow);
+        game::draw_text(
+            scene.framebuffer(), font, kLeft + game::kPackWidth * game::kCellSize + 12, worn_y,
+            std::string(game::slot_name(static_cast<game::Slot>(i))) + ": " +
+                data::cp1252_to_utf8(row->name) + (who.equipped_broken[i] ? " (broken)" : ""),
+            white, shadow);
         worn_y += font.height() + 1;
     }
 
     game::draw_text(scene.framebuffer(), font, kLeft, kHeight - font.height() - 8,
-                    "arrows choose, E wears, U drinks, M mixes from the chosen cell, I closes", dim, shadow);
+                    "arrows choose, E wears, U drinks, M mixes from the chosen cell, I closes", dim,
+                    shadow);
 }
 
 // A temple's counter: the two verbs its margin notes name, at its own Val.
@@ -1632,8 +1627,8 @@ void draw_pack(render::SceneRenderer& scene, const image::Font& font, assets::As
 // marble panel on the left with the establishment's name, trade and
 // proprietor written down it, and the footer strip carrying the keys.
 // The words keep to the panel's right.
-void dress_service(render::SceneRenderer& scene, const image::Font& font,
-                   assets::AssetCache& cache, const data::BuildingStatsEntry& shop) {
+void dress_service(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                   const data::BuildingStatsEntry& shop) {
     auto pixels = scene.framebuffer().color();
     for (int y = 0; y < kHeight; ++y) {
         for (int x = 0; x < kWidth; ++x) {
@@ -1681,11 +1676,9 @@ void dress_service(render::SceneRenderer& scene, const image::Font& font,
     blit(scene.framebuffer(), cache.icon("FOOTER"), 0, kHeight - 24);
 }
 
-void draw_temple(render::SceneRenderer& scene, const image::Font& font,
-                assets::AssetCache& cache,
-                 const data::BuildingStatsEntry& shop,
-                 const std::array<game::Character, 4>& party, int gold,
-                 const std::string& said) {
+void draw_temple(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                 const data::BuildingStatsEntry& shop, const std::array<game::Character, 4>& party,
+                 int gold, const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1744,8 +1737,7 @@ void draw_temple(render::SceneRenderer& scene, const image::Font& font,
 }
 
 // A bank's counter: the balance, and the sheet's own two verbs.
-void draw_bank(render::SceneRenderer& scene, const image::Font& font,
-                assets::AssetCache& cache,
+void draw_bank(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                const data::BuildingStatsEntry& shop, int gold, int balance,
                const std::string& said) {
     if (font.glyph_count() == 0) {
@@ -1780,11 +1772,9 @@ void draw_bank(render::SceneRenderer& scene, const image::Font& font,
 }
 
 // A training hall's counter: who can train, to what, and for how much.
-void draw_training(render::SceneRenderer& scene, const image::Font& font,
-                assets::AssetCache& cache,
+void draw_training(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                    const data::BuildingStatsEntry& shop,
-                   const std::array<game::Character, 4>& party, int gold,
-                   const std::string& said) {
+                   const std::array<game::Character, 4>& party, int gold, const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1804,8 +1794,8 @@ void draw_training(render::SceneRenderer& scene, const image::Font& font,
     for (std::size_t i = 0; i < party.size(); ++i) {
         const auto& who = party[i];
         const game::TrainingOffer offer = game::training_offer(shop, who);
-        std::string text = std::to_string(i + 1) + "  " + who.name + " \x97 level " +
-                           std::to_string(who.level);
+        std::string text =
+            std::to_string(i + 1) + "  " + who.name + " \x97 level " + std::to_string(who.level);
         bool ready = false;
         if (offer.to_level == 0) {
             text += ", beyond this hall";
@@ -1830,11 +1820,9 @@ void draw_training(render::SceneRenderer& scene, const image::Font& font,
 }
 
 // A travel counter: where the rides go, when they leave, and the fare.
-void draw_travel(render::SceneRenderer& scene, const image::Font& font,
-                assets::AssetCache& cache,
-                 const data::BuildingStatsEntry& shop,
-                 const std::vector<game::TravelRoute>& routes, int fare,
-                 const game::GameClock& clock, int gold, const std::string& said) {
+void draw_travel(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
+                 const data::BuildingStatsEntry& shop, const std::vector<game::TravelRoute>& routes,
+                 int fare, const game::GameClock& clock, int gold, const std::string& said) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1860,8 +1848,8 @@ void draw_travel(render::SceneRenderer& scene, const image::Font& font,
                 text += " " + std::string(kShortDays[d]);
             }
         }
-        text += ", " + std::to_string(route.days) +
-                (route.days == 1 ? " day, " : " days, ") + std::to_string(fare) + " gold";
+        text += ", " + std::to_string(route.days) + (route.days == 1 ? " day, " : " days, ") +
+                std::to_string(fare) + " gold";
         if (route.leaves_on(clock.day())) {
             text += "  (leaves today)";
         }
@@ -1885,8 +1873,7 @@ void draw_travel(render::SceneRenderer& scene, const image::Font& font,
 
 // A shop's counter: what it has, what it wants for it, and what the
 // shopkeeper says about the state of your purse.
-void draw_shop(render::SceneRenderer& scene, const image::Font& font,
-                assets::AssetCache& cache,
+void draw_shop(render::SceneRenderer& scene, const image::Font& font, assets::AssetCache& cache,
                const data::BuildingStatsEntry& shop, const std::vector<game::StockItem>& stock,
                const data::ItemStatsTable& items, const data::MerchantTextTable& words, int gold,
                const std::string& said, int pick) {
@@ -1948,8 +1935,8 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
         }
     }
     if (!stock.empty() && pick >= 0 && static_cast<std::size_t>(pick) < shown) {
-        if (const auto* row = items.at(static_cast<std::size_t>(
-                stock[static_cast<std::size_t>(pick)].item_id));
+        if (const auto* row =
+                items.at(static_cast<std::size_t>(stock[static_cast<std::size_t>(pick)].item_id));
             row != nullptr) {
             game::draw_text(scene.framebuffer(), font, 190, y,
                             data::cp1252_to_utf8(row->name) + "  " +
@@ -1964,8 +1951,8 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
 
     // The shopkeeper's own words, from Merchant.txt.
     if (!said.empty()) {
-        game::draw_text(scene.framebuffer(), font, 36, 330, said,
-                        render::Color{235, 225, 170, 255}, shadow);
+        game::draw_text(scene.framebuffer(), font, 36, 330, said, render::Color{235, 225, 170, 255},
+                        shadow);
     }
     game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                     "arrows pick, Enter buys, 1-9 too, S sell, F repair, T talk, B closes", dim,
@@ -1980,8 +1967,7 @@ void draw_shop(render::SceneRenderer& scene, const image::Font& font,
 // no row keeps the panel and goes faceless, honestly.
 void draw_conversation(render::SceneRenderer& scene, const image::Font& font,
                        assets::AssetCache& cache, int npc_id, const game::Conversation& talk,
-                       const std::string& answer,
-                       const data::BuildingStatsEntry* shop = nullptr) {
+                       const std::string& answer, const data::BuildingStatsEntry* shop = nullptr) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -2289,25 +2275,25 @@ void draw_boxes(render::SceneRenderer& scene, const world::MapSession& session) 
 int main(int argc, char** argv) {
     std::string map_name;
     std::string screenshot;
-    int open_sheet = 0;   // 1-4 to start with that character's sheet open
-    int open_pack = 0;    // and the same for the inventory
-    int start_hour = -1;  // --time, for looking at the world at a given hour
-    int start_shop = 0;   // --shop, to open a counter straight away
-    int walk_on_start = -1;  // a map event to use on startup, for reproducing traps
+    int open_sheet = 0;           // 1-4 to start with that character's sheet open
+    int open_pack = 0;            // and the same for the inventory
+    int start_hour = -1;          // --time, for looking at the world at a given hour
+    int start_shop = 0;           // --shop, to open a counter straight away
+    int walk_on_start = -1;       // a map event to use on startup, for reproducing traps
     int smoke_mode = 0;           // --smoke-new / --smoke-load: the acceptance journey
     int smoke_event = -1;         // --smoke-event N: one map event to use during the run
-    bool force_create = false;  // --create: the party door, even under --screenshot
-    bool start_journal = false;  // --journal: open the journal at once
-    bool start_book = false;     // --book: open the spell book at once
-    bool start_map = false;      // --map: open the maps page at once
-    bool start_title = false;    // --title: hold the title screen for a capture
-    bool start_rest = false;     // --rest: open the campfire for a capture
+    bool force_create = false;    // --create: the party door, even under --screenshot
+    bool start_journal = false;   // --journal: open the journal at once
+    bool start_book = false;      // --book: open the spell book at once
+    bool start_map = false;       // --map: open the maps page at once
+    bool start_title = false;     // --title: hold the title screen for a capture
+    bool start_rest = false;      // --rest: open the campfire for a capture
     bool start_quickref = false;  // --quickref: open the party at a glance
-    int window_scale = 2;        // --scale N: the window's integer multiple
-    bool fullscreen = false;     // F11 flips it
-    bool start_eye = false;      // --eye: Wizard Eye lit at master, for reproducing
-    int walk_from = -1;      // walk the next event from this sequence, not the top
-    int ask_event = -1;      // the event whose question awaits an answer
+    int window_scale = 2;         // --scale N: the window's integer multiple
+    bool fullscreen = false;      // F11 flips it
+    bool start_eye = false;       // --eye: Wizard Eye lit at master, for reproducing
+    int walk_from = -1;           // walk the next event from this sequence, not the top
+    int ask_event = -1;           // the event whose question awaits an answer
     game::WalkOutcome::Ask ask_pending;
     std::string ask_typed;
     bool show_boxes = false;
@@ -2436,11 +2422,10 @@ int main(int argc, char** argv) {
     }
 
     const std::filesystem::path install_root = install_resolution.validation.install.root;
-    const std::filesystem::path data_dir =
-        install_resolution.validation.install.data_directory;
+    const std::filesystem::path data_dir = install_resolution.validation.install.data_directory;
     const std::filesystem::path games_lod = data_dir / "Games.lod";
-    std::cout << "MM6 installation: "
-              << platform::install_source_name(install_resolution.source) << "\n";
+    std::cout << "MM6 installation: " << platform::install_source_name(install_resolution.source)
+              << "\n";
     if (list_only) {
         return list_maps(data_dir);
     }
@@ -2449,9 +2434,8 @@ int main(int argc, char** argv) {
     if (smoke_mode != 0) {
         movies_wanted = false;
     }
-    const bool interactive_startup =
-        screenshot.empty() && bench_frames == 0 && walk_on_start < 0 && start_shop == 0 &&
-        open_sheet == 0 && open_pack == 0;
+    const bool interactive_startup = screenshot.empty() && bench_frames == 0 && walk_on_start < 0 &&
+                                     start_shop == 0 && open_sheet == 0 && open_pack == 0;
     const bool starts_in_world = !start_title && !force_create && !interactive_startup;
     // With no map named, the game opens where the game opens. `0x453ea0`
     // names `"oute3.odm"` and places the party in the same breath, so a bare
@@ -2486,8 +2470,7 @@ int main(int argc, char** argv) {
     // reel independently; --no-movies reaches the same title state without
     // changing party, save, or map data.
     if (interactive_startup && !start_title && !force_create && movies_wanted) {
-        const game::OpeningMediaResult opening =
-            game::play_opening_media(cache, window_scale);
+        const game::OpeningMediaResult opening = game::play_opening_media(cache, window_scale);
         if (opening == game::OpeningMediaResult::Quit) {
             return 0;
         }
@@ -2784,11 +2767,11 @@ int main(int argc, char** argv) {
     // of them skips the door. One explicit flow now owns the opening movies,
     // title, creation hall and the point at which the world becomes active.
     const bool wants_creation = force_create || interactive_startup;
-    const game::StartupState initial_startup_state =
-        start_title                   ? game::StartupState::Title
-        : force_create                ? game::StartupState::PartyCreation
-        : wants_creation              ? game::StartupState::Title
-                                      : game::StartupState::Playing;
+    const game::StartupState initial_startup_state = start_title ? game::StartupState::Title
+                                                     : force_create
+                                                         ? game::StartupState::PartyCreation
+                                                     : wants_creation ? game::StartupState::Title
+                                                                      : game::StartupState::Playing;
     game::StartupFlow startup{initial_startup_state};
     if (!startup.world_active() && mouse_look) {
         SDL_SetWindowRelativeMouseMode(window, false);
@@ -2802,7 +2785,7 @@ int main(int argc, char** argv) {
     std::string creation_message;
     std::array<game::Pack, 4> packs;
     int shown_member = open_sheet >= 1 && open_sheet <= 4 ? open_sheet - 1 : -1;
-    int sheet_page = 0;  // which of the sheet's four framed pages shows
+    int sheet_page = 0;    // which of the sheet's four framed pages shows
     int journal_page = 0;  // 0 the quests, 1 the chronicle
     bool show_quickref = start_quickref;
     bool show_options = false;
@@ -2810,10 +2793,10 @@ int main(int argc, char** argv) {
     // waves and purses in the executable, so every number here — the four
     // ranks' level bands, counts and prizes — is this engine's own and
     // says so. The counter awards 84..87 are the table's.
-    int arena_rank = -1;   // -1 no challenge; 0..3 Page..Lord
+    int arena_rank = -1;  // -1 no challenge; 0..3 Page..Lord
     Mm6Random arena_random{20260730};
-    int water_phase = -1;  // last baked step of the sea's palette ring
-    std::int64_t sky_day = -1;      // the day the sky was last rolled
+    int water_phase = -1;       // last baked step of the sea's palette ring
+    std::int64_t sky_day = -1;  // the day the sky was last rolled
     std::string sky_today = "sky01";
     // The bounty board, rebuilt engine-side: the original kept its posting
     // and purse in the executable, so the month's length (28 days), the
@@ -2853,8 +2836,8 @@ int main(int argc, char** argv) {
     for (const auto& map : map_stats.entries()) {
         save_maps.push_back({map.file_name, data::cp1252_to_utf8(map.name)});
     }
-    const game::SaveRepository saves{
-        settings_directory.value_or(std::filesystem::path{"."}), std::move(save_maps), "."};
+    const game::SaveRepository saves{settings_directory.value_or(std::filesystem::path{"."}),
+                                     std::move(save_maps), "."};
     auto save_slots = saves.inspect_all();
     int title_focus = 0;
     std::string save_selection_message;
@@ -2870,7 +2853,7 @@ int main(int argc, char** argv) {
     // Food rations, the counter quest events give to and take from and a
     // camp eats.
     int party_food = game::kStartingFood;
-    int bank_gold = 0;  // what the vault keeps; no table pays interest
+    int bank_gold = 0;   // what the vault keeps; no table pays interest
     int open_shop = -1;  // an index into shops_here, or none
     int shop_pick = 0;   // which shelf cell the gold border holds
     std::vector<game::StockItem> shop_stock;
@@ -2878,7 +2861,7 @@ int main(int argc, char** argv) {
     std::set<int> opened_chests;  // a chest gives up its contents once
 
     std::int64_t last_poison_hour = 0;  // when poison last gnawed
-    std::int64_t last_hire_day = 0;  // when the followers last did their daily work
+    std::int64_t last_hire_day = 0;     // when the followers last did their daily work
 
     // A die for what is neither combat's nor a map's: potion explosions.
     Mm6Random misc_random{0xA1C4E317u};
@@ -2937,9 +2920,9 @@ int main(int argc, char** argv) {
     // reach (outdoor towns seen, first-visit order), and the Gate Master's
     // once-a-day.
     std::int64_t fly_until = 0;
-    std::int64_t torch_until = 0;  // Torch Light's written hours
+    std::int64_t torch_until = 0;                      // Torch Light's written hours
     std::int64_t eye_until = start_eye ? 1 << 30 : 0;  // Wizard Eye's written hours
-    int eye_rank = start_eye ? 2 : 0;  // 0 monsters, 1 + treasure, 2 + interest
+    int eye_rank = start_eye ? 2 : 0;                  // 0 monsters, 1 + treasure, 2 + interest
     // Lloyd's Beacon: the markers, capped by the caster's rank cell — "1
     // Beacon", "3 Beacons", "5 Beacons" — each decaying on its cell's own
     // clock.
@@ -2957,10 +2940,10 @@ int main(int argc, char** argv) {
     bool porting = false;  // the destination list is open
     std::int64_t next_wage_day = 7;
     std::string talk_answer;
-    std::set<int> approaches_used;  // per conversation: 0 beg, 1 bribe, 2 threat
+    std::set<int> approaches_used;             // per conversation: 0 beg, 1 bribe, 2 threat
     int pack_cursor_x = 0, pack_cursor_y = 0;  // the pack screen's chosen cell
     bool show_journal = start_journal;
-    std::array<int, 4> known_hp{};        // last seen, to spot fresh wounds
+    std::array<int, 4> known_hp{};               // last seen, to spot fresh wounds
     std::array<std::uint64_t, 4> wince_until{};  // SDL ticks, per member
     // How the world sees the party: reputation moved by deeds, fame worn
     // from experience. The derivation and the deed prices are the engine's
@@ -3268,8 +3251,8 @@ int main(int argc, char** argv) {
                 const float distance = std::sqrt(dx * dx + dy * dy + dz * dz);
                 const float radius = static_cast<float>(light.radius) * 2.0f;
                 if (distance < radius) {
-                    glow += (1.0f - distance / radius) *
-                            (static_cast<float>(light.brightness) / 31.0f);
+                    glow +=
+                        (1.0f - distance / radius) * (static_cast<float>(light.brightness) / 31.0f);
                 }
             }
             face_light[i] = glow > 1.0f ? 1.0f : glow;
@@ -3419,8 +3402,7 @@ int main(int argc, char** argv) {
             // A protection's power is one, two or three a point by rank;
             // the others carry the skill itself.
             const bool shields = slot <= static_cast<int>(game::PartyBuff::ProtectionFromPoison);
-            party_buffs.cast(slot, lasts, shields ? game::fire_shield(skill, rank) : skill,
-                             skill);
+            party_buffs.cast(slot, lasts, shields ? game::fire_shield(skill, rank) : skill, skill);
             return true;
         }
         if (spell.id == game::kSpellDayOfProtection) {
@@ -3457,8 +3439,7 @@ int main(int argc, char** argv) {
         if (spell.id == game::kSpellMeditation || spell.id == 75) {
             const int power = game::ten_plus_ladder(skill, rank);
             for (const int slot :
-                 spell.id == game::kSpellMeditation ? game::kMeditationSlots
-                                                    : game::kPowerSlots) {
+                 spell.id == game::kSpellMeditation ? game::kMeditationSlots : game::kPowerSlots) {
                 who.buffs.cast(static_cast<std::size_t>(slot), until, power);
             }
             return true;
@@ -3525,8 +3506,8 @@ int main(int argc, char** argv) {
     // 5/7/10, Cure Wounds' 2 a point plus five, Power Cure's 2 a point plus
     // ten over the whole party — and everything else still answers to the
     // table's prose. See src/game/body_magic.hpp.
-    const auto heal_amount = [](const data::SpellStatsEntry& spell,
-                                const data::SpellEffect& effect, int points, int rank) {
+    const auto heal_amount = [](const data::SpellStatsEntry& spell, const data::SpellEffect& effect,
+                                int points, int rank) {
         const int traced = game::traced_heal(spell.id, points, rank);
         return traced > 0 ? traced : std::max(1, effect.heal.low);
     };
@@ -3538,8 +3519,7 @@ int main(int argc, char** argv) {
         }
         for (auto& member : party) {
             if (member.hit_points > 0) {
-                member.hit_points =
-                    std::min(member.max_hit_points, member.hit_points + amount);
+                member.hit_points = std::min(member.max_hit_points, member.hit_points + amount);
             }
         }
         return "the whole party";
@@ -3555,8 +3535,8 @@ int main(int argc, char** argv) {
         // own ladder, three minutes a point at normal rank, three hours at
         // expert and three days at master. Past it the prose sends you to a
         // temple, and so does this. See src/game/body_magic.hpp.
-        const std::int64_t window = game::cure_window_minutes(
-            school_points, game::rank_of(school_points), spell.id);
+        const std::int64_t window =
+            game::cure_window_minutes(school_points, game::rank_of(school_points), spell.id);
         const std::int64_t now = clock.minutes();
         std::string cured;
         bool too_late = false;
@@ -3604,8 +3584,7 @@ int main(int argc, char** argv) {
             return data::cp1252_to_utf8(spell.name) + " lifts " + cured + "'s burden";
         }
         if (too_late) {
-            return data::cp1252_to_utf8(spell.name) +
-                   " comes too late; only a temple can help now";
+            return data::cp1252_to_utf8(spell.name) + " comes too late; only a temple can help now";
         }
         return {};
     };
@@ -3613,8 +3592,7 @@ int main(int argc, char** argv) {
     // The condition a spell lays on a monster, by its Spells.txt row —
     // Charm 61, Mass Fear 62, Slow 81, Paralyze 86, each described in
     // exactly those words — and whether it reaches everything in sight.
-    const auto condition_of =
-        [](int id) -> std::optional<std::pair<game::MonsterCondition, bool>> {
+    const auto condition_of = [](int id) -> std::optional<std::pair<game::MonsterCondition, bool>> {
         switch (id) {
         case 61:
             return std::make_pair(game::MonsterCondition::Charm, false);
@@ -3735,10 +3713,9 @@ int main(int argc, char** argv) {
             if (it == member.skills.end()) {
                 continue;
             }
-            percent = std::max(percent, skill != nullptr
-                                            ? game::skill_power(skill->text, it->second)
-                                                  .price_percent
-                                            : game::skill_points(it->second));
+            percent = std::max(
+                percent, skill != nullptr ? game::skill_power(skill->text, it->second).price_percent
+                                          : game::skill_points(it->second));
         }
         for (const auto& h : hirelings) {
             percent = std::max(percent, h.benefit.merchant_skill_bonus);
@@ -3795,9 +3772,8 @@ int main(int argc, char** argv) {
     // other way, hence the index maps.
     const auto reward_note = [&](const game::WalkOutcome& outcome) -> std::string {
         static constexpr std::size_t kEventStatOrder[7] = {0, 1, 2, 3, 5, 4, 6};
-        static constexpr const char* kStatNames[7] = {"Might",     "Intellect", "Personality",
-                                                      "Endurance", "Speed",     "Accuracy",
-                                                      "Luck"};
+        static constexpr const char* kStatNames[7] = {
+            "Might", "Intellect", "Personality", "Endurance", "Speed", "Accuracy", "Luck"};
         static constexpr std::size_t kEventResistOrder[5] = {
             static_cast<std::size_t>(data::Resistance::Fire),
             static_cast<std::size_t>(data::Resistance::Electricity),
@@ -3815,10 +3791,9 @@ int main(int argc, char** argv) {
         for (const auto& harm : outcome.harms) {
             static constexpr std::array<const char*, 6> kElements{"Phys", "Fire", "Elec",
                                                                   "Cold", "Pois", "Magic"};
-            const char* type =
-                harm.element >= 0 && harm.element < 6 ? kElements[static_cast<std::size_t>(
-                                                            harm.element)]
-                                                      : "Phys";
+            const char* type = harm.element >= 0 && harm.element < 6
+                                   ? kElements[static_cast<std::size_t>(harm.element)]
+                                   : "Phys";
             int total = 0;
             const auto hit_one = [&](game::Character& member) {
                 if (member.hit_points <= 0) {
@@ -3880,8 +3855,7 @@ int main(int argc, char** argv) {
             who.hit_points = std::min(who.max_hit_points, who.hit_points + outcome.healed_hp);
         }
         if (outcome.healed_sp > 0) {
-            who.spell_points =
-                std::min(who.max_spell_points, who.spell_points + outcome.healed_sp);
+            who.spell_points = std::min(who.max_spell_points, who.spell_points + outcome.healed_sp);
         }
         for (std::size_t i = 0; i < 7; ++i) {
             if (outcome.stat_gains[i] > 0) {
@@ -4017,9 +3991,8 @@ int main(int argc, char** argv) {
         // And what this one remembers, if its Refil Days have not run out
         // (a map that never refills remembers forever).
         if (const auto it = map_memory.find(session.file_name); it != map_memory.end()) {
-            const bool expired =
-                session.refill_days > 0 &&
-                clock.day() >= it->second.remembered_day + session.refill_days;
+            const bool expired = session.refill_days > 0 &&
+                                 clock.day() >= it->second.remembered_day + session.refill_days;
             if (expired) {
                 map_memory.erase(it);
             } else {
@@ -4046,9 +4019,8 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        SDL_SetWindowTitle(window,
-                           ("StarHaven - " + session.title() + " (" + session.file_name + ")")
-                               .c_str());
+        SDL_SetWindowTitle(
+            window, ("StarHaven - " + session.title() + " (" + session.file_name + ")").c_str());
         return true;
     };
 
@@ -4087,9 +4059,8 @@ int main(int argc, char** argv) {
         camera.yaw = pending_load.yaw;
         camera.pitch = pending_load.pitch;
         clock = game::GameClock{pending_load.minutes};
-        next_refill = session.refill_days > 0
-                          ? clock.day() + session.refill_days
-                          : std::numeric_limits<std::int64_t>::max();
+        next_refill = session.refill_days > 0 ? clock.day() + session.refill_days
+                                              : std::numeric_limits<std::int64_t>::max();
         gold = pending_load.gold;
         bank_gold = pending_load.bank_gold;
         party_food = pending_load.food;
@@ -4378,7 +4349,7 @@ int main(int argc, char** argv) {
                         if (same_map && same_place && same_party && same_bits && same_pack &&
                             same_memory) {
                             smoke_pass("confirm", saved.map_file + ", party, quest bit, pack and "
-                                                                    "memory agree with slot 1");
+                                                                   "memory agree with slot 1");
                         } else {
                             smoke_fail("confirm", std::string("map=") + (same_map ? "y" : "n") +
                                                       " place=" + (same_place ? "y" : "n") +
@@ -4498,9 +4469,8 @@ int main(int argc, char** argv) {
                 ambient.stop_room();
                 (void)startup.dispatch(game::StartupAction::Quit);
                 running = false;
-            } else if (startup.media_active() &&
-                       (event.type == SDL_EVENT_KEY_DOWN ||
-                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+            } else if (startup.media_active() && (event.type == SDL_EVENT_KEY_DOWN ||
+                                                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
                 // Keyboard and mouse use the same one-reel skip operation.
                 if (const auto report = movie.skip()) {
                     finish_startup_media(*report);
@@ -4517,19 +4487,17 @@ int main(int argc, char** argv) {
                     } else if (key == SDLK_RIGHT || key == SDLK_DOWN) {
                         title_focus = (title_focus + 1) % 4;
                     } else {
-                        chosen = key == SDLK_N                         ? 0
-                                 : key == SDLK_L                       ? 1
-                                 : key == SDLK_C                       ? 2
-                                 : key == SDLK_ESCAPE                  ? 3
-                                 : key == SDLK_RETURN || key == SDLK_KP_ENTER
-                                     ? title_focus
-                                     : -1;
+                        chosen = key == SDLK_N                                ? 0
+                                 : key == SDLK_L                              ? 1
+                                 : key == SDLK_C                              ? 2
+                                 : key == SDLK_ESCAPE                         ? 3
+                                 : key == SDLK_RETURN || key == SDLK_KP_ENTER ? title_focus
+                                                                              : -1;
                     }
                 } else if (event.button.button == SDL_BUTTON_LEFT) {
                     const int mx = static_cast<int>(event.button.x);
                     const int my = static_cast<int>(event.button.y);
-                    if (my >= 424 && my < 469 && mx >= 20 && mx < 611 &&
-                        (mx - 20) % 152 < 135) {
+                    if (my >= 424 && my < 469 && mx >= 20 && mx < 611 && (mx - 20) % 152 < 135) {
                         chosen = (mx - 20) / 152;
                         title_focus = chosen;
                     }
@@ -4565,9 +4533,8 @@ int main(int argc, char** argv) {
                 if (event.type == SDL_EVENT_KEY_DOWN) {
                     const auto key = event.key.key;
                     if (key == SDLK_UP) {
-                        save_slot = (save_slot + game::kSaveSlotCount - 2) %
-                                        game::kSaveSlotCount +
-                                    1;
+                        save_slot =
+                            (save_slot + game::kSaveSlotCount - 2) % game::kSaveSlotCount + 1;
                         save_selection_message.clear();
                     } else if (key == SDLK_DOWN) {
                         save_slot = save_slot % game::kSaveSlotCount + 1;
@@ -4697,8 +4664,8 @@ int main(int argc, char** argv) {
                                 std::clamp(book_pick, 0, static_cast<int>(page.size()) - 1));
                             readied[static_cast<std::size_t>(book_member)] = page[at];
                             const auto* spell = spell_stats.at(static_cast<std::size_t>(page[at]));
-                            pick_up_message = who.name + " readies " +
-                                              data::cp1252_to_utf8(spell->name);
+                            pick_up_message =
+                                who.name + " readies " + data::cp1252_to_utf8(spell->name);
                             pick_up_shown = SDL_GetTicks();
                             book_member = -1;
                         }
@@ -4729,12 +4696,12 @@ int main(int argc, char** argv) {
                     create_slot = static_cast<int>(event.key.key - SDLK_1);
                     creation_message.clear();
                 } else if (event.key.key == SDLK_C) {
-                    const auto at = std::find(game::kBaseClasses.begin(),
-                                              game::kBaseClasses.end(), who.class_name);
-                    const auto next = at == game::kBaseClasses.end() ||
-                                              at + 1 == game::kBaseClasses.end()
-                                          ? game::kBaseClasses.begin()
-                                          : at + 1;
+                    const auto at = std::find(game::kBaseClasses.begin(), game::kBaseClasses.end(),
+                                              who.class_name);
+                    const auto next =
+                        at == game::kBaseClasses.end() || at + 1 == game::kBaseClasses.end()
+                            ? game::kBaseClasses.begin()
+                            : at + 1;
                     who.class_name = std::string(*next);
                     game::derive_start(who);
                     creation_message.clear();
@@ -4777,22 +4744,21 @@ int main(int argc, char** argv) {
                     const auto lower = [](std::string_view text) {
                         std::string out;
                         for (const char c : text) {
-                            out += static_cast<char>(
-                                std::tolower(static_cast<unsigned char>(c)));
+                            out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                         }
                         return out;
                     };
                     const auto answer_at = [&](int index) {
                         return index >= 0 && static_cast<std::size_t>(index) <
                                                  session.script_strings.size()
-                                   ? lower(session.script_strings.at(
-                                         static_cast<std::size_t>(index)))
+                                   ? lower(
+                                         session.script_strings.at(static_cast<std::size_t>(index)))
                                    : std::string();
                     };
                     const std::string given = lower(ask_typed);
-                    const bool match = !given.empty() &&
-                                       (given == answer_at(ask_pending.answer_a) ||
-                                        given == answer_at(ask_pending.answer_b));
+                    const bool match =
+                        !given.empty() && (given == answer_at(ask_pending.answer_a) ||
+                                           given == answer_at(ask_pending.answer_b));
                     walk_on_start = ask_event;
                     walk_from = match ? ask_pending.step_on_match : ask_pending.step_on_miss;
                     ask_event = -1;
@@ -4812,8 +4778,8 @@ int main(int argc, char** argv) {
                 if (mouse_look) {
                     SDL_SetWindowRelativeMouseMode(window, !cursor_free);
                 }
-                pick_up_message = cursor_free ? "The cursor is yours; M returns it to the view"
-                                              : "";
+                pick_up_message =
+                    cursor_free ? "The cursor is yours; M returns it to the view" : "";
                 pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F11) {
                 // Fullscreen, with the integer presentation keeping the
@@ -4869,8 +4835,8 @@ int main(int argc, char** argv) {
                     const auto power_of = [&](int std_row, int strength, int special) {
                         game::EnchantPower power;
                         if (std_row > 0) {
-                            if (const auto* bonus = standard_bonuses.at(
-                                    static_cast<std::size_t>(std_row))) {
+                            if (const auto* bonus =
+                                    standard_bonuses.at(static_cast<std::size_t>(std_row))) {
                                 power = game::standard_power(*bonus, strength);
                             }
                         } else if (special > 0) {
@@ -4897,11 +4863,9 @@ int main(int argc, char** argv) {
                     who.worn_charges[si] =
                         carried.charges > 0
                             ? carried.charges
-                            : (row->equip_type == data::ItemEquipType::Wand ? row->modifier_2
-                                                                            : 0);
-                    const game::EnchantPower on =
-                        power_of(carried.standard_bonus, carried.standard_strength,
-                                 carried.special_bonus);
+                            : (row->equip_type == data::ItemEquipType::Wand ? row->modifier_2 : 0);
+                    const game::EnchantPower on = power_of(
+                        carried.standard_bonus, carried.standard_strength, carried.special_bonus);
                     who.max_hit_points += on.hit_points;
                     who.hit_points += on.hit_points;
                     who.max_spell_points += on.spell_points;
@@ -4913,8 +4877,8 @@ int main(int argc, char** argv) {
                             old == nullptr ? cache.icon("") : cache.icon(old->picture);
                         (void)pack.add(
                             worn, std::max(1, game::cells_across(static_cast<int>(icon.width()))),
-                            std::max(1, game::cells_across(static_cast<int>(icon.height()))),
-                            true, old_standard, old_strength, old_special, old_charges);
+                            std::max(1, game::cells_across(static_cast<int>(icon.height()))), true,
+                            old_standard, old_strength, old_special, old_charges);
                     }
                     pick_up_message = who.name + " wears the " + data::cp1252_to_utf8(row->name);
                     pick_up_shown = SDL_GetTicks();
@@ -4963,9 +4927,8 @@ int main(int argc, char** argv) {
                 // underfoot: a save should find a cleared dungeon cleared.
                 state.remembered.clear();
                 for (const auto& [file, memory] : map_memory) {
-                    state.remembered.push_back({file, memory.remembered_day,
-                                                memory.opened_chests, memory.open_doors,
-                                                memory.dead});
+                    state.remembered.push_back({file, memory.remembered_day, memory.opened_chests,
+                                                memory.open_doors, memory.dead});
                 }
                 {
                     game::SaveState::RememberedMap here;
@@ -4982,9 +4945,8 @@ int main(int argc, char** argv) {
                             here.dead.push_back(i);
                         }
                     }
-                    std::erase_if(state.remembered, [&](const auto& m) {
-                        return m.file == here.file;
-                    });
+                    std::erase_if(state.remembered,
+                                  [&](const auto& m) { return m.file == here.file; });
                     state.remembered.push_back(std::move(here));
                 }
                 state.party = party;
@@ -5000,9 +4962,8 @@ int main(int argc, char** argv) {
                 }
                 std::ofstream file(saves.path_for_slot(save_slot));
                 file << game::save_text(state);
-                pick_up_message = file.good()
-                                      ? "Saved to slot " + std::to_string(save_slot)
-                                      : "Could not write the save";
+                pick_up_message = file.good() ? "Saved to slot " + std::to_string(save_slot)
+                                              : "Could not write the save";
                 pick_up_shown = SDL_GetTicks();
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F6 &&
                        startup.world_active()) {
@@ -5011,8 +4972,8 @@ int main(int argc, char** argv) {
                 save_slot = save_slot % game::kSaveSlotCount + 1;
                 const game::SaveSlotInfo info = saves.inspect(save_slot);
                 if (info.loadable()) {
-                    pick_up_message = "Slot " + std::to_string(save_slot) + ": " +
-                                      info.map_name + ", day " + std::to_string(info.day);
+                    pick_up_message = "Slot " + std::to_string(save_slot) + ": " + info.map_name +
+                                      ", day " + std::to_string(info.day);
                 } else {
                     pick_up_message = "Slot " + std::to_string(save_slot) + ": " + info.message;
                 }
@@ -5043,8 +5004,7 @@ int main(int argc, char** argv) {
                     // or nothing happens if it is already known. That only
                     // casters read is this engine's stand-in for the magic
                     // skill group it asks for. `inferred`
-                    if (const auto* row =
-                            item_stats.at(static_cast<std::size_t>(carried.item_id));
+                    if (const auto* row = item_stats.at(static_cast<std::size_t>(carried.item_id));
                         row != nullptr && row->equip_type == data::ItemEquipType::Book) {
                         const int spell_id = data::scroll_spell_of(row->modifier_1);
                         const auto* spell = spell_stats.at(static_cast<std::size_t>(spell_id));
@@ -5115,8 +5075,8 @@ int main(int argc, char** argv) {
                             who.stone_skin_until = until;
                         }
                     }
-                    pick_up_message = who.name + " \x97 " + data::cp1252_to_utf8(use->name) +
-                                      ": " + data::cp1252_to_utf8(use->effect);
+                    pick_up_message = who.name + " \x97 " + data::cp1252_to_utf8(use->name) + ": " +
+                                      data::cp1252_to_utf8(use->effect);
                     pick_up_shown = SDL_GetTicks();
                     const auto used = carried;  // remove() invalidates the ref
                     if (use->removed_when_used || use->becomes_item > 0) {
@@ -5147,8 +5107,7 @@ int main(int argc, char** argv) {
                     pick_up_message = "Mixing takes two things the alchemy knows";
                     pick_up_shown = SDL_GetTicks();
                 } else {
-                    const data::MixResult mixed =
-                        use_items.mix(known[0].item_id, known[1].item_id);
+                    const data::MixResult mixed = use_items.mix(known[0].item_id, known[1].item_id);
                     if (mixed.kind == data::MixKind::None) {
                         pick_up_message = "They do not combine";
                     } else if (mixed.kind == data::MixKind::Item) {
@@ -5163,9 +5122,8 @@ int main(int argc, char** argv) {
                                          known[1].height);
                         const auto* result = use_items.find(mixed.item_id);
                         pick_up_message =
-                            "You mix " +
-                            (result != nullptr ? data::cp1252_to_utf8(result->name)
-                                               : std::to_string(mixed.item_id));
+                            "You mix " + (result != nullptr ? data::cp1252_to_utf8(result->name)
+                                                            : std::to_string(mixed.item_id));
                     } else {
                         pack.remove(known[0].x, known[0].y);
                         pack.remove(known[1].x, known[1].y);
@@ -5175,11 +5133,10 @@ int main(int argc, char** argv) {
                             const int damage =
                                 grade.low +
                                 static_cast<int>(misc_random.next() %
-                                                 static_cast<unsigned>(grade.high - grade.low +
-                                                                       1));
+                                                 static_cast<unsigned>(grade.high - grade.low + 1));
                             who.hit_points = std::max(0, who.hit_points - damage);
-                            pick_up_message = "The mixture explodes for " +
-                                              std::to_string(damage) + " fire damage";
+                            pick_up_message = "The mixture explodes for " + std::to_string(damage) +
+                                              " fire damage";
                         } else {
                             who.hit_points = 0;
                             pick_up_message = "The mixture eradicates " + who.name;
@@ -5200,21 +5157,20 @@ int main(int argc, char** argv) {
                     approaches_used.clear();
                     talk_answer.clear();
                 } else {
-                    const std::size_t who = game::aimed_actor(
-                        session, battle, camera.position, camera.forward(), game::kPartyReach);
+                    const std::size_t who = game::aimed_actor(session, battle, camera.position,
+                                                              camera.forward(), game::kPartyReach);
                     if (who != game::kNoActor && battle.alive(who)) {
                         const int mid = session.actors[who].monster_id;
                         const auto* row =
-                            mid > 0 && static_cast<std::size_t>(mid) <=
-                                           monster_stats.entries().size()
+                            mid > 0 &&
+                                    static_cast<std::size_t>(mid) <= monster_stats.entries().size()
                                 ? &monster_stats.entries()[static_cast<std::size_t>(mid) - 1]
                                 : nullptr;
                         if (row != nullptr && row->hostility == 0) {
                             street_talk = static_cast<int>(who);
                             street_female = row->picture.find('F') != std::string::npos;
                             street_name = std::string(given_names.name(
-                                street_female,
-                                static_cast<std::uint32_t>(who + 1) * 2654435761U));
+                                street_female, static_cast<std::uint32_t>(who + 1) * 2654435761U));
                             approaches_used.clear();
                             talk_answer.clear();
                         }
@@ -5224,8 +5180,7 @@ int main(int argc, char** argv) {
                        open_shop >= 0) {
                 // Talk to whoever the NPC table puts in this establishment.
                 if (talking_to >= 0) {
-                    const auto met =
-                        people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
+                    const auto met = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
                     if (talking_to < static_cast<int>(met.size())) {
                         greeted_npcs.insert(met[static_cast<std::size_t>(talking_to)].npc_id);
                     }
@@ -5268,10 +5223,8 @@ int main(int argc, char** argv) {
                 // table for skill id 23, one percent off the bill a point.
                 int repair_points = 0;
                 for (const auto& member : party) {
-                    if (const auto it = member.skills.find("Repair");
-                        it != member.skills.end()) {
-                        repair_points =
-                            std::max(repair_points, game::weighted_repair(it->second));
+                    if (const auto it = member.skills.find("Repair"); it != member.skills.end()) {
+                        repair_points = std::max(repair_points, game::weighted_repair(it->second));
                     }
                 }
                 const int repair_off = std::min(50, repair_points);
@@ -5288,8 +5241,7 @@ int main(int argc, char** argv) {
                 bill -= bill * repair_off / 100;
                 if (mended > 0 && bill == 0) {
                     shop_said = "Your followers see to the repairs.";
-                } else
-                if (bill == 0) {
+                } else if (bill == 0) {
                     shop_said = "Nothing here is broken.";
                 } else if (bill > gold) {
                     shop_said = "Repairs would cost " + std::to_string(bill) + " gold.";
@@ -5326,8 +5278,8 @@ int main(int argc, char** argv) {
                 } else if (script_state.awards.contains(dues_award)) {
                     shop_said = "The party already belongs.";
                 } else if (gold < game::guild_dues(shop)) {
-                    shop_said = "Joining costs " + std::to_string(game::guild_dues(shop)) +
-                                " gold.";
+                    shop_said =
+                        "Joining costs " + std::to_string(game::guild_dues(shop)) + " gold.";
                 } else {
                     gold -= game::guild_dues(shop);
                     script_state.awards.insert(dues_award);
@@ -5362,8 +5314,8 @@ int main(int argc, char** argv) {
                             }
                         }
                     }
-                    shop_said = std::string(game::merchant_line(
-                        merchant_words, data::MerchantAction::Identify, true));
+                    shop_said = std::string(
+                        game::merchant_line(merchant_words, data::MerchantAction::Identify, true));
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
                        event.key.key == SDLK_S) {
@@ -5378,10 +5330,9 @@ int main(int argc, char** argv) {
                     }
                     const int offer = game::offer_price(*row);
                     const int sweet = row->value - offer;
-                    const int best = std::min(
-                        row->value,
-                        offer + sweet * (row->value - haggled(row->value)) /
-                                    std::max(1, row->value));
+                    const int best =
+                        std::min(row->value, offer + sweet * (row->value - haggled(row->value)) /
+                                                         std::max(1, row->value));
                     gold += best;
                     pack.remove(carried.x, carried.y);
                     shop_said = std::string(
@@ -5411,20 +5362,18 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && show_journal &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
                 journal_page = 1 - journal_page;
-            } else if (event.type == SDL_EVENT_KEY_DOWN && shown_member >= 0 &&
-                       shown_pack < 0 && open_shop < 0 &&
+            } else if (event.type == SDL_EVENT_KEY_DOWN && shown_member >= 0 && shown_pack < 0 &&
+                       open_shop < 0 &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
-                sheet_page =
-                    (sheet_page + (event.key.key == SDLK_LEFT ? 3 : 1)) % 4;
-            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
-                       talking_to < 0 && shown_pack < 0 &&
+                sheet_page = (sheet_page + (event.key.key == SDLK_LEFT ? 3 : 1)) % 4;
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 && talking_to < 0 &&
+                       shown_pack < 0 &&
                        (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) &&
                        (shops_here[static_cast<std::size_t>(open_shop)]->type == "Town Hall" ||
-                        shops_here[static_cast<std::size_t>(open_shop)]->type ==
-                            "City Council")) {
-                if (const auto* head = bounty_of();
-                    head != nullptr && bounty_month_paid != bounty_month() &&
-                    kills_this_month.contains(head->id)) {
+                        shops_here[static_cast<std::size_t>(open_shop)]->type == "City Council")) {
+                if (const auto* head = bounty_of(); head != nullptr &&
+                                                    bounty_month_paid != bounty_month() &&
+                                                    kills_this_month.contains(head->id)) {
                     const int purse = head->level * 100;
                     gold += purse;
                     bounty_month_paid = bounty_month();
@@ -5433,11 +5382,10 @@ int main(int argc, char** argv) {
                     shop_said = "The clerk counts out " + std::to_string(purse) +
                                 " gold and records the deed.";
                 }
-            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
-                       talking_to < 0 && shown_pack < 0 &&
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 && talking_to < 0 &&
+                       shown_pack < 0 &&
                        (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) &&
-                       !entrance_map_of(*shops_here[static_cast<std::size_t>(open_shop)])
-                            .empty()) {
+                       !entrance_map_of(*shops_here[static_cast<std::size_t>(open_shop)]).empty()) {
                 // Through the mouth of the dungeon.
                 const std::string inside =
                     entrance_map_of(*shops_here[static_cast<std::size_t>(open_shop)]);
@@ -5448,8 +5396,8 @@ int main(int argc, char** argv) {
                     pick_up_message = "The party descends";
                     pick_up_shown = SDL_GetTicks();
                 }
-            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 &&
-                       talking_to < 0 && shown_pack < 0 &&
+            } else if (event.type == SDL_EVENT_KEY_DOWN && open_shop >= 0 && talking_to < 0 &&
+                       shown_pack < 0 &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT ||
                         event.key.key == SDLK_UP || event.key.key == SDLK_DOWN ||
                         event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER)) {
@@ -5499,23 +5447,22 @@ int main(int argc, char** argv) {
                             break;
                         }
                         switch (game::buy_rank(who, slot, want, gold)) {
-                            case game::TeachRefusal::None:
-                                shop_said = who.name + " is taught to " +
-                                            std::string(game::kRankNames[
-                                                static_cast<std::size_t>(want)]) +
-                                            " in " + skill;
-                                break;
-                            case game::TeachRefusal::TooPoor:
-                                shop_said = "That costs " +
-                                            std::to_string(game::teach_price(want)) + " gold.";
-                                break;
-                            case game::TeachRefusal::NotNextRung:
-                                shop_said = who.name + " has nothing left to learn in " + skill;
-                                break;
-                            default:
-                                shop_said = "No one here teaches " + skill + " to a " +
-                                            who.class_name;
-                                break;
+                        case game::TeachRefusal::None:
+                            shop_said =
+                                who.name + " is taught to " +
+                                std::string(game::kRankNames[static_cast<std::size_t>(want)]) +
+                                " in " + skill;
+                            break;
+                        case game::TeachRefusal::TooPoor:
+                            shop_said =
+                                "That costs " + std::to_string(game::teach_price(want)) + " gold.";
+                            break;
+                        case game::TeachRefusal::NotNextRung:
+                            shop_said = who.name + " has nothing left to learn in " + skill;
+                            break;
+                        default:
+                            shop_said = "No one here teaches " + skill + " to a " + who.class_name;
+                            break;
                         }
                         break;
                     }
@@ -5528,8 +5475,7 @@ int main(int argc, char** argv) {
                     // taken — the letter is handed over and the purse fills.
                     const auto here = people_of(*shops_here[static_cast<std::size_t>(open_shop)]);
                     if (talking_to < static_cast<int>(here.size())) {
-                        const auto person =
-                            patched(here[static_cast<std::size_t>(talking_to)]);
+                        const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
                         const int id =
                             game::topic_id(person, dialogue, static_cast<std::size_t>(chosen));
                         talk_answer.clear();
@@ -5557,9 +5503,9 @@ int main(int argc, char** argv) {
                             }
                             for (const int given : outcome.given) {
                                 if (const std::string name = give_item(given); !name.empty()) {
-                                    talk_answer += (talk_answer.empty() ? "You receive "
-                                                                        : "  You receive ") +
-                                                   name;
+                                    talk_answer +=
+                                        (talk_answer.empty() ? "You receive " : "  You receive ") +
+                                        name;
                                 }
                             }
                             for (const int taken : outcome.taken) {
@@ -5676,7 +5622,7 @@ int main(int argc, char** argv) {
                             int shaved = 0;
                             for (const auto& h : hirelings) {
                                 shaved = std::max(shaved, boat ? h.benefit.boat_days_faster
-                                                              : h.benefit.coach_days_faster);
+                                                               : h.benefit.coach_days_faster);
                             }
                             const int days = std::max(1, route.days - shaved);
                             clock.advance_hours(days * game::kHoursPerDay);
@@ -5702,12 +5648,11 @@ int main(int argc, char** argv) {
                         const game::GuildStock guild = game::parse_guild_stock(
                             shops_here[static_cast<std::size_t>(open_shop)]->stock_a);
                         if (!guild.empty()) {
-                            const int dues_award =
-                                game::guild_award_of(guild.school, award_texts);
+                            const int dues_award = game::guild_award_of(guild.school, award_texts);
                             if (dues_award > 0 && !script_state.awards.contains(dues_award)) {
                                 shop_said = "Members only. J joins the guild for " +
-                                            std::to_string(game::guild_dues(*shops_here
-                                                [static_cast<std::size_t>(open_shop)])) +
+                                            std::to_string(game::guild_dues(
+                                                *shops_here[static_cast<std::size_t>(open_shop)])) +
                                             " gold.";
                                 break;
                             }
@@ -5721,10 +5666,8 @@ int main(int argc, char** argv) {
                             const int h =
                                 std::max(1, game::cells_across(static_cast<int>(icon.height())));
                             for (auto& pack : packs) {
-                                if (pack.add(offered.item_id, w, h, true,
-                                             offered.standard_bonus,
-                                             offered.standard_strength,
-                                             offered.special_bonus)) {
+                                if (pack.add(offered.item_id, w, h, true, offered.standard_bonus,
+                                             offered.standard_strength, offered.special_bonus)) {
                                     carried = true;
                                     break;
                                 }
@@ -5778,10 +5721,9 @@ int main(int argc, char** argv) {
                         // the ceiling, and a class may never be taught what
                         // its row in `0x4c2694` zeroes.
                         const int cost = game::raise_cost(points);
-                        const bool allowed =
-                            game::skill_points(points) < game::kSkillPointCap &&
-                            game::class_may_learn(game::class_id(who.class_name),
-                                                  game::skill_id(skill));
+                        const bool allowed = game::skill_points(points) < game::kSkillPointCap &&
+                                             game::class_may_learn(game::class_id(who.class_name),
+                                                                   game::skill_id(skill));
                         if (allowed && who.skill_points >= cost) {
                             who.skill_points -= cost;
                             // "Skill adds to Hit Points" / "...Spell
@@ -5845,14 +5787,13 @@ int main(int argc, char** argv) {
                     }
                     const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
                     std::string what;
-                    if (std::string lifted =
-                            cure_with(*spell, spell_skill_of(party[who], *spell));
+                    if (std::string lifted = cure_with(*spell, spell_skill_of(party[who], *spell));
                         !lifted.empty()) {
                         what = party[who].name + " waves the wand: " + lifted;
                     } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
                         const std::size_t target =
-                            game::aimed_actor(session, battle, camera.position,
-                                              camera.forward(), game::kMissileRange);
+                            game::aimed_actor(session, battle, camera.position, camera.forward(),
+                                              game::kMissileRange);
                         if (target == game::kNoActor) {
                             pick_up_message = "Nothing in reach to cast at";
                             pick_up_shown = SDL_GetTicks();
@@ -5862,27 +5803,25 @@ int main(int argc, char** argv) {
                         data::SpellRange wand_flat;
                         data::SpellRange wand_scaled;
                         const int wand_skill = spell_skill_of(party[who], *spell);
-                        const bool wand_traced = game::traced_damage_ranges(
-                            spell_id, wand_skill, wand_flat, wand_scaled);
-                        what = battle.smite(target,
-                                            wand_traced ? wand_flat : effect.damage,
+                        const bool wand_traced = game::traced_damage_ranges(spell_id, wand_skill,
+                                                                            wand_flat, wand_scaled);
+                        what = battle.smite(target, wand_traced ? wand_flat : effect.damage,
                                             wand_traced ? wand_scaled : effect.damage_per_skill,
-                                            wand_skill, spell->element,
-                                            party[who].name, session, monster_stats, item_stats,
-                                            random_items, standard_bonuses, special_bonuses);
+                                            wand_skill, spell->element, party[who].name, session,
+                                            monster_stats, item_stats, random_items,
+                                            standard_bonuses, special_bonuses);
                     } else if (const auto lays = condition_of(spell_id)) {
-                        const std::size_t single = game::aimed_actor(
-                            session, battle, camera.position, camera.forward(),
-                            game::kMissileRange);
-                        const int seconds =
-                            data::parse_spell_duration(*spell, 0).minutes(
-                                spell_skill_of(party[who], *spell)) *
-                            60;
+                        const std::size_t single =
+                            game::aimed_actor(session, battle, camera.position, camera.forward(),
+                                              game::kMissileRange);
+                        const int seconds = data::parse_spell_duration(*spell, 0).minutes(
+                                                spell_skill_of(party[who], *spell)) *
+                                            60;
                         if (single != game::kNoActor &&
-                            battle.afflict(single, lays->first,
-                                           static_cast<float>(seconds))) {
-                            what = party[who].name + " waves the wand: " +
-                                   data::cp1252_to_utf8(spell->name) + " takes hold";
+                            battle.afflict(single, lays->first, static_cast<float>(seconds))) {
+                            what = party[who].name +
+                                   " waves the wand: " + data::cp1252_to_utf8(spell->name) +
+                                   " takes hold";
                         } else {
                             pick_up_message = "Nothing in reach to cast at";
                             pick_up_shown = SDL_GetTicks();
@@ -5915,8 +5854,7 @@ int main(int argc, char** argv) {
                         }
                         const data::SpellEffect effect = data::parse_spell_effect(*spell, 0);
                         std::string what;
-                        if (!effect.heal.empty() ||
-                            game::traced_heal(spell_id, 0, 0) > 0) {
+                        if (!effect.heal.empty() || game::traced_heal(spell_id, 0, 0) > 0) {
                             // The most wounded standing character drinks it in.
                             std::size_t worst = who;
                             int missing = -1;
@@ -5932,9 +5870,8 @@ int main(int argc, char** argv) {
                             // the traced spells give their floor.
                             const std::string mended =
                                 pour_heal(spell_id, heal_amount(*spell, effect, 0, 0), worst);
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) + ": " + mended +
-                                   " is healed";
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
+                                   ": " + mended + " is healed";
                         } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
                             const std::size_t target =
                                 game::aimed_actor(session, battle, camera.position,
@@ -5952,18 +5889,16 @@ int main(int argc, char** argv) {
                             const int held_skill = spell_skill_of(party[who], *spell);
                             const bool traced = game::traced_damage_ranges(
                                 spell_id, held_skill, traced_flat, traced_scaled);
-                            what = battle.smite(target,
-                                                traced ? traced_flat : effect.damage,
+                            what = battle.smite(target, traced ? traced_flat : effect.damage,
                                                 traced ? traced_scaled : effect.damage_per_skill,
-                                                held_skill,
-                                                spell->element, party[who].name, session,
-                                                monster_stats, item_stats, random_items,
+                                                held_skill, spell->element, party[who].name,
+                                                session, monster_stats, item_stats, random_items,
                                                 standard_bonuses, special_bonuses);
                         } else if (std::string lifted =
                                        cure_with(*spell, spell_skill_of(party[who], *spell));
                                    !lifted.empty()) {
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) + ": " + lifted;
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
+                                   ": " + lifted;
                         } else if (spell_id == 12) {
                             // Wizard Eye: the corner automap, "while
                             // outdoors", for its written hour per point.
@@ -5971,8 +5906,7 @@ int main(int argc, char** argv) {
                                 spell_skill_of(party[who], *spell));
                             eye_until = std::max(eye_until, clock.minutes() + minutes);
                             eye_rank = std::max(eye_rank, 0);
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) +
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
                                    ": the corner of the eye opens";
                         } else if (spell_id == 1) {
                             // Torch Light, for its cell's own hour per
@@ -5980,8 +5914,7 @@ int main(int argc, char** argv) {
                             const int minutes = data::parse_spell_duration(*spell, 0).minutes(
                                 spell_skill_of(party[who], *spell));
                             torch_until = std::max(torch_until, clock.minutes() + minutes);
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) +
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
                                    ": the dark backs off for a while";
                         } else if (spell_id == 33) {
                             // Lloyd's Beacon: the rank cell's own count and
@@ -5992,8 +5925,8 @@ int main(int argc, char** argv) {
                             const std::string_view cell = rank >= 2   ? spell->master
                                                           : rank == 1 ? spell->expert
                                                                       : spell->normal;
-                            beacon_capacity = std::max(
-                                1, data::parse_int(cell.substr(0, cell.find(' ')), 1));
+                            beacon_capacity =
+                                std::max(1, data::parse_int(cell.substr(0, cell.find(' ')), 1));
                             const std::size_t decays = cell.find("decays in");
                             beacon_decay =
                                 decays == std::string_view::npos
@@ -6004,8 +5937,7 @@ int main(int argc, char** argv) {
                                 return clock.minutes() >= b.until;
                             });
                             beaconing = true;
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) +
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
                                    ": the beacons answer";
                         } else if (spell_id == 21) {
                             // Fly, "only works outdoors", for its rank
@@ -6019,15 +5951,13 @@ int main(int argc, char** argv) {
                             const int minutes = data::parse_spell_duration(*spell, 0).minutes(
                                 spell_skill_of(party[who], *spell));
                             fly_until = std::max(fly_until, clock.minutes() + minutes);
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) +
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
                                    ": the party takes to the air";
                         } else if (spell_id == 31) {
                             // Town Portal, "a 10% chance per point of Water
                             // Magic skill of working", "to the last town
                             // visited" at this normal-rank cast.
-                            const int chance =
-                                spell_skill_of(party[who], *spell) * 10;
+                            const int chance = spell_skill_of(party[who], *spell) * 10;
                             if (visited_towns.empty()) {
                                 pick_up_message = "The portal finds no town to open on";
                                 pick_up_shown = SDL_GetTicks();
@@ -6052,10 +5982,9 @@ int main(int argc, char** argv) {
                         } else if (const auto lays = condition_of(spell_id)) {
                             // Its written minutes per point of skill, on the
                             // fight's own clock.
-                            const int seconds =
-                                data::parse_spell_duration(*spell, 0).minutes(
-                                    spell_skill_of(party[who], *spell)) *
-                                60;
+                            const int seconds = data::parse_spell_duration(*spell, 0).minutes(
+                                                    spell_skill_of(party[who], *spell)) *
+                                                60;
                             std::size_t touched = 0;
                             if (lays->second) {
                                 // Everything in the caster's sight; how far
@@ -6073,15 +6002,15 @@ int main(int argc, char** argv) {
                                     if (looks_undead(session.actors[a].name)) {
                                         continue;
                                     }
-                                    touched += battle.afflict(a, lays->first,
-                                                              static_cast<float>(seconds))
-                                                   ? 1
-                                                   : 0;
+                                    touched +=
+                                        battle.afflict(a, lays->first, static_cast<float>(seconds))
+                                            ? 1
+                                            : 0;
                                 }
                             } else {
-                                const std::size_t single = game::aimed_actor(
-                                    session, battle, camera.position, camera.forward(),
-                                    game::kPartyReach);
+                                const std::size_t single =
+                                    game::aimed_actor(session, battle, camera.position,
+                                                      camera.forward(), game::kPartyReach);
                                 if (single != game::kNoActor) {
                                     touched += battle.afflict(single, lays->first,
                                                               static_cast<float>(seconds))
@@ -6095,15 +6024,13 @@ int main(int argc, char** argv) {
                                 read = true;  // keep the scroll: nothing was cast
                                 break;
                             }
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) + ": " +
-                                   data::cp1252_to_utf8(spell->name) + " takes " +
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
+                                   ": " + data::cp1252_to_utf8(spell->name) + " takes " +
                                    std::to_string(touched) +
                                    (touched == 1 ? " creature" : " creatures");
                         } else if (apply_buff(*spell, party[who], party[who].level)) {
-                            what = party[who].name + " reads " +
-                                   data::cp1252_to_utf8(row->name) + ": " +
-                                   data::cp1252_to_utf8(spell->name) +
+                            what = party[who].name + " reads " + data::cp1252_to_utf8(row->name) +
+                                   ": " + data::cp1252_to_utf8(spell->name) +
                                    " for its written time";
                         } else {
                             continue;  // a spell this slice cannot cast yet
@@ -6131,8 +6058,8 @@ int main(int argc, char** argv) {
                                        game::face_is_female(party[0].face), clock.hour()};
                 const auto say = [&](int number) {
                     return personality != nullptr
-                               ? game::substitute(data::cp1252_to_utf8(std::string(
-                                                      personality->message(number))),
+                               ? game::substitute(data::cp1252_to_utf8(
+                                                      std::string(personality->message(number))),
                                                   who, interface_words)
                                : std::string{};
                 };
@@ -6157,8 +6084,8 @@ int main(int argc, char** argv) {
                     if (taken) {
                         talk_answer = say(19 + which * 2);
                         if (!rumors.entries().empty()) {
-                            const auto& rumor = rumors.entries()[misc_random.next() %
-                                                                 rumors.entries().size()];
+                            const auto& rumor =
+                                rumors.entries()[misc_random.next() % rumors.entries().size()];
                             talk_answer += (talk_answer.empty() ? "" : "  ") +
                                            data::cp1252_to_utf8(rumor.text);
                         }
@@ -6210,8 +6137,8 @@ int main(int argc, char** argv) {
                         if (taken) {
                             talk_answer = say(19 + which * 2);
                             if (!rumors.entries().empty()) {
-                                const auto& rumor = rumors.entries()[misc_random.next() %
-                                                                     rumors.entries().size()];
+                                const auto& rumor =
+                                    rumors.entries()[misc_random.next() % rumors.entries().size()];
                                 talk_answer += (talk_answer.empty() ? "" : "  ") +
                                                data::cp1252_to_utf8(rumor.text);
                             }
@@ -6231,9 +6158,8 @@ int main(int argc, char** argv) {
                 if (talking_to < static_cast<int>(here.size())) {
                     const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
                     const auto hired =
-                        std::find_if(hirelings.begin(), hirelings.end(), [&](const auto& h) {
-                            return h.npc_id == person.npc_id;
-                        });
+                        std::find_if(hirelings.begin(), hirelings.end(),
+                                     [&](const auto& h) { return h.npc_id == person.npc_id; });
                     const auto* row = professions.at(person.profession_id);
                     if (hired != hirelings.end()) {
                         talk_answer = hired->name + " leaves the party.";
@@ -6243,8 +6169,8 @@ int main(int argc, char** argv) {
                     } else if (hirelings.size() >= game::kHirelingLimit) {
                         talk_answer = "The party has followers enough.";
                     } else if (gold < row->hire_cost) {
-                        talk_answer = "Their price is " + std::to_string(row->hire_cost) +
-                                      " gold a week.";
+                        talk_answer =
+                            "Their price is " + std::to_string(row->hire_cost) + " gold a week.";
                     } else {
                         gold -= row->hire_cost;
                         if (hirelings.empty()) {
@@ -6258,9 +6184,8 @@ int main(int argc, char** argv) {
                         hire.weekly_cost = row->hire_cost;
                         hire.benefit = game::parse_benefit(row->party_benefit);
                         hirelings.push_back(std::move(hire));
-                        talk_answer = row->join_text.empty()
-                                          ? person.name + " joins the party."
-                                          : data::cp1252_to_utf8(row->join_text);
+                        talk_answer = row->join_text.empty() ? person.name + " joins the party."
+                                                             : data::cp1252_to_utf8(row->join_text);
                     }
                 }
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B &&
@@ -6300,8 +6225,8 @@ int main(int argc, char** argv) {
                 }
                 // A spell reaches the missile band, the same range the
                 // monsters' own shots use.
-                const std::size_t target = game::aimed_actor(
-                    session, battle, camera.position, camera.forward(), game::kMissileRange);
+                const std::size_t target = game::aimed_actor(session, battle, camera.position,
+                                                             camera.forward(), game::kMissileRange);
                 // A readied spell outranks the heuristic: the first member
                 // holding one casts exactly it, the player's own choice.
                 for (std::size_t i = 0; i < party.size() && !cast; ++i) {
@@ -6337,8 +6262,8 @@ int main(int argc, char** argv) {
                     if (!effect.heal.empty() || game::traced_heal(spell->id, points, rank) > 0) {
                         caster.spell_points -= cost;
                         ambient.play_spell(spell->id);
-                        const std::string mended = pour_heal(
-                            spell->id, heal_amount(*spell, effect, points, rank), worst);
+                        const std::string mended =
+                            pour_heal(spell->id, heal_amount(*spell, effect, points, rank), worst);
                         pick_up_message = caster.name + " casts " +
                                           data::cp1252_to_utf8(spell->name) + " on " + mended;
                     } else if (!effect.damage.empty() || !effect.damage_per_skill.empty()) {
@@ -6383,8 +6308,8 @@ int main(int argc, char** argv) {
                         ambient.play_spell(spell->id);
                         pick_up_message = caster.name + " casts: " + lifted;
                     } else {
-                        pick_up_message = data::cp1252_to_utf8(spell->name) +
-                                          " has nothing to do here";
+                        pick_up_message =
+                            data::cp1252_to_utf8(spell->name) + " has nothing to do here";
                     }
                     pick_up_shown = SDL_GetTicks();
                     cast = true;
@@ -6401,8 +6326,7 @@ int main(int argc, char** argv) {
                         if (spell == nullptr || caster.spell_points < spell->cost_normal) {
                             continue;
                         }
-                        if (std::string lifted =
-                                cure_with(*spell, spell_skill_of(caster, *spell));
+                        if (std::string lifted = cure_with(*spell, spell_skill_of(caster, *spell));
                             !lifted.empty()) {
                             caster.spell_points -= spell->cost_normal;
                             ambient.play_spell(id);
@@ -6426,13 +6350,13 @@ int main(int argc, char** argv) {
                         const int points = spell_skill_of(caster, *spell);
                         const data::SpellEffect effect =
                             data::parse_spell_effect(*spell, game::rank_of(points));
-                        const int amount = wounded ? effect.heal.high
-                                                   : effect.damage.high +
-                                                         effect.damage_per_skill.high * points;
+                        const int amount =
+                            wounded ? effect.heal.high
+                                    : effect.damage.high + effect.damage_per_skill.high * points;
                         if (amount > best_amount &&
-                            (wounded ? !effect.heal.empty()
-                                     : !effect.damage.empty() ||
-                                           !effect.damage_per_skill.empty())) {
+                            (wounded
+                                 ? !effect.heal.empty()
+                                 : !effect.damage.empty() || !effect.damage_per_skill.empty())) {
                             best = spell;
                             best_effect = effect;
                             best_amount = amount;
@@ -6445,10 +6369,9 @@ int main(int argc, char** argv) {
                         caster.spell_points -= best->cost_normal;
                         ambient.play_spell(best->id);
                         const int held = spell_skill_of(caster, *best);
-                        const std::string mended =
-                            pour_heal(best->id,
-                                      heal_amount(*best, best_effect, held, game::rank_of(held)),
-                                      worst);
+                        const std::string mended = pour_heal(
+                            best->id, heal_amount(*best, best_effect, held, game::rank_of(held)),
+                            worst);
                         pick_up_message = caster.name + " casts " +
                                           data::cp1252_to_utf8(best->name) + " on " + mended;
                     } else if (target != game::kNoActor) {
@@ -6459,9 +6382,8 @@ int main(int argc, char** argv) {
                         shot.target = target;
                         shot.flat = best_effect.damage;
                         shot.per_skill = best_effect.damage_per_skill;
-                        if (data::SpellRange f, p;
-                            game::traced_damage_ranges(best->id, spell_skill_of(caster, *best), f,
-                                                       p)) {
+                        if (data::SpellRange f, p; game::traced_damage_ranges(
+                                best->id, spell_skill_of(caster, *best), f, p)) {
                             shot.flat = f;
                             shot.per_skill = p;
                         }
@@ -6481,8 +6403,8 @@ int main(int argc, char** argv) {
                         shot.flight.position = camera.position;
                         shot.flight.target = session.actors[target].position;
                         shot.flight.target.y += 32.0f;
-                        pick_up_message = caster.name + " casts " +
-                                          data::cp1252_to_utf8(best->name);
+                        pick_up_message =
+                            caster.name + " casts " + data::cp1252_to_utf8(best->name);
                         spell_shots.push_back(std::move(shot));
                     } else {
                         pick_up_message = "Nothing in reach to cast at";
@@ -6503,9 +6425,8 @@ int main(int argc, char** argv) {
                 // The Gate Master "casts the Town Portal spell at master
                 // ranking once per day" — and master rank "gives choice of
                 // destination", so the list opens.
-                const bool gated = std::any_of(
-                    hirelings.begin(), hirelings.end(),
-                    [](const auto& h) { return h.benefit.town_portal; });
+                const bool gated = std::any_of(hirelings.begin(), hirelings.end(),
+                                               [](const auto& h) { return h.benefit.town_portal; });
                 if (!gated) {
                     pick_up_message = "Nobody here can open a portal";
                 } else if (portal_used_day == clock.day()) {
@@ -6517,8 +6438,8 @@ int main(int argc, char** argv) {
                     pick_up_message.clear();
                 }
                 pick_up_shown = SDL_GetTicks();
-            } else if (event.type == SDL_EVENT_KEY_DOWN && beaconing &&
-                       event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && beaconing && event.key.key >= SDLK_1 &&
+                       event.key.key <= SDLK_9) {
                 const auto pick = static_cast<std::size_t>(event.key.key - SDLK_1);
                 if (pick < beacons.size()) {
                     // Recall to a standing marker, which burns it.
@@ -6539,8 +6460,8 @@ int main(int argc, char** argv) {
                     pick_up_message = "A beacon marks this spot";
                     pick_up_shown = SDL_GetTicks();
                 }
-            } else if (event.type == SDL_EVENT_KEY_DOWN && porting &&
-                       event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
+            } else if (event.type == SDL_EVENT_KEY_DOWN && porting && event.key.key >= SDLK_1 &&
+                       event.key.key <= SDLK_9) {
                 const auto pick = static_cast<std::size_t>(event.key.key - SDLK_1);
                 if (pick < visited_towns.size()) {
                     porting = false;
@@ -6558,20 +6479,17 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && shown_pack >= 0 &&
                        (event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT ||
                         event.key.key == SDLK_UP || event.key.key == SDLK_DOWN)) {
-                pack_cursor_x += event.key.key == SDLK_RIGHT ? 1
+                pack_cursor_x += event.key.key == SDLK_RIGHT  ? 1
                                  : event.key.key == SDLK_LEFT ? -1
                                                               : 0;
-                pack_cursor_y += event.key.key == SDLK_DOWN ? 1
-                                 : event.key.key == SDLK_UP ? -1
-                                                            : 0;
+                pack_cursor_y += event.key.key == SDLK_DOWN ? 1 : event.key.key == SDLK_UP ? -1 : 0;
                 pack_cursor_x = std::clamp(pack_cursor_x, 0, game::kPackWidth - 1);
                 pack_cursor_y = std::clamp(pack_cursor_y, 0, game::kPackHeight - 1);
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_R &&
                        shown_member < 0 && shown_pack < 0 && open_shop < 0) {
                 rest_screen = true;
-            } else if (rest_screen &&
-                       (event.type == SDL_EVENT_KEY_DOWN ||
-                        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
+            } else if (rest_screen && (event.type == SDL_EVENT_KEY_DOWN ||
+                                       event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
                 // The camp's own buttons: rest and heal, sleep to dawn, or
                 // sit an hour out; the exit plate folds the blanket.
                 int chosen = -1;
@@ -6608,12 +6526,10 @@ int main(int argc, char** argv) {
                 } else if (chosen == 1) {
                     // Sleep so the eight hours of rest end at five in the
                     // morning: wait out the difference first.
-                    const int now_minute =
-                        static_cast<int>(clock.minutes() % game::kMinutesPerDay);
+                    const int now_minute = static_cast<int>(clock.minutes() % game::kMinutesPerDay);
                     const int dawn = 5 * game::kMinutesPerHour;
                     const int wait =
-                        ((dawn - now_minute - 8 * game::kMinutesPerHour) %
-                             game::kMinutesPerDay +
+                        ((dawn - now_minute - 8 * game::kMinutesPerHour) % game::kMinutesPerDay +
                          game::kMinutesPerDay) %
                         game::kMinutesPerDay;
                     clock.advance_seconds(static_cast<float>(wait) * 60.0f);
@@ -6703,9 +6619,9 @@ int main(int argc, char** argv) {
             step_timer -= in.dt > 0.0f ? in.dt : 0.0f;
             if (step_timer <= 0.0f) {
                 const bool running = running_now;
-                ambient.play_step(std::string(running ? "Run" : "Walk") +
-                                  std::string(session.ground_at(camera.position.x,
-                                                                camera.position.z)));
+                ambient.play_step(
+                    std::string(running ? "Run" : "Walk") +
+                    std::string(session.ground_at(camera.position.x, camera.position.z)));
                 step_timer = running ? 0.34f : 0.52f;
             }
         } else {
@@ -6714,8 +6630,7 @@ int main(int argc, char** argv) {
 
         // Spell-borne flight counts as the flag while it lasts; the spell's
         // own words keep it outdoors.
-        const bool fly_now =
-            fly || (session.outdoor() && clock.minutes() < fly_until);
+        const bool fly_now = fly || (session.outdoor() && clock.minutes() < fly_until);
         game::step_player(camera, fall_speed, fly_now, in, session.collision,
                           [&](float x, float z) { return session.terrain_height_at(x, z); });
 
@@ -6764,9 +6679,8 @@ int main(int argc, char** argv) {
         } else {
             // "Increases the radius of light": this renderer has no radius,
             // so the lamp itself brightens for the written hours. `inferred`
-            draw_indoor(scene, session, cache, lamp,
-                        clock.minutes() < torch_until ? 1.45f : 1.0f, &face_light,
-                        [&](std::size_t index) {
+            draw_indoor(scene, session, cache, lamp, clock.minutes() < torch_until ? 1.45f : 1.0f,
+                        &face_light, [&](std::size_t index) {
                             // Coarse: reject the whole room at once. A face
                             // without a sector (or with no sector data) falls
                             // through to the per-face test below.
@@ -6781,8 +6695,7 @@ int main(int argc, char** argv) {
                                 }
                             }
                             // Fine: per-face bounding sphere.
-                            return index < face_bounds.size() &&
-                                   face_bounds[index].radius > 0.0f &&
+                            return index < face_bounds.size() && face_bounds[index].radius > 0.0f &&
                                    !scene.might_see(face_bounds[index].center,
                                                     face_bounds[index].radius);
                         });
@@ -6800,8 +6713,8 @@ int main(int argc, char** argv) {
             mob.update(sim_dt, session, camera.position, [&](std::size_t actor) {
                 return battle.alive(actor) && battle.can_move(actor);
             });
-            if (std::string blow = battle.update(sim_dt, session, monster_stats, spell_stats,
-                                                 party, camera.position, clock.minutes());
+            if (std::string blow = battle.update(sim_dt, session, monster_stats, spell_stats, party,
+                                                 camera.position, clock.minutes());
                 !blow.empty()) {
                 pick_up_message = std::move(blow);
                 pick_up_shown = SDL_GetTicks();
@@ -6819,13 +6732,12 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 const int speed = door.open ? door.open_speed : door.close_speed;
-                const float rate = speed > 0 ? static_cast<float>(speed) /
-                                                   static_cast<float>(door.distance)
-                                             : 2.0f;
+                const float rate =
+                    speed > 0 ? static_cast<float>(speed) / static_cast<float>(door.distance)
+                              : 2.0f;
                 const float step = rate * sim_dt;
-                door.progress = door.progress < target
-                                    ? std::min(target, door.progress + step)
-                                    : std::max(target, door.progress - step);
+                door.progress = door.progress < target ? std::min(target, door.progress + step)
+                                                       : std::max(target, door.progress - step);
                 move_door(door);
                 doors_sliding = true;
             }
@@ -6843,23 +6755,20 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 if (!shot.burst.empty()) {
-                    spell_bursts.push_back(
-                        {shot.burst, shot.flight.target, SDL_GetTicks() + 400});
+                    spell_bursts.push_back({shot.burst, shot.flight.target, SDL_GetTicks() + 400});
                 }
                 if (std::string blow = battle.smite_area(
                         shot.target, shot.flat, shot.per_skill, shot.skill, shot.element,
-                        shot.caster, shot.reach, session, monster_stats, item_stats,
-                        random_items, standard_bonuses, special_bonuses);
+                        shot.caster, shot.reach, session, monster_stats, item_stats, random_items,
+                        standard_bonuses, special_bonuses);
                     !blow.empty()) {
                     pick_up_message = std::move(blow);
                     pick_up_shown = SDL_GetTicks();
                 }
             }
-            std::erase_if(spell_shots,
-                          [](const SpellShot& s) { return s.flight.arrived; });
-            std::erase_if(spell_bursts, [](const SpellBurst& b) {
-                return SDL_GetTicks() >= b.until;
-            });
+            std::erase_if(spell_shots, [](const SpellShot& s) { return s.flight.arrived; });
+            std::erase_if(spell_bursts,
+                          [](const SpellBurst& b) { return SDL_GetTicks() >= b.until; });
         }
         {
             int xp_bonus = 0;
@@ -6893,19 +6802,17 @@ int main(int argc, char** argv) {
             const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
             const bool known = arrives_identified(*row);
             for (auto& pack : packs) {
-                if (pack.add(id, w, h, known, rolled.standard_bonus,
-                             rolled.standard_bonus_strength, rolled.special_bonus,
-                             rolled.charges)) {
+                if (pack.add(id, w, h, known, rolled.standard_bonus, rolled.standard_bonus_strength,
+                             rolled.special_bonus, rolled.charges)) {
                     found_text +=
                         (found_text.empty() ? "" : " and ") +
                         data::cp1252_to_utf8(
                             known || row->unidentified_name.empty()
-                                ? game::enchanted_name(
-                                      row->name,
-                                      standard_bonuses.at(static_cast<std::size_t>(
-                                          rolled.standard_bonus)),
-                                      special_bonuses.at(static_cast<std::size_t>(
-                                          rolled.special_bonus)))
+                                ? game::enchanted_name(row->name,
+                                                       standard_bonuses.at(static_cast<std::size_t>(
+                                                           rolled.standard_bonus)),
+                                                       special_bonuses.at(static_cast<std::size_t>(
+                                                           rolled.special_bonus)))
                                 : std::string(row->unidentified_name));
                     break;
                 }
@@ -6930,8 +6837,7 @@ int main(int argc, char** argv) {
                     member.hit_points = std::max(1, member.hit_points - member.poisoned);
                 }
                 // Disease is poison's slower sibling: half the pace.
-                if (member.diseased > 0 && last_poison_hour % 2 == 0 &&
-                    member.hit_points > 1) {
+                if (member.diseased > 0 && last_poison_hour % 2 == 0 && member.hit_points > 1) {
                     member.hit_points = std::max(1, member.hit_points - member.diseased);
                 }
             }
@@ -6974,8 +6880,7 @@ int main(int argc, char** argv) {
             last_hire_day = clock.day();
             for (const auto& h : hirelings) {
                 if (h.benefit.food_per_day > 0 && party_food < h.benefit.food_cap) {
-                    party_food = std::min(party_food + h.benefit.food_per_day,
-                                          h.benefit.food_cap);
+                    party_food = std::min(party_food + h.benefit.food_per_day, h.benefit.food_cap);
                 }
                 for (auto& member : party) {
                     const bool beyond = member.dead() || member.affliction == "Stone" ||
@@ -6989,9 +6894,9 @@ int main(int argc, char** argv) {
                         member.affliction.clear();
                     }
                     if (h.benefit.bless_hours > 0) {
-                        member.bless_until = std::max(
-                            member.bless_until,
-                            clock.minutes() + h.benefit.bless_hours * game::kMinutesPerHour);
+                        member.bless_until = std::max(member.bless_until,
+                                                      clock.minutes() + h.benefit.bless_hours *
+                                                                            game::kMinutesPerHour);
                     }
                     if (h.benefit.heroism_hours > 0) {
                         member.heroism_until = std::max(
@@ -7003,8 +6908,8 @@ int main(int argc, char** argv) {
                 // that it lifts at dawn is the engine's reading of "once
                 // per day".
                 if (h.benefit.fly_hours > 0) {
-                    fly_until = std::max(
-                        fly_until, clock.minutes() + h.benefit.fly_hours * game::kMinutesPerHour);
+                    fly_until = std::max(fly_until, clock.minutes() + h.benefit.fly_hours *
+                                                                          game::kMinutesPerHour);
                 }
             }
             if (!hirelings.empty() && clock.day() >= next_wage_day) {
@@ -7031,16 +6936,15 @@ int main(int argc, char** argv) {
         for (const auto& h : hirelings) {
             for (auto& member : party) {
                 if (h.benefit.luck_bonus > 0) {
-                    auto& luck = member.temp_attributes[static_cast<std::size_t>(
-                        game::Attribute::Luck)];
+                    auto& luck =
+                        member.temp_attributes[static_cast<std::size_t>(game::Attribute::Luck)];
                     luck = std::max(luck, h.benefit.luck_bonus);
                 }
                 if (h.benefit.elemental_protection > 0) {
                     for (const auto element :
                          {data::Resistance::Fire, data::Resistance::Electricity,
                           data::Resistance::Cold, data::Resistance::Poison}) {
-                        auto& ward =
-                            member.temp_resistances[static_cast<std::size_t>(element)];
+                        auto& ward = member.temp_resistances[static_cast<std::size_t>(element)];
                         ward = std::max(ward, h.benefit.elemental_protection);
                     }
                 }
@@ -7101,8 +7005,7 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 const game::EnchantPower power =
-                    power_of_enchant(party[i].worn_standard[slot],
-                                     party[i].worn_strength[slot],
+                    power_of_enchant(party[i].worn_standard[slot], party[i].worn_strength[slot],
                                      party[i].worn_special[slot]);
                 for (std::size_t a = 0; a < game::kAttributeCount; ++a) {
                     party[i].gear_attributes[a] += power.attributes[a];
@@ -7110,14 +7013,14 @@ int main(int argc, char** argv) {
                     // if a spell has filled it.
                     if (const int slot = game::buff_slot_for_stat(static_cast<int>(a));
                         slot >= 0 && slot_seen[a] == 0) {
-                        party[i].gear_attributes[a] += party[i].buffs.power(
-                            static_cast<std::size_t>(slot), clock.minutes());
+                        party[i].gear_attributes[a] +=
+                            party[i].buffs.power(static_cast<std::size_t>(slot), clock.minutes());
                         slot_seen[a] = 1;
                     }
                     // And what the executable's own walk over the special
                     // gives that stat, which the prose does not say.
-                    party[i].gear_attributes[a] += game::special_stat_bonus(
-                        party[i].worn_special[slot], static_cast<int>(a));
+                    party[i].gear_attributes[a] +=
+                        game::special_stat_bonus(party[i].worn_special[slot], static_cast<int>(a));
                 }
                 for (std::size_t r = 0; r < data::kResistanceCount; ++r) {
                     party[i].gear_resistances[r] += power.resistances[r];
@@ -7189,8 +7092,7 @@ int main(int argc, char** argv) {
                 saved = std::max(saved, h.benefit.food_saved_camping);
             }
             const int cost = std::max(1, game::kRestFoodCost - saved);
-            const game::RestResult result =
-                game::rest(party, clock, disturbed, party_food, cost);
+            const game::RestResult result = game::rest(party, clock, disturbed, party_food, cost);
             if (result == game::RestResult::Rested) {
                 // A rest ends every spell: the original's own rest routine
                 // walks the party's sixteen slots and each character's
@@ -7324,10 +7226,8 @@ int main(int argc, char** argv) {
                 for (int i = 0; i < std::max(1, called.count); ++i) {
                     const auto [dx, dy] = world::spawn_offset(i, std::max(1, called.count));
                     const render::Vec3 at = world::to_render_space(
-                        called.x + static_cast<int>(dx), called.y + static_cast<int>(dy),
-                        called.z);
-                    summoned = world::summon_actor(monster_stats, cache, monster_id, at,
-                                                   session) ||
+                        called.x + static_cast<int>(dx), called.y + static_cast<int>(dy), called.z);
+                    summoned = world::summon_actor(monster_stats, cache, monster_id, at, session) ||
                                summoned;
                 }
             }
@@ -7340,8 +7240,8 @@ int main(int argc, char** argv) {
             // A launch puts its sprite in the air; an aimless one flies at
             // the party, which is this engine's reading of a trap.
             if (!outcome.launches.empty()) {
-                auto started = game::start_launches(outcome.launches, session.sprite_frames,
-                                                    camera.position);
+                auto started =
+                    game::start_launches(outcome.launches, session.sprite_frames, camera.position);
                 launches.insert(launches.end(), started.begin(), started.end());
             }
             // A question stops the walk and waits at the message line.
@@ -7389,8 +7289,8 @@ int main(int argc, char** argv) {
                         break;
                     }
                     open_shop = static_cast<int>(i);
-                    shop_stock =
-                        stock_for(*shops_here[static_cast<std::size_t>(open_shop)], outcome.building * 2654435761U);
+                    shop_stock = stock_for(*shops_here[static_cast<std::size_t>(open_shop)],
+                                           outcome.building * 2654435761U);
                     shop_said.clear();
                     break;
                 }
@@ -7423,8 +7323,8 @@ int main(int argc, char** argv) {
                     // the party stands in. `inferred`
                     int disarm = 0;
                     for (const auto& member : party) {
-                        disarm = std::max(
-                            disarm, game::character_disarm_value(member, hireling_points));
+                        disarm =
+                            std::max(disarm, game::character_disarm_value(member, hireling_points));
                     }
                     if (game::disarm_check(disarm, session.lock_difficulty, misc_random)) {
                         took = "A trap clicks, disarmed.  ";
@@ -7434,8 +7334,7 @@ int main(int argc, char** argv) {
                         // column's worth of d20s; each member may leap
                         // clear by Perception, and resistance answers the
                         // element for the rest.
-                        const int rolled =
-                            game::trap_damage(session.trap_difficulty, misc_random);
+                        const int rolled = game::trap_damage(session.trap_difficulty, misc_random);
                         for (auto& member : party) {
                             int perception = 0;
                             if (const auto it = member.skills.find("Perception");
@@ -7446,8 +7345,8 @@ int main(int argc, char** argv) {
                             // dodge wants; nothing needs repacking.
                             // "Point bonus to Perception skill" — a Scout's or
                             // a Psychic's, on top of the character's own byte.
-                            perception += game::best_hired(
-                                hirelings, &game::HireBenefit::perception_bonus);
+                            perception +=
+                                game::best_hired(hirelings, &game::HireBenefit::perception_bonus);
                             if (game::perception_dodges(perception, misc_random)) {
                                 speak(member, 33);  // line 33: the close call's word
                                 continue;
@@ -7486,10 +7385,8 @@ int main(int argc, char** argv) {
                         if (pack.add(id, w, h, known, rolled.standard_bonus,
                                      rolled.standard_bonus_strength, rolled.special_bonus,
                                      rolled.charges)) {
-                            took += (took.empty() || took.back() == ' ' ? "You find "
-                                                                          : ", ") +
-                                    data::cp1252_to_utf8(known ||
-                                                                 row->unidentified_name.empty()
+                            took += (took.empty() || took.back() == ' ' ? "You find " : ", ") +
+                                    data::cp1252_to_utf8(known || row->unidentified_name.empty()
                                                              ? row->name
                                                              : row->unidentified_name);
                             break;
@@ -7546,7 +7443,8 @@ int main(int argc, char** argv) {
                         (static_cast<float>(travel.facing) / 2048.0f) * 2.0f * render::kPi +
                         render::kPi / 2.0f;
                     camera.pitch = 0.0f;
-                    pick_up_message = stays ? "You step through" : "You travel to " + session.title();
+                    pick_up_message =
+                        stays ? "You step through" : "You travel to " + session.title();
                     pick_up_shown = SDL_GetTicks();
                 }
             }
@@ -7590,11 +7488,10 @@ int main(int argc, char** argv) {
                     }
                     // The held weapon's special rider, if its prose rolls.
                     game::EnchantPower rider;
-                    if (const int sp = party[who].worn_special[static_cast<std::size_t>(
-                            game::Slot::Weapon)];
+                    if (const int sp =
+                            party[who].worn_special[static_cast<std::size_t>(game::Slot::Weapon)];
                         sp > 0) {
-                        if (const auto* bonus =
-                                special_bonuses.at(static_cast<std::size_t>(sp))) {
+                        if (const auto* bonus = special_bonuses.at(static_cast<std::size_t>(sp))) {
                             rider = game::special_power(*bonus);
                         }
                     }
@@ -7604,20 +7501,20 @@ int main(int argc, char** argv) {
                     // point", which is what their rows say and what the
                     // slots now carry.
                     game::SkillPower swung = weapon_skill_of(party[who]);
-                    if (const int blessed = party[who].buffs.power(game::CharacterBuff::Bless,
-                                                                   clock.minutes());
+                    if (const int blessed =
+                            party[who].buffs.power(game::CharacterBuff::Bless, clock.minutes());
                         blessed > 0) {
                         swung.to_hit += game::kBlessBase + blessed;
                     }
-                    if (const int heroic = party[who].buffs.power(game::CharacterBuff::Heroism,
-                                                                  clock.minutes());
+                    if (const int heroic =
+                            party[who].buffs.power(game::CharacterBuff::Heroism, clock.minutes());
                         heroic > 0) {
                         swung.damage += game::kBlessBase + heroic;
                     }
                     std::string blow = battle.strike(
                         target, party[who], packs[who], session, monster_stats, item_stats,
-                        random_items, standard_bonuses, special_bonuses, swung,
-                        rider.extra_damage, rider.damage_element,
+                        random_items, standard_bonuses, special_bonuses, swung, rider.extra_damage,
+                        rider.damage_element,
                         game::best_hired(hirelings, &game::HireBenefit::weapon_skill_bonus));
                     if (!blow.empty()) {
                         if (blow.find(" and kills it") != std::string::npos) {
@@ -7702,7 +7599,8 @@ int main(int argc, char** argv) {
                             if (row == nullptr || row->skill_group.empty()) {
                                 continue;
                             }
-                            const int lift = std::min(2, lift_for(*row) + (hired_armour > 0 ? 1 : 0));
+                            const int lift =
+                                std::min(2, lift_for(*row) + (hired_armour > 0 ? 1 : 0));
                             rec_points += game::worn_recovery_penalty(
                                 game::gear_recovery(row->skill_group), lift);
                         }
@@ -7737,8 +7635,7 @@ int main(int argc, char** argv) {
                             held_row != nullptr &&
                             game::skill_quickens_attack(held_row->skill_group)) {
                             if (const auto it = party[who].skills.find(held_row->skill_group);
-                                it != party[who].skills.end() &&
-                                game::rank_of(it->second) >= 1) {
+                                it != party[who].skills.end() && game::rank_of(it->second) >= 1) {
                                 rec_points -= game::skill_points(it->second);
                             }
                         }
@@ -7788,8 +7685,8 @@ int main(int argc, char** argv) {
                 for (const auto& tile : session.water_tiles) {
                     image::Bitmap rebaked;
                     if (image::decode_bitmap_cycled(tile.raw, tile.ramp_lo, tile.ramp_len,
-                                                    phase % tile.ramp_len, rebaked) ==
-                        image::BitmapError::None) {
+                                                    phase % tile.ramp_len,
+                                                    rebaked) == image::BitmapError::None) {
                         render::Texture texture;
                         if (render::Texture::create(rebaked.width, rebaked.height,
                                                     std::move(rebaked.rgba), texture)) {
@@ -7857,9 +7754,8 @@ int main(int argc, char** argv) {
             // with its end caps across the viewport's top, the fill strip
             // green, yellow or red as the target falls. The thresholds
             // between the three strips are the engine's. `inferred`
-            if (const std::size_t aimed_now =
-                    game::aimed_actor(session, battle, camera.position, camera.forward(),
-                                      game::kMissileRange);
+            if (const std::size_t aimed_now = game::aimed_actor(
+                    session, battle, camera.position, camera.forward(), game::kMissileRange);
                 aimed_now != game::kNoActor) {
                 const auto [hp, max_hp] = battle.health_of(aimed_now);
                 if (max_hp > 0) {
@@ -7867,9 +7763,8 @@ int main(int argc, char** argv) {
                     const int top = 12;
                     blit(scene.framebuffer(), cache.icon("MHP_BG"), left, top);
                     const float frac =
-                        std::clamp(static_cast<float>(hp) / static_cast<float>(max_hp), 0.0f,
-                                   1.0f);
-                    const char* strip = frac > 0.5f   ? "MHP_GRN"
+                        std::clamp(static_cast<float>(hp) / static_cast<float>(max_hp), 0.0f, 1.0f);
+                    const char* strip = frac > 0.5f    ? "MHP_GRN"
                                         : frac > 0.25f ? "MHP_YEL"
                                                        : "MHP_RED";
                     const auto& fill = cache.icon(strip);
@@ -7880,16 +7775,16 @@ int main(int argc, char** argv) {
                         auto fb = scene.framebuffer().color();
                         const auto src = fill.pixels();
                         for (int y = 0; y < static_cast<int>(fill.height()); ++y) {
-                            for (int x = 0; x < width && x < static_cast<int>(fill.width());
-                                 ++x) {
+                            for (int x = 0; x < width && x < static_cast<int>(fill.width()); ++x) {
                                 const auto si = (static_cast<std::size_t>(y) * fill.width() +
-                                                 static_cast<std::size_t>(x)) * 4;
+                                                 static_cast<std::size_t>(x)) *
+                                                4;
                                 if (src[si + 3] == 0) {
                                     continue;
                                 }
-                                const auto di =
-                                    (static_cast<std::size_t>(top + 2 + y) * kWidth +
-                                     static_cast<std::size_t>(left + x)) * 4;
+                                const auto di = (static_cast<std::size_t>(top + 2 + y) * kWidth +
+                                                 static_cast<std::size_t>(left + x)) *
+                                                4;
                                 fb[di] = src[si];
                                 fb[di + 1] = src[si + 1];
                                 fb[di + 2] = src[si + 2];
@@ -7918,8 +7813,7 @@ int main(int argc, char** argv) {
             // The arena's judge: the sand cleared with a challenge open
             // pays the purse and ticks the rank's own counter award. The
             // purse is the engine's number.
-            if (arena_rank >= 0 && session.file_name == "zarena.blv" &&
-                !battle.anything_alive()) {
+            if (arena_rank >= 0 && session.file_name == "zarena.blv" && !battle.anything_alive()) {
                 const int purse = 250 << arena_rank;
                 gold += purse;
                 script_state.awards.insert(84 + arena_rank);
@@ -7929,12 +7823,10 @@ int main(int argc, char** argv) {
                 pick_up_shown = SDL_GetTicks();
                 arena_rank = -1;
             }
-            if (arena_rank < 0 && session.file_name == "zarena.blv" &&
-                !battle.anything_alive()) {
+            if (arena_rank < 0 && session.file_name == "zarena.blv" && !battle.anything_alive()) {
                 game::draw_text(scene.framebuffer(), font, 24, 40,
                                 "The Arena: 1 Page, 2 Squire, 3 Knight, 4 Lord",
-                                render::Color{235, 225, 170, 255},
-                                render::Color{0, 0, 0, 255});
+                                render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
             }
             // The engine's own readouts keep to the corner no shipped
             // piece claims.
@@ -7971,10 +7863,9 @@ int main(int argc, char** argv) {
             if (ask_event >= 0) {
                 const int prompt = ask_pending.prompt;
                 std::string line =
-                    prompt >= 0 &&
-                            static_cast<std::size_t>(prompt) < session.script_strings.size()
-                        ? data::cp1252_to_utf8(std::string(session.script_strings.at(
-                              static_cast<std::size_t>(prompt))))
+                    prompt >= 0 && static_cast<std::size_t>(prompt) < session.script_strings.size()
+                        ? data::cp1252_to_utf8(std::string(
+                              session.script_strings.at(static_cast<std::size_t>(prompt))))
                         : std::string("Answer?");
                 line += " " + ask_typed + "_";
                 game::draw_text(scene.framebuffer(), font, 8, 24, line,
@@ -8006,10 +7897,10 @@ int main(int argc, char** argv) {
                       readied[static_cast<std::size_t>(book_member)], points);
         }
         if (show_map) {
-            const bool eye_now =
-                clock.minutes() < eye_until ||
-                std::any_of(hirelings.begin(), hirelings.end(),
-                            [](const auto& h) { return h.benefit.wizard_eye; });
+            const bool eye_now = clock.minutes() < eye_until ||
+                                 std::any_of(
+                                     hirelings.begin(), hirelings.end(),
+                                     [](const auto& h) { return h.benefit.wizard_eye; });
             draw_map_page(scene, session, camera.position, camera.forward(), map_tile_colors,
                           map_colors_ready, eye_now ? std::max(eye_rank, 1) : 0, battle);
         }
@@ -8017,8 +7908,8 @@ int main(int argc, char** argv) {
             draw_quick_reference(scene, font, cache, party, stat_descriptions, gold, party_food);
         }
         if (show_options) {
-            draw_options(scene, font, cache, window_scale, fullscreen, turn_based,
-                         ini_always_run, ini_loud_music);
+            draw_options(scene, font, cache, window_scale, fullscreen, turn_based, ini_always_run,
+                         ini_loud_music);
         }
         if (rest_screen && font.glyph_count() > 0) {
             // The camp: restmain's own panel, its three button slots worn
@@ -8030,8 +7921,8 @@ int main(int argc, char** argv) {
             blit(scene.framebuffer(), cache.icon("restb3"), 65, 301);
             blit(scene.framebuffer(), cache.icon("restexit"), 285, 308);
             game::draw_text(scene.framebuffer(), font, 34, 172,
-                            std::to_string(party_food) + " food",
-                            render::Color{50, 35, 20, 255}, {0, 0, 0, 0});
+                            std::to_string(party_food) + " food", render::Color{50, 35, 20, 255},
+                            {0, 0, 0, 0});
             game::draw_text(scene.framebuffer(), font, 280, 170, clock.hhmm(),
                             render::Color{215, 210, 190, 255}, render::Color{0, 0, 0, 255});
             game::draw_text(scene.framebuffer(), font, 280, 184,
@@ -8098,8 +7989,8 @@ int main(int argc, char** argv) {
                        script_state.awards, sheet_page, item_stats);
         }
         if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
-            advance_room(game::interior_video(
-                face_of(*shops_here[static_cast<std::size_t>(open_shop)])));
+            advance_room(
+                game::interior_video(face_of(*shops_here[static_cast<std::size_t>(open_shop)])));
         } else if (!room.video.empty()) {
             room = {};
             ambient.stop_room();
@@ -8109,12 +8000,11 @@ int main(int argc, char** argv) {
             if (talking_to < static_cast<int>(here.size())) {
                 const auto person = patched(here[static_cast<std::size_t>(talking_to)]);
                 draw_conversation(scene, font, cache, person.npc_id,
-                                  game::talk_to(person, dialogue, personalities, trade_talk,
-                                                clock, interface_words, party[0].name,
+                                  game::talk_to(person, dialogue, personalities, trade_talk, clock,
+                                                interface_words, party[0].name,
                                                 game::face_is_female(party[0].face),
                                                 standing_for(person.npc_id)),
-                                  talk_answer,
-                                  shops_here[static_cast<std::size_t>(open_shop)]);
+                                  talk_answer, shops_here[static_cast<std::size_t>(open_shop)]);
             }
         } else if (open_shop >= 0 && open_shop < static_cast<int>(shops_here.size())) {
             data::BuildingStatsEntry shop = *shops_here[static_cast<std::size_t>(open_shop)];
@@ -8127,8 +8017,8 @@ int main(int argc, char** argv) {
                                 "Enter descends into " + data::cp1252_to_utf8(shop.name),
                                 render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
                 game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
-                                "Enter descends, B turns away",
-                                render::Color{170, 170, 170, 255}, render::Color{0, 0, 0, 255});
+                                "Enter descends, B turns away", render::Color{170, 170, 170, 255},
+                                render::Color{0, 0, 0, 255});
             } else if (shop.type == "Town Hall" || shop.type == "City Council") {
                 dress_service(scene, font, cache, shop);
                 const auto* head = bounty_of();
@@ -8139,8 +8029,7 @@ int main(int argc, char** argv) {
                     game::draw_text(scene.framebuffer(), font, 190, y,
                                     "This month's bounty: " + data::cp1252_to_utf8(head->name) +
                                         ", " + std::to_string(purse) + " gold",
-                                    render::Color{235, 225, 170, 255},
-                                    render::Color{0, 0, 0, 255});
+                                    render::Color{235, 225, 170, 255}, render::Color{0, 0, 0, 255});
                     y += line2;
                     std::string status;
                     if (bounty_month_paid == bounty_month()) {
@@ -8151,8 +8040,7 @@ int main(int argc, char** argv) {
                         status = "The head is still out there.";
                     }
                     game::draw_text(scene.framebuffer(), font, 190, y, status,
-                                    render::Color{200, 200, 200, 255},
-                                    render::Color{0, 0, 0, 255});
+                                    render::Color{200, 200, 200, 255}, render::Color{0, 0, 0, 255});
                 }
                 game::draw_text(scene.framebuffer(), font, 12, kHeight - 17,
                                 "Enter claims a taken bounty, T talk, B closes",
@@ -8167,8 +8055,8 @@ int main(int argc, char** argv) {
                 draw_travel(scene, font, cache, shop, game::routes_of(shop, map_stats),
                             game::fare_of(shop), clock, gold, shop_said);
             } else {
-                draw_shop(scene, font, cache, shop, shop_stock, item_stats, merchant_words,
-                          gold, shop_said, shop_pick);
+                draw_shop(scene, font, cache, shop, shop_stock, item_stats, merchant_words, gold,
+                          shop_said, shop_pick);
             }
         }
         if (shown_pack >= 0) {
@@ -8177,15 +8065,13 @@ int main(int argc, char** argv) {
             if (open_shop >= 0) {
                 if (const auto* under = packs[who].at(pack_cursor_x, pack_cursor_y);
                     under != nullptr) {
-                    if (const auto* row =
-                            item_stats.at(static_cast<std::size_t>(under->item_id));
+                    if (const auto* row = item_stats.at(static_cast<std::size_t>(under->item_id));
                         row != nullptr) {
                         const int offer = game::offer_price(*row);
                         const int sweet = row->value - offer;
-                        sale_offer = std::min(
-                            row->value,
-                            offer + sweet * (row->value - haggled(row->value)) /
-                                        std::max(1, row->value));
+                        sale_offer = std::min(row->value,
+                                              offer + sweet * (row->value - haggled(row->value)) /
+                                                          std::max(1, row->value));
                     }
                 }
             }
@@ -8233,10 +8119,9 @@ int main(int argc, char** argv) {
         // own — monsters, then treasure, then points of interest. A hired
         // Cartographer keeps it lit at expert, as their row says.
         const bool eye_open =
-            session.outdoor() &&
-            (clock.minutes() < eye_until ||
-             std::any_of(hirelings.begin(), hirelings.end(),
-                         [](const auto& h) { return h.benefit.wizard_eye; }));
+            session.outdoor() && (clock.minutes() < eye_until ||
+                                  std::any_of(hirelings.begin(), hirelings.end(),
+                                              [](const auto& h) { return h.benefit.wizard_eye; }));
         if (eye_open) {
             const int rank = std::any_of(hirelings.begin(), hirelings.end(),
                                          [](const auto& h) { return h.benefit.wizard_eye; })
@@ -8257,9 +8142,10 @@ int main(int argc, char** argv) {
                 }
             }
             for (int d = 0; d < kBox; ++d) {
-                for (const auto [ex, ey] :
-                     {std::pair{left + d, top}, {left + d, top + kBox - 1}, {left, top + d},
-                      {left + kBox - 1, top + d}}) {
+                for (const auto [ex, ey] : {std::pair{left + d, top},
+                                            {left + d, top + kBox - 1},
+                                            {left, top + d},
+                                            {left + kBox - 1, top + d}}) {
                     const auto i =
                         (static_cast<std::size_t>(ey) * kWidth + static_cast<std::size_t>(ex)) * 4;
                     pixels[i] = 180;
@@ -8282,9 +8168,9 @@ int main(int argc, char** argv) {
                         if (qx < left || qx >= left + kBox || qy < top || qy >= top + kBox) {
                             continue;
                         }
-                        const auto i = (static_cast<std::size_t>(qy) * kWidth +
-                                        static_cast<std::size_t>(qx)) *
-                                       4;
+                        const auto i =
+                            (static_cast<std::size_t>(qy) * kWidth + static_cast<std::size_t>(qx)) *
+                            4;
                         pixels[i] = colour.r;
                         pixels[i + 1] = colour.g;
                         pixels[i + 2] = colour.b;
@@ -8332,15 +8218,13 @@ int main(int argc, char** argv) {
                 }
                 game::draw_text(scene.framebuffer(), font, kWidth / 2 - 90, y,
                                 std::to_string(shown + 1) + "  " + data::cp1252_to_utf8(label),
-                                render::Color{230, 230, 230, 255},
-                                render::Color{0, 0, 0, 255});
+                                render::Color{230, 230, 230, 255}, render::Color{0, 0, 0, 255});
                 y += line;
             }
             if (static_cast<int>(beacons.size()) < beacon_capacity) {
                 game::draw_text(scene.framebuffer(), font, kWidth / 2 - 90, y,
                                 std::to_string(shown + 1) + "  set a new marker here",
-                                render::Color{190, 215, 190, 255},
-                                render::Color{0, 0, 0, 255});
+                                render::Color{190, 215, 190, 255}, render::Color{0, 0, 0, 255});
             }
         }
         if (street_talk >= 0 && font.glyph_count() > 0) {
@@ -8350,8 +8234,8 @@ int main(int argc, char** argv) {
             passerby.profession = "Peasant";
             passerby.personality = "Peasant";
             draw_conversation(scene, font, cache, 0,
-                              game::talk_to(passerby, dialogue, personalities, trade_talk,
-                                            clock, interface_words, party[0].name,
+                              game::talk_to(passerby, dialogue, personalities, trade_talk, clock,
+                                            interface_words, party[0].name,
                                             game::face_is_female(party[0].face),
                                             standing_for(passerby.npc_id)),
                               talk_answer);
@@ -8372,15 +8256,13 @@ int main(int argc, char** argv) {
                 }
                 game::draw_text(scene.framebuffer(), font, kWidth / 2 - 80, y,
                                 std::to_string(i + 1) + "  " + data::cp1252_to_utf8(label),
-                                render::Color{230, 230, 230, 255},
-                                render::Color{0, 0, 0, 255});
+                                render::Color{230, 230, 230, 255}, render::Color{0, 0, 0, 255});
                 y += line;
             }
         }
         if (show_journal && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
             draw_journal(scene, font, quest_texts, award_texts, script_state.bits,
-                         script_state.awards, autonote_texts, script_state.autonotes,
-                         journal_page);
+                         script_state.awards, autonote_texts, script_state.autonotes, journal_page);
         }
         if (startup.state() == game::StartupState::PartyCreation) {
             draw_creation(scene, font, cache, creation_draft, create_slot, stat_descriptions,
@@ -8410,16 +8292,16 @@ int main(int argc, char** argv) {
                     if (!render::Texture::create(static_cast<std::uint16_t>(media_frame.width),
                                                  static_cast<std::uint16_t>(media_frame.height),
                                                  std::move(pixels), movie_frame)) {
-                        game::StartupMediaReport report{
-                            game::StartupMediaOutcome::DecodeFailed, std::string(movie.reel())};
+                        game::StartupMediaReport report{game::StartupMediaOutcome::DecodeFailed,
+                                                        std::string(movie.reel())};
                         movie.release();
                         finish_startup_media(report);
                     } else {
                         if (mouse_look && !media_frame.audio.empty()) {
-                            ambient.play_room_chunk(
-                                media_frame.audio.data(), media_frame.audio.size(),
-                                static_cast<int>(media_frame.audio_rate),
-                                media_frame.audio_channels == 2);
+                            ambient.play_room_chunk(media_frame.audio.data(),
+                                                    media_frame.audio.size(),
+                                                    static_cast<int>(media_frame.audio_rate),
+                                                    media_frame.audio_channels == 2);
                         }
                         const double fps = media_frame.fps > 1.0 ? media_frame.fps : 15.0;
                         media_next_frame_at =
@@ -8461,8 +8343,7 @@ int main(int argc, char** argv) {
         }
         // The map's name, drawn with the game's own font, inside the
         // viewport's frame rather than across it.
-        if (font.glyph_count() > 0 && startup.world_active() && !show_journal &&
-            book_member < 0) {
+        if (font.glyph_count() > 0 && startup.world_active() && !show_journal && book_member < 0) {
             game::draw_text(scene.framebuffer(), font, 12, 12, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }

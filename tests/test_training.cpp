@@ -82,8 +82,7 @@ TEST_CASE("a guild teaches what the class may hold", "[training]") {
     who.skills[std::string(game::kSkillNames[game::skill_id("Mace")])] = 3;
     int gold = 100;
     // A cleric may learn Chain; a knight's magic is refused whatever it pays.
-    REQUIRE(game::learn_skill(who, game::skill_id("Chain"), 40, gold) ==
-            game::TeachRefusal::None);
+    REQUIRE(game::learn_skill(who, game::skill_id("Chain"), 40, gold) == game::TeachRefusal::None);
     REQUIRE(gold == 60);
     REQUIRE(game::skill_points(who.skills["Chain"]) == 1);
     REQUIRE(game::skill_rank(who.skills["Chain"]) == 0);

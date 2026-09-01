@@ -50,8 +50,7 @@ inline constexpr int kSpellPowerCure = 77;
 // SPELLS.TXT's own words agree at normal rank ("3 minutes per point") and
 // under-state the two above it, calling them "1 hour" and "1 day" where the
 // executable grants three of each. The executable is followed. `observed`
-inline constexpr std::array<int, 3> kCureWindowMinutes{
-    3, 3 * kMinutesPerHour, 3 * kMinutesPerDay};
+inline constexpr std::array<int, 3> kCureWindowMinutes{3, 3 * kMinutesPerHour, 3 * kMinutesPerDay};
 
 // What a rank's cure window is worth, in game minutes, at `points`.
 // **And it is not one ladder — the earlier reading is narrowed.** Spirit's
@@ -114,7 +113,9 @@ inline constexpr std::array<int, 3> kFirstAidHeal{5, 7, 10};
     return 10 + (rank >= 1 ? 3 : 2) * points;
 }
 
-[[nodiscard]] inline constexpr bool body_buff_hits_party(int rank) noexcept { return rank >= 2; }
+[[nodiscard]] inline constexpr bool body_buff_hits_party(int rank) noexcept {
+    return rank >= 2;
+}
 
 // Protection from Poison gives one, two or three points of poison
 // resistance a point by rank. `observed` 0x427ec6.
@@ -137,14 +138,14 @@ inline constexpr int kBodyBuffMinutesPerPoint = kMinutesPerHour;
 // spell is not one of them and the table's prose must answer instead.
 [[nodiscard]] inline constexpr int traced_heal(int spell_id, int points, int rank) noexcept {
     switch (spell_id) {
-        case kSpellFirstAid:
-            return first_aid_heal(rank);
-        case kSpellCureWounds:
-            return cure_wounds_heal(points);
-        case kSpellPowerCure:
-            return power_cure_heal(points);
-        default:
-            return 0;
+    case kSpellFirstAid:
+        return first_aid_heal(rank);
+    case kSpellCureWounds:
+        return cure_wounds_heal(points);
+    case kSpellPowerCure:
+        return power_cure_heal(points);
+    default:
+        return 0;
     }
 }
 

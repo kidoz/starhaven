@@ -63,9 +63,9 @@ inline constexpr int kConditionStride = 8;
 }
 
 // The six that take a character out of a fight, by the set the AI tests.
-inline constexpr std::array<int, 6> kIncapacitating{
-    kConditionAsleep, kConditionParalyzed, kConditionUnconscious,
-    kConditionDead,   kConditionStoned,    kConditionEradicated};
+inline constexpr std::array<int, 6> kIncapacitating{kConditionAsleep,      kConditionParalyzed,
+                                                    kConditionUnconscious, kConditionDead,
+                                                    kConditionStoned,      kConditionEradicated};
 
 // The two a heal refuses.
 inline constexpr std::array<int, 2> kBeyondHealing{kConditionDead, kConditionEradicated};
@@ -85,21 +85,36 @@ inline constexpr std::array<int, 2> kBeyondHealing{kConditionDead, kConditionEra
 
 [[nodiscard]] inline constexpr std::string_view condition_name(int id) noexcept {
     switch (id) {
-        case kConditionCursed: return "Cursed";
-        case kConditionWeakId: return "Weak";
-        case kConditionAsleep: return "Asleep";
-        case kConditionAfraid: return "Afraid";
-        case kConditionDrunk: return "Drunk";
-        case kConditionInsane: return "Insane";
-        case kConditionPoisoned: return "Poisoned";
-        case kConditionDiseased: return "Diseased";
-        case kConditionParalyzed: return "Paralyzed";
-        case kConditionUnconscious: return "Unconscious";
-        case kConditionDead: return "Dead";
-        case kConditionStoned: return "Stoned";
-        case kConditionEradicated: return "Eradicated";
-        case kConditionZombie: return "Zombie";
-        default: return {};
+    case kConditionCursed:
+        return "Cursed";
+    case kConditionWeakId:
+        return "Weak";
+    case kConditionAsleep:
+        return "Asleep";
+    case kConditionAfraid:
+        return "Afraid";
+    case kConditionDrunk:
+        return "Drunk";
+    case kConditionInsane:
+        return "Insane";
+    case kConditionPoisoned:
+        return "Poisoned";
+    case kConditionDiseased:
+        return "Diseased";
+    case kConditionParalyzed:
+        return "Paralyzed";
+    case kConditionUnconscious:
+        return "Unconscious";
+    case kConditionDead:
+        return "Dead";
+    case kConditionStoned:
+        return "Stoned";
+    case kConditionEradicated:
+        return "Eradicated";
+    case kConditionZombie:
+        return "Zombie";
+    default:
+        return {};
     }
 }
 
@@ -119,16 +134,15 @@ inline constexpr std::array<int, 2> kBeyondHealing{kConditionDead, kConditionEra
 // 11, 10, 9, 8, Diseased, Poisoned, Insane, Drunk — worst first, exactly.
 // `observed` at 0x481d2d, 0x481f64 and 0x47e8xx.
 inline constexpr std::array<int, 14> kConditionPriority{16, 15, 14, 13, 2, 12, 11,
-                                                        10, 9,  8,  7,  6,  5,  4};
+                                                        10, 9,  8,  7,  6, 5,  4};
 
 // The multiplier each condition applies, as a percentage. `0x4c27fc`,
 // indexed by condition id. **Poisoned costs a quarter and diseased two
 // fifths**; Drunk is the heaviest at ninety per cent off; Afraid halves.
 // The four ids the naming does not reach carry 50, 30, 25 and 10.
 // `observed`
-inline constexpr std::array<int, 18> kConditionPercent{100, 100, 100, 50, 10, 100,
-                                                       75,  60,  50,  30, 25, 10,
-                                                       100, 100, 100, 100, 100, 100};
+inline constexpr std::array<int, 18> kConditionPercent{100, 100, 100, 50,  10,  100, 75,  60,  50,
+                                                       30,  25,  10,  100, 100, 100, 100, 100, 100};
 
 [[nodiscard]] inline constexpr int condition_percent(int id) noexcept {
     return id >= 0 && id < static_cast<int>(kConditionPercent.size())
@@ -138,8 +152,7 @@ inline constexpr std::array<int, 18> kConditionPercent{100, 100, 100, 50, 10, 10
 
 // The worst condition a character is suffering, given a predicate that says
 // whether an id is set — the same walk the executable makes.
-template <typename IsSet>
-[[nodiscard]] inline int worst_condition(IsSet&& is_set) {
+template <typename IsSet> [[nodiscard]] inline int worst_condition(IsSet&& is_set) {
     for (const int id : kConditionPriority) {
         if (is_set(id)) {
             return id;

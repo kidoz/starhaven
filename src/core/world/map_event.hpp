@@ -210,14 +210,14 @@ constexpr std::size_t kSpriteObjectPreviousPositionOffset = 0x58;
 // declares.
 struct MapDoor {
     std::uint32_t attributes = 0;
-    std::uint32_t id = 0;                  // what opcode 15 throws
-    float dx = 0, dy = 0, dz = 0;          // unit direction, from 16.16
-    int distance = 0;                      // how far it moves, world units
+    std::uint32_t id = 0;          // what opcode 15 throws
+    float dx = 0, dy = 0, dz = 0;  // unit direction, from 16.16
+    int distance = 0;              // how far it moves, world units
     int open_speed = 0, close_speed = 0;
     std::vector<std::uint16_t> vertex_ids;  // the vertices that move
     std::vector<std::uint16_t> face_ids;    // the faces those vertices touch
     std::vector<std::uint16_t> sector_ids;
-    std::vector<std::int16_t> delta_us, delta_vs;    // per-face texture slide
+    std::vector<std::int16_t> delta_us, delta_vs;      // per-face texture slide
     std::vector<std::int16_t> x_base, y_base, z_base;  // the shut position
 
     // Live state, not from the file: every base equals its shipped vertex on

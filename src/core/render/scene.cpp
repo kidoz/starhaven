@@ -56,8 +56,7 @@ bool SceneRenderer::might_see(Vec3 center, float radius) const {
     const float half_h = depth * kTanHalfFov;
     const float half_w =
         half_h * (static_cast<float>(width_) / static_cast<float>(height_)) + radius;
-    return v.x >= -half_w && v.x <= half_w && v.y >= -(half_h + radius) &&
-           v.y <= half_h + radius;
+    return v.x >= -half_w && v.x <= half_w && v.y >= -(half_h + radius) && v.y <= half_h + radius;
 }
 
 void SceneRenderer::draw_triangle(std::span<const Vec3, 3> world, std::span<const Vec2, 3> uv,
