@@ -393,3 +393,32 @@ TEST_CASE("saved timestamps keep their full 64-bit range", "[save]") {
     REQUIRE(after.beacons[0].until == before.beacons[0].until);
     REQUIRE(after.open_doors == before.open_doors);
 }
+
+TEST_CASE("version-three decoration state is bounded and older saves remain readable", "[save]") {
+    SaveState current = full_state();
+    current.decorations["d01.blv"][3] = {9, false};
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(current), loaded));
+    REQUIRE(loaded.decorations == current.decorations);
+    REQUIRE(save_text(current).starts_with("starhaven-save\t3\n"));
+
+    auto old = save_text(full_state());
+    old.replace(0, old.find('\n'), "starhaven-save\t2");
+    REQUIRE(parse_save(old, loaded));
+    REQUIRE(loaded.decorations.empty());
+    REQUIRE(parse_save(legacy_save(), loaded));
+    REQUIRE(loaded.decorations.empty());
+
+    for (const std::string record : {
+             "decoration\t-1\t1\t1\tD01.blv\n",
+             "decoration\t4294967296\t1\t1\tD01.blv\n",
+             "decoration\t0\t65536\t1\tD01.blv\n",
+             "decoration\t0\t1\t2\tD01.blv\n",
+             "decoration\t0\t1\t1\t\n",
+             "decoration\t0\t1\t1\n",
+         }) {
+        loaded = current;
+        REQUIRE_FALSE(parse_save(legacy_save() + record, loaded));
+        REQUIRE(loaded.decorations == current.decorations);
+    }
+}

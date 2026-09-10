@@ -2542,12 +2542,22 @@ int main(int argc, char** argv) {
     }
     std::cout << "\n";
 
+    game::DecorationChanges decoration_changes;
     std::vector<game::AmbientSource> ambient_sources;
-    for (const auto& d : session.decorations) {
-        if (d.sound_id != 0) {
-            ambient_sources.push_back({d.position, d.sound_id});
+    const auto refresh_decoration_sounds = [&] {
+        ambient_sources.clear();
+        for (const auto& d : session.decorations) {
+            if (d.active() && d.sound_id != 0) {
+                ambient_sources.push_back({d.position, d.sound_id});
+            }
         }
-    }
+    };
+    refresh_decoration_sounds();
+    const auto apply_decorations = [&](const game::WalkOutcome& outcome) {
+        if (game::apply_script_decorations(session, outcome.decorations, decoration_changes) > 0) {
+            refresh_decoration_sounds();
+        }
+    };
 
     if (!have_pos) {
         if (new_game_start) {
@@ -3974,12 +3984,6 @@ int main(int argc, char** argv) {
             return false;
         }
         session = std::move(next);
-        ambient_sources.clear();
-        for (const auto& d : session.decorations) {
-            if (d.sound_id != 0) {
-                ambient_sources.push_back({d.position, d.sound_id});
-            }
-        }
         music.stop();
         if (startup.world_active() && screenshot.empty() && music_wanted &&
             session.music_track > 0) {
@@ -4032,6 +4036,9 @@ int main(int argc, char** argv) {
             const bool expired = session.refill_days > 0 &&
                                  clock.day() >= it->second.remembered_day + session.refill_days;
             if (expired) {
+                if (remember_departure) {
+                    decoration_changes.erase(game::script_scope(session.file_name));
+                }
                 map_memory.erase(it);
             } else {
                 opened_chests = it->second.opened_chests;
@@ -4057,6 +4064,10 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (remember_departure) {
+            game::restore_script_decorations(session, decoration_changes);
+        }
+        refresh_decoration_sounds();
         SDL_SetWindowTitle(
             window, ("StarHaven - " + session.title() + " (" + session.file_name + ")").c_str());
         return true;
@@ -4140,6 +4151,9 @@ int main(int argc, char** argv) {
         script_state.bits = pending_load.bits;
         script_state.resolved_quests = pending_load.resolved_quests;
         script_state.disabled_events = pending_load.disabled_events;
+        decoration_changes = pending_load.decorations;
+        game::restore_script_decorations(session, decoration_changes);
+        refresh_decoration_sounds();
         script_state.variables = pending_load.variables;
         script_state.npc_topics = pending_load.npc_topics;
         script_state.npc_places = pending_load.npc_places;
@@ -4972,6 +4986,7 @@ int main(int argc, char** argv) {
                 state.bits = script_state.bits;
                 state.resolved_quests = script_state.resolved_quests;
                 state.disabled_events = script_state.disabled_events;
+                state.decorations = decoration_changes;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
                 state.npc_places = script_state.npc_places;
@@ -5545,6 +5560,7 @@ int main(int argc, char** argv) {
                                 game::walk_event(global_script, static_cast<std::uint16_t>(id),
                                                  script_state, -1, "GLOBAL.EVT");
                             report_script_gaps(outcome, "GLOBAL.EVT", id);
+                            apply_decorations(outcome);
                             gold = script_state.gold;
                             if (const std::string rewards = reward_note(outcome);
                                 !rewards.empty()) {
@@ -7203,6 +7219,7 @@ int main(int argc, char** argv) {
                 game::walk_event(local ? session.script : global_script, aimed.event_id,
                                  script_state, walk_from, local ? session.file_name : "GLOBAL.EVT");
             report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", aimed.event_id);
+            apply_decorations(outcome);
             walk_from = -1;
             gold = script_state.gold;
             const std::string rewards = reward_note(outcome);

@@ -58,6 +58,10 @@ Version-2 StarHaven saves record resolution history and disabled events,
 namespaced by script. An event disabled in one map does not disable the same
 number in another map or in `GLOBAL.EVT`.
 
+Version 3 additionally preserves per-map decoration changes from
+[opcode 13](../formats/map-events.md#opcode-13-changes-a-placed-decoration).
+Version-1 and version-2 saves remain readable, with no decoration overrides.
+
 Complete version-1 saves remain readable. They did not record these fields,
 so their histories start empty. Earlier quest resolutions cannot safely be
 reconstructed from active bits: an absent bit could mean either finished or

@@ -20,10 +20,11 @@
 
 #include "game/inventory.hpp"
 #include "game/party.hpp"
+#include "game/script_decorations.hpp"
 
 namespace starhaven::game {
 
-inline constexpr int kSaveVersion = 2;
+inline constexpr int kSaveVersion = 3;
 inline constexpr int kOldestSaveVersion = 1;
 inline constexpr const char* kSaveMagic = "starhaven-save";
 
@@ -84,6 +85,7 @@ struct SaveState {
     std::set<int> bits;
     std::set<int> resolved_quests;
     std::map<std::string, std::set<int>> disabled_events;
+    DecorationChanges decorations;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
     std::map<int, int> npc_places;
@@ -109,8 +111,8 @@ struct SaveState {
     std::vector<std::uint32_t> open_doors;
 };
 
-// Version 2 adds an end marker so interrupted writes are rejected. Complete
-// version-1 saves remain readable; their missing resolution history is unknown.
+// Version 3 persists decoration changes; versions 1 and 2 remain readable.
+// Version 2 added an end marker and explicit quest resolution history.
 [[nodiscard]] std::string save_text(const SaveState& state);
 // On failure, return false without modifying the caller's state.
 [[nodiscard]] bool parse_save(std::string_view text, SaveState& out);

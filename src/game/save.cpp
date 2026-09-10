@@ -57,14 +57,16 @@ bool valid_record_shape(std::string_view kind, std::string_view line) {
     // Field counts include the record kind. Optional trailing fields were
     // appended to version 1 over time; the original prefixes stay required.
     static constexpr auto kMinimumFields = std::to_array<std::pair<std::string_view, int>>({
-        {"map", 2},         {"camera", 6},    {"clock", 2},     {"gold", 2},     {"bank", 2},
-        {"award", 2},       {"visited", 2},   {"fly", 2},       {"standing", 3}, {"reputation", 2},
-        {"quick", 5},       {"readied", 5},   {"turnbased", 3}, {"torch", 2},    {"eye", 3},
-        {"beacon", 6},      {"hired", 4},     {"wageday", 2},   {"recall", 6},   {"note", 2},
-        {"bit", 2},         {"resolved", 2},  {"disabled", 3},  {"var", 3},      {"npctopic", 4},
-        {"npcplace", 3},    {"chest", 2},     {"door", 2},      {"skill", 4},    {"character", 14},
-        {"spells", 2},      {"partybuff", 5}, {"buff", 5},      {"temps", 19},   {"attributes", 9},
-        {"resistances", 7}, {"equipped", 12}, {"item", 7},
+        {"map", 2},       {"camera", 6},     {"clock", 2},      {"gold", 2},
+        {"bank", 2},      {"award", 2},      {"visited", 2},    {"fly", 2},
+        {"standing", 3},  {"reputation", 2}, {"quick", 5},      {"readied", 5},
+        {"turnbased", 3}, {"torch", 2},      {"eye", 3},        {"beacon", 6},
+        {"hired", 4},     {"wageday", 2},    {"recall", 6},     {"note", 2},
+        {"bit", 2},       {"resolved", 2},   {"disabled", 3},   {"var", 3},
+        {"npctopic", 4},  {"npcplace", 3},   {"chest", 2},      {"door", 2},
+        {"skill", 4},     {"character", 14}, {"spells", 2},     {"partybuff", 5},
+        {"buff", 5},      {"temps", 19},     {"attributes", 9}, {"resistances", 7},
+        {"equipped", 12}, {"item", 7},       {"decoration", 5},
     });
     const auto count = 1 + std::count(line.begin(), line.end(), '\t');
     for (const auto& [record, minimum] : kMinimumFields) {
@@ -80,7 +82,7 @@ bool valid_record_shape(std::string_view kind, std::string_view line) {
                     kind == "map" || kind == "visited" || (kind == "character" && field >= 12) ||
                     (kind == "hired" && field == 3) || (kind == "skill" && field == 3) ||
                     (kind == "beacon" && field == 5) || (kind == "disabled" && field == 2) ||
-                    (kind == "recall" && field == 1);
+                    (kind == "recall" && field == 1) || (kind == "decoration" && field == 4);
                 if (length == 0 && !text) {
                     return false;
                 }
@@ -153,6 +155,12 @@ std::string save_text(const SaveState& state) {
     }
     for (const int bit : state.resolved_quests) {
         out << "resolved\t" << bit << "\n";
+    }
+    for (const auto& [map, changes] : state.decorations) {
+        for (const auto& [index, change] : changes) {
+            out << "decoration\t" << index << '\t' << change.descriptor << '\t'
+                << (change.visible ? 1 : 0) << '\t' << map << '\n';
+        }
     }
     for (const auto& [script, events] : state.disabled_events) {
         for (const int event : events) {
@@ -413,6 +421,16 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
             }
         } else if (kind == "resolved") {
             out.resolved_quests.insert(next_int());
+        } else if (kind == "decoration") {
+            const auto index = next_number<std::uint32_t>(fields);
+            const auto descriptor = next_number<std::uint16_t>(fields);
+            const int visible = next_int();
+            std::string map;
+            std::getline(fields, map, '\t');
+            if (map.empty() || (visible != 0 && visible != 1)) {
+                return false;
+            }
+            out.decorations[script_scope(map)][index] = {descriptor, visible != 0};
         } else if (kind == "disabled") {
             const int event = next_int();
             std::string script;

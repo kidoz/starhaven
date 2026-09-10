@@ -68,6 +68,13 @@ public:
             best = std::max(best, gain);
         }
 
+        // A hidden or replaced decoration may remove the last source of an
+        // already playing sound. Silence its cached voice immediately.
+        for (const auto& [id, voice] : voices_) {
+            if (!gains.contains(id) && voice.stream != nullptr) {
+                SDL_SetAudioStreamGain(voice.stream, 0.0f);
+            }
+        }
         for (const auto& [id, gain] : gains) {
             Voice* voice = voice_for(id, sounds);
             if (voice == nullptr)
