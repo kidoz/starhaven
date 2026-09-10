@@ -69,6 +69,11 @@ remain readable with an empty waiting list and the default script seed; they
 cannot recover rewards skipped by older engines. The required `scriptitems`
 record and each `reward` record are validated before a load changes state.
 
+Version 5 additionally records the current event byte of a decoration changed
+by [opcode 42](../formats/map-events.md#opcode-42-changes-the-current-decorations-event),
+alongside its descriptor and visibility. Versions 1–4 remain readable.
+The map namespace and placement index keep one used object from changing another.
+
 [Opcode 33](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
 pauses an event for modal text. Save/load shortcuts are held until dismissal;
 the continuation is transient. Rewards and journal changes after the message

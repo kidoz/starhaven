@@ -400,7 +400,7 @@ TEST_CASE("version-three decoration state is bounded and older saves remain read
     SaveState loaded;
     REQUIRE(parse_save(save_text(current), loaded));
     REQUIRE(loaded.decorations == current.decorations);
-    REQUIRE(save_text(current).starts_with("starhaven-save\t4\n"));
+    REQUIRE(save_text(current).starts_with("starhaven-save\t5\n"));
 
     auto old = save_text(full_state());
     old.replace(0, old.find('\n'), "starhaven-save\t2");

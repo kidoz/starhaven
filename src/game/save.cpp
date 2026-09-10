@@ -172,7 +172,8 @@ std::string save_text(const SaveState& state) {
     for (const auto& [map, changes] : state.decorations) {
         for (const auto& [index, change] : changes) {
             out << "decoration\t" << index << '\t' << change.descriptor << '\t'
-                << (change.visible ? 1 : 0) << '\t' << map << '\n';
+                << (change.visible ? 1 : 0) << '\t' << map << '\t'
+                << (change.event_value ? static_cast<int>(*change.event_value) : -1) << '\n';
         }
     }
     for (const auto& [script, events] : state.disabled_events) {
@@ -472,7 +473,17 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
             if (map.empty() || (visible != 0 && visible != 1)) {
                 return false;
             }
-            out.decorations[script_scope(map)][index] = {descriptor, visible != 0};
+            SavedDecoration saved{descriptor, visible != 0};
+            if (version >= 5 && fields.peek() == std::char_traits<char>::eof())
+                return false;
+            if (fields.peek() != std::char_traits<char>::eof()) {
+                const int event_value = next_int();
+                if (event_value < -1 || event_value > 255)
+                    return false;
+                if (event_value >= 0)
+                    saved.event_value = static_cast<std::uint8_t>(event_value);
+            }
+            out.decorations[script_scope(map)][index] = saved;
         } else if (kind == "disabled") {
             const int event = next_int();
             std::string script;

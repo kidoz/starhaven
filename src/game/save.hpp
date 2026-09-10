@@ -25,7 +25,7 @@
 
 namespace starhaven::game {
 
-inline constexpr int kSaveVersion = 4;
+inline constexpr int kSaveVersion = 5;
 inline constexpr int kOldestSaveVersion = 1;
 inline constexpr const char* kSaveMagic = "starhaven-save";
 
@@ -113,6 +113,7 @@ struct SaveState {
     std::vector<std::uint32_t> open_doors;
 };
 
+// Version 5 persists each decoration's current event. Versions 1–4 remain readable.
 // Version 4 persists generated rewards and their random/artifact state.
 // Versions 1 through 3 remain readable; version 3 added decoration changes.
 // Version 2 added an end marker and explicit quest resolution history.

@@ -143,6 +143,73 @@ TEST_CASE("initial decoration events are stable bounded and leave explicit event
     REQUIRE(fresh.decorations[0].event_value == initial);
 }
 
+TEST_CASE("current-decoration changes persist and retain context through a message",
+          "[decoration-events]") {
+    const auto events = script({
+        {410, 0, kOpcodeSetDecorationEvent, {0xa8, 1, 0, 0}},
+        {410, 1, kOpcodeShowMessage, {}},
+        {410, 2, kOpcodeSetDecorationEvent, {0, 0, 0, 0}},
+        {410, 3, kOpcodeEnd, {}},
+    });
+    auto map = session();
+    const auto other = map.decorations[1].event_value;
+    DecorationChanges memory;
+    WalkState state;
+    const auto first = walk_event(events, 410, state, -1, "GLOBAL.EVT", nullptr, nullptr, 0);
+    REQUIRE(first.failed_decorations.empty());
+    REQUIRE(apply_script_decorations(map, first.decorations, memory) == 1);
+    REQUIRE(map.decorations[0].event_value == 24);
+    REQUIRE(map.decorations[1].event_value == other);
+    const auto next = decoration_interaction(map, 0);
+    if (!next || !first.message) {
+        FAIL("interaction or continuation missing");
+        return;
+    }
+    REQUIRE(next->event == 424);
+    REQUIRE(next->global);
+    SaveState saved;
+    saved.map_file = map.file_name;
+    saved.decorations = memory;
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    auto reopened = session();
+    restore_script_decorations(reopened, loaded.decorations);
+    REQUIRE(reopened.decorations[0].event_value == 24);
+    ScriptMessage message;
+    ScriptContinuation pending;
+    pending.map = map.file_name;
+    pending.event = 410;
+    pending.sequence = first.message->resume_at;
+    pending.global = true;
+    pending.decoration = 0;
+    message.show(pending, "Synthetic message");
+    message.dismiss();
+    const auto continuation = message.take_resume(map.file_name);
+    if (!continuation) {
+        FAIL("message lost its continuation");
+        return;
+    }
+    const auto last = walk_event(events, continuation->event, state, continuation->sequence,
+                                 "GLOBAL.EVT", nullptr, nullptr, continuation->decoration);
+    REQUIRE(apply_script_decorations(map, last.decorations, memory) == 1);
+    REQUIRE_FALSE(decoration_interaction(map, 0));
+    REQUIRE(map.decorations[0].flags == 0x124);
+    REQUIRE(map.decorations[1].active());
+    saved.decorations = memory;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    reopened = session();
+    restore_script_decorations(reopened, loaded.decorations);
+    REQUIRE_FALSE(decoration_interaction(reopened, 0));
+    auto elsewhere = session();
+    elsewhere.file_name = "Other.blv";
+    restore_script_decorations(elsewhere, loaded.decorations);
+    REQUIRE(elsewhere.decorations[0].active());
+    WalkState no_context;
+    const auto missing = walk_event(events, 410, no_context);
+    REQUIRE(missing.failed_decorations == std::vector<std::uint8_t>{0});
+    REQUIRE(missing.decorations.empty());
+}
+
 TEST_CASE("event changes preserve visibility and apply in order with descriptor changes",
           "[decoration-events]") {
     auto map = session();
@@ -194,4 +261,34 @@ TEST_CASE("decoration aiming rejects hidden distant and occluded targets", "[dec
     });
     map.collision.add_polygon(wall, {0, 0, 1});
     REQUIRE_FALSE(aimed_decoration(map, eye, forward));
+}
+
+TEST_CASE("decoration event saves validate appended state and accept old records",
+          "[decoration-events]") {
+    SaveState saved;
+    saved.map_file = "Synthetic.blv";
+    saved.decorations["synthetic.blv"][0] = {163, true, 24};
+    const auto text = save_text(saved);
+    for (const std::string_view value : {"-2", "256", "x", ""}) {
+        auto broken = text;
+        const auto start = broken.find("decoration\t");
+        const auto end = broken.find('\n', start);
+        const auto cell = broken.rfind('\t', end);
+        broken.replace(cell + 1, end - cell - 1, value);
+        SaveState loaded;
+        loaded.gold = 999;
+        REQUIRE_FALSE(parse_save(broken, loaded));
+        REQUIRE(loaded.gold == 999);
+    }
+    for (const int version : {1, 2, 3, 4}) {
+        auto old = text;
+        old.replace(0, old.find('\n'), "starhaven-save\t" + std::to_string(version));
+        const auto start = old.find("decoration\t");
+        const auto end = old.find('\n', start);
+        const auto cell = old.rfind('\t', end);
+        old.erase(cell, end - cell);
+        SaveState loaded;
+        REQUIRE(parse_save(old, loaded));
+        REQUIRE_FALSE(loaded.decorations.at("synthetic.blv").at(0).event_value);
+    }
 }
