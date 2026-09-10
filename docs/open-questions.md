@@ -170,8 +170,10 @@ The audit reduces the old sections to these bounded unknowns:
   shared scripts, and the authoring provenance of orphaned topic, face, and
   global events. These do not change the decoded opcode layouts.
 - [Event-script coverage](explanation/event-script-coverage.md): the census now
-  identifies 13 missing original handlers (609 records), separately from 415
-  original-default records. Prioritize opcode 13, then 33 and GLOBAL's 41/42.
+  identifies 12 missing original handlers (499 records), separately from 415
+  original-default records. Opcode 13 is now observed and implemented as a
+  placed-decoration descriptor/visibility update, with 97 valid records checked
+  against loaded maps. Prioritize opcode 33, then GLOBAL's 41/42.
   Exact effects behind inferred handler names and campaign reachability remain
   unproven. Four-byte Ask records in `LWSPIRAL` and `SPIRAL` need a reachability
   and layout investigation; they fall below the current 13-byte guard.

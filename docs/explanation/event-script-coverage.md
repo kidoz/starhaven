@@ -17,16 +17,18 @@ tags:
 ---
 # Event-script coverage audit
 
-The current walker has **23 executable opcode cases and one metadata case**.
-The shipped scripts contain **13 additional opcodes with original executable
-handlers**, used in **609 records across 379 events in 66 scripts**. These are
+The current walker has **24 executable opcode cases and one metadata case**.
+The shipped scripts contain **12 additional opcodes with original executable
+handlers**, used in **499 records across 315 events in 62 scripts**. These are
 the substantive dispatch backlog, not the previously estimated “45 of 90.”
 Counts are `observed`; their gameplay consequences require further validation.
 
 This is a static census of every `.EVT` in `icons.lod`, including global,
 unused and template-like scripts. It does not prove event reachability, full
 argument semantics, outcome application by the UI, or campaign completion.
-No gameplay behavior changes as part of this audit.
+The first implementation slice, opcode 13, is now integrated; its
+[decoration semantics](../formats/map-events.md#opcode-13-changes-a-placed-decoration)
+supersede the audit's tentative variable-operation label.
 
 ## Reproduce
 
@@ -70,8 +72,9 @@ this measure.
 
 ## Measured baseline
 
-Audited 2026-09-10 against engine revision `b6a5cc7`, with the audit tooling
-added in this change. Source: user-owned MM6 GOG installation, `data/icons.lod`,
+Audited 2026-09-10 after implementing opcode 13 on engine revision `f31c8bb`.
+The original audit at `b6a5cc7` had 609 missing-handler records; opcode 13
+accounts for the reduction to 499. Source: user-owned MM6 GOG installation, `data/icons.lod`,
 32,772,165 bytes, SHA-256
 `2e8f2c0d0b88776eb2b09c5ad1a6937b5e4aff88c2190d3340327eb5b813bd18`.
 Build: Apple Clang 21 on ARM64 macOS, Meson 1.12.0. Original files remained
@@ -85,25 +88,25 @@ All figures below are `observed` from `evt_info --coverage`:
 | Parse or payload failures | 0 |
 | Distinct `(script, event)` pairs | 3,332 |
 | Total records | 15,504 |
-| Records whose opcode has a walker handler | 12,288 |
+| Records whose opcode has a walker handler | 12,398 |
 | Metadata records (opcode 4) | 2,192 |
-| Unsupported records | 1,024 |
-| Unsupported records with an original handler | 609 |
+| Unsupported records | 914 |
+| Unsupported records with an original handler | 499 |
 | Unsupported records on the original default path | 415 |
-| Dispatched records below the current argument-length guard | 263 |
+| Dispatched records below the current argument-length guard | 276 |
 | Distinct opcode values | 90 |
-| Executable / metadata / unsupported opcode values | 23 / 1 / 66 |
+| Executable / metadata / unsupported opcode values | 24 / 1 / 65 |
 
 The [original dispatch table](../formats/map-events.md#the-complete-opcode-table)
 bounds execution to 1–43, with six default-path cases inside that range.
-Thus 53 of the 66 unsupported values follow the original default path, leaving
-13 missing real handlers. This distinction reuses the recorded executable
+Thus 53 of the 65 unsupported values follow the original default path, leaving
+12 missing real handlers. This distinction reuses the recorded executable
 research; the audit does not newly establish original opcode semantics.
 An explicit runtime policy for those default-path records remains follow-up
 work; the audit preserves them in the raw unsupported count.
 
-Among events containing a missing real handler, 85 also contain a quest-bit
-operation, 19 a door opcode, 6 travel, and 11 an NPC mutation. These groups
+Among events containing a missing real handler, 60 also contain a quest-bit
+operation, 19 a door opcode, 6 travel, and 2 an NPC mutation. These groups
 overlap. They are syntactic co-occurrences, not proof that the missing
 instruction blocks that feature or executes on the same branch. Feature tags
 come from known opcode families, not from dialogue or NPC-table joins.
@@ -117,7 +120,6 @@ Example coordinates are `script / event / sequence` and are `observed`.
 
 | Opcode | Existing reading | Records | Scripts | Events | Example |
 | ---: | --- | ---: | ---: | ---: | --- |
-| 13 | Set/compare variable by id (`inferred`) | 110 | 29 | 72 | `CD1.EVT / 59 / 2` |
 | 33 | Mode-dependent sub-screen enter/exit (`inferred`) | 88 | 33 | 69 | `GLOBAL.EVT / 20 / 6` |
 | 41 | Open panel/dialogue (`inferred`) | 86 | 24 | 61 | `GLOBAL.EVT / 129 / 4` |
 | 8 | Play effect/sound by category (`observed`) | 60 | 20 | 36 | `D17.EVT / 29 / 7` |
@@ -138,10 +140,9 @@ handler research. Trace each selected operation's inputs and state effects
 before implementing it, then add a synthetic walking test and an install-backed
 behavior check. A handler that merely consumes a record is not completion.
 
-1. **Quest and NPC state: 13 and 33, then 41/42.** Opcode 13 is the most
-   frequent missing handler; 40 of its records share events with quest-bit
-   operations, and 9 share NPC mutations. Start with `CD1 / 59 / 2` and
-   `OUTE3 / 226 / 7`. Opcode 33 appears in `GLOBAL / 20 / 6`, alongside quest
+1. **Quest and NPC state: 33, then 41/42.** Opcode 13 is implemented as a
+   decoration update, with all 97 well-formed records checked against loaded
+   maps. Opcode 33 appears in `GLOBAL / 20 / 6`, alongside quest
    and NPC state, and in `OUTE3 / 240 / 1`. Inspect its effect on subsequent
    operations. GLOBAL alone contains 37 opcode-41 and 41 opcode-42 records;
    use `GLOBAL / 426 / 0,2` as a compact paired case. Exact semantics and
@@ -163,19 +164,21 @@ behavior check. A handler that merely consumes a record is not completion.
    Establish which short records are reachable and which are unused before
    setting a reachable-script acceptance gate.
 
-The immediate implementation slice should therefore investigate **opcode 13**,
-using its quest/NPC examples to pin behavior and provide a first regression.
+The next implementation slice should investigate **opcode 33**,
+using its quest/NPC examples to pin behavior and provide a regression.
 The audit portion of FC-2 is complete; opcode completeness is still open.
 
 ## Short records and limits of the census
 
-All 263 below-guard records are concentrated in these files (`observed`):
+All 276 below-guard records are concentrated in these files (`observed`).
+The increase from 263 is the 13 short opcode-13 records now classified as
+below-guard rather than unsupported:
 
 | Scripts | Short records |
 | --- | ---: |
-| `DBM1.EVT` through `DBM5.EVT` | 38 each (190 total) |
-| `DDB1.EVT` | 31 |
-| `OUT.EVT` | 23 |
+| `DBM1.EVT` through `DBM5.EVT` | 40 each (200 total) |
+| `DDB1.EVT` | 33 |
+| `OUT.EVT` | 24 |
 | `LWSPIRAL.EVT` | 13 |
 | `SPIRAL.EVT` | 4 |
 | `DWJ1.EVT` | 2 |
@@ -194,7 +197,7 @@ work, alongside the [campaign completion contract](campaign-completion.md).
 
 ## Validation
 
-The hermetic suite now contains 80 test executables. New coverage tests exercise
+The hermetic suite now contains 81 test executables. Coverage tests exercise
 all 256 opcode classifications against the actual walker, repeated records and
 scoped events, mixed-case extensions, deterministic output, argument guards,
 bad containers/records/payloads, duplicate names, no-script input, and TSV

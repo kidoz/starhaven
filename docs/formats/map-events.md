@@ -15,8 +15,8 @@ tags:
 Status: **verified** for the container and record structure. The original
 dispatch table below distinguishes observed handlers from tentative semantic
 readings. Current engine coverage is measured separately in the
-[event-script audit](../explanation/event-script-coverage.md): 23 executable
-cases, one metadata case, and 13 missing original handlers. Each claim is tagged
+[event-script audit](../explanation/event-script-coverage.md): 24 executable
+cases, one metadata case, and 12 missing original handlers. Each claim is tagged
 `observed`, `inferred`, or `unknown`.
 
 ## Scope
@@ -467,6 +467,75 @@ the name as a sound effect was tested against `DSOUNDS.BIN` and failed —
 The engine applies it indoors: the walker collects the repaints and the face
 wears its new texture. The few outdoor uses are not applied yet.
 
+### Opcode 13 changes a placed decoration
+
+Opcode 13 selects a zero-based decoration in the currently loaded map, changes
+its descriptor by name, and sets its visibility. The old “set/compare variable”
+label was an inference and is superseded by the handler trace. This operation
+changes world presentation within quest events; it does not directly mutate
+quest or NPC variables. `observed`
+
+| Argument offset | Type | Meaning |
+| ---: | --- | --- |
+| 0 | i32 LE | Placed-decoration index; negative or out-of-range indices do nothing |
+| 4 | u8 | Zero hides; any nonzero value shows |
+| 5 | NUL-terminated string | Case-insensitive DDECLIST descriptor name; `"0"` keeps the existing descriptor |
+
+The minimum bounded layout is six bytes (an empty name). The name must
+terminate inside the record. StarHaven rejects short or unterminated records
+without changing state. An empty or unknown name resolves to descriptor zero,
+matching the original lookup's fallback. Index validation precedes all world
+changes. The operation continues to the next event step. `observed` for the
+original lookup, index bounds and effects; bounded rejection is engine policy.
+
+The original handler at VA `0x43db94` reads the index and visibility, indexes
+28-byte placed records, and uses the 80-byte DDECLIST table for names.
+VA `0x43dc38` replaces the descriptor ID and prepares its sprite; VA
+`0x43dc49` clears or sets placement flag `0x20`, preserving other flags.
+The comparison at VA `0x4af370` is case-insensitive. These addresses apply only
+to the user-owned GOG executable, 857,720 bytes, SHA-256
+`28d2b83e75db45134d161da1da767afcbdb3e381921d3de61c2784ac85cd00ce`.
+Analysis: radare2 6.2.2, 2026-09-10; static evidence, without running the original.
+
+Reproduce the data and engine integration check:
+
+```bash
+export STARHAVEN_GAME_DIR=/path/to/MM6
+./buildDir/evt_info --decorations
+```
+
+On the icons.lod sample pinned in the coverage audit, **97 of 110 records**
+decode completely and apply to valid indices in **22 loaded maps**. There are
+75 descriptor replacements and 22 retain-descriptor operations; 81 show and
+16 hide. All replacement names resolve. The other 13 records have zero or one
+argument byte, in DBM1–5, DDB1 and OUT templates. They are rejected, not counted
+as successfully executed instructions. `observed`
+
+The quest-associated examples `CD1 / 59 / 2` and `CD1 / 60 / 3` both update
+decoration 394; `OUTE3 / 226 / 7` updates decoration 339. These joins replace
+the earlier variable hypothesis. The install check applies each decoded
+operation to disposable engine sessions, not whole quest events; it is not
+an original-game trace or a full-playthrough claim.
+
+The walker emits ordered decoration changes. Both map and global event callers
+apply them to the current map. Descriptor replacement refreshes the name,
+ambient sound, collision radius and descriptor flags. Drawing resolves the
+descriptor's numeric DSFT frame reference to its animation group; descriptor
+and animation names are not interchangeable. Seven shipped updates need this
+join, which a name-only renderer misses. Invisible placements
+are omitted from rendering, ambient sources and the nearby decoration index;
+the mixer silences voices whose last source disappears. Unrelated placement
+flags, position and array order remain intact, so IDs stay stable.
+
+Version-3 engine saves persist resulting descriptor IDs and visibility per
+map and decoration index. Map revisits restore them; the existing map-refill
+policy discards them when that map's remembered state expires. Version-1/2
+saves load with no decoration overrides. This persistence/refill integration
+is engine policy; exact original refill and dynamic decoration-light behavior
+remain outside this slice. Synthetic tests cover quest/NPC continuation,
+case-insensitive replacement, retain-name operations, unknown names, bounds,
+visibility and save/reload isolation.
+
 ### Opcodes 39 and 40 move the quest chain's people
 
 Both read as NPC mutations and both verify whole against the NPC table's own
@@ -766,7 +835,7 @@ from the executable, every opcode 1..43 now has a reading:
 | 10 | Set boolean game-state flag (`[esi+6]`→`0x61a96c`) | `0x43d835` | observed |
 | 11 | Retexture (repaint a face) | `0x43db10` | observed |
 | 12 | Set variable (value + name pointer) | `0x43db40` | inferred |
-| 13 | Set/compare variable by id | `0x43db94` | inferred |
+| 13 | Set decoration descriptor and visibility | `0x43db94` | observed |
 | 14 | Check (variable test) | `0x43d05a` | observed |
 | 15 | Door (`[id][state]`; see event-tables.md) | `0x43dd0a` | observed |
 | 16 | Give (item/gold) | `0x43d369` | observed |

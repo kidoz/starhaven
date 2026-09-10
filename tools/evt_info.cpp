@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "core/assets/asset_cache.hpp"
 #include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
 #include "core/data/map_stats.hpp"
@@ -16,7 +17,9 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
+#include "core/world/map_session.hpp"
 #include "game/script_coverage.hpp"
+#include "game/script_decorations.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/travel.hpp"
@@ -37,6 +40,7 @@ void print_usage(const char* argv0) {
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
               << "           --strict also fails on unsupported or short-argument records\n"
+              << "  --decorations  verify opcode 13 layouts and joins against loaded maps\n"
               << "\n"
               << "  --actor-timers  every map's actor block, at the three\n"
               << "           64-bit fields the AI reads and nothing writes\n"
@@ -56,6 +60,118 @@ bool is_script(const std::string& name) {
     return tail[0] == '.' && std::tolower(static_cast<unsigned char>(tail[1])) == 'e' &&
            std::tolower(static_cast<unsigned char>(tail[2])) == 'v' &&
            std::tolower(static_cast<unsigned char>(tail[3])) == 't';
+}
+
+// Read-only install check: apply decoration changes to disposable map sessions,
+// never walk whole events or write saves. Only numeric compatibility metadata.
+int do_decorations(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    lod::GameLodArchive games;
+    if (lod::GameLodArchive::open(data_dir / "Games.lod", games) != lod::GameLodError::None) {
+        std::cerr << "error: could not open Games.lod\n";
+        return 1;
+    }
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    std::size_t records = 0;
+    std::size_t decoded = 0;
+    std::size_t applied = 0;
+    std::size_t invalid_targets = 0;
+    std::size_t unmapped = 0;
+    std::size_t failures = 0;
+    std::size_t unknown_names = 0;
+    std::size_t missing_art = 0;
+    std::cout << "script\tevent\tsequence\tstatus\tindex\tvisible\tkeep_descriptor\n";
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            ++failures;
+            std::cerr << "error: could not parse " << entry.name << '\n';
+            continue;
+        }
+        if (std::ranges::none_of(script.steps(), [](const auto& step) {
+                return step.opcode == world::kOpcodeSetDecoration;
+            })) {
+            continue;
+        }
+        const auto stem = entry.name.substr(0, entry.name.size() - 4);
+        auto map = games.find(stem + ".blv");
+        if (!map) {
+            map = games.find(stem + ".odm");
+        }
+        world::MapSession session;
+        if (map && world::load_map_session(data_dir / "Games.lod", data_dir, map->name, cache,
+                                           session) != world::MapSessionError::None) {
+            ++failures;
+            std::cerr << "error: could not load " << map->name << '\n';
+            continue;
+        }
+        game::DecorationChanges memory;
+        for (const auto& step : script.steps()) {
+            if (step.opcode != world::kOpcodeSetDecoration) {
+                continue;
+            }
+            ++records;
+            std::cout << entry.name << '\t' << step.event_id << '\t'
+                      << static_cast<int>(step.sequence) << '\t';
+            const auto change = world::parse_decoration_change(step);
+            if (!change) {
+                std::cout << "invalid_record\t-\t-\t-\n";
+                continue;
+            }
+            ++decoded;
+            if (!map) {
+                ++unmapped;
+                std::cout << "no_map";
+            } else if (change->index >= session.decorations.size()) {
+                ++invalid_targets;
+                std::cout << "invalid_index";
+            } else {
+                if (change->name != "0" && session.decoration_types.find(change->name) == nullptr) {
+                    ++unknown_names;
+                }
+                const auto count =
+                    game::apply_script_decorations(session, std::span(&*change, 1), memory);
+                if (count != 1 || session.decorations[change->index].active() != change->visible) {
+                    ++failures;
+                    std::cout << "failed";
+                } else {
+                    ++applied;
+                    std::cout << "applied";
+                    const auto& decoration = session.decorations[change->index];
+                    const auto& animation = session.decoration_animation(decoration);
+                    const auto frames = session.sprite_frames.group(animation);
+                    const auto sprite =
+                        frames.empty() ? animation
+                                       : world::SpriteFrameTable::sprite_entry(frames.front(), 0);
+                    if (decoration.visible() && !cache.has_sprite(sprite)) {
+                        ++missing_art;
+                        const auto* type = session.decoration_types.at(decoration.descriptor_id);
+                        const bool descriptor_art =
+                            type != nullptr && type->sprite_id < session.sprite_frames.size() &&
+                            cache.has_sprite(world::SpriteFrameTable::sprite_entry(
+                                session.sprite_frames.frames()[type->sprite_id], 0));
+                        std::cerr << "art gap: " << entry.name << " event=" << step.event_id
+                                  << " sequence=" << static_cast<int>(step.sequence)
+                                  << " descriptor=" << decoration.descriptor_id
+                                  << " descriptor_art=" << descriptor_art << '\n';
+                    }
+                }
+            }
+            std::cout << '\t' << change->index << '\t' << change->visible << '\t'
+                      << (change->name == "0") << '\n';
+        }
+    }
+    std::cout << "SUMMARY records=" << records << " decoded=" << decoded << " applied=" << applied
+              << " invalid_indices=" << invalid_targets << " no_map=" << unmapped
+              << " unknown_names=" << unknown_names << " missing_art=" << missing_art
+              << " failures=" << failures << '\n';
+    return failures == 0 && records != 0 && missing_art == 0 ? 0 : 1;
 }
 
 // Research mode: what does each opcode look like across every script, and do
@@ -2140,6 +2256,9 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--decorations") {
+        return do_decorations(icons, *install / "data");
+    }
     if (stem == "--coverage") {
         const auto coverage = starhaven::game::audit_script_coverage(icons);
         starhaven::game::write_script_coverage(coverage, std::cout);
