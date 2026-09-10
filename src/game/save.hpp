@@ -21,10 +21,11 @@
 #include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/script_decorations.hpp"
+#include "game/script_items.hpp"
 
 namespace starhaven::game {
 
-inline constexpr int kSaveVersion = 3;
+inline constexpr int kSaveVersion = 4;
 inline constexpr int kOldestSaveVersion = 1;
 inline constexpr const char* kSaveMagic = "starhaven-save";
 
@@ -86,6 +87,7 @@ struct SaveState {
     std::set<int> resolved_quests;
     std::map<std::string, std::set<int>> disabled_events;
     DecorationChanges decorations;
+    ScriptItemState script_items;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
     std::map<int, int> npc_places;
@@ -111,7 +113,8 @@ struct SaveState {
     std::vector<std::uint32_t> open_doors;
 };
 
-// Version 3 persists decoration changes; versions 1 and 2 remain readable.
+// Version 4 persists generated rewards and their random/artifact state.
+// Versions 1 through 3 remain readable; version 3 added decoration changes.
 // Version 2 added an end marker and explicit quest resolution history.
 [[nodiscard]] std::string save_text(const SaveState& state);
 // On failure, return false without modifying the caller's state.

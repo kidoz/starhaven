@@ -181,6 +181,42 @@ TEST_CASE("generated rewards are visible to following checks and not replayed by
     REQUIRE(failed.generated_items.empty());
 }
 
+TEST_CASE("full packs retain rewards through saves and deliver complete instances later",
+          "[script-items]") {
+    std::array<Pack, 4> packs;
+    for (auto& pack : packs) {
+        REQUIRE(pack.add(9, kPackWidth, kPackHeight));
+    }
+    const GeneratedItem reward{2, 1, 3, 5, 27, false};
+    REQUIRE_FALSE(deliver_script_item(reward, 2, 3, packs));
+    SaveState saved;
+    saved.map_file = "Synthetic.blv";
+    saved.script_items.random = 1234567890U;
+    saved.script_items.artifacts.found[29] = true;
+    saved.script_items.pending.push_back(reward);
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    REQUIRE(loaded.script_items.pending == std::vector<GeneratedItem>{reward});
+    REQUIRE(loaded.script_items.random == saved.script_items.random);
+    REQUIRE(loaded.script_items.artifacts.found == saved.script_items.artifacts.found);
+    const Tables tables;
+    ScriptItemGenerator before{tables.random, tables.items, tables.standard, tables.special,
+                               saved.script_items};
+    ScriptItemGenerator after{tables.random, tables.items, tables.standard, tables.special,
+                              loaded.script_items};
+    REQUIRE(before.generate({3, 40, 0}) == after.generate({3, 40, 0}));
+    REQUIRE(saved.script_items.random == loaded.script_items.random);
+    packs[2].clear();
+    REQUIRE(deliver_script_item(loaded.script_items.pending.front(), 2, 3, packs));
+    const auto& item = packs[2].items().front();
+    REQUIRE(item.item_id == reward.item_id);
+    REQUIRE(item.standard_bonus == reward.standard_bonus);
+    REQUIRE(item.standard_strength == reward.standard_bonus_strength);
+    REQUIRE(item.special_bonus == reward.special_bonus);
+    REQUIRE(item.charges == reward.charges);
+    REQUIRE(item.identified == reward.identified);
+}
+
 TEST_CASE("mixed grants and takes preserve instance order", "[script-items]") {
     const Tables tables;
     for (const bool generated_first : {false, true}) {
@@ -203,5 +239,50 @@ TEST_CASE("mixed grants and takes preserve instance order", "[script-items]") {
         REQUIRE(rewards.pending.size() == 1);
         REQUIRE(rewards.pending.front().standard_bonus == (generated_first ? 0 : 1));
         REQUIRE(rewards.pending.front().identified == generated_first);
+    }
+}
+
+TEST_CASE("reward saves reject invalid state transactionally and accept older versions",
+          "[script-items]") {
+    SaveState saved;
+    saved.map_file = "Synthetic.blv";
+    const auto text = save_text(saved);
+    for (const int version : {1, 2, 3}) {
+        auto old = text;
+        old.replace(0, old.find('\n'), "starhaven-save\t" + std::to_string(version));
+        const auto at = old.find("scriptitems\t");
+        old.erase(at, old.find('\n', at) - at + 1);
+        SaveState loaded;
+        REQUIRE(parse_save(old, loaded));
+        REQUIRE(loaded.script_items.pending.empty());
+    }
+    for (const std::string_view bad : {
+             "reward\t0\t0\t0\t0\t0\t1\n",
+             "reward\t1\t-1\t0\t0\t0\t1\n",
+             "reward\t1\t0\t0\t0\t0\t2\n",
+             "reward\t1\t0\t0\t0\t0\n",
+             "scriptitems\t1\t0\n",
+         }) {
+        auto broken = text;
+        broken.insert(broken.rfind("end\n"), bad);
+        SaveState loaded = saved;
+        loaded.gold = 999;
+        REQUIRE_FALSE(parse_save(broken, loaded));
+        REQUIRE(loaded.gold == 999);
+    }
+    for (const std::string_view metadata : {
+             "",
+             "scriptitems\t4294967296\t0\n",
+             "scriptitems\t-1\t0\n",
+             "scriptitems\t1\t1073741824\n",
+             "scriptitems\t1\t-1\n",
+         }) {
+        auto broken = text;
+        const auto at = broken.find("scriptitems\t");
+        broken.replace(at, broken.find('\n', at) - at + 1, metadata);
+        SaveState loaded = saved;
+        loaded.gold = 999;
+        REQUIRE_FALSE(parse_save(broken, loaded));
+        REQUIRE(loaded.gold == 999);
     }
 }

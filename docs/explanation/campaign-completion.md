@@ -62,6 +62,13 @@ Version 3 additionally preserves per-map decoration changes from
 [opcode 13](../formats/map-events.md#opcode-13-changes-a-placed-decoration).
 Version-1 and version-2 saves remain readable, with no decoration overrides.
 
+Version 4 additionally preserves script reward instances waiting for pack
+space, the opcode-41 generator seed, and its artifact-found flags.
+The next reward therefore continues the saved random sequence. Versions 1–3
+remain readable with an empty waiting list and the default script seed; they
+cannot recover rewards skipped by older engines. The required `scriptitems`
+record and each `reward` record are validated before a load changes state.
+
 [Opcode 33](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
 pauses an event for modal text. Save/load shortcuts are held until dismissal;
 the continuation is transient. Rewards and journal changes after the message

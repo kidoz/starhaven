@@ -66,7 +66,8 @@ bool valid_record_shape(std::string_view kind, std::string_view line) {
         {"npctopic", 4},  {"npcplace", 3},   {"chest", 2},      {"door", 2},
         {"skill", 4},     {"character", 14}, {"spells", 2},     {"partybuff", 5},
         {"buff", 5},      {"temps", 19},     {"attributes", 9}, {"resistances", 7},
-        {"equipped", 12}, {"item", 7},       {"decoration", 5},
+        {"equipped", 12}, {"item", 7},       {"decoration", 5}, {"scriptitems", 3},
+        {"reward", 7},
     });
     const auto count = 1 + std::count(line.begin(), line.end(), '\t');
     for (const auto& [record, minimum] : kMinimumFields) {
@@ -155,6 +156,18 @@ std::string save_text(const SaveState& state) {
     }
     for (const int bit : state.resolved_quests) {
         out << "resolved\t" << bit << "\n";
+    }
+    std::uint32_t artifact_mask = 0;
+    for (std::size_t i = 0; i < state.script_items.artifacts.found.size(); ++i) {
+        if (state.script_items.artifacts.found[i]) {
+            artifact_mask |= 1U << i;
+        }
+    }
+    out << "scriptitems\t" << state.script_items.random << '\t' << artifact_mask << '\n';
+    for (const auto& item : state.script_items.pending) {
+        out << "reward\t" << item.item_id << '\t' << item.standard_bonus << '\t'
+            << item.standard_bonus_strength << '\t' << item.special_bonus << '\t' << item.charges
+            << '\t' << (item.identified ? 1 : 0) << '\n';
     }
     for (const auto& [map, changes] : state.decorations) {
         for (const auto& [index, change] : changes) {
@@ -313,6 +326,7 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
     std::set<std::string> required;
     std::set<std::size_t> characters;
     bool ended = false;
+    bool have_script_items = false;
     while (std::getline(in, line)) {
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
@@ -421,6 +435,34 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
             }
         } else if (kind == "resolved") {
             out.resolved_quests.insert(next_int());
+        } else if (kind == "scriptitems") {
+            if (have_script_items) {
+                return false;
+            }
+            have_script_items = true;
+            out.script_items.random = next_number<std::uint32_t>(fields);
+            const auto mask = next_number<std::uint32_t>(fields);
+            if (mask >= (1U << data::kArtifactCandidateCount)) {
+                return false;
+            }
+            for (std::size_t i = 0; i < out.script_items.artifacts.found.size(); ++i) {
+                out.script_items.artifacts.found[i] = (mask & (1U << i)) != 0;
+            }
+        } else if (kind == "reward") {
+            data::GeneratedItem item;
+            item.item_id = next_int();
+            item.standard_bonus = next_int();
+            item.standard_bonus_strength = next_int();
+            item.special_bonus = next_int();
+            item.charges = next_int();
+            const int identified = next_int();
+            if (item.item_id <= 0 || item.standard_bonus < 0 || item.standard_bonus_strength < 0 ||
+                item.special_bonus < 0 || item.charges < 0 ||
+                (identified != 0 && identified != 1)) {
+                return false;
+            }
+            item.identified = identified != 0;
+            out.script_items.pending.push_back(item);
         } else if (kind == "decoration") {
             const auto index = next_number<std::uint32_t>(fields);
             const auto descriptor = next_number<std::uint16_t>(fields);
@@ -596,7 +638,7 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
         }
     }
     return !out.map_file.empty() && required.size() == 4 && characters.size() == 4 &&
-           (version == 1 || ended);
+           (version == 1 || ended) && (version < 4 || have_script_items);
 }
 
 bool parse_save(std::string_view text, SaveState& out) {
