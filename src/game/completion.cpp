@@ -15,12 +15,11 @@ std::string_view completion_category_name(CompletionCategory category) noexcept 
 }
 
 const std::vector<CompletionEntry>& completion_manifest() {
-    // The frozen contract, from the census against the shipped data
-    // (`tools/completion_census.cpp`): the 52 journal quests (bit 81 is the
-    // engine's own opening seed, set when the party starts), the 58 awards
-    // the scripts grant, and the 93 chronicle notes the scripts set. Rows
-    // the scripts cannot reach are not required, and the census says which
-    // those are.
+    // Frozen journal IDs from tools/completion_census.cpp: 52 quests
+    // (including opening assignment 81), 58 script-granted awards and
+    // 93 script-settable chronicle notes. Quest completion reads separate
+    // resolution history. This census does not prove campaign reachability;
+    // see docs/explanation/campaign-completion.md.
     static const std::vector<CompletionEntry> manifest = {
         {81, CompletionCategory::Quests},     {82, CompletionCategory::Quests},
         {83, CompletionCategory::Quests},     {84, CompletionCategory::Quests},
@@ -145,12 +144,13 @@ int CompletionReport::percent() const noexcept {
 }
 
 CompletionReport audit_completion(const std::vector<CompletionEntry>& manifest,
-                                  const std::set<int>& bits, const std::set<int>& awards,
+                                  const std::set<int>& resolved_quests, const std::set<int>& awards,
                                   const std::set<int>& autonotes) {
-    const auto holds = [&bits, &awards, &autonotes](const CompletionEntry& entry) -> bool {
+    const auto holds = [&resolved_quests, &awards,
+                        &autonotes](const CompletionEntry& entry) -> bool {
         switch (entry.category) {
         case CompletionCategory::Quests:
-            return bits.contains(entry.bit);
+            return resolved_quests.contains(entry.bit);
         case CompletionCategory::Awards:
             return awards.contains(entry.bit);
         case CompletionCategory::Autonotes:

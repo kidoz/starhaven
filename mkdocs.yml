@@ -19,6 +19,7 @@ nav:
       - Documentation standard: contributing/documentation-standard.md
   - Explanations:
       - Startup journey: explanation/startup-journey.md
+      - Campaign completion: explanation/campaign-completion.md
   - File formats:
       - LOD archives: formats/lod.md
       - Games.lod: formats/games-lod.md

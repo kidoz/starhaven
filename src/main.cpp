@@ -1280,7 +1280,8 @@ void draw_loading(render::SceneRenderer& scene, const image::Font& font, assets:
 void draw_journal(render::SceneRenderer& scene, const image::Font& font,
                   const data::JournalTable& quests, const data::JournalTable& awards,
                   const std::set<int>& bits, const std::set<int>& earned,
-                  const data::JournalTable& notes, const std::set<int>& collected, int page) {
+                  const data::JournalTable& notes, const std::set<int>& collected,
+                  const std::set<int>& resolved_quests, int page) {
     if (font.glyph_count() == 0) {
         return;
     }
@@ -1330,7 +1331,7 @@ void draw_journal(render::SceneRenderer& scene, const image::Font& font,
     if (page == 0) {
         // The campaign's own yardstick: the frozen contract measured live.
         const auto report =
-            game::audit_completion(game::completion_manifest(), bits, earned, collected);
+            game::audit_completion(game::completion_manifest(), resolved_quests, earned, collected);
         game::draw_text(scene.framebuffer(), font, 24, kHeight - line - 8,
                         std::string("Quests ") + std::to_string(report.quests.done) + " of " +
                             std::to_string(report.quests.total) + ", awards " +
@@ -8316,7 +8317,8 @@ int main(int argc, char** argv) {
         }
         if (show_journal && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
             draw_journal(scene, font, quest_texts, award_texts, script_state.bits,
-                         script_state.awards, autonote_texts, script_state.autonotes, journal_page);
+                         script_state.awards, autonote_texts, script_state.autonotes,
+                         script_state.resolved_quests, journal_page);
         }
         if (startup.state() == game::StartupState::PartyCreation) {
             draw_creation(scene, font, cache, creation_draft, create_slot, stat_descriptions,

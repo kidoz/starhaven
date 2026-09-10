@@ -147,3 +147,5 @@ just smoke --game-dir /path/to/your/MM6/install
 - [Startup journey](../explanation/startup-journey.md) — the compatibility
   evidence behind the journey, tagged `observed`, `inferred` or `unknown`.
 - The repository README's Use section — developer flags and inspection tools.
+- [Campaign completion](../explanation/campaign-completion.md) — what the journal
+  percentage measures and how older saves affect its history.

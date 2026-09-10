@@ -4,6 +4,9 @@
 
 #include <set>
 
+#include "game/save.hpp"
+#include "game/script_walk.hpp"
+
 using namespace starhaven::game;
 
 namespace {
@@ -35,19 +38,19 @@ TEST_CASE("an empty journal completes nothing", "[completion]") {
 }
 
 TEST_CASE("the percentage is floored until the manifest closes", "[completion]") {
-    std::set<int> bits{10};
-    REQUIRE(audit_completion(small_manifest(), bits, {}, {}).percent() == 12);
-    bits.insert(20);
-    REQUIRE(audit_completion(small_manifest(), bits, {}, {}).percent() == 25);
+    std::set<int> resolved{10};
+    REQUIRE(audit_completion(small_manifest(), resolved, {}, {}).percent() == 12);
+    resolved.insert(20);
+    REQUIRE(audit_completion(small_manifest(), resolved, {}, {}).percent() == 25);
     std::set<int> awards{1, 2};
     std::set<int> notes{40};
-    const auto report = audit_completion(small_manifest(), bits, awards, notes);
+    const auto report = audit_completion(small_manifest(), resolved, awards, notes);
     REQUIRE(report.percent() == 62);
     REQUIRE(report.done() == 5);
     awards.insert(3);
     notes.insert(41);
-    bits.insert(30);
-    REQUIRE(audit_completion(small_manifest(), bits, awards, notes).percent() == 100);
+    resolved.insert(30);
+    REQUIRE(audit_completion(small_manifest(), resolved, awards, notes).percent() == 100);
 }
 
 TEST_CASE("a bit in one category does not count for another", "[completion]") {
@@ -102,4 +105,42 @@ TEST_CASE("category names read in the journal's words", "[completion]") {
     REQUIRE(completion_category_name(CompletionCategory::Quests) == "Quests");
     REQUIRE(completion_category_name(CompletionCategory::Awards) == "Awards");
     REQUIRE(completion_category_name(CompletionCategory::Autonotes) == "Chronicle");
+}
+
+TEST_CASE("quest resolution survives subsequent assignments and saving", "[completion]") {
+    using namespace starhaven;
+    // Synthetic assignment 10, then a reward that clears it and assigns 20.
+    std::vector<std::byte> bytes(48, std::byte{0});
+    const std::vector<std::vector<std::uint8_t>> records{
+        {9, 1, 0, 0, world::kOpcodeGive, world::kVarQuestBit, 10, 0, 0, 0},
+        {5, 1, 0, 1, world::kOpcodeEnd, 0},
+        {9, 2, 0, 0, world::kOpcodeTake, world::kVarQuestBit, 10, 0, 0, 0},
+        {9, 2, 0, 1, world::kOpcodeGive, world::kVarQuestBit, 20, 0, 0, 0},
+        {5, 2, 0, 2, world::kOpcodeEnd, 0},
+    };
+    for (const auto& record : records) {
+        for (const auto byte : record) {
+            bytes.push_back(static_cast<std::byte>(byte));
+        }
+    }
+    world::MapScript script;
+    REQUIRE(world::MapScript::parse(bytes, script) == world::MapScriptError::None);
+    WalkState state;
+    REQUIRE(walk_event(script, 1, state).ran);
+    REQUIRE(audit_completion(small_manifest(), state.resolved_quests, {}, {}).quests.done == 0);
+    REQUIRE(walk_event(script, 2, state).ran);
+    REQUIRE(state.bits == std::set<int>{20});
+    REQUIRE(state.resolved_quests == std::set<int>{10});
+    REQUIRE(audit_completion(small_manifest(), state.resolved_quests, {}, {}).quests.done == 1);
+    REQUIRE(walk_event(script, 2, state).ran);
+    REQUIRE(state.resolved_quests.size() == 1);
+
+    SaveState saved;
+    saved.map_file = "Synthetic.odm";
+    saved.bits = state.bits;
+    saved.resolved_quests = state.resolved_quests;
+    SaveState restored;
+    REQUIRE(parse_save(save_text(saved), restored));
+    REQUIRE(restored.resolved_quests == state.resolved_quests);
+    REQUIRE(audit_completion(small_manifest(), restored.resolved_quests, {}, {}).quests.done == 1);
 }

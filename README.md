@@ -10,11 +10,16 @@ scripts, real-time and turn-based combat, skills, spells, shops, hirelings,
 promotions, reputation, travel, rest, saves — grounded in the game's own data
 tables rather than invented — and its whole interface wears the shipped
 art, from the title painting to the campfire. The entire main quest, from
-Sulman's letter to the Hive's last flush, runs as a 24-beat scripted
+Sulman's letter to the Hive's last flush, runs as a 34-beat scripted
 regression, and all 58 award-granting events walk and grant on the
 record. Every decoded format is documented with its evidence tagged
 `observed`, `inferred` or `unknown`, and where the engine had to choose a
 number the tables don't give, the code and docs say so.
+
+These regressions supply quest prerequisites and verify event outcomes. An
+uninterrupted full-campaign playthrough remains unproven; the journal's
+[completion measure](docs/explanation/campaign-completion.md) records quest
+resolutions, awards and notes within its documented scope.
 
 ## Legal posture
 
@@ -3277,7 +3282,7 @@ docs/
 32. ~~The spell book and combat casting, both directions, at the tables'
     own numbers.~~ ✓
 33. ~~Quest arcs beyond New Sorpigal: the whole main quest and the first
-    side and promotion chains run as a 24-beat regression, and all 58
+    side and promotion chains run as a 34-beat regression, and all 58
     script grantors walk and grant.~~ ✓
 34. ~~The unread corners: `DMONLIST.BIN` read to its last constant, the
     outdoor third grid and the chest grid measured empty, the chest word

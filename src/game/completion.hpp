@@ -2,8 +2,8 @@
 #define STARHAVEN_GAME_COMPLETION_HPP
 
 // The completion contract and its measurement (FC-0/FC-1 of the
-// full-campaign plan). The manifest is frozen data: which journal bits the
-// shipped campaign can actually reach, per category, as the census
+// full-campaign plan). The manifest is frozen data: which journal rows the
+// shipped scripts address, per category, as the census
 // (`tools/completion_census.cpp`) counted them. The auditor reads live
 // party state against it and answers with per-category lines and one
 // percentage — floored, so only a fully closed manifest reads 100%.
@@ -44,9 +44,10 @@ struct CompletionReport {
     [[nodiscard]] int percent() const noexcept;
 };
 
-// Measure the party's journal bits against a manifest.
+// Measure resolved quest history, awards and notes against a manifest.
+// Active quest bits must never be passed as resolved quests.
 [[nodiscard]] CompletionReport audit_completion(const std::vector<CompletionEntry>& manifest,
-                                                const std::set<int>& bits,
+                                                const std::set<int>& resolved_quests,
                                                 const std::set<int>& awards,
                                                 const std::set<int>& autonotes);
 
