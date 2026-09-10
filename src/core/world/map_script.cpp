@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "core/image/zlib_util.hpp"
+#include "core/io/byte_reader.hpp"
 
 namespace starhaven::world {
 
@@ -31,6 +32,27 @@ bool unwrap(std::span<const std::byte> entry, std::vector<std::uint8_t>& out) {
 }
 
 }  // namespace
+
+std::optional<DecorationChange> parse_decoration_change(const ScriptStep& step) {
+    if (step.opcode != kOpcodeSetDecoration || step.arguments.size() < 6) {
+        return std::nullopt;
+    }
+    io::ByteReader reader(std::as_bytes(std::span(step.arguments)));
+    const auto index = reader.read_i32_le();
+    const bool visible = reader.read_u8() != 0;
+    std::string name;
+    while (!reader.eof()) {
+        const auto c = reader.read_u8();
+        if (c == 0) {
+            if (index < 0) {
+                return std::nullopt;
+            }
+            return DecorationChange{static_cast<std::uint32_t>(index), visible, std::move(name)};
+        }
+        name += static_cast<char>(c);
+    }
+    return std::nullopt;  // The name must terminate inside this record.
+}
 
 MapScriptError MapScript::parse(std::span<const std::byte> entry, MapScript& out) {
     out.steps_.clear();

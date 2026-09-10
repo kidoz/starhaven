@@ -28,6 +28,8 @@ ScriptOpcodeCoverage script_opcode_coverage(std::uint8_t opcode) {
         return {"Harm", Handled, 6};
     case kOpcodeRetexture:
         return {"Retexture", Handled, 5};
+    case kOpcodeSetDecoration:
+        return {"SetDecoration", Handled, 6};
     case kOpcodeCheck:
         return {"Check", Handled, 6};
     case kOpcodeDoor:

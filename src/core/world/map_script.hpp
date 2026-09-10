@@ -74,6 +74,17 @@ inline constexpr std::uint8_t kOpcodeHeader = 4;
 // thrown lever is drawn thrown. Reproduce with `evt_info --textures`.
 inline constexpr std::uint8_t kOpcodeRetexture = 11;
 
+// Set a placed decoration's descriptor and visibility. See map-events.md.
+inline constexpr std::uint8_t kOpcodeSetDecoration = 13;
+
+struct DecorationChange {
+    std::uint32_t index = 0;
+    bool visible = true;
+    std::string name;  // "0" preserves the descriptor; other names resolve via DDECLIST
+};
+
+[[nodiscard]] std::optional<DecorationChange> parse_decoration_change(const ScriptStep& step);
+
 inline constexpr std::uint8_t kOpcodeEnd = 1;
 inline constexpr std::uint8_t kOpcodeCheck = 14;
 inline constexpr std::uint8_t kOpcodeDoor = 15;  // `[door u8][open/shut u8]`

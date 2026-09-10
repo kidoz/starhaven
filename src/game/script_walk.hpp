@@ -99,6 +99,7 @@ struct WalkOutcome {
 
     // Faces to re-texture: a thrown switch is drawn thrown.
     std::vector<std::pair<std::uint32_t, std::string>> retextures;
+    std::vector<world::DecorationChange> decorations;
 
     // Doors to move: the id opcode 15 throws, and its state byte — 0 shuts,
     // 1 opens, and the rare 2 reads as a toggle. `inferred`
@@ -158,8 +159,9 @@ struct WalkOutcome {
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
                building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
-               !doors.empty() || !summons.empty() || !launches.empty() || ask.has_value() ||
-               !harms.empty() || gold_found != 0 || healed_hp != 0 || healed_sp != 0 ||
+               !decorations.empty() || !doors.empty() || !summons.empty() || !launches.empty() ||
+               ask.has_value() || !harms.empty() || gold_found != 0 || healed_hp != 0 ||
+               healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
@@ -479,6 +481,11 @@ struct WalkOutcome {
             }
             break;
         }
+        case world::kOpcodeSetDecoration:
+            if (auto change = world::parse_decoration_change(step)) {
+                out.decorations.push_back(std::move(*change));
+            }
+            break;
         case world::kOpcodeSummon:
             if (a.size() >= 15) {
                 WalkOutcome::Summon summon;

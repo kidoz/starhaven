@@ -296,6 +296,12 @@ test('script_coverage',
   workdir : meson.current_build_dir(),
 )
 
+test('script_decorations',
+  executable('test_script_decorations', 'test_script_decorations.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
+
 test('launches',
   executable('test_launches', 'test_launches.cpp',
     dependencies : [starhaven_dep, catch2_main]),
