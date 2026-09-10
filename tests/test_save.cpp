@@ -10,6 +10,16 @@ using namespace starhaven::game;
 
 namespace {
 
+// The original required records, with optional later fields absent.
+std::string legacy_save() {
+    return "starhaven-save\t1\nmap\tD01.blv\ncamera\t0\t0\t0\t0\t0\n"
+           "clock\t0\ngold\t50\n"
+           "character\t0\t0\t1\t0\t18\t10\t10\t0\t0\t0\t0\tOne\tKnight\n"
+           "character\t1\t0\t1\t0\t18\t10\t10\t0\t0\t0\t0\tTwo\tKnight\n"
+           "character\t2\t0\t1\t0\t18\t10\t10\t0\t0\t0\t0\tThree\tKnight\n"
+           "character\t3\t0\t1\t0\t18\t10\t10\t0\t0\t0\t0\tFour\tKnight\n";
+}
+
 SaveState full_state() {
     SaveState state;
     state.map_file = "OutE3.Odm";
@@ -126,7 +136,7 @@ TEST_CASE("the wrong magic or version refuses", "[save]") {
 
 TEST_CASE("unknown record kinds are skipped, not fatal", "[save]") {
     SaveState state;
-    REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\nfuture-thing\t7\t8\n", state));
+    REQUIRE(parse_save(legacy_save() + "future-thing\t7\t8\n", state));
     REQUIRE(state.map_file == "D01.blv");
 }
 
@@ -149,7 +159,7 @@ TEST_CASE("the hired help and their wage day round-trip", "[save]") {
     REQUIRE(after.wage_day == 21);
     // A save from before the followers reads as none of them.
     SaveState old;
-    REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\ngold\t50\n", old));
+    REQUIRE(parse_save(legacy_save(), old));
     REQUIRE(old.hired.empty());
     REQUIRE(old.food == 0);
 }
@@ -213,7 +223,7 @@ TEST_CASE("the conditions' minutes round-trip with them", "[save]") {
     REQUIRE(after.party[1].affliction_minute == 520);
     // An old save's missing stamps read as minute zero, not garbage.
     SaveState old;
-    REQUIRE(parse_save("starhaven-save\t1\nmap\tD01.blv\n", old));
+    REQUIRE(parse_save(legacy_save(), old));
     REQUIRE(old.party[0].poisoned_minute == 0);
 }
 
@@ -319,4 +329,67 @@ TEST_CASE("the quick spell survives a save", "[save]") {
     // And it is not confused with what is readied now.
     REQUIRE(back.readied[0] == 2);
     REQUIRE(back.readied[2] == 0);
+}
+
+TEST_CASE("malformed numeric records are rejected without changing the caller", "[save]") {
+    const auto good = legacy_save();
+    for (const std::string record :
+         {"bank\txyz\n", "bank\t12oops\n", "bank\t2147483648\n", "bank\t\n",
+          "beacon\t2\tnan\t0\t0\tD01.blv\n", "beacon\t2\tinf\t0\t0\tD01.blv\n",
+          "beacon\t2\t1e999\t0\t0\tD01.blv\n", "recall\tD01.blv\t0\t999999999\t0\t0\n",
+          "recall\tD01.blv\t0\t1\t0\t0\n", "recall\tD01.blv\t0\t0\t0\t1\n", "door\t-1\n",
+          "item\t0\t1\t0\t0\t1\t1\tbad\n"}) {
+        INFO(record);
+        SaveState unchanged = full_state();
+        REQUIRE_FALSE(parse_save(good + record, unchanged));
+        REQUIRE(unchanged.gold == 1200);
+        REQUIRE(unchanged.party[0].name == "Jym-Bob");
+    }
+}
+
+TEST_CASE("version two detects an interrupted save at every record boundary", "[save]") {
+    const auto text = save_text(full_state());
+    for (std::size_t cut = text.find('\n'); cut != std::string::npos;
+         cut = text.find('\n', cut + 1)) {
+        if (cut + 1 == text.size()) {
+            break;
+        }
+        INFO(cut);
+        SaveState state;
+        REQUIRE_FALSE(parse_save(text.substr(0, cut + 1), state));
+    }
+    SaveState state;
+    REQUIRE(parse_save(text, state));
+    REQUIRE_FALSE(parse_save(text + "gold\t1\n", state));
+}
+
+TEST_CASE("required legacy records cannot be omitted or duplicated", "[save]") {
+    const auto text = legacy_save();
+    for (const std::string prefix : {"camera\t", "clock\t", "gold\t", "character\t2\t"}) {
+        const auto start = text.find(prefix);
+        const auto size = text.find('\n', start) + 1 - start;
+        auto incomplete = text;
+        incomplete.erase(start, size);
+        SaveState state;
+        REQUIRE_FALSE(parse_save(incomplete, state));
+        REQUIRE_FALSE(parse_save(text + text.substr(start, size), state));
+    }
+    SaveState old;
+    REQUIRE(parse_save(text, old));
+    REQUIRE(old.resolved_quests.empty());
+    REQUIRE(old.disabled_events.empty());
+}
+
+TEST_CASE("saved timestamps keep their full 64-bit range", "[save]") {
+    SaveState before = full_state();
+    before.fly_until = 4000000000LL;
+    before.party[0].affliction_minute = 4000000000LL;
+    before.beacons.push_back({"D01.blv", 0, 0, 0, 4000000000LL});
+    before.open_doors = {4000000000u};
+    SaveState after;
+    REQUIRE(parse_save(save_text(before), after));
+    REQUIRE(after.fly_until == before.fly_until);
+    REQUIRE(after.party[0].affliction_minute == before.party[0].affliction_minute);
+    REQUIRE(after.beacons[0].until == before.beacons[0].until);
+    REQUIRE(after.open_doors == before.open_doors);
 }

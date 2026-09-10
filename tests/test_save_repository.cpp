@@ -67,7 +67,9 @@ TEST_CASE("save slots distinguish corrupt unsupported and missing-map files",
     const SaveRepository saves = repository(temporary.path());
     write(saves.path_for_slot(1), "not-a-save\n");
     write(saves.path_for_slot(2), "starhaven-save\t99\nmap\tOutE3.Odm\n");
-    write(saves.path_for_slot(3), "starhaven-save\t1\nmap\tFuture.odm\n");
+    SaveState missing_map;
+    missing_map.map_file = "Future.odm";
+    write(saves.path_for_slot(3), save_text(missing_map));
 
     REQUIRE(saves.inspect(1).status == SaveSlotStatus::Corrupt);
     REQUIRE(saves.inspect(2).status == SaveSlotStatus::UnsupportedVersion);
@@ -118,4 +120,34 @@ TEST_CASE("legacy slot one is read only when the per-user slot is absent", "[sav
     write(saves.path_for_slot(1), save_text(current));
     REQUIRE(saves.load(1, loaded).loadable());
     REQUIRE(loaded.gold == 20);
+}
+
+TEST_CASE("a corrupt slot does not prevent inspecting the remaining slots", "[save][repository]") {
+    const TemporaryDirectory temporary;
+    const SaveRepository saves = repository(temporary.path());
+    SaveState valid;
+    valid.map_file = "OutE3.Odm";
+    valid.gold = 42;
+    write(saves.path_for_slot(2), save_text(valid));
+
+    for (const std::string bad : {"broken", "12oops", "999999999999999999999999"}) {
+        INFO(bad);
+        std::string text = save_text(valid);
+        const auto start = text.find("gold\t");
+        text.replace(start, text.find('\n', start) - start, "gold\t" + bad + "\t0");
+        write(saves.path_for_slot(1), text);
+        const auto slots = saves.inspect_all();
+        REQUIRE(slots[0].status == SaveSlotStatus::Corrupt);
+        REQUIRE(slots[1].loadable());
+        SaveState unchanged = valid;
+        REQUIRE_FALSE(saves.load(1, unchanged).loadable());
+        REQUIRE(unchanged.gold == 42);
+    }
+}
+
+TEST_CASE("a header and map alone are not a complete save", "[save][repository]") {
+    const TemporaryDirectory temporary;
+    const SaveRepository saves = repository(temporary.path());
+    write(saves.path_for_slot(1), "starhaven-save\t1\nmap\tOutE3.Odm\n");
+    REQUIRE(saves.inspect(1).status == SaveSlotStatus::Corrupt);
 }

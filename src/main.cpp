@@ -4135,6 +4135,8 @@ int main(int argc, char** argv) {
         }
         note_town();
         script_state.bits = pending_load.bits;
+        script_state.resolved_quests = pending_load.resolved_quests;
+        script_state.disabled_events = pending_load.disabled_events;
         script_state.variables = pending_load.variables;
         script_state.npc_topics = pending_load.npc_topics;
         script_state.npc_places = pending_load.npc_places;
@@ -4965,6 +4967,8 @@ int main(int argc, char** argv) {
                         {beacon.map, beacon.at.x, beacon.at.y, beacon.at.z, beacon.until});
                 }
                 state.bits = script_state.bits;
+                state.resolved_quests = script_state.resolved_quests;
+                state.disabled_events = script_state.disabled_events;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
                 state.npc_places = script_state.npc_places;

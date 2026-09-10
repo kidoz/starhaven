@@ -3,7 +3,7 @@ title: Play StarHaven
 summary: Launch the engine, recover a missing installation, reach the title screen, shape a party, and save through the player journey.
 doc_type: how-to
 status: verified
-last_updated: 2026-08-29
+last_updated: 2026-09-10
 tags:
   - starhaven
   - player
@@ -97,6 +97,10 @@ valid save, or its status: `empty`, `corrupt`, `unsupported`, or
 - The mouse clicks rows and buttons directly.
 
 The slot list refreshes every time the screen opens.
+
+A corrupt slot does not prevent using the remaining slots. Complete older
+StarHaven saves still load; saves made with this version are rejected by older
+engine builds.
 
 ## The loading screen
 

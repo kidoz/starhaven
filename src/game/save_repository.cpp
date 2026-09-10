@@ -86,7 +86,7 @@ SaveSlotInfo SaveRepository::load(int slot, SaveState& out) const {
         info.message = "Not a StarHaven save";
         return info;
     }
-    if (version != kSaveVersion) {
+    if (version < kOldestSaveVersion || version > kSaveVersion) {
         info.status = SaveSlotStatus::UnsupportedVersion;
         info.message = "Unsupported save version " + std::to_string(version);
         return info;

@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "game/save.hpp"
 #include "game/script_walk.hpp"
 
 using namespace starhaven;
@@ -469,7 +470,7 @@ TEST_CASE("a switch disables and re-enables another event", "[walk]") {
     REQUIRE(state.gold == 100);
 }
 
-TEST_CASE("disabled event IDs are local to their script", "[walk]") {
+TEST_CASE("disabled event IDs are local to their script and survive a save", "[walk][save]") {
     std::vector<std::uint8_t> payload;
     push_step(payload, 14, 0, kOpcodeSwitch, {33, 0, 0, 0, 0});
     push_step(payload, 14, 1, kOpcodeEnd, {0});
@@ -483,6 +484,16 @@ TEST_CASE("disabled event IDs are local to their script", "[walk]") {
     REQUIRE(walk_event(script, 33, state, -1, "Two.blv").ran);
     REQUIRE(walk_event(script, 33, state, -1, "GLOBAL.EVT").ran);
     REQUIRE(state.gold == 200);
+
+    SaveState saved;
+    saved.map_file = "One.blv";
+    saved.disabled_events = state.disabled_events;
+    SaveState restored;
+    REQUIRE(parse_save(save_text(saved), restored));
+    WalkState loaded;
+    loaded.disabled_events = restored.disabled_events;
+    REQUIRE_FALSE(walk_event(script, 33, loaded, -1, "One.blv").ran);
+    REQUIRE(walk_event(script, 33, loaded, -1, "Two.blv").ran);
 }
 
 TEST_CASE("unimplemented instructions report their sequence and opcode", "[walk]") {
