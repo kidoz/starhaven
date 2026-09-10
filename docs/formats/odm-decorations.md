@@ -3,7 +3,7 @@ title: "ODM decorations"
 summary: "Placement records and descriptor joins for decorations in Might and Magic VI outdoor maps."
 doc_type: reference
 status: verified
-last_updated: 2026-08-01
+last_updated: 2026-09-10
 tags:
   - mm6
   - odm
@@ -66,8 +66,8 @@ and the name array equal `4 + count × 28` for all 15. `observed`
 | +0x08 | 4 | i32 | y | observed | |
 | +0x0C | 4 | i32 | z | observed | elevation |
 | +0x10 | 4 | i32 | direction | observed | MM6 angle |
-| +0x14 | 2 | i16 | event_variable | observed | persistent decoration variable |
-| +0x16 | 2 | u16 | event_id | observed | normal event |
+| +0x14 | 2 | i16 | event_variable | observed | index into persistent map bytes; assigned for implicit interactions |
+| +0x16 | 2 | u16 | event_id | observed | explicit local event; zero permits descriptor-based GLOBAL interaction |
 | +0x18 | 2 | i16 | trigger_radius | observed | proximity trigger distance |
 | +0x1A | 2 | i16 | direction_degrees | observed | used when direction is zero |
 
@@ -202,3 +202,8 @@ All five questions are closed: `+0x4A` is the decoration flag word; the placed
 record tail is direction and event state; art and scale come through the SFT
 id; and the following region is the terrain/spatial index documented in
 [`odm-tile-index.md`](odm-tile-index.md).
+
+Implicit interaction initialization and event-byte updates are documented under
+[opcode 42](map-events.md#opcode-42-changes-the-current-decorations-event).
+The engine now decodes explicit event IDs and supports using these decorations;
+proximity-trigger variants remain separate work.

@@ -40,6 +40,7 @@ void print_usage(const char* argv0) {
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
               << "           --strict also fails on unsupported or short-argument records\n"
+              << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
               << "  --generated-items  verify opcode 41 generation against item tables\n"
               << "  --messages  verify opcode 33 suspension and preceding text joins\n"
               << "  --decorations  verify opcode 13 layouts and joins against loaded maps\n"
@@ -154,6 +155,104 @@ int do_generated_items(const starhaven::lod::LodArchive& icons,
     std::cout << "SUMMARY\trecords\t" << records << "\tshort\t" << short_records << "\tgenerated\t"
               << generated << "\toverrides\t" << overrides << "\tfailures\t" << failures << '\n';
     return records > 0 && failures == 0 ? 0 : 1;
+}
+
+// Exercise current-decoration writes and join initial interactions to GLOBAL.
+int do_decoration_events(const starhaven::lod::LodArchive& icons,
+                         const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    if (!game::audit_script_coverage(icons).complete())
+        return 1;
+    std::size_t records = 0;
+    std::size_t short_records = 0;
+    std::size_t failures = 0;
+    std::size_t changed = 0;
+    std::size_t hidden = 0;
+    world::MapScript global;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name))
+            continue;
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None)
+            return 1;
+        if (game::script_scope(entry.name) == "global.evt")
+            global = script;
+        for (const auto& step : script.steps()) {
+            if (step.opcode != world::kOpcodeSetDecorationEvent)
+                continue;
+            ++records;
+            const auto value = world::parse_decoration_event(step);
+            std::cout << "RECORD\t" << entry.name << '\t' << step.event_id << '\t'
+                      << static_cast<int>(step.sequence) << '\t';
+            if (!value) {
+                ++short_records;
+                std::cout << "short\n";
+                continue;
+            }
+            world::MapSession session;
+            session.file_name = "Probe.blv";
+            session.decorations.resize(1);
+            session.decorations.front().descriptor_id = 167;
+            session.decorations.front().event_value = 26;
+            game::WalkState state;
+            const auto out = game::walk_event(script, step.event_id, state, step.sequence,
+                                              entry.name, nullptr, nullptr, 0);
+            game::DecorationChanges memory;
+            const auto count = game::apply_script_decorations(session, out.decorations, memory);
+            const auto& decoration = session.decorations.front();
+            const auto expected =
+                *value == 0 ? std::uint8_t{0} : static_cast<std::uint8_t>((*value + 112U) & 0xffU);
+            const bool ok = count == 1 && out.failed_decorations.empty() &&
+                            decoration.event_value == expected &&
+                            decoration.active() == (*value != 0);
+            failures += ok ? 0 : 1;
+            hidden += *value == 0 ? 1 : 0;
+            changed += *value != 0 ? 1 : 0;
+            std::cout << (ok ? "pass" : "fail") << '\t' << *value << '\t'
+                      << static_cast<int>(expected) << '\n';
+        }
+    }
+    lod::GameLodArchive games;
+    if (lod::GameLodArchive::open(data_dir / "Games.lod", games) != lod::GameLodError::None)
+        return 1;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    std::size_t maps = 0;
+    std::size_t implicit = 0;
+    std::size_t unresolved = 0;
+    for (const auto& entry : games.entries()) {
+        const auto name = game::script_scope(entry.name);
+        if (!name.ends_with(".blv") && !name.ends_with(".odm"))
+            continue;
+        world::MapSession session;
+        if (world::load_map_session(data_dir / "Games.lod", data_dir, entry.name, cache, session) !=
+            world::MapSessionError::None) {
+            ++failures;
+            continue;
+        }
+        ++maps;
+        game::initialize_decoration_events(session);
+        std::size_t local_implicit = 0;
+        std::size_t local_unresolved = 0;
+        for (std::size_t i = 0; i < session.decorations.size(); ++i) {
+            const auto interaction =
+                game::decoration_interaction(session, static_cast<std::uint32_t>(i));
+            if (!interaction || !interaction->global)
+                continue;
+            ++local_implicit;
+            local_unresolved += global.defines(interaction->event) ? 0 : 1;
+        }
+        implicit += local_implicit;
+        unresolved += local_unresolved;
+        std::cout << "MAP\t" << entry.name << '\t' << local_implicit << '\t' << local_unresolved
+                  << '\n';
+    }
+    std::cout << "SUMMARY\trecords\t" << records << "\tshort\t" << short_records << "\thidden\t"
+              << hidden << "\tchanged\t" << changed << "\tmaps\t" << maps << "\tinteractions\t"
+              << implicit << "\tunresolved\t" << unresolved << "\tfailures\t" << failures << '\n';
+    return records != 0 && maps != 0 && failures == 0 && unresolved == 0 ? 0 : 1;
 }
 
 // Metadata-only joins and direct suspension probes. The preceding text is a
@@ -2498,6 +2597,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--decoration-events") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_decoration_events(icons, *install / "data");
+    }
     if (stem == "--generated-items") {
         if (argc != 2) {
             print_usage(argv[0]);

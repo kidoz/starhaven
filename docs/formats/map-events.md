@@ -15,8 +15,8 @@ tags:
 Status: **verified** for the container and record structure. The original
 dispatch table below distinguishes observed handlers from tentative semantic
 readings. Current engine coverage is measured separately in the
-[event-script audit](../explanation/event-script-coverage.md): 26 executable
-cases, one metadata case, and 10 missing original handlers. Each claim is tagged
+[event-script audit](../explanation/event-script-coverage.md): 27 executable
+cases, one metadata case, and 9 missing original handlers. Each claim is tagged
 `observed`, `inferred`, or `unknown`.
 
 ## Scope
@@ -936,9 +936,9 @@ These counts and table joins are `observed`; the fixed-seed probe does not
 establish reachability or reproduce original random timing.
 
 An additional disposable walk of `GLOBAL.EVT / 426` generates one reward
-and applies its subsequent variable operation. The flow deliberately expects
-opcode 42 at sequence 2 to remain unsupported. It therefore verifies the new
-handler's integration without claiming that the whole interaction is complete.
+and applies its subsequent variable operation. The flow verifies
+opcode 42 at sequence 2 to select event 424 for the next interaction. A second
+walk of 424 gives no further item reward.
 
 ### Engine integration and limits
 
@@ -963,6 +963,96 @@ original process-wide ordering shared with loot, chests and other callers is
 not reproduced by this slice. Synthetic tests cover override metadata and
 random consumption, invalid input, item-check/take ordering, modal resumption,
 full-pack retention, save continuity and malformed-save rejection.
+
+## Opcode 42 changes the current decoration's event
+
+The old inferred “Conditional check” label is superseded by the handler at
+VA `0x43cb48`–`0x43cb98`. It consumes a u32 little-endian event value, changes
+the currently used decoration, and advances normally. Four payload bytes are
+required; extra bytes are ignored. It does not branch or change a quest bit.
+`observed` in the MM6 executable fingerprint recorded above.
+
+| Input | Immediate effect | Status |
+| --- | --- | --- |
+| Zero | Store event byte zero and set placement flag `0x20` (hidden/inactive) | observed |
+| Nonzero | Store `(value + 112) & 255`, preserving placement visibility | observed |
+
+The context pointer at `0x55bc00` identifies the current 28-byte decoration.
+Its signed word at `+0x14` selects one byte in the 200-byte map-state array
+at `0x5b22fc`. The normal implicit interaction reads that byte, adds 400,
+and calls GLOBAL. Thus values 400–655 select the corresponding event; other
+nonzero values wrap into that interval. A nonzero input encoding byte zero
+leaves the decoration active immediately, but map restoration later hides a
+zero-state implicit decoration. Setting a nonzero value never unhides one.
+`observed` at `0x43cb48`, `0x420ac3`, `0x45bc12`, `0x4556c3`, `0x46e778`.
+
+### Initial interactions and persistence
+
+An explicit placement event at `+0x16` takes precedence and runs in the map's
+local script. Otherwise fourteen descriptor IDs use implicit global events:
+118–121, 146, 154, 155, 158, 162–164, 166–167 and 182. The first 124 eligible
+placements receive state slots 75–198, in placement order. The initial-value
+routine consumes a percentile draw even for a fixed result. `observed` at
+`0x455220` and `0x455050`. Initial event IDs are:
+
+| Descriptor IDs | Percentile bands and initial GLOBAL event |
+| --- | --- |
+| 118–121 | 0–49: 447; otherwise another draw modulo 10 selects 448–457 |
+| 146 | 0–19: 437; otherwise 436 |
+| 154 | 0–39: 431; 40–69: 432; 70–89: 433; 90–99: 434 |
+| 155 | Four equal 25-percent bands: 443–446 |
+| 158 | 0–49: 429; otherwise 430 |
+| 162 | 435, still consuming the first draw |
+| 163–164 | 0–29: 410; successive ten-percent bands select 411–417 |
+| 166 | 0–39: 439; 40–69: 440; 70–89: 441; 90–99: 442 |
+| 167 | 0–79: 425; 80–89: 426; 90–96: 427; 97–99: 428 |
+| 182 | 0–19: 419; otherwise 423 |
+
+These are observed distribution rules, not copied table resources. The original
+saves and restores the complete 200-byte array with map state (`0x44fb65`,
+`0x44fc97`, `0x46dd5f`, `0x48b4ed`). Its restoration assigns the decoration
+slots again and hides zero-valued entries. Modal opcode 33 preserves and
+restores the actual decoration context (`0x43e35e`, `0x43aaae`), not just the
+choice of local versus global script bank.
+
+### Engine behavior and acceptance
+
+StarHaven now decodes explicit placement events in both BLV and ODM maps and
+lets the player use active decorations within the usual reach and aim limits.
+A segment check rejects targets behind collision polygons. Explicit events
+stay local; implicit events use GLOBAL with a captured placement index.
+That index survives modal dismissal. Missing context is diagnosed by script,
+event and sequence, and cannot mutate another decoration.
+
+Opcode 13 and 42 outcomes are applied in execution order. Event changes,
+descriptor changes and visibility share per-map, per-placement save state.
+Version-5 saves append the optional event byte to `decoration` records;
+versions 1–4 remain readable. A missing old event byte uses the engine's
+initial assignment. Zero-state implicit decorations are hidden on restoration.
+Map refill discards overrides under the existing refill policy.
+
+Initialization uses the observed distributions with a stable map-name seed
+and the engine's MM6 random generator. This seed and per-placement persistence
+are engine policies; original process-wide RNG timing, reindexing quirks after
+descriptor changes, and exact picking distances are not claimed as matched.
+Touch, monster and object proximity triggers remain outside this interaction
+slice. Unused templates and partial script semantics still limit campaign coverage.
+
+```bash
+export STARHAVEN_GAME_DIR=/path/to/MM6
+./buildDir/evt_info --decoration-events
+./buildDir/evt_info --generated-items
+```
+
+The first read-only probe covers all 47 opcode-42 records: six short records
+in DBM1–DBM5 and OUT, 17 hide operations and 24 event changes, with zero
+failures. It loads all 67 map files; 788 active implicit interactions resolve
+to existing GLOBAL events under the fixed engine seed. The reward probe checks
+GLOBAL 426 selecting 424, whose repeat use produces no additional item reward.
+Synthetic tests cover thresholds and random draws, placement limits, local/global
+routing, modal context, ordered visibility changes, wrapping, wall occlusion,
+map isolation, save round trips and malformed/older saves. No original-game
+runtime session was performed.
 
 ## The complete opcode table
 
@@ -1022,7 +1112,7 @@ from the executable, every opcode 1..43 now has a reading:
 | 39 | SetTopic | `0x43cb9d` | observed |
 | 40 | MoveNpc | `0x43cd61` | observed |
 | 41 | Generate item reward | `0x43dffc` | observed |
-| 42 | Conditional check | `0x43cb48` | inferred |
+| 42 | Set current decoration event | `0x43cb48` | observed |
 | 43 | Read variable by type (sub-switch `[esi+5]` 0..5) | `0x43c94f` | inferred |
 
 Opcode 0 (88 uses, up to 37 arg bytes, carries map filenames like
