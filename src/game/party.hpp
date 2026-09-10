@@ -258,7 +258,9 @@ struct Character {
     // column names the conditions, not their rules.
     [[nodiscard]] bool dead() const noexcept { return affliction == "Dead"; }
     [[nodiscard]] bool can_act() const noexcept {
-        return hit_points > 0 && affliction != "Asleep" && affliction != "Paralyze" && !dead();
+        return hit_points > 0 && affliction != "Asleep" && affliction != "Paralyze" &&
+               affliction != "Paralyzed" && affliction != "Stone" && affliction != "Stoned" &&
+               affliction != "Eradicated" && !dead();
     }
     // Afraid keeps their feet but not their nerve: they will not swing.
     // "Affraid" is the table's own spelling.

@@ -169,6 +169,18 @@ TEST_CASE("the conditions hold a character back by name", "[party]") {
     REQUIRE_FALSE(who.dead());
 }
 
+TEST_CASE("petrification prevents actions until cured", "[party]") {
+    Character who;
+    who.hit_points = 100;
+    for (const std::string condition : {"Stone", "Stoned", "Paralyzed", "Eradicated"}) {
+        INFO(condition);
+        who.affliction = condition;
+        REQUIRE_FALSE(who.can_act());
+    }
+    who.affliction.clear();
+    REQUIRE(who.can_act());
+}
+
 TEST_CASE("a night clears what a night can", "[party]") {
     Character who;
     who.affliction = "Affraid";
