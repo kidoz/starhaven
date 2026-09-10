@@ -2042,8 +2042,13 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         }
         game::WalkState state;
         const auto outcome = game::walk_event(outa1, 210, state);
-        if (!beat(outcome.ran && state.autonotes.contains(79),
-                  "Sweet Water's obelisk writes fragment 79 into the chronicle")) {
+        if (!outcome.message || state.autonotes.contains(79)) {
+            std::cerr << "arc: the obelisk must wait before writing its fragment\n";
+            return 1;
+        }
+        const auto resumed = game::walk_event(outa1, 210, state, outcome.message->resume_at);
+        if (!beat(resumed.ran && !resumed.message && state.autonotes.contains(79),
+                  "acknowledging Sweet Water's obelisk writes fragment 79 into the chronicle")) {
             return 1;
         }
     }

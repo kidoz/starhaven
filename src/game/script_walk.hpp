@@ -80,6 +80,11 @@ struct WalkState {
     std::uint32_t luck = 0x9E3779B9u;
 };
 
+// Transient text selection carried across a modal continuation, never saved.
+struct WalkPresentation {
+    int message = -1;
+};
+
 // What one use of one event did.
 struct WalkOutcome {
     bool ran = false;  // the map defines the event
@@ -131,6 +136,12 @@ struct WalkOutcome {
     };
     std::optional<Ask> ask;
 
+    struct Message {
+        int text = -1;      // last selected long text (or global NPC text)
+        int resume_at = 0;  // 256 means no matching byte sequence, never wrap to zero
+    };
+    std::optional<Message> message;
+
     // The hurts an event deals: who (0..3 a member, 4 the user, 5 all,
     // 6 one at random), the element as a resistance index, and how much —
     // answered by that member's own resistance when the caller applies it.
@@ -160,8 +171,8 @@ struct WalkOutcome {
         return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
                building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
                !decorations.empty() || !doors.empty() || !summons.empty() || !launches.empty() ||
-               ask.has_value() || !harms.empty() || gold_found != 0 || healed_hp != 0 ||
-               healed_sp != 0 ||
+               ask.has_value() || message.has_value() || !harms.empty() || gold_found != 0 ||
+               healed_hp != 0 || healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
@@ -182,8 +193,11 @@ struct WalkOutcome {
 // answered question continues at the step its answer earned.
 [[nodiscard]] inline WalkOutcome walk_event(const world::MapScript& script, std::uint16_t id,
                                             WalkState& state, int resume_at = -1,
-                                            std::string_view script_name = {}) {
+                                            std::string_view script_name = {},
+                                            WalkPresentation* presentation = nullptr) {
     WalkOutcome out;
+    WalkPresentation transient;
+    auto& text = presentation != nullptr ? *presentation : transient;
     const std::string scope = script_scope(script_name);
     if (const auto disabled = state.disabled_events.find(scope);
         disabled != state.disabled_events.end() && disabled->second.contains(id)) {
@@ -214,6 +228,9 @@ struct WalkOutcome {
     };
 
     std::size_t at = 0;
+    if (resume_at > 255) {
+        return out;
+    }
     if (resume_at >= 0) {
         at = step_at(static_cast<std::uint8_t>(resume_at));
     }
@@ -398,8 +415,14 @@ struct WalkOutcome {
                     index = index << 8 | a[i];
                 }
                 out.said.push_back(index);
+                if (step.opcode == world::kOpcodeLongMessage || scope == "global.evt") {
+                    text.message = index;
+                }
             }
             break;
+        case world::kOpcodeShowMessage:
+            out.message = WalkOutcome::Message{text.message, static_cast<int>(step.sequence) + 1};
+            return out;
         case world::kOpcodeTitle:
         case world::kOpcodeName: {
             // A single string index, read the same way as a message: opcode 5

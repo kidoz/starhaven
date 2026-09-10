@@ -32,6 +32,7 @@ struct ScriptStep {
 inline constexpr std::uint8_t kOpcodeMessage = 29;      // "The door is locked."
 inline constexpr std::uint8_t kOpcodeLongMessage = 30;  // a sign's full text
 inline constexpr std::uint8_t kOpcodeName = 35;         // "Door", "Sign", "Chest"
+inline constexpr std::uint8_t kOpcodeShowMessage = 33;  // wait, then resume at sequence + 1
 inline constexpr std::uint8_t kOpcodeTitle = 5;         // what this place is called
 
 // Enter an establishment. The argument is a `u32` `2DEvents.txt` row id: 474

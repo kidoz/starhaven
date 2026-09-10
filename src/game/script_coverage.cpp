@@ -54,6 +54,8 @@ ScriptOpcodeCoverage script_opcode_coverage(std::uint8_t opcode) {
         return {"LongMessage", Handled, 1};
     case kOpcodeSwitch:
         return {"Switch", Handled, 5};
+    case kOpcodeShowMessage:
+        return {"ShowMessage", Handled, 0};
     case kOpcodeName:
         return {"Name", Handled, 1};
     case kOpcodeGoto:
