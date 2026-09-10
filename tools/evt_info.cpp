@@ -1547,7 +1547,8 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         game::WalkState state;
         state.bits.insert(81);
         const auto outcome = game::walk_event(global, 1, state);
-        if (!beat(outcome.ran && state.gold == 0 && outcome.taken.empty(),
+        if (!beat(outcome.ran && state.gold == 0 && outcome.taken.empty() &&
+                      state.resolved_quests.empty(),
                   "Andover only talks about the letter until it is held")) {
             return 1;
         }
@@ -1562,6 +1563,7 @@ int do_arc(const starhaven::lod::LodArchive& icons, const std::filesystem::path&
         // so the scroll stays a keepsake; only the bits and the topic move.
         const bool ok = outcome.ran && state.gold == 1000 && state.npc_topics.at({1, 0}) == 2 &&
                         !state.bits.contains(81) && state.bits.contains(82) &&
+                        state.resolved_quests.contains(81) && !state.resolved_quests.contains(82) &&
                         std::find(state.items.begin(), state.items.end(), 505) != state.items.end();
         if (!beat(ok, "the letter pays 1000, rotates Andover and moves bit 81 to 82")) {
             return 1;

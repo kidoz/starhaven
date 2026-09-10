@@ -32,6 +32,10 @@ inline constexpr int kWalkBudget = 256;
 // before each walk and read back after.
 struct WalkState {
     std::set<int> bits;
+    // Quest resolutions are history, separate from the active journal bits.
+    // A reached quest-bit Take records the script's resolution, even when
+    // the party brought the objective before accepting the assignment.
+    std::set<int> resolved_quests;
     std::map<int, int> variables;
     std::vector<int> items;
     int gold = 0;
@@ -247,6 +251,7 @@ struct WalkOutcome {
             case world::kVarQuestBit:
                 if (take) {
                     state.bits.erase(value);
+                    state.resolved_quests.insert(value);
                 } else {
                     state.bits.insert(value);
                 }
