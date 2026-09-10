@@ -22,6 +22,7 @@
 #include "game/script_coverage.hpp"
 #include "game/script_decorations.hpp"
 #include "game/script_faces.hpp"
+#include "game/script_objects.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/travel.hpp"
@@ -43,6 +44,7 @@ void print_usage(const char* argv0) {
               << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
               << "           --strict also fails on unsupported or short-argument records\n"
               << "  --face-bits  verify opcode 23 masks and indoor face lifecycles\n"
+              << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
               << "  --generated-items  verify opcode 41 generation against item tables\n"
               << "  --messages  verify opcode 33 suspension and preceding text joins\n"
@@ -66,6 +68,92 @@ bool is_script(const std::string& name) {
     return tail[0] == '.' && std::tolower(static_cast<unsigned char>(tail[1])) == 'e' &&
            std::tolower(static_cast<unsigned char>(tail[2])) == 'v' &&
            std::tolower(static_cast<unsigned char>(tail[3])) == 't';
+}
+
+// Audit opcode 34 without walking events or mutating maps. Numeric metadata
+// distinguishes decoded requests from live runtime support.
+int do_object_spawns(const starhaven::lod::LodArchive& icons,
+                     const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    world::ObjectTable objects;
+    world::SpriteFrameTable frames;
+    data::ItemStatsTable items;
+    std::span<const std::byte> raw;
+    if (!game::audit_script_coverage(icons).complete() ||
+        icons.payload("DOBJLIST.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::ObjectTable::parse(raw, objects) != world::ObjectTableError::None ||
+        icons.payload("DSFT.BIN", raw) != lod::LodArchive::PayloadError::None ||
+        world::SpriteFrameTable::parse(raw, frames) != world::SpriteFrameError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete script or object-spawn input\n";
+        return 1;
+    }
+    std::size_t records = 0;
+    std::size_t short_records = 0;
+    std::size_t resolved = 0;
+    std::size_t requested = 0;
+    std::size_t failures = 0;
+    std::set<std::string> scripts;
+    std::set<std::pair<std::string, std::uint16_t>> events;
+    std::cout << "script\tevent\tsequence\tstatus\tobject\tx\ty\tz\tspeed\tcount\tscatter"
+                 "\tdescriptor\tflags\tlifetime\tframe\tgroup_length\titem\n";
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name))
+            continue;
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None)
+            return 1;
+        for (const auto& step : script.steps()) {
+            if (step.opcode != world::kOpcodeSpawnObjects)
+                continue;
+            ++records;
+            scripts.insert(entry.name);
+            events.emplace(entry.name, step.event_id);
+            std::cout << entry.name << '\t' << step.event_id << '\t'
+                      << static_cast<int>(step.sequence) << '\t';
+            const auto request = world::parse_object_spawn(step);
+            if (!request) {
+                ++short_records;
+                std::cout << "short\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\t-\n";
+                continue;
+            }
+            requested += request->count;
+            const auto resource =
+                game::resolve_object_spawn(*request, objects.entries(), items.entries());
+            const auto* descriptor = resource ? objects.at(resource->descriptor_index) : nullptr;
+            const bool ok = resource && resource->descriptor_index != 0 && descriptor != nullptr &&
+                            descriptor->sprite_frame_index < frames.size() &&
+                            frames.frames()[descriptor->sprite_frame_index].starts_group();
+            resolved += ok ? 1 : 0;
+            failures += ok ? 0 : 1;
+            std::string_view status = "resolved";
+            if (!resource || descriptor == nullptr)
+                status = "missing_descriptor";
+            else if (resource->descriptor_index == 0)
+                status = "unused_descriptor";
+            else if (!ok)
+                status = "invalid_frame";
+            std::cout << status << '\t' << request->object_id << '\t' << request->x << '\t'
+                      << request->y << '\t' << request->z << '\t' << request->speed << '\t'
+                      << static_cast<int>(request->count) << '\t' << request->scatter;
+            if (!resource || descriptor == nullptr) {
+                std::cout << "\t-\t-\t-\t-\t-\t-\n";
+                continue;
+            }
+            std::cout << '\t' << resource->descriptor_index << '\t' << descriptor->flags << '\t'
+                      << descriptor->lifetime << '\t' << descriptor->sprite_frame_index << '\t'
+                      << (descriptor->sprite_frame_index < frames.size()
+                              ? frames.frames()[descriptor->sprite_frame_index].group_length
+                              : 0)
+                      << '\t' << resource->item_id << '\n';
+        }
+    }
+    std::cout << "SUMMARY\trecords\t" << records << "\tscripts\t" << scripts.size() << "\tevents\t"
+              << events.size() << "\tshort\t" << short_records << "\tresolved\t" << resolved
+              << "\trequested_objects\t" << requested << "\tfailures\t" << failures
+              << "\truntime\tunsupported\n";
+    return records > 0 && failures == 0 ? 0 : 1;
 }
 
 // Generate each opcode-41 reward in isolation, using user-owned tables and a
@@ -2742,6 +2830,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-spawns") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_spawns(icons, *install / "data");
+    }
     if (stem == "--face-bits") {
         if (argc != 2) {
             print_usage(argv[0]);

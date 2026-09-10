@@ -3,12 +3,14 @@ title: Event-script coverage audit
 summary: Reproducible coverage of every shipped MM6 event script against the current walker, with missing-handler locations and a prioritized backlog.
 doc_type: explanation
 status: partial
-last_updated: 2026-09-10
+last_updated: 2026-09-11
 source_files:
   - tools/evt_info.cpp
   - src/game/script_coverage.cpp
   - src/game/script_walk.hpp
   - tests/test_script_coverage.cpp
+  - src/game/script_objects.cpp
+  - tests/test_script_objects.cpp
 tags:
   - events
   - compatibility
@@ -39,6 +41,9 @@ Opcode 23 now [changes indoor face attributes](../formats/map-events.md#opcode-2
 32 complete records pass, with 13 short records reported. Collision and texture
 animation respond to the flags. The alternate draw-path effect of mask `0x10`
 remains a rendering gap; storing that bit does not certify its appearance.
+Opcode 34 is now [decoded as object spawning](../formats/map-events.md#opcode-34-spawns-sprite-objects),
+correcting its tentative party-coordinate label. Its runtime remains unsupported;
+resource resolution alone does not change the dispatch counts.
 
 ## Reproduce
 
@@ -133,7 +138,7 @@ Example coordinates are `script / event / sequence` and are `observed`.
 | Opcode | Existing reading | Records | Scripts | Events | Example |
 | ---: | --- | ---: | ---: | ---: | --- |
 | 8 | Play effect/sound by category (`observed`) | 60 | 20 | 36 | `D17.EVT / 29 / 7` |
-| 34 | Move to coordinates (`inferred`) | 55 | 11 | 22 | `D18.EVT / 56 / 2` |
+| 34 | Spawn sprite objects by object ID (`observed`) | 55 | 11 | 22 | `D18.EVT / 56 / 2` |
 | 22 | Reset dialogue/choice buffer (`inferred`) | 28 | 21 | 22 | `D04.EVT / 52 / 2` |
 | 12 | Set variable with name pointer (`inferred`) | 25 | 13 | 19 | `OUTE3.EVT / 231 / 5` |
 | 3 | Spawn sprite object (`observed`) | 24 | 12 | 18 | `D17.EVT / 29 / 3` |
@@ -148,10 +153,12 @@ handler research. Trace each selected operation's inputs and state effects
 before implementing it, then add a synthetic walking test and an install-backed
 behavior check. A handler that merely consumes a record is not completion.
 
-1. **Doors and traversal: 34 and 43, with 10.** Opcode 23 now changes face
-   attributes, including the CD2 passage collision. Opcode 34 has
-   30 full-size records in `D18`, beginning at event 56. Inspect whether its
-   tentative coordinate reading is correct before treating it as party travel.
+1. **Object lifecycle and remaining traversal state: 34 and 43, with 10.**
+   Opcode 34 creates sprite objects, including persistent loot and temporary
+   effects. Its 30 complete D18 records require motion, collision, expiration
+   and impacts; begin with IDs 1000/1050 in event 56. Then verify CD2's ID-1
+   loot through pickup and save/map return. Keep the absent descriptor ID 36
+   in ZNWC visible. Opcode 23 already changes passage collision.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
    two-byte uses of opcode 10 are `OUTC1 / 211 / 2` (quest) and
    `OUTD3 / 203 / 0` (travel); low frequency does not make them harmless.
@@ -165,8 +172,9 @@ behavior check. A handler that merely consumes a record is not completion.
    Establish which short records are reachable and which are unused before
    setting a reachable-script acceptance gate.
 
-The next implementation slice should investigate **opcode 34**, starting with
-`D18 / 56 / 2`, before assuming its coordinate-operation label is correct.
+The opcode-34 operand and resource audit is complete. The next slice should
+trace and implement the **ID-1000/1050 object lifecycle** used by D18 event 56,
+with synthetic motion/expiry/impact tests before connecting walker dispatch.
 The audit portion of FC-2 is complete; opcode completeness is still open.
 
 ## Short records and limits of the census
@@ -198,7 +206,7 @@ work, alongside the [campaign completion contract](campaign-completion.md).
 
 ## Validation
 
-The hermetic suite now contains 85 test executables. Coverage tests exercise
+The hermetic suite now contains 86 test executables. Coverage tests exercise
 all 256 opcode classifications against the actual walker, repeated records and
 scoped events, mixed-case extensions, deterministic output, argument guards,
 bad containers/records/payloads, duplicate names, no-script input, and TSV
@@ -238,3 +246,22 @@ version-6 save/reload check; no saves are written to the user's slots.
 The 15 uses of mask `0x10` verify stored attributes only, with the rendering
 difference explicitly unresolved. These are effect probes, not proof of every
 branch's reachability in a player campaign.
+
+## Object-spawn verification
+
+`evt_info --object-spawns` decodes every opcode-34 request and checks its
+DOBJLIST/DSFT/ITEMS joins without executing it. The 2026-09-11 audit on engine
+base `f743726` finds 55 records in 11 scripts and 22 events: ten short,
+44 fully resolved and one missing descriptor (`ZNWC / 65 / 1`, object ID 36).
+Complete requests specify 165 objects, of which five belong to the unresolved
+record. All 44 matched descriptors select sprite group heads, including frame
+zero. The tool returns 1 for the missing descriptor and explicitly labels runtime
+support as unsupported. This expected audit failure is an installation finding,
+not a failed hermetic test or evidence of a supported opcode.
+
+Synthetic tests cover all 22 truncation boundaries, signed extremes, zero and
+maximum counts, nonzero scatter flags, trailing bytes, distinct descriptor and
+item ID spaces, first-match semantics, compiled-byte narrowing, missing tables,
+and descriptor indices at and beyond the 16-bit limit. No dispatch guard was
+added, so the ten short opcode-34 records remain in the 648 unsupported records,
+not the 301 dispatched records below an argument-length guard.

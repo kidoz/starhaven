@@ -3,7 +3,7 @@ title: "Open-question register"
 summary: "Authoritative evidence-backed answers and unresolved questions gathered from public StarHaven documentation."
 doc_type: index
 status: verified
-last_updated: 2026-09-10
+last_updated: 2026-09-11
 tags:
   - open-questions
   - research
@@ -181,8 +181,11 @@ The audit reduces the old sections to these bounded unknowns:
   records remain accounted for. Opcode 23 changes indoor face attributes; 32
   complete records and three save/reload flows pass, with 13 short records retained.
   Its pass-through and texture-animation effects are implemented; mask `0x10`'s
-  alternate draw appearance remains unknown. Investigate opcode 34 next, beginning
-  with D18 event 56.
+  alternate draw appearance remains unknown. Opcode 34 is decoded as object
+  spawning: 44 complete requests resolve, ten are short, and ZNWC event 65
+  requests missing descriptor ID 36. Runtime remains unsupported. Next trace
+  motion, expiry and impacts for IDs 1000/1050 in D18 event 56, then persistent
+  ID-1 loot in CD2; preserve the resource mismatch in the audit.
   Original cursor-item delivery, shared random ordering across subsystems,
   decoration picking/proximity triggers and state reindexing after descriptor changes,
   message-window styling,

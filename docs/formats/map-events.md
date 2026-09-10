@@ -3,11 +3,12 @@ title: "Map event scripts"
 summary: "Container framing, opcode semantics, and runtime joins for Might and Magic VI map scripts."
 doc_type: reference
 status: partial
-last_updated: 2026-09-10
+last_updated: 2026-09-11
 source_files:
   - src/core/world/map_script.cpp
   - src/game/script_walk.hpp
   - src/game/script_faces.cpp
+  - src/game/script_objects.cpp
   - tools/evt_info.cpp
 tags:
   - mm6
@@ -895,6 +896,93 @@ missing sequences, sequence 255, disabled events and stale-map cancellation.
 Original window styling, audio restoration and nested external script calls
 remain outside this slice.
 
+## Opcode 34 spawns sprite objects
+
+Opcode 34 requests sprite objects at a position. Its earlier “Move to
+coordinates” reading was incorrect: the handler calls the object-spawn helper,
+not the party-travel path. The operands occupy 22 bytes (`observed`):
+
+| Argument offset | Type | Meaning |
+| --- | --- | --- |
+| 0 | u32 | Object ID; descriptor matching uses its low 16 bits |
+| 4, 8, 12 | i32 each | X, Y, Z in original map coordinates |
+| 16 | i32 | Initial speed, passed to the velocity initializer |
+| 20 | u8 | Number of spawn attempts; zero creates none |
+| 21 | u8 | Zero selects vertical launch; any nonzero value scatters |
+
+The bounded parser rejects any wrong opcode or operand block shorter than
+22 bytes. It accepts trailing bytes and preserves the signed coordinate and
+speed values. These are engine parser rules, not a claim that the original
+interpreter guarded short records.
+
+### Evidence and resource joins
+
+Static evidence comes from the same GOG executable identified above,
+SHA-256 `28d2b83e75db45134d161da1da767afcbdb3e381921d3de61c2784ac85cd00ce`,
+inspected read-only with radare2 6.2.2 on 2026-09-11.
+
+| Fact | Status | Evidence |
+| --- | --- | --- |
+| The handler assembles the five little-endian words, zero-extends the two bytes, passes an additional zero, and continues after the call. | observed | VA `0x43cf90..0x43d055`, call to `0x42aa10` |
+| The helper creates a 100-byte sprite-object record and resolves the first descriptor whose ID matches the request's low word. No match selects descriptor zero. | observed | VA `0x42aa10..0x42aab4`; 52-byte DOBJLIST stride and ID at `+0x20` |
+| Contained loot uses the first compiled ITEMS row whose sprite byte equals the **full** requested ID. No match leaves item ID zero. | observed | VA `0x42aaf5..0x42ab18`; 40-byte ITEMS stride, byte at `+0x21` |
+| Scatter draws two random values per attempted object; the other branch draws none. | observed | VA `0x42ab1c..0x42abb2` |
+| The allocator selects the first unused descriptor-zero slot, with a capacity of 1,000. It initializes previous position from current position. | observed | VA `0x42a730..0x42a7a2` |
+| Full turn is 2,048 units and quarter turn is 512. | observed | Trigonometry initializer `0x445060`, `0x4451f0..0x445232` |
+
+Descriptor IDs, descriptor row indices, item IDs and sprite-frame indices are
+separate spaces. The contained-item lookup compares against a byte, so an
+object ID above 255 cannot become loot merely because its low byte matches an
+item sprite. Text-table sprite values are narrowed to the compiled byte before
+comparison. The audit reports missing or unrepresentable descriptor indices
+explicitly; it does not silently substitute the original's unused slot zero.
+
+For scatter, yaw is the first random result modulo 2,048. Pitch is
+`256 + floor((second result modulo 512) / 2)`, hence 256..511 units
+(45 degrees up to just below 90 degrees). Without scatter, yaw is zero and
+pitch is 512, a vertical launch. Speed and those angles feed the shared
+initializer, which stores signed 16-bit velocity components. The opcode does
+not supply a target, spell ID, skill or mastery. Original shared random ordering,
+fixed-point velocity rounding and downstream impact behavior are separate
+runtime requirements; this parser does not implement them.
+
+### Installed-record audit and runtime status
+
+Run `STARHAVEN_GAME_DIR=/path/to/MM6 ./buildDir/evt_info --object-spawns`.
+The tool reads every script, resolves DOBJLIST and DSFT joins, and reports
+numeric metadata only. It does not walk events, create objects or write saves.
+For the installation hashed in the coverage audit, it finds 55 records in
+11 scripts and 22 events: 45 complete requests and 10 short records. Each of
+`DBM1` through `DBM5` contains one empty and one one-byte request. They remain
+visible in the report rather than being excluded as presumed templates.
+
+| Requested ID | Complete records | Requested objects | Descriptor index | Flags | Contained item ID |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 2 | 2 | 2 | `0x0000` | 1 |
+| 36 | 1 | 5 | missing | — | not resolved |
+| 1000 | 10 | 20 | 135 | `0x0194` | 0 |
+| 1050 | 23 | 85 | 139 | `0x0174` | 0 |
+| 2081 | 2 | 2 | 158 | `0x013c` | 0 |
+| 2100 | 1 | 3 | 159 | `0x0154` | 0 |
+| 4070 | 3 | 45 | 178 | `0x0054` | 0 |
+| 8080 | 3 | 3 | 209 | `0x0174` | 0 |
+
+All 44 matched descriptors select DSFT group heads, including frame zero for
+ID 1000. `ZNWC.EVT / 65 / 1` requests ID 36, absent from this DOBJLIST.
+The original helper falls back to descriptor zero, which remains an unused
+object slot; the audit exposes the mismatch instead of claiming five live
+objects. The totals are **165 requested**, not 165 successfully spawned.
+The command returns 1 for this unresolved join. Short records are counted
+separately; missing input or other unresolved descriptor/frame joins also fail.
+
+**Runtime dispatch remains unsupported.** The parser and resource audit are
+implemented and tested, but coverage totals are unchanged. Integration needs
+persistent loot, object motion and collision, descriptor-controlled expiration
+and impacts, and save/map-return behavior. The next bounded experiment is the
+ID-1000/1050 lifecycle used by D18 event 56, followed by CD2's ID-1 loot path.
+See [DOBJLIST flags](dobjlist.md#flag-bits) and the
+[event-script coverage audit](../explanation/event-script-coverage.md).
+
 ## Opcode 41 generates an item reward
 
 The old inferred “Open panel/dialogue” label is superseded by the handler at
@@ -1169,7 +1257,7 @@ from the executable, every opcode 1..43 now has a reading:
 | 31 | no-op (default) | `0x43e1e2` | observed |
 | 32 | Switch (event on/off) | `0x43d666` | observed |
 | 33 | ShowMessage (modal text, then resume) | `0x43e304` | observed |
-| 34 | Move to coordinates | `0x43cf90` | inferred |
+| 34 | Spawn sprite objects by object ID | `0x43cf90` | observed |
 | 35 | Name (the interactable noun) | `0x43cf82` | observed |
 | 36 | Goto (jump) | `0x43cea8` | observed |
 | 37 | no-op (default) | `0x43e1e2` | observed |
