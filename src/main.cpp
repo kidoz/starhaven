@@ -2546,6 +2546,7 @@ int main(int argc, char** argv) {
     std::cout << "\n";
 
     game::DecorationChanges decoration_changes;
+    game::restore_script_decorations(session, decoration_changes);
     std::vector<game::AmbientSource> ambient_sources;
     const auto refresh_decoration_sounds = [&] {
         ambient_sources.clear();
@@ -3915,6 +3916,10 @@ int main(int argc, char** argv) {
 
     const auto report_script_gaps = [](const game::WalkOutcome& outcome, std::string_view script,
                                        int event_id) {
+        for (const auto sequence : outcome.failed_decorations) {
+            std::cerr << "warning: no current decoration in " << script << " event " << event_id
+                      << " step " << static_cast<int>(sequence) << '\n';
+        }
         for (const auto sequence : outcome.failed_items) {
             std::cerr << "warning: item generation failed in " << script << " event " << event_id
                       << " step " << static_cast<int>(sequence) << '\n';
@@ -7170,9 +7175,17 @@ int main(int argc, char** argv) {
         // until the quest bit it asks for is set. See
         // docs/formats/map-events.md.
         game::AimedFace aimed = game::aimed_face(session, camera.position, camera.forward());
+        auto aimed_decoration = game::aimed_decoration(session, camera.position, camera.forward());
+        if (aimed_decoration && (!aimed.found() || aimed_decoration->distance < aimed.distance)) {
+            aimed.event_id = aimed_decoration->event;
+            aimed.distance = aimed_decoration->distance;
+        } else {
+            aimed_decoration.reset();
+        }
         // `--walk N` uses event N as though the party had, once, on startup;
         // `--smoke-event N` does the same during the acceptance run.
         if (walk_on_start >= 0 || smoke_event >= 0) {
+            aimed_decoration.reset();
             aimed.event_id =
                 static_cast<std::uint16_t>(walk_on_start >= 0 ? walk_on_start : smoke_event);
             aimed.distance = 0.0f;
@@ -7189,14 +7202,18 @@ int main(int argc, char** argv) {
             queued_script.reset();
         }
         if (queued_script || (!script_message.active() && want_strike && aimed.found())) {
-            const auto request = queued_script.value_or(game::ScriptContinuation{
-                session.file_name,
-                aimed.event_id,
-                walk_from,
-                !session.script.defines(aimed.event_id),
-                false,
-                {},
-            });
+            game::ScriptContinuation request;
+            if (queued_script) {
+                request = *queued_script;
+            } else {
+                request.map = session.file_name;
+                request.event = aimed.event_id;
+                request.sequence = walk_from;
+                request.global = aimed_decoration ? aimed_decoration->global
+                                                  : !session.script.defines(aimed.event_id);
+                if (aimed_decoration && aimed_decoration->global)
+                    request.decoration = aimed_decoration->index;
+            }
             queued_script.reset();
             auto presentation = request.presentation;
             // The walker's view of the purse and the packs.
@@ -7215,7 +7232,7 @@ int main(int argc, char** argv) {
             const game::WalkOutcome outcome = game::walk_event(
                 local ? session.script : global_script, request.event, script_state,
                 request.sequence, local ? session.file_name : "GLOBAL.EVT", &presentation,
-                &script_item_generator);
+                &script_item_generator, request.decoration);
             report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", request.event);
             apply_decorations(outcome);
             walk_from = -1;
@@ -8209,7 +8226,8 @@ int main(int argc, char** argv) {
         // A face with a script on it names itself, which the inspect panel
         // shows the same way it names a monster. An establishment's door
         // names the establishment, from the design table's own row.
-        if (aimed.found() && shown_member < 0 && shown_pack < 0 && open_shop < 0) {
+        if (aimed.found() && !aimed_decoration && shown_member < 0 && shown_pack < 0 &&
+            open_shop < 0) {
             std::string named;
             if (const std::uint32_t row = session.script.building_of(aimed.event_id); row != 0) {
                 for (const auto* shop : shops_here) {
