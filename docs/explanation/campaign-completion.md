@@ -74,6 +74,10 @@ by [opcode 42](../formats/map-events.md#opcode-42-changes-the-current-decoration
 alongside its descriptor and visibility. Versions 1–4 remain readable.
 The map namespace and placement index keep one used object from changing another.
 
+Version 6 additionally preserves indoor face attributes and textures after
+scripted changes. Collision and per-face texture animation are restored with the
+map; versions 1–5 remain readable without inferring changes absent from the save.
+
 [Opcode 33](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
 pauses an event for modal text. Save/load shortcuts are held until dismissal;
 the continuation is transient. Rewards and journal changes after the message

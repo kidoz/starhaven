@@ -161,3 +161,85 @@ TEST_CASE("animation selection is per face and retexture follows the current mas
     REQUIRE(apply_script_faces(map, reverse, memory) == 2);
     REQUIRE((map.blv.faces[0].attributes & kFaceTextureAnimated) != 0);
 }
+
+TEST_CASE("walked face changes suspend once and survive save reload with textures",
+          "[script-faces]") {
+    const auto steps = std::to_array<ScriptStep>({
+        {5, 0, kOpcodeSetFaceBits, {0, 0, 0, 0, 0, 0, 0, 32, 1}},
+        {5, 1, kOpcodeRetexture, {0, 0, 0, 0, 'n', 'e', 'w', 0}},
+        {5, 2, kOpcodeShowMessage, {}},
+        {5, 3, kOpcodeSetFaceBits, {0, 0, 0, 0, 0, 0, 0, 32, 0}},
+        {5, 4, kOpcodeEnd, {}},
+    });
+    const auto events = script(steps);
+    WalkState state;
+    const auto first = walk_event(events, 5, state);
+    REQUIRE(first.unsupported.empty());
+    REQUIRE(first.faces.size() == 2);
+    REQUIRE(first.acted());
+    auto map = session();
+    REQUIRE(map.collision.slide({0, 0, 125}, {0, 0, 95}, 10, 50).z > 109.0f);
+    SaveState saved;
+    saved.map_file = map.file_name;
+    REQUIRE(apply_script_faces(map, first.faces, saved.faces) == 2);
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    auto reopened = session();
+    restore_script_faces(reopened, loaded.faces);
+    REQUIRE(reopened.blv.faces[0].ethereal());
+    REQUIRE(reopened.blv.faces[0].texture_name == "new");
+    REQUIRE(reopened.collision.size() == 0);
+    REQUIRE(reopened.collision.slide({0, 0, 125}, {0, 0, 95}, 10, 50).z == 95.0f);
+    if (!first.message) {
+        FAIL("missing modal suspension");
+        return;
+    }
+    const auto last = walk_event(events, 5, state, first.message->resume_at);
+    REQUIRE(last.faces.size() == 1);
+    REQUIRE(apply_script_faces(reopened, last.faces, loaded.faces) == 1);
+    REQUIRE_FALSE(reopened.blv.faces[0].ethereal());
+    REQUIRE(reopened.collision.size() == 1);
+    REQUIRE(reopened.collision.slide({0, 0, 125}, {0, 0, 95}, 10, 50).z > 109.0f);
+    auto elsewhere = session();
+    elsewhere.file_name = "Other.blv";
+    restore_script_faces(elsewhere, loaded.faces);
+    REQUIRE(elsewhere.blv.faces[0].texture_name == "still");
+}
+
+TEST_CASE("face save records reject invalid state transactionally and old saves still load",
+          "[script-faces]") {
+    SaveState saved;
+    saved.map_file = "Synthetic.blv";
+    saved.faces["synthetic.blv"][0] = {0xffffffffU, ""};
+    const auto text = save_text(saved);
+    SaveState loaded;
+    REQUIRE(parse_save(text, loaded));
+    REQUIRE(loaded.faces == saved.faces);
+    const auto at = text.find("face\t");
+    const auto end = text.find('\n', at);
+    for (const std::string_view bad : {
+             "face\t-1\t0\tsynthetic.blv\tx",
+             "face\t2147483648\t0\tsynthetic.blv\tx",
+             "face\t0\t4294967296\tsynthetic.blv\tx",
+             "face\t0\t-1\tsynthetic.blv\tx",
+             "face\t0\tx\tsynthetic.blv\tx",
+             "face\t0\t0\t\tx",
+             "face\t0\t0\tsynthetic.blv",
+         }) {
+        auto broken = text;
+        broken.replace(at, end - at, bad);
+        loaded.gold = 999;
+        REQUIRE_FALSE(parse_save(broken, loaded));
+        REQUIRE(loaded.gold == 999);
+    }
+    auto duplicate = text;
+    duplicate.insert(at, text.substr(at, end - at + 1));
+    REQUIRE_FALSE(parse_save(duplicate, loaded));
+    for (const int version : {1, 2, 3, 4, 5}) {
+        auto old = text;
+        old.erase(at, end - at + 1);
+        old.replace(0, old.find('\n'), "starhaven-save\t" + std::to_string(version));
+        REQUIRE(parse_save(old, loaded));
+        REQUIRE(loaded.faces.empty());
+    }
+}

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
@@ -67,7 +68,7 @@ bool valid_record_shape(std::string_view kind, std::string_view line) {
         {"skill", 4},     {"character", 14}, {"spells", 2},     {"partybuff", 5},
         {"buff", 5},      {"temps", 19},     {"attributes", 9}, {"resistances", 7},
         {"equipped", 12}, {"item", 7},       {"decoration", 5}, {"scriptitems", 3},
-        {"reward", 7},
+        {"reward", 7},    {"face", 5},
     });
     const auto count = 1 + std::count(line.begin(), line.end(), '\t');
     for (const auto& [record, minimum] : kMinimumFields) {
@@ -83,7 +84,8 @@ bool valid_record_shape(std::string_view kind, std::string_view line) {
                     kind == "map" || kind == "visited" || (kind == "character" && field >= 12) ||
                     (kind == "hired" && field == 3) || (kind == "skill" && field == 3) ||
                     (kind == "beacon" && field == 5) || (kind == "disabled" && field == 2) ||
-                    (kind == "recall" && field == 1) || (kind == "decoration" && field == 4);
+                    (kind == "recall" && field == 1) || (kind == "decoration" && field == 4) ||
+                    (kind == "face" && field >= 3);
                 if (length == 0 && !text) {
                     return false;
                 }
@@ -168,6 +170,12 @@ std::string save_text(const SaveState& state) {
         out << "reward\t" << item.item_id << '\t' << item.standard_bonus << '\t'
             << item.standard_bonus_strength << '\t' << item.special_bonus << '\t' << item.charges
             << '\t' << (item.identified ? 1 : 0) << '\n';
+    }
+    for (const auto& [map, changes] : state.faces) {
+        for (const auto& [index, change] : changes) {
+            out << "face\t" << index << '\t' << change.attributes << '\t' << map << '\t'
+                << change.texture << '\n';
+        }
     }
     for (const auto& [map, changes] : state.decorations) {
         for (const auto& [index, change] : changes) {
@@ -484,6 +492,19 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
                     saved.event_value = static_cast<std::uint8_t>(event_value);
             }
             out.decorations[script_scope(map)][index] = saved;
+        } else if (kind == "face") {
+            const auto index = next_number<std::uint32_t>(fields);
+            const auto attributes = next_number<std::uint32_t>(fields);
+            std::string map;
+            std::string texture;
+            std::getline(fields, map, '\t');
+            std::getline(fields, texture, '\t');
+            if (map.empty() ||
+                index > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
+                return false;
+            auto& faces = out.faces[script_scope(map)];
+            if (!faces.emplace(index, SavedFace{attributes, std::move(texture)}).second)
+                return false;
         } else if (kind == "disabled") {
             const int event = next_int();
             std::string script;

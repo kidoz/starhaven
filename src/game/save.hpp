@@ -21,11 +21,12 @@
 #include "game/inventory.hpp"
 #include "game/party.hpp"
 #include "game/script_decorations.hpp"
+#include "game/script_faces.hpp"
 #include "game/script_items.hpp"
 
 namespace starhaven::game {
 
-inline constexpr int kSaveVersion = 5;
+inline constexpr int kSaveVersion = 6;
 inline constexpr int kOldestSaveVersion = 1;
 inline constexpr const char* kSaveMagic = "starhaven-save";
 
@@ -87,6 +88,7 @@ struct SaveState {
     std::set<int> resolved_quests;
     std::map<std::string, std::set<int>> disabled_events;
     DecorationChanges decorations;
+    FaceChanges faces;
     ScriptItemState script_items;
     std::map<int, int> variables;
     std::map<std::pair<int, int>, int> npc_topics;
@@ -113,6 +115,7 @@ struct SaveState {
     std::vector<std::uint32_t> open_doors;
 };
 
+// Version 6 persists indoor face attributes and textures. Versions 1–5 remain readable.
 // Version 5 persists each decoration's current event. Versions 1–4 remain readable.
 // Version 4 persists generated rewards and their random/artifact state.
 // Versions 1 through 3 remain readable; version 3 added decoration changes.
