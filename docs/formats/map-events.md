@@ -15,8 +15,8 @@ tags:
 Status: **verified** for the container and record structure. The original
 dispatch table below distinguishes observed handlers from tentative semantic
 readings. Current engine coverage is measured separately in the
-[event-script audit](../explanation/event-script-coverage.md): 24 executable
-cases, one metadata case, and 12 missing original handlers. Each claim is tagged
+[event-script audit](../explanation/event-script-coverage.md): 25 executable
+cases, one metadata case, and 11 missing original handlers. Each claim is tagged
 `observed`, `inferred`, or `unknown`.
 
 ## Scope
@@ -806,7 +806,87 @@ settled it. Each opcode's handler reads its arguments from `[esi+N]` and acts;
 e.g. opcode 15 reads door id `[esi+5]` and state `[esi+6]`, opcode 7 (chest)
 reads `[esi+5]`.
 
-### The complete opcode table
+### Opcode 33 displays a message and suspends the event
+
+Opcode 33 (`ShowMessage`) displays the previously selected message and waits
+for dismissal before continuing the event. It is not a variable mutation or a
+mode argument: **the handler reads no argument bytes**. Both the 82 one-byte
+records and the six empty records are valid for this operation. `observed`
+
+The evidence uses the same user-owned GOG executable identified in the
+[decoration specification](#opcode-13-changes-a-placed-decoration): 857,720 bytes,
+SHA-256 `28d2b83e75db45134d161da1da767afcbdb3e381921d3de61c2784ac85cd00ce`.
+Addresses below are virtual addresses in the PE32 image at base `0x400000`.
+Static analysis used radare2 6.2.2 on a disposable copy; the original executable
+was not run.
+
+| Behavior | Evidence | Reproduction |
+| --- | --- | --- |
+| No payload fields are read; an existing message window prevents another from opening. | `observed` | Handler VA `0x43e304`, through `0x43e37a`. |
+| The engine pauses its timer, saves the event ID, next sequence and script-bank mode, then creates a window with kind 19 and operation 33. | `observed` | VA `0x43e34c..0x43e37a`, shared creation tail at `0x43e2df`; timer routine `0x420db0`. |
+| Local opcode 30 selects the long-text buffer; global opcode 30 selects NPC text. In NPC dialogue mode, opcode 29 also selects NPC text. | `observed` | VA `0x43d9a6..0x43da19` and `0x43d855..0x43d897`. |
+| The message renderer uses the long-text buffer, with selected NPC text as its fallback. | `observed` | VA `0x43a890..0x43a978`. |
+| Dismissal destroys the window, restores the bank and next sequence, calls the event interpreter, and resumes the timer. | `observed` | VA `0x43aaa3..0x43aae8`, alternative close path `0x43ab00..0x43ab51`. |
+
+The continuation names **sequence + 1**, not the next physical record. A missing
+sequence ends execution. The implementation preserves 256 as an exhausted
+sequence after 255, avoiding accidental byte wraparound and reward replay.
+The selected text survives successive pauses in the same invocation. A fresh
+invocation starts with no selected text in StarHaven; reuse of stale text across
+unrelated original-game invocations remains `unknown` and is not emulated.
+
+### Install-backed checks
+
+```bash
+export STARHAVEN_GAME_DIR=/path/to/MM6
+./buildDir/evt_info --messages
+```
+
+This metadata-only mode examines all 83 scripts, probes suspension directly at
+every opcode-33 location, and executes three full events against disposable
+walker state. It does not write saves or print dialogue or argument bytes.
+All counts are `observed` in the recorded GOG installation:
+
+- 88 records across 69 events in 33 scripts; all 88 suspend correctly.
+- 61 have a text-selection opcode at the preceding sequence; all 61 candidate
+  indices resolve to nonempty text. These are syntactic joins, not branch proofs.
+- 44 have an executable record at the following sequence; the others have no
+  continuation at that sequence.
+- `GLOBAL / 20`: selects NPC text 28 and changes one quest bit and one topic
+  before pausing at sequence 6. Dismissal finishes without repeating them.
+- `OUTE3 / 240`: displays local text 27 at sequence 1. The quest bit is absent
+  while suspended and set after dismissal.
+- `CD2 / 53`: displays local text 7 at sequence 1. Its door operation is absent
+  before dismissal and emitted after dismissal.
+
+The command fails on unreadable input, broken candidate joins, failed
+suspension probes, or failed full-event expectations. The 27 records without an
+immediate text candidate remain in the report; this is not a claim of missing
+text. For example, GLOBAL event 20 selects its text earlier in the event.
+
+### Runtime integration and limits
+
+`WalkOutcome::message` returns a text index and continuation sequence;
+`WalkPresentation` carries transient text selection across pauses. The UI uses
+`ScriptMessage` to retain the map, event, script bank and NPC-dialogue context.
+Local messages resolve through `.STR`, and global messages through `npctext.txt`.
+NPC events and map interactions share the outcome application path.
+
+The modal wraps text, supports scrolling, and accepts Enter, Escape or a left
+click to continue. Movement, combat time, normal input and save/load shortcuts
+are held while it is open. The dismissal consumes exactly one continuation,
+and a map replacement clears pending interaction. These are implemented engine
+behaviors; the panel layout and key bindings do not claim original UI fidelity.
+
+No new persistent field is needed: opcode 33 itself changes no campaign state,
+and saves cannot be requested halfway through its modal. Changes made before
+and after the pause use the existing save model. Synthetic regressions cover
+reward timing, NPC state, bank identity, repeated messages, empty payloads,
+missing sequences, sequence 255, disabled events and stale-map cancellation.
+Original window styling, audio restoration and nested external script calls
+remain outside this slice.
+
+## The complete opcode table
 
 The dispatch hub at `0x43c948` reads the opcode at step offset +4, subtracts 1,
 and bounds-checks against 42 (`cmp eax, 0x2a`): **only opcodes 1..43 are
@@ -855,7 +935,7 @@ from the executable, every opcode 1..43 now has a reading:
 | 30 | LongMessage (sign text) | `0x43d9a6` | observed |
 | 31 | no-op (default) | `0x43e1e2` | observed |
 | 32 | Switch (event on/off) | `0x43d666` | observed |
-| 33 | Mode-dependent sub-screen enter/exit | `0x43e304` | inferred |
+| 33 | ShowMessage (modal text, then resume) | `0x43e304` | observed |
 | 34 | Move to coordinates | `0x43cf90` | inferred |
 | 35 | Name (the interactable noun) | `0x43cf82` | observed |
 | 36 | Goto (jump) | `0x43cea8` | observed |

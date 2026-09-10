@@ -17,18 +17,20 @@ tags:
 ---
 # Event-script coverage audit
 
-The current walker has **24 executable opcode cases and one metadata case**.
-The shipped scripts contain **12 additional opcodes with original executable
-handlers**, used in **499 records across 315 events in 62 scripts**. These are
+The current walker has **25 executable opcode cases and one metadata case**.
+The shipped scripts contain **11 additional opcodes with original executable
+handlers**, used in **411 records across 247 events in 51 scripts**. These are
 the substantive dispatch backlog, not the previously estimated “45 of 90.”
 Counts are `observed`; their gameplay consequences require further validation.
 
 This is a static census of every `.EVT` in `icons.lod`, including global,
 unused and template-like scripts. It does not prove event reachability, full
 argument semantics, outcome application by the UI, or campaign completion.
-The first implementation slice, opcode 13, is now integrated; its
+Opcode 13 is integrated; its
 [decoration semantics](../formats/map-events.md#opcode-13-changes-a-placed-decoration)
-supersede the audit's tentative variable-operation label.
+supersede the audit's tentative variable-operation label. Opcode 33 now
+[displays a modal and resumes the event](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
+after dismissal; all 88 records are covered.
 
 ## Reproduce
 
@@ -72,9 +74,10 @@ this measure.
 
 ## Measured baseline
 
-Audited 2026-09-10 after implementing opcode 13 on engine revision `f31c8bb`.
+Audited 2026-09-10 after implementing opcode 33 on engine revision `6fe44ec`.
 The original audit at `b6a5cc7` had 609 missing-handler records; opcode 13
-accounts for the reduction to 499. Source: user-owned MM6 GOG installation, `data/icons.lod`,
+removed 110 and opcode 33 removed another 88, leaving 411. Source: user-owned
+MM6 GOG installation, `data/icons.lod`,
 32,772,165 bytes, SHA-256
 `2e8f2c0d0b88776eb2b09c5ad1a6937b5e4aff88c2190d3340327eb5b813bd18`.
 Build: Apple Clang 21 on ARM64 macOS, Meson 1.12.0. Original files remained
@@ -88,26 +91,26 @@ All figures below are `observed` from `evt_info --coverage`:
 | Parse or payload failures | 0 |
 | Distinct `(script, event)` pairs | 3,332 |
 | Total records | 15,504 |
-| Records whose opcode has a walker handler | 12,398 |
+| Records whose opcode has a walker handler | 12,486 |
 | Metadata records (opcode 4) | 2,192 |
-| Unsupported records | 914 |
-| Unsupported records with an original handler | 499 |
+| Unsupported records | 826 |
+| Unsupported records with an original handler | 411 |
 | Unsupported records on the original default path | 415 |
 | Dispatched records below the current argument-length guard | 276 |
 | Distinct opcode values | 90 |
-| Executable / metadata / unsupported opcode values | 24 / 1 / 65 |
+| Executable / metadata / unsupported opcode values | 25 / 1 / 64 |
 
 The [original dispatch table](../formats/map-events.md#the-complete-opcode-table)
 bounds execution to 1–43, with six default-path cases inside that range.
-Thus 53 of the 65 unsupported values follow the original default path, leaving
-12 missing real handlers. This distinction reuses the recorded executable
+Thus 53 of the 64 unsupported values follow the original default path, leaving
+11 missing real handlers. This distinction reuses the recorded executable
 research; the audit does not newly establish original opcode semantics.
 An explicit runtime policy for those default-path records remains follow-up
 work; the audit preserves them in the raw unsupported count.
 
-Among events containing a missing real handler, 60 also contain a quest-bit
-operation, 19 a door opcode, 6 travel, and 2 an NPC mutation. These groups
-overlap. They are syntactic co-occurrences, not proof that the missing
+Among events containing a missing real handler, 42 also contain a quest-bit
+operation, 17 a door opcode, and 4 travel; none contains an NPC mutation.
+These groups overlap. They are syntactic co-occurrences, not proof that the missing
 instruction blocks that feature or executes on the same branch. Feature tags
 come from known opcode families, not from dialogue or NPC-table joins.
 
@@ -120,7 +123,6 @@ Example coordinates are `script / event / sequence` and are `observed`.
 
 | Opcode | Existing reading | Records | Scripts | Events | Example |
 | ---: | --- | ---: | ---: | ---: | --- |
-| 33 | Mode-dependent sub-screen enter/exit (`inferred`) | 88 | 33 | 69 | `GLOBAL.EVT / 20 / 6` |
 | 41 | Open panel/dialogue (`inferred`) | 86 | 24 | 61 | `GLOBAL.EVT / 129 / 4` |
 | 8 | Play effect/sound by category (`observed`) | 60 | 20 | 36 | `D17.EVT / 29 / 7` |
 | 34 | Move to coordinates (`inferred`) | 55 | 11 | 22 | `D18.EVT / 56 / 2` |
@@ -140,13 +142,11 @@ handler research. Trace each selected operation's inputs and state effects
 before implementing it, then add a synthetic walking test and an install-backed
 behavior check. A handler that merely consumes a record is not completion.
 
-1. **Quest and NPC state: 33, then 41/42.** Opcode 13 is implemented as a
-   decoration update, with all 97 well-formed records checked against loaded
-   maps. Opcode 33 appears in `GLOBAL / 20 / 6`, alongside quest
-   and NPC state, and in `OUTE3 / 240 / 1`. Inspect its effect on subsequent
-   operations. GLOBAL alone contains 37 opcode-41 and 41 opcode-42 records;
-   use `GLOBAL / 426 / 0,2` as a compact paired case. Exact semantics and
-   player-visible consequences remain `unknown` at this audit boundary.
+1. **Quest and NPC state: 41/42.** Opcode 13's decoration effects and
+   opcode 33's modal suspension are implemented. GLOBAL alone contains 37
+   opcode-41 and 41 opcode-42 records; use `GLOBAL / 426 / 0,2` as a compact
+   paired case. Exact semantics and player-visible consequences of 41/42 remain
+   `unknown` at this audit boundary.
 2. **Doors and traversal: 23, 34 and 43, with 10.** Opcode 23 shares 14 records
    with door events and 4 with travel events (`CD2 / 33 / 5,6`). Opcode 34 has
    30 full-size records in `D18`, beginning at event 56. Inspect whether its
@@ -164,8 +164,8 @@ behavior check. A handler that merely consumes a record is not completion.
    Establish which short records are reachable and which are unused before
    setting a reachable-script acceptance gate.
 
-The next implementation slice should investigate **opcode 33**,
-using its quest/NPC examples to pin behavior and provide a regression.
+The next implementation slice should investigate **opcode 41**, followed by
+42, using GLOBAL's paired examples to pin their behavior and regressions.
 The audit portion of FC-2 is complete; opcode completeness is still open.
 
 ## Short records and limits of the census
@@ -197,9 +197,13 @@ work, alongside the [campaign completion contract](campaign-completion.md).
 
 ## Validation
 
-The hermetic suite now contains 81 test executables. Coverage tests exercise
+The hermetic suite now contains 82 test executables. Coverage tests exercise
 all 256 opcode classifications against the actual walker, repeated records and
 scoped events, mixed-case extensions, deterministic output, argument guards,
 bad containers/records/payloads, duplicate names, no-script input, and TSV
 escaping without raw argument output. The local census reads the original
-installation without executing events or writing saves.
+installation without executing events or writing saves. The separate
+`evt_info --messages` mode probes all 88 message records and verifies three
+full-event pause/resume flows in disposable walker state. The 34-beat arc
+regression now explicitly acknowledges the obelisk message before expecting
+its journal fragment.

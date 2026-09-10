@@ -40,6 +40,7 @@ void print_usage(const char* argv0) {
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
               << "           --strict also fails on unsupported or short-argument records\n"
+              << "  --messages  verify opcode 33 suspension and preceding text joins\n"
               << "  --decorations  verify opcode 13 layouts and joins against loaded maps\n"
               << "\n"
               << "  --actor-timers  every map's actor block, at the three\n"
@@ -60,6 +61,149 @@ bool is_script(const std::string& name) {
     return tail[0] == '.' && std::tolower(static_cast<unsigned char>(tail[1])) == 'e' &&
            std::tolower(static_cast<unsigned char>(tail[2])) == 'v' &&
            std::tolower(static_cast<unsigned char>(tail[3])) == 't';
+}
+
+// Metadata-only joins and direct suspension probes. The preceding text is a
+// syntactic candidate, not proof that a branch executes that text selection.
+int do_messages(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    data::NpcDialogueTable dialogue;
+    if (data::load_npc_dialogue(data_dir, dialogue) != data::GameDataError::None) {
+        std::cerr << "error: could not load NPC dialogue tables\n";
+        return 1;
+    }
+    const auto coverage = game::audit_script_coverage(icons);
+    if (!coverage.complete()) {
+        std::cerr << "error: incomplete script input\n";
+        return 1;
+    }
+    std::size_t records = 0;
+    std::size_t empty = 0;
+    std::size_t candidates = 0;
+    std::size_t resolved = 0;
+    std::size_t next_steps = 0;
+    std::size_t failures = 0;
+    std::cout << "script\tevent\tsequence\targument_size\ttext_candidate\ttext_resolves"
+                 "\tnext_opcode\tsuspends\n";
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            ++failures;
+            continue;
+        }
+        if (std::ranges::none_of(script.steps(), [](const auto& step) {
+                return step.opcode == world::kOpcodeShowMessage;
+            })) {
+            continue;
+        }
+        const bool global = game::script_scope(entry.name) == "global.evt";
+        world::MapStrings strings;
+        const auto name = entry.name.substr(0, entry.name.size() - 4) + ".STR";
+        const bool strings_ok =
+            global || (icons.payload(name, raw) == lod::LodArchive::PayloadError::None &&
+                       world::MapStrings::parse(raw, strings) == world::MapScriptError::None);
+        // Full event probes supplement the isolated record census. Only state
+        // counts and text indices are printed; no dialogue or argument bytes.
+        int probe_event = 0;
+        int expected_text = -1;
+        if (global) {
+            probe_event = 20;
+            expected_text = 28;
+        } else if (game::script_scope(entry.name) == "oute3.evt") {
+            probe_event = 240;
+            expected_text = 27;
+        } else if (game::script_scope(entry.name) == "cd2.evt") {
+            probe_event = 53;
+            expected_text = 7;
+        }
+        if (probe_event != 0) {
+            game::WalkState state;
+            game::WalkPresentation text;
+            const auto first = game::walk_event(script, static_cast<std::uint16_t>(probe_event),
+                                                state, -1, entry.name, &text);
+            std::cout << "FLOW\t" << entry.name << '\t' << probe_event << "\tbefore\t"
+                      << (first.message ? first.message->text : -1) << '\t' << state.bits.size()
+                      << '\t' << state.npc_topics.size() << '\t' << first.doors.size() << '\n';
+            if (first.message) {
+                const auto bits_before = state.bits;
+                const auto topics_before = state.npc_topics;
+                const bool before_ok = first.unsupported.empty() && first.doors.empty() &&
+                                       first.message->text == expected_text &&
+                                       bits_before.size() == (global ? 1 : 0) &&
+                                       topics_before.size() == (global ? 1 : 0);
+                const auto last =
+                    game::walk_event(script, static_cast<std::uint16_t>(probe_event), state,
+                                     first.message->resume_at, entry.name, &text);
+                const bool after_ok = last.ran && !last.message && last.unsupported.empty() &&
+                                      state.npc_topics == topics_before &&
+                                      (!global || state.bits == bits_before) &&
+                                      state.bits.size() == (probe_event == 53 ? 0 : 1) &&
+                                      last.doors.size() == (probe_event == 53 ? 1 : 0);
+                failures += before_ok && after_ok ? 0 : 1;
+                std::cout << "FLOW\t" << entry.name << '\t' << probe_event << "\tafter\t"
+                          << (last.message ? last.message->text : -1) << '\t' << state.bits.size()
+                          << '\t' << state.npc_topics.size() << '\t' << last.doors.size() << '\n';
+            } else {
+                ++failures;
+            }
+        }
+        for (const auto& step : script.steps()) {
+            if (step.opcode != world::kOpcodeShowMessage) {
+                continue;
+            }
+            ++records;
+            empty += step.arguments.empty() ? 1 : 0;
+            int candidate = -1;
+            int next_opcode = -1;
+            for (const auto& other : script.event(step.event_id)) {
+                if (static_cast<int>(other.sequence) == static_cast<int>(step.sequence) - 1 &&
+                    (other.opcode == world::kOpcodeLongMessage ||
+                     (global && other.opcode == world::kOpcodeMessage)) &&
+                    !other.arguments.empty()) {
+                    std::uint32_t value = 0;
+                    for (std::size_t i = std::min<std::size_t>(4, other.arguments.size());
+                         i-- > 0;) {
+                        value = (value << 8U) | static_cast<std::uint32_t>(other.arguments[i]);
+                    }
+                    candidate = static_cast<int>(value);
+                }
+                if (static_cast<int>(other.sequence) == static_cast<int>(step.sequence) + 1 &&
+                    other.opcode != world::kOpcodeHeader) {
+                    next_opcode = other.opcode;
+                }
+            }
+            candidates += candidate >= 0 ? 1 : 0;
+            const auto* npc = global ? dialogue.at(candidate) : nullptr;
+            const bool resolves =
+                strings_ok && candidate >= 0 &&
+                (global ? npc != nullptr && !npc->text.empty()
+                        : !strings.at(static_cast<std::size_t>(candidate)).empty());
+            resolved += resolves ? 1 : 0;
+            next_steps += next_opcode >= 0 ? 1 : 0;
+            game::WalkState state;
+            game::WalkPresentation presentation{candidate};
+            const auto out = game::walk_event(script, step.event_id, state, step.sequence,
+                                              entry.name, &presentation);
+            const bool suspends = out.message && out.message->text == candidate &&
+                                  out.message->resume_at == static_cast<int>(step.sequence) + 1 &&
+                                  out.said.empty() && out.given.empty() && out.taken.empty() &&
+                                  out.unsupported.empty();
+            failures += !suspends || (candidate >= 0 && !resolves) ? 1 : 0;
+            std::cout << entry.name << '\t' << step.event_id << '\t'
+                      << static_cast<int>(step.sequence) << '\t' << step.arguments.size() << '\t'
+                      << candidate << '\t' << resolves << '\t' << next_opcode << '\t' << suspends
+                      << '\n';
+        }
+    }
+    std::cout << "SUMMARY\trecords\t" << records << "\tempty_arguments\t" << empty
+              << "\tpreceding_text\t" << candidates << "\tresolved_text\t" << resolved
+              << "\tnext_steps\t" << next_steps << "\tfailures\t" << failures << '\n';
+    return records > 0 && failures == 0 ? 0 : 1;
 }
 
 // Read-only install check: apply decoration changes to disposable map sessions,
@@ -2261,6 +2405,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--messages") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_messages(icons, *install / "data");
+    }
     if (stem == "--decorations") {
         return do_decorations(icons, *install / "data");
     }
