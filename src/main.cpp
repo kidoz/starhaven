@@ -61,6 +61,7 @@
 #include "game/rest.hpp"
 #include "game/save.hpp"
 #include "game/save_repository.hpp"
+#include "game/script_faces.hpp"
 #include "game/script_message_view.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
@@ -2549,6 +2550,7 @@ int main(int argc, char** argv) {
     }
     std::cout << "\n";
 
+    game::FaceChanges face_changes;
     game::DecorationChanges decoration_changes;
     game::restore_script_decorations(session, decoration_changes);
     std::vector<game::AmbientSource> ambient_sources;
@@ -4016,6 +4018,7 @@ int main(int argc, char** argv) {
             if (expired) {
                 if (remember_departure) {
                     decoration_changes.erase(game::script_scope(session.file_name));
+                    face_changes.erase(game::script_scope(session.file_name));
                 }
                 map_memory.erase(it);
             } else {
@@ -4044,6 +4047,7 @@ int main(int argc, char** argv) {
         }
         if (remember_departure) {
             game::restore_script_decorations(session, decoration_changes);
+            game::restore_script_faces(session, face_changes);
         }
         refresh_decoration_sounds();
         SDL_SetWindowTitle(
@@ -4130,6 +4134,8 @@ int main(int argc, char** argv) {
         script_state.bits = pending_load.bits;
         script_state.resolved_quests = pending_load.resolved_quests;
         script_state.disabled_events = pending_load.disabled_events;
+        face_changes = pending_load.faces;
+        game::restore_script_faces(session, face_changes);
         decoration_changes = pending_load.decorations;
         game::restore_script_decorations(session, decoration_changes);
         refresh_decoration_sounds();
@@ -4983,6 +4989,7 @@ int main(int argc, char** argv) {
                 state.bits = script_state.bits;
                 state.resolved_quests = script_state.resolved_quests;
                 state.disabled_events = script_state.disabled_events;
+                state.faces = face_changes;
                 state.decorations = decoration_changes;
                 state.variables = script_state.variables;
                 state.npc_topics = script_state.npc_topics;
@@ -7278,15 +7285,7 @@ int main(int argc, char** argv) {
                              std::string("An item reward could not be created.");
             }
 
-            // A thrown switch is drawn thrown: the event names a face and
-            // the texture it now wears. Indoors the id reads as an index
-            // into the map's own faces; the few outdoor uses are not
-            // applied yet. `inferred`
-            for (const auto& [face, texture] : outcome.retextures) {
-                if (session.indoor() && face < session.blv.faces.size()) {
-                    session.blv.faces[face].texture_name = texture;
-                }
-            }
+            (void)game::apply_script_faces(session, outcome.faces, face_changes);
 
             // A thrown door moves: its own vertices slide along its own
             // direction by its own distance, and the collision world is
