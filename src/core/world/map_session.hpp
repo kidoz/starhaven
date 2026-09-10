@@ -26,6 +26,7 @@
 #include "core/world/odm_map.hpp"
 #include "core/world/sound_table.hpp"
 #include "core/world/sprite_frame_table.hpp"
+#include "core/world/texture_frame_table.hpp"
 
 namespace starhaven::world {
 
@@ -189,6 +190,7 @@ struct MapSession {
 
     // The global tables the placed things resolve through.
     SpriteFrameTable sprite_frames;
+    std::vector<TextureAnimation> texture_animations;
 
     // The map's own event script and the strings it prints. Both live in
     // icons.lod beside the design tables; see docs/formats/map-events.md.

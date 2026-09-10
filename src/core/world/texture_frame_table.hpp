@@ -9,6 +9,8 @@
 // and bit 0 says another frame follows. `observed` for the shape on all
 // nineteen records; see docs/formats/dtft.md.
 
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -45,6 +47,33 @@ struct TextureAnimation {
         return &frames.back().name;
     }
 };
+
+// Names are case-insensitive resource keys. A flag chooses animation per face;
+// the bitmap cache itself remains unchanged for faces using the static texture.
+[[nodiscard]] inline const TextureAnimation*
+find_texture_animation(std::span<const TextureAnimation> animations, const std::string& name) {
+    for (const auto& animation : animations) {
+        if (!animation.frames.empty() && std::ranges::equal(animation.frames.front().name, name,
+                                                            [](unsigned char a, unsigned char b) {
+                                                                return std::tolower(a) ==
+                                                                       std::tolower(b);
+                                                            }))
+            return &animation;
+    }
+    return nullptr;
+}
+
+[[nodiscard]] inline std::string texture_frame_name(const std::string& name,
+                                                    std::span<const TextureAnimation> animations,
+                                                    std::uint32_t ticks, bool animated) {
+    if (animated) {
+        if (const auto* animation = find_texture_animation(animations, name)) {
+            if (const auto* frame = animation->frame_at(ticks))
+                return *frame;
+        }
+    }
+    return name;
+}
 
 // Parse the raw stored entry. Returns the animations in file order; an
 // entry that does not inflate or divide into 20-byte records parses empty.

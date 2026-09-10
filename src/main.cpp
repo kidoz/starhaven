@@ -257,7 +257,8 @@ void draw_sky(render::SceneRenderer& scene, assets::AssetCache& cache,
 }
 
 void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session,
-                  assets::AssetCache& cache, const render::Vec3& sun, float level = 1.0f) {
+                  assets::AssetCache& cache, const render::Vec3& sun, float level = 1.0f,
+                  std::uint32_t ticks = 0) {
     const auto& mesh = session.terrain_mesh;
     for (std::size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
         std::array<render::Vec3, 3> w{};
@@ -288,7 +289,8 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
             const render::Vec3 n = render::normalize(render::Vec3{f.nx(), f.nz(), f.ny()});
             const float lambert =
                 (std::clamp(std::abs(render::dot(n, sun)), 0.0f, 1.0f) * 0.8f + 0.2f) * level;
-            const render::Texture& tex = cache.bitmap(f.texture_name);
+            const render::Texture& tex = cache.bitmap(
+                world::texture_frame_name(f.texture_name, session.texture_animations, ticks, true));
             const float inv_w = tex.width() > 0 ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
             const float inv_h = tex.height() > 0 ? 1.0f / static_cast<float>(tex.height()) : 0.0f;
             for (std::size_t k = 1; k + 1 < f.vertex_count; ++k) {
@@ -310,7 +312,7 @@ void draw_outdoor(render::SceneRenderer& scene, const world::MapSession& session
 template <typename BoundsFn>
 void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
                  assets::AssetCache& cache, const render::Vec3& lamp, float glow,
-                 const std::vector<float>* baked, BoundsFn skippable) {
+                 const std::vector<float>* baked, BoundsFn skippable, std::uint32_t ticks = 0) {
     for (std::size_t index = 0; index < session.blv.faces.size(); ++index) {
         const auto& f = session.blv.faces[index];
         if (f.invisible() || f.vertex_count < 3) {
@@ -329,7 +331,9 @@ void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
         }
         const float lambert = std::clamp(level * glow, 0.0f, 1.0f);
 
-        const render::Texture& tex = cache.bitmap(f.texture_name);
+        const render::Texture& tex = cache.bitmap(
+            world::texture_frame_name(f.texture_name, session.texture_animations, ticks,
+                                      (f.attributes & world::kFaceTextureAnimated) != 0));
         const float inv_w = tex.width() > 0 ? 1.0f / static_cast<float>(tex.width()) : 0.0f;
         const float inv_h = tex.height() > 0 ? 1.0f / static_cast<float>(tex.height()) : 0.0f;
 
@@ -2934,20 +2938,6 @@ int main(int argc, char** argv) {
             (void)world::MapScript::parse(raw, global_script);
         }
     }
-
-    // The wall textures that move: DTFT.BIN's four loops, stepped on the
-    // frame tables' shared clock; each tick the shown frame is copied over
-    // the group's first name so the ordinary lookup draws the motion.
-    std::vector<world::TextureAnimation> texture_loops;
-    {
-        lod::LodArchive icons_archive;
-        std::span<const std::byte> raw;
-        if (lod::LodArchive::open(data_dir / "icons.lod", icons_archive) == lod::LodError::None &&
-            icons_archive.payload("DTFT.BIN", raw) == lod::LodArchive::PayloadError::None) {
-            texture_loops = world::parse_texture_frames(raw);
-        }
-    }
-    std::vector<std::string> texture_loop_shown(texture_loops.size());
 
     // Talking. The tables are all decoded; this is the first thing that uses
     // them together. See src/game/conversation.hpp.
@@ -6728,30 +6718,32 @@ int main(int argc, char** argv) {
             draw_sky(scene, cache, session, camera.yaw, camera.pitch, game::light_level(clock),
                      sky_today);
             draw_outdoor(scene, session, cache, game::sun_direction(clock),
-                         game::light_level(clock));
+                         game::light_level(clock), game::sprite_ticks(SDL_GetTicks()));
         } else {
             // "Increases the radius of light": this renderer has no radius,
             // so the lamp itself brightens for the written hours. `inferred`
-            draw_indoor(scene, session, cache, lamp, clock.minutes() < torch_until ? 1.45f : 1.0f,
-                        &face_light, [&](std::size_t index) {
-                            // Coarse: reject the whole room at once. A face
-                            // without a sector (or with no sector data) falls
-                            // through to the per-face test below.
-                            if (index < session.blv.face_sector.size()) {
-                                const std::uint16_t sec = session.blv.face_sector[index];
-                                if (sec != world::kBlvFaceNoSector && sec < sector_bounds.size() &&
-                                    sector_bounds[sec].radius > 0.0f) {
-                                    if (!scene.might_see(sector_bounds[sec].center,
-                                                         sector_bounds[sec].radius)) {
-                                        return true;
-                                    }
-                                }
+            draw_indoor(
+                scene, session, cache, lamp, clock.minutes() < torch_until ? 1.45f : 1.0f,
+                &face_light,
+                [&](std::size_t index) {
+                    // Coarse: reject the whole room at once. A face
+                    // without a sector (or with no sector data) falls
+                    // through to the per-face test below.
+                    if (index < session.blv.face_sector.size()) {
+                        const std::uint16_t sec = session.blv.face_sector[index];
+                        if (sec != world::kBlvFaceNoSector && sec < sector_bounds.size() &&
+                            sector_bounds[sec].radius > 0.0f) {
+                            if (!scene.might_see(sector_bounds[sec].center,
+                                                 sector_bounds[sec].radius)) {
+                                return true;
                             }
-                            // Fine: per-face bounding sphere.
-                            return index < face_bounds.size() && face_bounds[index].radius > 0.0f &&
-                                   !scene.might_see(face_bounds[index].center,
-                                                    face_bounds[index].radius);
-                        });
+                        }
+                    }
+                    // Fine: per-face bounding sphere.
+                    return index < face_bounds.size() && face_bounds[index].radius > 0.0f &&
+                           !scene.might_see(face_bounds[index].center, face_bounds[index].radius);
+                },
+                game::sprite_ticks(SDL_GetTicks()));
         }
         // Real time flows every frame; turn-based time flows only when a
         // round is owed, one quantum at a time.
@@ -7830,18 +7822,6 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-            }
-        }
-        // Step the moving wall textures.
-        for (std::size_t g = 0; g < texture_loops.size(); ++g) {
-            const auto& loop = texture_loops[g];
-            if (loop.frames.size() < 2) {
-                continue;
-            }
-            const std::string* frame = loop.frame_at(game::sprite_ticks(SDL_GetTicks()));
-            if (frame != nullptr && *frame != texture_loop_shown[g]) {
-                texture_loop_shown[g] = *frame;
-                cache.alias_bitmap(loop.frames.front().name, *frame);
             }
         }
         std::vector<game::ActiveLaunch> in_flight = launches;

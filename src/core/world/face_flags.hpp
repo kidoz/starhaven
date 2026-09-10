@@ -5,6 +5,8 @@
 
 namespace starhaven::world {
 
+inline constexpr std::uint32_t kFaceTextureAnimated = 0x00004000U;
+
 // The plane a polygon is projected onto to work in two dimensions — for
 // point-in-polygon tests and for texture mapping. Every indoor face and every
 // outdoor model facet declares one.

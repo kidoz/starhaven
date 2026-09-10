@@ -57,6 +57,8 @@ void load_tables(const std::filesystem::path& data_dir, MapSession& out) {
             }
         }
     };
+    if (icons.payload("DTFT.BIN", raw) == lod::LodArchive::PayloadError::None)
+        out.texture_animations = parse_texture_frames(raw);
     load("DSFT.BIN", out.sprite_frames, SpriteFrameTable::parse);
     load("DSOUNDS.BIN", out.sounds, SoundTable::parse);
     load("DOBJLIST.BIN", out.object_descriptors, ObjectTable::parse);
