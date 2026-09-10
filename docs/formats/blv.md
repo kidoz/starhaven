@@ -3,7 +3,11 @@ title: "BLV indoor map format for Might and Magic VI"
 summary: "Binary layout and decoded geometry sections of Might and Magic VI BLV indoor maps."
 doc_type: reference
 status: partial
-last_updated: 2026-08-01
+last_updated: 2026-09-10
+source_files:
+  - src/core/world/blv_map.cpp
+  - src/core/world/blv_map.hpp
+  - src/core/world/face_flags.hpp
 tags:
   - mm6
   - blv
@@ -206,13 +210,14 @@ of them, and 147 faces carry one without a value. Close, but not a rule.
 
 #### Bits traced through the executable
 
-Three of the four long-unread bits now have their runtime tests:
+These bits have identified runtime consumers:
 
 | Bit | Faces | Meaning |
 | --- | ---: | --- |
 | 0x40000 | 2,509 | **a door's face**: the door geometry updater (the function whose own assertion reads `"Door Error… Overflow dividing facet->d by facet->nz"`) recomputes texture coordinates against the door's per-face `delta_u`/`delta_v` arrays only where this bit is set — the bit selects which faces slide their texture with the door's travel. `observed` |
 | 0x400000 | 7 | **the scrolling sky**: the face maps to a render-side flag whose one consumer subtracts `GetTickCount()/8` from the texture offset each frame — the ceiling's sky drifts with real time. `observed` |
 | 0x20000000 | 2,836 | **pass-through**: the point-under-party floor lookup skips such faces, and a face-interaction routine refuses them at its first instruction — geometry that is drawn but never touched, which is how a fake wall hides a secret passage. `observed` |
+| 0x4000 | — | **texture animation**: the renderer selects a DTFT frame when set, a static bitmap otherwise. Opcode 23 sets/clears it; see [face attribute events](map-events.md#opcode-23-changes-indoor-face-attributes). `observed` |
 | 0x10 | 416 | routed to an **alternate per-vertex draw routine** (the same conversion that maps the sky bit): a distinct render path for these mostly-liquid floors. `observed` for the routing; its visual difference is `unknown` |
 
 Bits 0x8 and 0x1000 (~29,000 each) accompany the texture origins in the

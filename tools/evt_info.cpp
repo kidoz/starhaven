@@ -18,8 +18,10 @@
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
 #include "core/world/map_session.hpp"
+#include "game/save.hpp"
 #include "game/script_coverage.hpp"
 #include "game/script_decorations.hpp"
+#include "game/script_faces.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/travel.hpp"
@@ -40,6 +42,7 @@ void print_usage(const char* argv0) {
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
               << "           --strict also fails on unsupported or short-argument records\n"
+              << "  --face-bits  verify opcode 23 masks and indoor face lifecycles\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
               << "  --generated-items  verify opcode 41 generation against item tables\n"
               << "  --messages  verify opcode 33 suspension and preceding text joins\n"
@@ -154,6 +157,148 @@ int do_generated_items(const starhaven::lod::LodArchive& icons,
     }
     std::cout << "SUMMARY\trecords\t" << records << "\tshort\t" << short_records << "\tgenerated\t"
               << generated << "\toverrides\t" << overrides << "\tfailures\t" << failures << '\n';
+    return records > 0 && failures == 0 ? 0 : 1;
+}
+
+// Inspect every mask against its own map, then walk representative full effects.
+int do_face_bits(const starhaven::lod::LodArchive& icons, const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    if (!game::audit_script_coverage(icons).complete())
+        return 1;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    std::size_t records = 0;
+    std::size_t short_records = 0;
+    std::size_t applied = 0;
+    std::size_t failures = 0;
+    std::size_t draw_path = 0;
+    std::set<std::string> maps;
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name))
+            continue;
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None)
+            return 1;
+        world::MapSession session;
+        bool loaded = false;
+        for (const auto& step : script.steps()) {
+            if (step.opcode != world::kOpcodeSetFaceBits)
+                continue;
+            ++records;
+            const auto change = world::parse_face_bits(step);
+            std::cout << "RECORD\t" << entry.name << '\t' << step.event_id << '\t'
+                      << static_cast<int>(step.sequence) << '\t';
+            if (!change) {
+                ++short_records;
+                std::cout << "short\n";
+                continue;
+            }
+            if (!loaded) {
+                const auto name = entry.name.substr(0, entry.name.size() - 4) + ".blv";
+                if (world::load_map_session(data_dir / "Games.lod", data_dir, name, cache,
+                                            session) != world::MapSessionError::None) {
+                    std::cout << "map-fail\n";
+                    ++failures;
+                    continue;
+                }
+                loaded = true;
+                maps.insert(game::script_scope(name));
+            }
+            if (change->index >= session.blv.faces.size()) {
+                std::cout << "index-fail\n";
+                ++failures;
+                continue;
+            }
+            auto& face = session.blv.faces[change->index];
+            const auto before = face.attributes;
+            const auto expected = change->set ? before | change->mask : before & ~change->mask;
+            game::WalkState state;
+            const auto outcome = game::walk_event(script, step.event_id, state, step.sequence);
+            game::FaceChanges memory;
+            const bool ok =
+                !outcome.faces.empty() && outcome.faces.front().index == change->index &&
+                outcome.faces.front().mask == change->mask &&
+                outcome.faces.front().set == change->set &&
+                game::apply_script_faces(session, std::span(outcome.faces).first(1), memory) == 1 &&
+                face.attributes == expected;
+            applied += ok ? 1 : 0;
+            failures += ok ? 0 : 1;
+            draw_path += change->mask == 0x10U ? 1 : 0;
+            std::cout << (ok ? "pass" : "fail") << '\t' << change->index << '\t' << change->mask
+                      << '\t' << change->set << '\n';
+            face.attributes = before;
+        }
+    }
+    const auto flow = [&](std::string_view map, std::uint16_t event, int start,
+                          std::span<const std::uint32_t> targets, bool animation) {
+        world::MapSession session;
+        if (world::load_map_session(data_dir / "Games.lod", data_dir, map, cache, session) !=
+            world::MapSessionError::None)
+            return false;
+        const auto collision_before = session.collision.size();
+        game::WalkState state;
+        const auto outcome = game::walk_event(session.script, event, state, start);
+        game::SaveState saved;
+        saved.map_file = session.file_name;
+        if (outcome.faces.empty() || !outcome.unsupported.empty() ||
+            game::apply_script_faces(session, outcome.faces, saved.faces) != outcome.faces.size())
+            return false;
+        for (const auto target : targets) {
+            if (target >= session.blv.faces.size())
+                return false;
+            const auto& face = session.blv.faces[target];
+            if (animation) {
+                const auto* loop =
+                    world::find_texture_animation(session.texture_animations, face.texture_name);
+                if ((face.attributes & world::kFaceTextureAnimated) == 0 || loop == nullptr ||
+                    loop->frames.size() < 2 ||
+                    world::texture_frame_name(
+                        face.texture_name, session.texture_animations,
+                        static_cast<std::uint32_t>(loop->frames.front().duration),
+                        true) != loop->frames[1].name)
+                    return false;
+            } else if (!face.ethereal()) {
+                return false;
+            }
+        }
+        if (!animation && session.collision.size() >= collision_before)
+            return false;
+        game::SaveState loaded;
+        if (!game::parse_save(game::save_text(saved), loaded))
+            return false;
+        world::MapSession reopened;
+        if (world::load_map_session(data_dir / "Games.lod", data_dir, map, cache, reopened) !=
+            world::MapSessionError::None)
+            return false;
+        game::restore_script_faces(reopened, loaded.faces);
+        for (const auto target : targets) {
+            if (reopened.blv.faces[target].attributes != session.blv.faces[target].attributes ||
+                reopened.blv.faces[target].texture_name != session.blv.faces[target].texture_name)
+                return false;
+        }
+        if (map == "D12.blv") {
+            const auto stop = game::walk_event(reopened.script, 23, state);
+            if (game::apply_script_faces(reopened, stop.faces, loaded.faces) != stop.faces.size() ||
+                (reopened.blv.faces[targets.front()].attributes & world::kFaceTextureAnimated) != 0)
+                return false;
+        }
+        return true;
+    };
+    const std::array<std::uint32_t, 2> passage{4522, 4575};
+    const std::array<std::uint32_t, 1> painting{1420};
+    const std::array<std::uint32_t, 1> portrait{5290};
+    const auto report = [&](std::string_view label, bool ok) {
+        std::cout << "FLOW\t" << label << '\t' << (ok ? "pass" : "fail") << '\n';
+        failures += ok ? 0 : 1;
+    };
+    report("CD2/33 passage and reload", flow("CD2.blv", 33, 5, passage, false));
+    report("D12/22 animation reload and stop", flow("D12.blv", 22, -1, painting, true));
+    report("D17/55 animation and reload", flow("D17.blv", 55, -1, portrait, true));
+    std::cout << "SUMMARY\trecords\t" << records << "\tshort\t" << short_records << "\tapplied\t"
+              << applied << "\tmaps\t" << maps.size() << "\talternate_draw_path_records\t"
+              << draw_path << "\tfailures\t" << failures << '\n';
     return records > 0 && failures == 0 ? 0 : 1;
 }
 
@@ -2597,6 +2742,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--face-bits") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_face_bits(icons, *install / "data");
+    }
     if (stem == "--decoration-events") {
         if (argc != 2) {
             print_usage(argv[0]);

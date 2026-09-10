@@ -3,7 +3,10 @@ title: "Texture frame table (DTFT.BIN)"
 summary: "Decoded texture-animation records and the remaining water-animation boundary in Might and Magic VI."
 doc_type: reference
 status: partial
-last_updated: 2026-08-01
+last_updated: 2026-09-10
+source_files:
+  - src/core/world/texture_frame_table.hpp
+  - src/main.cpp
 tags:
   - mm6
   - dtft
@@ -45,7 +48,11 @@ Four groups: a lone `null`; a six-frame alternation of `mossrk_2` and
 `woodtl_1` at lengthening durations (8, 8, 16, 16, 32, 32); and the two
 six-frame painting loops `john01`..`john06` and `paladn01`..`paladn06` —
 the haunted portraits. StarHaven steps them on the sprite tables' shared
-clock and shows each group's current frame under its first frame's name.
+clock. Indoor faces select a current frame only while attribute `0x4000` is
+set; [opcode 23](map-events.md#opcode-23-changes-indoor-face-attributes) toggles
+that flag. Selection leaves the shared bitmap cache unchanged, so static faces
+using the same first-frame name do not animate. Outdoor model animation retains
+the existing name-based selection.
 
 ## What it does not hold: the water
 

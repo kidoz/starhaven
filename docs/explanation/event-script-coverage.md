@@ -17,9 +17,9 @@ tags:
 ---
 # Event-script coverage audit
 
-The current walker has **27 executable opcode cases and one metadata case**.
-The shipped scripts contain **9 additional opcodes with original executable
-handlers**, used in **278 records across 154 events in 45 scripts**. These are
+The current walker has **28 executable opcode cases and one metadata case**.
+The shipped scripts contain **8 additional opcodes with original executable
+handlers**, used in **233 records across 137 events in 44 scripts**. These are
 the substantive dispatch backlog, not the previously estimated “45 of 90.”
 Counts are `observed`; their gameplay consequences require further validation.
 
@@ -35,6 +35,10 @@ after dismissal; all 88 records are covered. Opcode 41 now
 all 80 complete records generate valid items, with six short records reported.
 Opcode 42 now [changes the current decoration's event](../formats/map-events.md#opcode-42-changes-the-current-decorations-event);
 41 complete records pass, with six short records reported.
+Opcode 23 now [changes indoor face attributes](../formats/map-events.md#opcode-23-changes-indoor-face-attributes):
+32 complete records pass, with 13 short records reported. Collision and texture
+animation respond to the flags. The alternate draw-path effect of mask `0x10`
+remains a rendering gap; storing that bit does not certify its appearance.
 
 ## Reproduce
 
@@ -78,10 +82,10 @@ this measure.
 
 ## Measured baseline
 
-Audited 2026-09-10 after implementing opcode 42 on engine base revision `fa649b6`.
+Audited 2026-09-10 after implementing opcode 23 on engine base revision `f192476`.
 The original audit at `b6a5cc7` had 609 missing-handler records; opcode 13
 removed 110, opcode 33 removed 88, opcode 41 removed 86 and opcode 42 removed
-47, leaving 278. Source: user-owned
+47; opcode 23 removed 45, leaving 233. Source: user-owned
 MM6 GOG installation, `data/icons.lod`,
 32,772,165 bytes, SHA-256
 `2e8f2c0d0b88776eb2b09c5ad1a6937b5e4aff88c2190d3340327eb5b813bd18`.
@@ -96,25 +100,25 @@ All figures below are `observed` from `evt_info --coverage`:
 | Parse or payload failures | 0 |
 | Distinct `(script, event)` pairs | 3,332 |
 | Total records | 15,504 |
-| Records whose opcode has a walker handler | 12,619 |
+| Records whose opcode has a walker handler | 12,664 |
 | Metadata records (opcode 4) | 2,192 |
-| Unsupported records | 693 |
-| Unsupported records with an original handler | 278 |
+| Unsupported records | 648 |
+| Unsupported records with an original handler | 233 |
 | Unsupported records on the original default path | 415 |
-| Dispatched records below the current argument-length guard | 288 |
+| Dispatched records below the current argument-length guard | 301 |
 | Distinct opcode values | 90 |
-| Executable / metadata / unsupported opcode values | 27 / 1 / 62 |
+| Executable / metadata / unsupported opcode values | 28 / 1 / 61 |
 
 The [original dispatch table](../formats/map-events.md#the-complete-opcode-table)
 bounds execution to 1–43, with six default-path cases inside that range.
-Thus 53 of the 62 unsupported values follow the original default path, leaving
-9 missing real handlers. This distinction reuses the recorded executable
+Thus 53 of the 61 unsupported values follow the original default path, leaving
+8 missing real handlers. This distinction reuses the recorded executable
 research; the audit does not newly establish original opcode semantics.
 An explicit runtime policy for those default-path records remains follow-up
 work; the audit preserves them in the raw unsupported count.
 
-Among events containing a missing real handler, 41 also contain a quest-bit
-operation, 17 a door opcode, and 4 travel; none contains an NPC mutation.
+Among events containing a missing real handler, 38 also contain a quest-bit
+operation, 13 a door opcode, and 2 travel; none contains an NPC mutation.
 These groups overlap. They are syntactic co-occurrences, not proof that the missing
 instruction blocks that feature or executes on the same branch. Feature tags
 come from known opcode families, not from dialogue or NPC-table joins.
@@ -130,7 +134,6 @@ Example coordinates are `script / event / sequence` and are `observed`.
 | ---: | --- | ---: | ---: | ---: | --- |
 | 8 | Play effect/sound by category (`observed`) | 60 | 20 | 36 | `D17.EVT / 29 / 7` |
 | 34 | Move to coordinates (`inferred`) | 55 | 11 | 22 | `D18.EVT / 56 / 2` |
-| 23 | Variable operation (`inferred`) | 45 | 11 | 20 | `CD2.EVT / 33 / 5` |
 | 22 | Reset dialogue/choice buffer (`inferred`) | 28 | 21 | 22 | `D04.EVT / 52 / 2` |
 | 12 | Set variable with name pointer (`inferred`) | 25 | 13 | 19 | `OUTE3.EVT / 231 / 5` |
 | 3 | Spawn sprite object (`observed`) | 24 | 12 | 18 | `D17.EVT / 29 / 3` |
@@ -145,8 +148,8 @@ handler research. Trace each selected operation's inputs and state effects
 before implementing it, then add a synthetic walking test and an install-backed
 behavior check. A handler that merely consumes a record is not completion.
 
-1. **Doors and traversal: 23, 34 and 43, with 10.** Opcode 23 shares 14 records
-   with door events and 4 with travel events (`CD2 / 33 / 5,6`). Opcode 34 has
+1. **Doors and traversal: 34 and 43, with 10.** Opcode 23 now changes face
+   attributes, including the CD2 passage collision. Opcode 34 has
    30 full-size records in `D18`, beginning at event 56. Inspect whether its
    tentative coordinate reading is correct before treating it as party travel.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
@@ -162,21 +165,21 @@ behavior check. A handler that merely consumes a record is not completion.
    Establish which short records are reachable and which are unused before
    setting a reachable-script acceptance gate.
 
-The next implementation slice should investigate **opcode 23**, starting with
-`CD2 / 33 / 5,6`, before assuming its variable-operation label is correct.
+The next implementation slice should investigate **opcode 34**, starting with
+`D18 / 56 / 2`, before assuming its coordinate-operation label is correct.
 The audit portion of FC-2 is complete; opcode completeness is still open.
 
 ## Short records and limits of the census
 
-All 288 below-guard records are concentrated in these files (`observed`).
-Since the original 263, thirteen short opcode-13, six short opcode-41 and six short opcode-42
-records have moved from unsupported to below-guard:
+All 301 below-guard records are concentrated in these files (`observed`).
+Since the original 263, thirteen short opcode-13, six short opcode-41, six short
+opcode-42 and thirteen short opcode-23 records have moved from unsupported to below-guard:
 
 | Scripts | Short records |
 | --- | ---: |
-| `DBM1.EVT` through `DBM5.EVT` | 42 each (210 total) |
-| `DDB1.EVT` | 33 |
-| `OUT.EVT` | 26 |
+| `DBM1.EVT` through `DBM5.EVT` | 44 each (220 total) |
+| `DDB1.EVT` | 35 |
+| `OUT.EVT` | 27 |
 | `LWSPIRAL.EVT` | 13 |
 | `SPIRAL.EVT` | 4 |
 | `DWJ1.EVT` | 2 |
@@ -195,7 +198,7 @@ work, alongside the [campaign completion contract](campaign-completion.md).
 
 ## Validation
 
-The hermetic suite now contains 84 test executables. Coverage tests exercise
+The hermetic suite now contains 85 test executables. Coverage tests exercise
 all 256 opcode classifications against the actual walker, repeated records and
 scoped events, mixed-case extensions, deterministic output, argument guards,
 bad containers/records/payloads, duplicate names, no-script input, and TSV
@@ -223,3 +226,15 @@ branch of every global event. The normal map smoke uses the 55 non-placeholder
 catalogue maps. Synthetic tests cover initialization thresholds, the 124-slot
 limit, explicit local events, targeting and wall occlusion, per-placement state,
 modal context, visibility ordering, byte wrapping and version-5 save validation.
+
+## Indoor face verification
+
+`evt_info --face-bits` validates all 32 complete opcode-23 records against
+four loaded maps. It reports the 13 short records separately and preserves
+all 45 in the denominator. It also walks CD2 event 33 from sequence 5 to
+open the passage, D12 event 22 followed by 23 to start/stop a painting,
+and D17 event 55 to start another painting. All three flows include a
+version-6 save/reload check; no saves are written to the user's slots.
+The 15 uses of mask `0x10` verify stored attributes only, with the rendering
+difference explicitly unresolved. These are effect probes, not proof of every
+branch's reachability in a player campaign.

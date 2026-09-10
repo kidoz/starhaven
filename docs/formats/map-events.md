@@ -4,6 +4,11 @@ summary: "Container framing, opcode semantics, and runtime joins for Might and M
 doc_type: reference
 status: partial
 last_updated: 2026-09-10
+source_files:
+  - src/core/world/map_script.cpp
+  - src/game/script_walk.hpp
+  - src/game/script_faces.cpp
+  - tools/evt_info.cpp
 tags:
   - mm6
   - events
@@ -15,8 +20,8 @@ tags:
 Status: **verified** for the container and record structure. The original
 dispatch table below distinguishes observed handlers from tentative semantic
 readings. Current engine coverage is measured separately in the
-[event-script audit](../explanation/event-script-coverage.md): 27 executable
-cases, one metadata case, and 9 missing original handlers. Each claim is tagged
+[event-script audit](../explanation/event-script-coverage.md): 28 executable
+cases, one metadata case, and 8 missing original handlers. Each claim is tagged
 `observed`, `inferred`, or `unknown`.
 
 ## Scope
@@ -464,8 +469,12 @@ range (to 5,290, within the indoor maps' face counts). A first reading of
 the name as a sound effect was tested against `DSOUNDS.BIN` and failed —
 0 of 215 names are sound names. Reproduce with `evt_info --textures`.
 
-The engine applies it indoors: the walker collects the repaints and the face
-wears its new texture. The few outdoor uses are not applied yet.
+The engine applies it indoors: the walker collects repaints in order with
+opcode-23 attribute changes, and the face wears its new texture. Version-6 saves
+preserve both results. If the animation bit is already set, the original resolves
+the name through DTFT first; a failed lookup clears that bit and resolves a static
+bitmap (`0x43e530`–`0x43e60c`, `observed`). The engine follows that named lookup.
+The few outdoor uses are not applied yet.
 
 ### Opcode 13 changes a placed decoration
 
@@ -964,6 +973,62 @@ not reproduced by this slice. Synthetic tests cover override metadata and
 random consumption, invalid input, item-check/take ordering, modal resumption,
 full-pack retention, save continuity and malformed-save rejection.
 
+## Opcode 23 changes indoor face attributes
+
+Opcode 23 is a masked write to one indoor face, not a script-variable operation.
+The handler at VA `0x43d6fb`–`0x43d7b6` reads these operands (`observed`):
+
+| Argument offset | Type | Meaning |
+| ---: | --- | --- |
+| 0 | i32 little-endian | Zero-based indoor face index |
+| 4 | u32 little-endian | Attribute mask |
+| 8 | u8 | Zero clears the mask; any nonzero value sets it |
+
+Execution only changes an indoor map (map kind 1), with an index in the signed
+range `[0, face_count)`. Outdoor maps and invalid indices continue without a
+write. The engine bounds the nine-byte operand and ignores trailing padding.
+The original ORs the mask into attributes when setting, ANDs its complement
+when clearing, and sets mask `0x2` in the shared word at `0x90e838`. It never jumps
+or suspends; execution continues at the next sequence. `observed`
+
+The count/base at `0x5f7d20`/`0x5f7d24` describe 80-byte BLV faces; the write
+is at face offset `+0x1c`. The same base and stride are consumed by the indoor
+renderer at `0x492a10`, and the adjacent texture helper uses the same indexed
+face at `0x43e530`. This establishes the field, independently of the old
+variable-operation inference. `observed`
+
+All 45 records split into 32 complete operands and 13 short authoring/template
+records. Complete operands join to valid faces in CD2, D06, D12 and D17:
+
+| Mask | Complete records | Effect and evidence |
+| --- | ---: | --- |
+| `0x20000000` | 14 (12 set, two clear) | Pass-through geometry. Existing collision research identifies the bit; CD2 event 33 sequences 5/6 change faces 4522/4575. |
+| `0x10` | 15 set | Alternate draw path, selected at `0x494f41`–`0x494f47`; its visual difference remains `unknown`. The engine stores/persists the bit. |
+| `0x4000` | Three (two set, one clear) | Texture animation. The renderer tests this bit at `0x492a69` and uses DTFT selection at `0x492a80`; otherwise it resolves the static bitmap. |
+
+The engine applies ordered face changes to the live map and rebuilds collision
+when attributes change. Pass-through faces cease blocking movement and direct
+face interaction. Texture selection is per face, using its animation flag and
+DTFT loop; it no longer changes the shared cached bitmap. Thus a static face
+using the same texture name stays static. D12 events 22/23 start and stop a
+painting, and D17 event 55 starts another. `observed` in install-backed probes.
+
+Version-6 engine saves remember attributes and texture names per normalized map
+filename and face index. Returning to the map restores collision and presentation;
+map refill clears this memory with other temporary world changes. Versions 1–5
+remain readable with no invented historical face changes. Named texture storage
+is an engine adaptation of the original numeric bitmap/DTFT indices; setting or
+clearing animation without a matching retexture does not emulate every original
+index-reinterpretation quirk. The original face-save layout is not established
+by this handler trace.
+
+Reproduce with `evt_info --face-bits`: every complete record joins and mutates
+correctly; the CD2 passage and D12/D17 animation flows pass save/reload checks.
+The pass-through mask has synthetic movement and aiming regressions, and parser
+checks cover every short length, signed-index rejection, arbitrary masks and
+non-boolean set bytes. The alternate draw-path appearance remains a separate
+rendering gap, even though the mask operation itself is implemented.
+
 ## Opcode 42 changes the current decoration's event
 
 The old inferred “Conditional check” label is superseded by the handler at
@@ -1093,7 +1158,7 @@ from the executable, every opcode 1..43 now has a reading:
 | 20 | no-op (default) | `0x43e1e2` | observed |
 | 21 | Launch (sprite) | `0x43da1e` | observed |
 | 22 | Reset 20-slot dialogue/choice buffer | `0x43cab5` | inferred |
-| 23 | Variable op (4-byte value) | `0x43d6fb` | inferred |
+| 23 | Set or clear indoor face attribute bits | `0x43d6fb` | observed |
 | 24 | Variable op (4-byte value) | `0x43d7bb` | inferred |
 | 25 | RandomJump (roll a step) | `0x43d505` | observed |
 | 26 | Ask (typed answer) | `0x43d451` | observed |
