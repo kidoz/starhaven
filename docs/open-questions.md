@@ -3,7 +3,7 @@ title: "Open-question register"
 summary: "Authoritative evidence-backed answers and unresolved questions gathered from public StarHaven documentation."
 doc_type: index
 status: verified
-last_updated: 2026-08-01
+last_updated: 2026-09-10
 tags:
   - open-questions
   - research
@@ -12,7 +12,8 @@ tags:
 ---
 # Open-question register
 
-Status: **audited 2026-07-31.** This page gathers every section headed
+Status: **format audit 2026-07-31; script coverage follow-up 2026-09-10.**
+This page gathers every section headed
 "Open question" or "Open questions" under `docs/` and records the best
 answer supported by evidence through the 2026-07-31 audit. It is the
 authoritative status page;
@@ -168,6 +169,12 @@ The audit reduces the old sections to these bounded unknowns:
 - `map-events.md`: why unused `OUT.EVT` husks exist, headerless framing for all
   shared scripts, and the authoring provenance of orphaned topic, face, and
   global events. These do not change the decoded opcode layouts.
+- [Event-script coverage](explanation/event-script-coverage.md): the census now
+  identifies 13 missing original handlers (609 records), separately from 415
+  original-default records. Prioritize opcode 13, then 33 and GLOBAL's 41/42.
+  Exact effects behind inferred handler names and campaign reachability remain
+  unproven. Four-byte Ask records in `LWSPIRAL` and `SPIRAL` need a reachability
+  and layout investigation; they fall below the current 13-byte guard.
 - `odm-models.md`: a semantic name for the always-zero third 128×128 grid.
 - `paperdoll.md`: exact pixel anchors for every body/armor combination.
 - `portraits.md`: human-readable names for a handful of late expression ids.

@@ -3,7 +3,7 @@ title: "Map event scripts"
 summary: "Container framing, opcode semantics, and runtime joins for Might and Magic VI map scripts."
 doc_type: reference
 status: partial
-last_updated: 2026-08-01
+last_updated: 2026-09-10
 tags:
   - mm6
   - events
@@ -12,9 +12,12 @@ tags:
 ---
 # Map event scripts (Might and Magic VI)
 
-Status: **verified** for the container and the record structure; twenty-four
-opcodes are named and the rest are undecoded. Each claim is tagged `observed`,
-`inferred`, or `unknown`.
+Status: **verified** for the container and record structure. The original
+dispatch table below distinguishes observed handlers from tentative semantic
+readings. Current engine coverage is measured separately in the
+[event-script audit](../explanation/event-script-coverage.md): 23 executable
+cases, one metadata case, and 13 missing original handlers. Each claim is tagged
+`observed`, `inferred`, or `unknown`.
 
 ## Scope
 
@@ -739,9 +742,12 @@ reads `[esi+5]`.
 The dispatch hub at `0x43c948` reads the opcode at step offset +4, subtracts 1,
 and bounds-checks against 42 (`cmp eax, 0x2a`): **only opcodes 1..43 are
 dispatched**; opcode 0 and any opcode ≥44 fall to the default, which merely
-advances the step counter. The shipped data carries opcodes 0..90, but
-54..90 each appear once with zero arguments (trailing junk) and 44..53 are a
-six-use template, so the executable vocabulary is 1..43. `observed`
+advances the step counter. The shipped data carries 90 distinct values in
+0..90 (88 is absent). Values 44..53 occur six times each; values 54..90 occur
+37 times altogether, including two uses of 62, one with 35 argument bytes.
+These are still original-default records rather than extra executable
+handlers. Counts are `observed` by `evt_info --coverage`; the executable
+vocabulary is 1..43, including the six default cases listed below.
 
 Merging the names already established from the data with the handlers decoded
 from the executable, every opcode 1..43 now has a reading:
