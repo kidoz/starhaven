@@ -3923,6 +3923,15 @@ int main(int argc, char** argv) {
         return note;
     };
 
+    const auto report_script_gaps = [](const game::WalkOutcome& outcome, std::string_view script,
+                                       int event_id) {
+        for (const auto& [sequence, opcode] : outcome.unsupported) {
+            std::cerr << "warning: unsupported script opcode " << static_cast<int>(opcode) << " in "
+                      << script << " event " << event_id << " step " << static_cast<int>(sequence)
+                      << '\n';
+        }
+    };
+
     // Leave this map for another, through the same loader the command line
     // uses. What does not survive the trip is exactly what belongs to the old
     // map: its sounds, its shops, its opened chests, its fight.
@@ -5525,8 +5534,10 @@ int main(int argc, char** argv) {
                                     script_state.items.push_back(carried.item_id);
                                 }
                             }
-                            const game::WalkOutcome outcome = game::walk_event(
-                                global_script, static_cast<std::uint16_t>(id), script_state);
+                            const game::WalkOutcome outcome =
+                                game::walk_event(global_script, static_cast<std::uint16_t>(id),
+                                                 script_state, -1, "GLOBAL.EVT");
+                            report_script_gaps(outcome, "GLOBAL.EVT", id);
                             gold = script_state.gold;
                             if (const std::string rewards = reward_note(outcome);
                                 !rewards.empty()) {
@@ -7181,8 +7192,10 @@ int main(int argc, char** argv) {
                 }
             }
             const bool local = session.script.defines(aimed.event_id);
-            const game::WalkOutcome outcome = game::walk_event(
-                local ? session.script : global_script, aimed.event_id, script_state, walk_from);
+            const game::WalkOutcome outcome =
+                game::walk_event(local ? session.script : global_script, aimed.event_id,
+                                 script_state, walk_from, local ? session.file_name : "GLOBAL.EVT");
+            report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", aimed.event_id);
             walk_from = -1;
             gold = script_state.gold;
             const std::string rewards = reward_note(outcome);

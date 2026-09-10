@@ -13,10 +13,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -43,7 +46,7 @@ struct WalkState {
     // Events disabled by opcode 32 (the riddle gates and the Oracle's matched
     // on/off pairs). An id absent from the set is on; an id present is off.
     // Persistent like the bits, so a switch thrown in one walk stays thrown.
-    std::set<int> disabled_events;
+    std::map<std::string, std::set<int>> disabled_events;
 
     // The other party-level currencies the prose join named: experience and
     // food rations, moved by give and take the way gold is.
@@ -79,7 +82,9 @@ struct WalkState {
 
 // What one use of one event did.
 struct WalkOutcome {
-    bool ran = false;       // the map defines the event
+    bool ran = false;  // the map defines the event
+    // Sequence and opcode, without game text; callers report these gaps.
+    std::vector<std::pair<std::uint8_t, std::uint8_t>> unsupported;
     std::vector<int> said;  // message string indices, in walk order
     // A location title (opcode 5) and the interactable noun (opcode 35):
     // each a string index like `said`, but singled out because they head the
@@ -160,13 +165,28 @@ struct WalkOutcome {
     }
 };
 
-// Run one event against the party's state. Opcodes that are not yet decoded
-// are skipped, which errs toward a door that works over one that jams.
+// Stable namespace for event IDs, shared by execution and saved state.
+[[nodiscard]] inline std::string script_scope(std::string_view name) {
+    std::string scope{name};
+    for (char& letter : scope) {
+        letter = static_cast<char>(std::tolower(static_cast<unsigned char>(letter)));
+    }
+    return scope;
+}
+
+// Run one event against the party's state. Undecoded opcodes are reported
+// in the outcome while execution continues for compatibility.
 // `resume_at` walks from a named sequence instead of the top — how an
 // answered question continues at the step its answer earned.
 [[nodiscard]] inline WalkOutcome walk_event(const world::MapScript& script, std::uint16_t id,
-                                            WalkState& state, int resume_at = -1) {
+                                            WalkState& state, int resume_at = -1,
+                                            std::string_view script_name = {}) {
     WalkOutcome out;
+    const std::string scope = script_scope(script_name);
+    if (const auto disabled = state.disabled_events.find(scope);
+        disabled != state.disabled_events.end() && disabled->second.contains(id)) {
+        return out;
+    }
     const auto steps = script.event(id);
     if (steps.empty()) {
         return out;
@@ -408,9 +428,9 @@ struct WalkOutcome {
                     event_id = (event_id << 8) | a[static_cast<std::size_t>(i)];
                 }
                 if (a[4] == 0) {
-                    state.disabled_events.insert(static_cast<int>(event_id));
+                    state.disabled_events[scope].insert(static_cast<int>(event_id));
                 } else {
-                    state.disabled_events.erase(static_cast<int>(event_id));
+                    state.disabled_events[scope].erase(static_cast<int>(event_id));
                 }
             }
             break;
@@ -547,8 +567,11 @@ struct WalkOutcome {
                 at = step_at(a.front());
             }
             break;
+        case world::kOpcodeHeader:
+            break;  // metadata rather than an executable instruction
         default:
-            break;  // headers, names, doors, and the undecoded rest
+            out.unsupported.emplace_back(step.sequence, step.opcode);
+            break;
         }
     }
     return out;

@@ -447,20 +447,57 @@ TEST_CASE("a switch disables and re-enables another event", "[walk]") {
     std::vector<std::uint8_t> payload;
     push_step(payload, 14, 0, kOpcodeSwitch, {33, 0, 0, 0, 0});  // disable 33
     push_step(payload, 14, 1, kOpcodeEnd, {0});
+    push_step(payload, 33, 0, kOpcodeGive, typed(kVarGold, 100));
+    push_step(payload, 33, 1, kOpcodeEnd, {0});
     const MapScript script = parse(payload);
 
     starhaven::game::WalkState state;
     auto outcome = starhaven::game::walk_event(script, 14, state);
-    REQUIRE(state.disabled_events.contains(33));
+    REQUIRE(state.disabled_events[""].contains(33));
     REQUIRE(!outcome.acted());  // a switch is not observable dialogue
+    REQUIRE_FALSE(walk_event(script, 33, state).ran);
+    REQUIRE(state.gold == 0);
 
     // A second event re-enables 33.
     std::vector<std::uint8_t> payload2;
     push_step(payload2, 15, 0, kOpcodeSwitch, {33, 0, 0, 0, 1});  // enable 33
     push_step(payload2, 15, 1, kOpcodeEnd, {0});
     const MapScript script2 = parse(payload2);
-    starhaven::game::walk_event(script2, 15, state);
-    REQUIRE(!state.disabled_events.contains(33));
+    REQUIRE(starhaven::game::walk_event(script2, 15, state).ran);
+    REQUIRE(!state.disabled_events[""].contains(33));
+    REQUIRE(walk_event(script, 33, state).ran);
+    REQUIRE(state.gold == 100);
+}
+
+TEST_CASE("disabled event IDs are local to their script", "[walk]") {
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 14, 0, kOpcodeSwitch, {33, 0, 0, 0, 0});
+    push_step(payload, 14, 1, kOpcodeEnd, {0});
+    push_step(payload, 33, 0, kOpcodeGive, typed(kVarGold, 100));
+    push_step(payload, 33, 1, kOpcodeEnd, {0});
+    const MapScript script = parse(payload);
+    WalkState state;
+    REQUIRE(walk_event(script, 14, state, -1, "One.blv").ran);
+    REQUIRE_FALSE(walk_event(script, 33, state, -1, "ONE.BLV").ran);
+    REQUIRE_FALSE(walk_event(script, 33, state, 0, "one.blv").ran);
+    REQUIRE(walk_event(script, 33, state, -1, "Two.blv").ran);
+    REQUIRE(walk_event(script, 33, state, -1, "GLOBAL.EVT").ran);
+    REQUIRE(state.gold == 200);
+}
+
+TEST_CASE("unimplemented instructions report their sequence and opcode", "[walk]") {
+    std::vector<std::uint8_t> payload;
+    push_step(payload, 1, 0, kOpcodeHeader, {0});
+    push_step(payload, 1, 1, 250, {});
+    push_step(payload, 1, 2, kOpcodeGive, typed(kVarGold, 3));
+    push_step(payload, 1, 3, kOpcodeEnd, {0});
+    WalkState state;
+    const auto outcome = walk_event(parse(payload), 1, state);
+    REQUIRE(outcome.ran);
+    REQUIRE(outcome.unsupported.size() == 1);
+    REQUIRE(outcome.unsupported.front().first == 1);
+    REQUIRE(outcome.unsupported.front().second == 250);
+    REQUIRE(state.gold == 3);
 }
 
 TEST_CASE("both attribute runs reach the same seven gains", "[script]") {
