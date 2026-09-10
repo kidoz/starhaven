@@ -678,7 +678,12 @@ TEST_CASE("decorations decode after the model geometry", "[odm]") {
     OdmMap m;
     REQUIRE(parse_odm(entry, m) == OdmError::None);
     std::vector<OdmDecoration> decos;
+    std::uint64_t block = 0;
+    REQUIRE(model_geometry_end(m, block) == OdmError::None);
+    m.payload[static_cast<std::size_t>(block) + 4 + 0x16] = 0x34;
+    m.payload[static_cast<std::size_t>(block) + 4 + 0x17] = 0x12;
     REQUIRE(extract_decorations(m, decos) == OdmError::None);
+    REQUIRE(decos.front().event_id == 0x1234);
     REQUIRE(decos.size() == 3);
     REQUIRE(decos[0].kind == 39);
     REQUIRE(decos[0].flags == 0x20);

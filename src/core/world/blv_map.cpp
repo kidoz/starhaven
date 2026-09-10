@@ -520,6 +520,12 @@ std::vector<BlvDecoration> find_decorations(const BlvMap& map) {
                 block.records() + static_cast<std::size_t>(i) * kBlvDecorationRecordSize;
             const std::size_t n = block.names() + static_cast<std::size_t>(i) * kBlvDecorationSize;
             BlvDecoration d;
+            io::ByteReader placement(
+                std::as_bytes(std::span(p).subspan(r, kBlvDecorationRecordSize)));
+            if (!placement.seek(0x16)) {
+                return {};
+            }
+            d.event_id = placement.read_u16_le();
             d.placement_flags =
                 static_cast<std::uint16_t>(p[r + 2] | (std::uint32_t{p[r + 3]} << 8U));
             for (std::size_t k = 0; k < kBlvDecorationNameSize && p[n + k] != 0; ++k) {

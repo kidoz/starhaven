@@ -540,6 +540,9 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
         d.x = r.read_i32_le();
         d.y = r.read_i32_le();
         d.z = r.read_i32_le();
+        (void)r.read_i32_le();  // direction
+        (void)r.read_u16_le();  // runtime variable slot is assigned when loading
+        d.event_id = r.read_u16_le();
 
         if (!r.seek(static_cast<std::size_t>(names + static_cast<std::uint64_t>(i) *
                                                          kDecorationNameSize))) {

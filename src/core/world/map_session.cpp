@@ -474,6 +474,7 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
             d.flags,
             type == nullptr ? std::uint16_t{0} : type->flags,
             static_cast<std::uint16_t>(d.kind),
+            d.event_id,
         });
     }
 
@@ -579,6 +580,7 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
             type == nullptr
                 ? std::uint16_t{0}
                 : static_cast<std::uint16_t>(type - out.decoration_types.entries().data()),
+            d.event_id,
         });
     }
     out.spawn = indoor_spawn(out.blv, out.decorations);

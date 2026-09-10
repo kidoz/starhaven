@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,6 +45,8 @@ struct SessionDecoration {
     std::uint16_t flags = 0;
     std::uint16_t descriptor_flags = 0;
     std::uint16_t descriptor_id = 0;
+    std::uint16_t event_id = 0;                              // explicit map-local event
+    std::optional<std::uint8_t> event_value = std::nullopt;  // implicit GLOBAL event minus 400
 
     [[nodiscard]] bool active() const noexcept { return (flags & 0x20U) == 0; }
     [[nodiscard]] bool visible() const noexcept { return active() && (descriptor_flags & 2U) == 0; }
@@ -178,6 +181,7 @@ struct MapSession {
     // Shared.
     CollisionWorld collision;
     std::vector<SessionDecoration> decorations;
+    bool decoration_events_ready = false;
     std::vector<SessionActor> actors;
     std::vector<SessionObject> objects;
     std::vector<SessionBuilding> buildings;

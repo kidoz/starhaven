@@ -634,6 +634,8 @@ TEST_CASE("a decoration block decodes by its own count", "[blv]") {
                                          {"Barrel", 200, 30, 0, 128},
                                      });
     payload[placement + 2] = 0x24;  // invisible plus an unrelated placement flag
+    payload[placement + 0x16] = 0x34;
+    payload[placement + 0x17] = 0x12;
     auto entry = wrap(payload);
 
     BlvMap map;
@@ -649,6 +651,7 @@ TEST_CASE("a decoration block decodes by its own count", "[blv]") {
     REQUIRE(decos.size() == 3);
     REQUIRE(decos[0].name == "Party Start");
     REQUIRE(decos[0].placement_flags == 0x24);
+    REQUIRE(decos[0].event_id == 0x1234);
     REQUIRE(decos[0].x == 100);
     REQUIRE(decos[0].y == 120);
     REQUIRE(decos[1].name == "Torch01");
