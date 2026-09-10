@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "core/render/color.hpp"
