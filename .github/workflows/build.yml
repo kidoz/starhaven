@@ -24,6 +24,7 @@ jobs:
           libxi-dev libxfixes-dev libxss-dev libwayland-dev
           libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev libasound2-dev
           libpulse-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev
+          libpipewire-0.3-dev
       # Windows has no system SDL3 or zlib; the wraps in tree build both
       # from source, and forcing the fallback there keeps the three
       # runners building the same code rather than whatever each has
