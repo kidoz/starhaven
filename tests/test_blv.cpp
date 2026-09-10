@@ -627,11 +627,13 @@ TEST_CASE("a decoration block decodes by its own count", "[blv]") {
     const std::vector<FaceSpec> faces = {{{0, 1, 2, 3}, 0, "WallA"}};
     auto payload = make_payload(kSquare, faces);
     payload.resize(payload.size() + 200, 0x11);
+    const auto placement = payload.size() + 4;
     append_decoration_block(payload, {
                                          {"Party Start", 100, 120, 0, 0},
                                          {"Torch01", 40, 60, 0, 64},
                                          {"Barrel", 200, 30, 0, 128},
                                      });
+    payload[placement + 2] = 0x24;  // invisible plus an unrelated placement flag
     auto entry = wrap(payload);
 
     BlvMap map;
@@ -646,6 +648,7 @@ TEST_CASE("a decoration block decodes by its own count", "[blv]") {
     const auto decos = find_decorations(map);
     REQUIRE(decos.size() == 3);
     REQUIRE(decos[0].name == "Party Start");
+    REQUIRE(decos[0].placement_flags == 0x24);
     REQUIRE(decos[0].x == 100);
     REQUIRE(decos[0].y == 120);
     REQUIRE(decos[1].name == "Torch01");

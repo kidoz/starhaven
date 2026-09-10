@@ -372,7 +372,9 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
     };
 
     for (const auto& d : session.decorations) {
-        draw(d.name, d.position, kDecorationScale);
+        if (d.visible()) {
+            draw(session.decoration_animation(d), d.position, kDecorationScale);
+        }
     }
     // A monster is drawn from the side you are standing on: the view is the
     // angle between where it faces and where you are.

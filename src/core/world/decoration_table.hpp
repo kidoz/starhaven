@@ -16,19 +16,17 @@ struct DecorationTableEntry {
     std::string name;   // matches a map's decoration name, e.g. "CampfireOn"
     std::string group;  // e.g. "tree", "cactus", "test"
 
-    // How much room the decoration takes, in world units: 96 for trees, 52
-    // for cacti. No two decorations on a map are ever placed closer than the
-    // sum of their values — 0 of 1,737 near pairs on Sweet Water, against
-    // violations when a single constant is used for every kind — which is what
-    // a collision radius does to a level's layout. `inferred`
-    std::uint16_t radius = 0;      // +0x42
-    std::uint16_t unknown_44 = 0;  // 76 for trees
-    std::uint16_t sprite_id = 0;   // consecutive across sibling entries
+    // Collision-cylinder dimensions in world units, from the descriptor's
+    // documented +0x42 height and +0x44 radius fields.
+    std::uint16_t radius = 0;     // +0x44
+    std::uint16_t height = 0;     // +0x42
+    std::uint16_t sprite_id = 0;  // consecutive across sibling entries
 
     // The ambient sound this decoration makes, resolved through `DSOUNDS.BIN`.
     // Zero on all but seven of the 230 shipped rows: most decorations are
     // silent.
     std::uint16_t sound_id = 0;
+    std::uint16_t flags = 0;  // +0x4A; no-block 1, no-draw 2
 };
 
 enum class DecorationTableError : std::uint8_t {

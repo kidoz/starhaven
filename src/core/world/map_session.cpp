@@ -466,9 +466,15 @@ MapSessionError load_outdoor(std::span<const std::byte> entry,
     }
     for (const auto& d : decorations) {
         const auto* type = out.decoration_types.at(d.kind);
-        out.decorations.push_back({d.name, to_render_space(d.x, d.y, d.z),
-                                   type == nullptr ? std::uint16_t{0} : type->sound_id,
-                                   type == nullptr ? std::uint16_t{0} : type->radius});
+        out.decorations.push_back({
+            d.name,
+            to_render_space(d.x, d.y, d.z),
+            type == nullptr ? std::uint16_t{0} : type->sound_id,
+            type == nullptr ? std::uint16_t{0} : type->radius,
+            d.flags,
+            type == nullptr ? std::uint16_t{0} : type->flags,
+            static_cast<std::uint16_t>(d.kind),
+        });
     }
 
     // The map's own index of what stands near each tile, and where it spawns
@@ -563,9 +569,17 @@ MapSessionError load_indoor(std::span<const std::byte> entry, MapSession& out) {
     // is entered by name.
     for (const auto& d : find_decorations(out.blv)) {
         const auto* type = out.decoration_types.find(d.name);
-        out.decorations.push_back({d.name, to_render_space(d.x, d.y, d.z),
-                                   type == nullptr ? std::uint16_t{0} : type->sound_id,
-                                   type == nullptr ? std::uint16_t{0} : type->radius});
+        out.decorations.push_back({
+            d.name,
+            to_render_space(d.x, d.y, d.z),
+            type == nullptr ? std::uint16_t{0} : type->sound_id,
+            type == nullptr ? std::uint16_t{0} : type->radius,
+            d.placement_flags,
+            type == nullptr ? std::uint16_t{0} : type->flags,
+            type == nullptr
+                ? std::uint16_t{0}
+                : static_cast<std::uint16_t>(type - out.decoration_types.entries().data()),
+        });
     }
     out.spawn = indoor_spawn(out.blv, out.decorations);
     return MapSessionError::None;
@@ -577,6 +591,18 @@ std::vector<std::size_t> MapSession::decorations_near(float x, float z) const {
     std::vector<std::size_t> out;
     decorations_near(x, z, out);
     return out;
+}
+
+const std::string&
+MapSession::decoration_animation(const SessionDecoration& decoration) const noexcept {
+    const auto* type = decoration_types.at(decoration.descriptor_id);
+    if (type != nullptr && type->sprite_id < sprite_frames.size()) {
+        const auto& group = sprite_frames.frames()[type->sprite_id].group_name;
+        if (!group.empty()) {
+            return group;
+        }
+    }
+    return decoration.name;
 }
 
 void MapSession::decorations_near(float x, float z, std::vector<std::size_t>& out) const {
@@ -591,7 +617,7 @@ void MapSession::decorations_near(float x, float z, std::vector<std::size_t>& ou
             continue;
         }
         const std::size_t id = pid_id(pid);
-        if (id < decorations.size()) {
+        if (id < decorations.size() && decorations[id].active()) {
             out.push_back(id);
         }
     }

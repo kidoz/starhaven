@@ -671,7 +671,7 @@ TEST_CASE("decorations decode after the model geometry", "[odm]") {
     // The array sits at a computable offset: right after the last model's
     // geometry, with its own count.
     auto entry = make_odm_entry_with_decorations({{4, 2, 0, 4}, {5, 1, 0, 3}},
-                                                 {{39, 3232, 9072, 320, "tree27"},
+                                                 {{39U | (0x20U << 16U), 3232, 9072, 320, "tree27"},
                                                   {40, -1000, 500, -64, "tree28"},
                                                   {2, 0, 0, 0, "Party Start"}});
 
@@ -681,6 +681,7 @@ TEST_CASE("decorations decode after the model geometry", "[odm]") {
     REQUIRE(extract_decorations(m, decos) == OdmError::None);
     REQUIRE(decos.size() == 3);
     REQUIRE(decos[0].kind == 39);
+    REQUIRE(decos[0].flags == 0x20);
     REQUIRE(decos[0].x == 3232);
     REQUIRE(decos[0].y == 9072);
     REQUIRE(decos[0].z == 320);

@@ -316,6 +316,9 @@ inline Inspected inspect(const world::MapSession& session, const data::MonsterSt
     }
     for (const std::size_t id : candidates) {
         const auto& d = session.decorations[id];
+        if (!d.visible()) {
+            continue;
+        }
         float distance = 0.0f;
         const float score = detail::aim_score(eye, forward, d.position, distance);
         if (score <= best || distance > kInspectRange || !visible(d.position)) {

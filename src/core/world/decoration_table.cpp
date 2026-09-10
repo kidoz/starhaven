@@ -71,12 +71,13 @@ DecorationTableError DecorationTable::parse(std::span<const std::byte> entry,
         if (!f.seek(base + kUnknown42Offset)) {
             return DecorationTableError::BadCount;
         }
+        e.height = f.read_u16_le();
         e.radius = f.read_u16_le();
-        e.unknown_44 = f.read_u16_le();
         if (!f.seek(base + kSpriteIdOffset)) {
             return DecorationTableError::BadCount;
         }
         e.sprite_id = f.read_u16_le();
+        e.flags = f.read_u16_le();
         if (!f.seek(base + kDecorationTableSoundOffset)) {
             return DecorationTableError::BadCount;
         }

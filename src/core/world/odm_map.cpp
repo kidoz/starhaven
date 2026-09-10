@@ -535,7 +535,8 @@ OdmError extract_decorations(const OdmMap& map, std::vector<OdmDecoration>& out)
                                                            kDecorationRecordSize))) {
             return OdmError::HeaderTooSmall;
         }
-        d.kind = r.read_u32_le();
+        d.kind = r.read_u16_le();
+        d.flags = r.read_u16_le();
         d.x = r.read_i32_le();
         d.y = r.read_i32_le();
         d.z = r.read_i32_le();

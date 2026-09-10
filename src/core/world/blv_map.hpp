@@ -194,7 +194,8 @@ struct BlvDecoration {
     std::string name;
     std::uint16_t flags = 0;  // 0 or 1; meaning unknown
     std::int32_t x = 0, y = 0, z = 0;
-    std::int16_t angle = 0;  // facing; units unconfirmed
+    std::int16_t angle = 0;             // facing; units unconfirmed
+    std::uint16_t placement_flags = 0;  // +2 of the 28-byte placement, not the name record
 };
 
 // Where a map's decoration block is, and how many decorations it holds.

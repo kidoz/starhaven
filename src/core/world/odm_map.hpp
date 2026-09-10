@@ -208,6 +208,7 @@ struct OdmDecoration {
     std::uint32_t kind = 0;            // type id; maps one-to-one onto `name`
     std::int32_t x = 0, y = 0, z = 0;  // world position, MM6 axes
     std::string name;                  // a SPRITES.LOD entry name
+    std::uint16_t flags = 0;           // placement flags, including invisible 0x20
 };
 
 // Extract the decoration array, which follows the model geometry stream.

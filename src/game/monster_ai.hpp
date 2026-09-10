@@ -352,7 +352,7 @@ private:
         session.decorations_near(to.x, to.z, nearby_);
         for (const std::size_t id : nearby_) {
             const auto& decoration = session.decorations[id];
-            if (decoration.radius == 0) {
+            if (!decoration.blocks_movement()) {
                 continue;
             }
             to = push_out(to, decoration.position,

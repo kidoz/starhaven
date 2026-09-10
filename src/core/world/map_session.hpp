@@ -37,10 +37,19 @@ enum class MapKind : std::uint8_t {
 // One placed decoration, with everything a renderer or a mixer needs, so that
 // neither has to know which kind of map it came from.
 struct SessionDecoration {
-    std::string name;  // also the sprite frame table's animation name
+    std::string name;  // descriptor name; decoration_animation resolves its art
     render::Vec3 position;
     std::uint16_t sound_id = 0;  // 0 when the decoration is silent
     std::uint16_t radius = 0;    // how much room it takes; see DecorationTable
+    std::uint16_t flags = 0;
+    std::uint16_t descriptor_flags = 0;
+    std::uint16_t descriptor_id = 0;
+
+    [[nodiscard]] bool active() const noexcept { return (flags & 0x20U) == 0; }
+    [[nodiscard]] bool visible() const noexcept { return active() && (descriptor_flags & 2U) == 0; }
+    [[nodiscard]] bool blocks_movement() const noexcept {
+        return active() && (descriptor_flags & 1U) == 0 && radius != 0;
+    }
 };
 
 // One monster standing on the map, already resolved to a drawable animation.
@@ -188,6 +197,10 @@ struct MapSession {
 
     [[nodiscard]] bool outdoor() const noexcept { return kind == MapKind::Outdoor; }
     [[nodiscard]] bool indoor() const noexcept { return kind == MapKind::Indoor; }
+
+    // Descriptor names can differ from their DSFT animation-group names.
+    [[nodiscard]] const std::string&
+    decoration_animation(const SessionDecoration& decoration) const noexcept;
 
     // The name to show a player: the design table's, falling back to the file.
     [[nodiscard]] const std::string& title() const noexcept {
