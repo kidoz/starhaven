@@ -58,6 +58,8 @@ ScriptOpcodeCoverage script_opcode_coverage(std::uint8_t opcode) {
         return {"Switch", Handled, 5};
     case kOpcodeShowMessage:
         return {"ShowMessage", Handled, 0};
+    case kOpcodeSpawnObjects:
+        return {"SpawnObjects", Unsupported, 0};  // decoded, but no live object dispatch yet
     case kOpcodeName:
         return {"Name", Handled, 1};
     case kOpcodeGoto:
