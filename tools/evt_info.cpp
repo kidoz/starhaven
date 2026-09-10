@@ -104,15 +104,21 @@ int do_generated_items(const starhaven::lod::LodArchive& icons,
             game::ScriptItemGenerator generator{random_items, items, standard, special, rewards};
             game::WalkState state;
             const auto out =
-                game::walk_event(script, 426, state, -1, entry.name, nullptr, &generator);
+                game::walk_event(script, 426, state, -1, entry.name, nullptr, &generator, 0);
             const bool ok = out.ran && out.failed_items.empty() &&
                             out.generated_items.size() == 1 && state.items.size() == 1 &&
-                            state.variables[24] == 3 && out.unsupported.size() == 1 &&
-                            out.unsupported.front().first == 2 &&
-                            out.unsupported.front().second == 42;
+                            state.variables[24] == 3 && out.unsupported.empty() &&
+                            out.failed_decorations.empty() && out.decorations.size() == 1 &&
+                            out.decorations.front().event == 424;
+            const auto repeat =
+                game::walk_event(script, 424, state, -1, entry.name, nullptr, &generator, 0);
+            failures += repeat.generated_items.empty() && repeat.failed_items.empty() &&
+                                repeat.unsupported.empty() && repeat.failed_decorations.empty()
+                            ? 0
+                            : 1;
             failures += ok ? 0 : 1;
             std::cout << "FLOW\t" << entry.name << "\t426\t" << (ok ? "pass" : "fail")
-                      << "\trewards\t" << out.generated_items.size() << "\tremaining_opcode\t42\n";
+                      << "\trewards\t" << out.generated_items.size() << "\tnext_event\t424\n";
         }
         for (const auto& step : script.steps()) {
             if (step.opcode != world::kOpcodeGenerateItem) {

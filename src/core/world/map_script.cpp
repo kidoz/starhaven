@@ -44,6 +44,14 @@ std::optional<ScriptItemRequest> parse_script_item(const ScriptStep& step) {
     return ScriptItemRequest{level, type, item};
 }
 
+std::optional<std::uint32_t> parse_decoration_event(const ScriptStep& step) {
+    if (step.opcode != kOpcodeSetDecorationEvent || step.arguments.size() < 4) {
+        return std::nullopt;
+    }
+    io::ByteReader reader(std::as_bytes(std::span(step.arguments)));
+    return reader.read_u32_le();
+}
+
 std::optional<DecorationChange> parse_decoration_change(const ScriptStep& step) {
     if (step.opcode != kOpcodeSetDecoration || step.arguments.size() < 6) {
         return std::nullopt;

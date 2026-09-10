@@ -499,3 +499,10 @@ test('script_items',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+# Current-decoration event state, interaction and save compatibility.
+test('decoration_events',
+  executable('test_decoration_events', 'test_decoration_events.cpp',
+    dependencies: [starhaven_dep, catch2_main],
+  ),
+)

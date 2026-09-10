@@ -87,10 +87,15 @@ struct ScriptItemRequest {
 // Set a placed decoration's descriptor and visibility. See map-events.md.
 inline constexpr std::uint8_t kOpcodeSetDecoration = 13;
 
+inline constexpr std::uint8_t kOpcodeSetDecorationEvent = 42;
+[[nodiscard]] std::optional<std::uint32_t> parse_decoration_event(const ScriptStep& step);
+
 struct DecorationChange {
     std::uint32_t index = 0;
     bool visible = true;
     std::string name;  // "0" preserves the descriptor; other names resolve via DDECLIST
+    std::optional<std::uint32_t> event =
+        std::nullopt;  // opcode 42 instead of descriptor/visibility
 };
 
 [[nodiscard]] std::optional<DecorationChange> parse_decoration_change(const ScriptStep& step);

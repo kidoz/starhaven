@@ -98,12 +98,13 @@ struct WalkOutcome {
     int title = -1;
     int name = -1;
     std::vector<data::GeneratedItem> generated_items;
-    std::vector<ScriptItemChange> item_changes;  // grants and takes in execution order
-    std::vector<std::uint8_t> failed_items;      // generation service/data errors, by sequence
-    std::vector<int> given;                      // item ids that entered the packs
-    std::vector<int> taken;                      // item ids that left them
-    std::uint32_t building = 0;                  // a counter to open, or 0
-    int chest = -1;                              // a chest to open, or -1
+    std::vector<ScriptItemChange> item_changes;    // grants and takes in execution order
+    std::vector<std::uint8_t> failed_decorations;  // opcode 42 without a current decoration
+    std::vector<std::uint8_t> failed_items;        // generation service/data errors, by sequence
+    std::vector<int> given;                        // item ids that entered the packs
+    std::vector<int> taken;                        // item ids that left them
+    std::uint32_t building = 0;                    // a counter to open, or 0
+    int chest = -1;                                // a chest to open, or -1
     std::optional<world::MapTravel> travel;
 
     // Faces to re-texture: a thrown switch is drawn thrown.
@@ -174,10 +175,10 @@ struct WalkOutcome {
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
                building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
-               !decorations.empty() || !generated_items.empty() || !failed_items.empty() ||
-               !doors.empty() || !summons.empty() || !launches.empty() || ask.has_value() ||
-               message.has_value() || !harms.empty() || gold_found != 0 || healed_hp != 0 ||
-               healed_sp != 0 ||
+               !decorations.empty() || !failed_decorations.empty() || !generated_items.empty() ||
+               !failed_items.empty() || !doors.empty() || !summons.empty() || !launches.empty() ||
+               ask.has_value() || message.has_value() || !harms.empty() || gold_found != 0 ||
+               healed_hp != 0 || healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
@@ -196,11 +197,11 @@ struct WalkOutcome {
 // in the outcome while execution continues for compatibility.
 // `resume_at` walks from a named sequence instead of the top — how an
 // answered question continues at the step its answer earned.
-[[nodiscard]] inline WalkOutcome walk_event(const world::MapScript& script, std::uint16_t id,
-                                            WalkState& state, int resume_at = -1,
-                                            std::string_view script_name = {},
-                                            WalkPresentation* presentation = nullptr,
-                                            ScriptItemGenerator* item_generator = nullptr) {
+[[nodiscard]] inline WalkOutcome
+walk_event(const world::MapScript& script, std::uint16_t id, WalkState& state, int resume_at = -1,
+           std::string_view script_name = {}, WalkPresentation* presentation = nullptr,
+           ScriptItemGenerator* item_generator = nullptr,
+           std::optional<std::uint32_t> decoration = std::nullopt) {
     WalkOutcome out;
     WalkPresentation transient;
     auto& text = presentation != nullptr ? *presentation : transient;
@@ -523,6 +524,15 @@ struct WalkOutcome {
                     state.items.push_back(item->item_id);
                     out.generated_items.push_back(*item);
                     out.item_changes.push_back({*item, false});
+                }
+            }
+            break;
+        case world::kOpcodeSetDecorationEvent:
+            if (const auto value = world::parse_decoration_event(step)) {
+                if (decoration) {
+                    out.decorations.push_back({*decoration, true, "0", value});
+                } else {
+                    out.failed_decorations.push_back(step.sequence);
                 }
             }
             break;

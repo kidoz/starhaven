@@ -18,6 +18,7 @@ struct ScriptContinuation {
     bool global = false;
     bool npc_dialogue = false;
     WalkPresentation presentation;
+    std::optional<std::uint32_t> decoration = std::nullopt;
 };
 
 class ScriptMessage {
