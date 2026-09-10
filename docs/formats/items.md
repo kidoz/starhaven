@@ -3,7 +3,7 @@ title: "Items and item instances"
 summary: "Design-table joins, serialized item layout, and generation behavior for Might and Magic VI items."
 doc_type: reference
 status: partial
-last_updated: 2026-08-01
+last_updated: 2026-09-10
 tags:
   - mm6
   - items
@@ -321,7 +321,7 @@ All nine executable call sites agree on the three-argument signature
 | Call address | Role | Inputs before the call |
 | --- | --- | --- |
 | `0x4218e0` | monster loot | monster-configured treasure level and selector after its loot-chance roll |
-| `0x43e055` | give-item event | two event operand bytes; result goes to party inventory |
+| `0x43e055` | give-item event | two event operand bytes; optional ID replacement, then party held/cursor item |
 | `0x4528c2`, `0x4857d3` | mirrored character setup | level 2, ring-category selector 40 |
 | `0x456197` | placed-object population | level from its record and a prior random selector in 20…43 |
 | `0x4564f7`, `0x456651` | chest population | resolved level and unrestricted selector 0 |

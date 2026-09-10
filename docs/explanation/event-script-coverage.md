@@ -17,9 +17,9 @@ tags:
 ---
 # Event-script coverage audit
 
-The current walker has **25 executable opcode cases and one metadata case**.
-The shipped scripts contain **11 additional opcodes with original executable
-handlers**, used in **411 records across 247 events in 51 scripts**. These are
+The current walker has **26 executable opcode cases and one metadata case**.
+The shipped scripts contain **10 additional opcodes with original executable
+handlers**, used in **325 records across 201 events in 46 scripts**. These are
 the substantive dispatch backlog, not the previously estimated “45 of 90.”
 Counts are `observed`; their gameplay consequences require further validation.
 
@@ -30,7 +30,9 @@ Opcode 13 is integrated; its
 [decoration semantics](../formats/map-events.md#opcode-13-changes-a-placed-decoration)
 supersede the audit's tentative variable-operation label. Opcode 33 now
 [displays a modal and resumes the event](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
-after dismissal; all 88 records are covered.
+after dismissal; all 88 records are covered. Opcode 41 now
+[generates item rewards](../formats/map-events.md#opcode-41-generates-an-item-reward);
+all 80 complete records generate valid items, with six short records reported.
 
 ## Reproduce
 
@@ -74,9 +76,9 @@ this measure.
 
 ## Measured baseline
 
-Audited 2026-09-10 after implementing opcode 33 on engine revision `6fe44ec`.
+Audited 2026-09-10 after implementing opcode 41 on engine base revision `4d5e6db`.
 The original audit at `b6a5cc7` had 609 missing-handler records; opcode 13
-removed 110 and opcode 33 removed another 88, leaving 411. Source: user-owned
+removed 110, opcode 33 removed 88 and opcode 41 removed 86, leaving 325. Source: user-owned
 MM6 GOG installation, `data/icons.lod`,
 32,772,165 bytes, SHA-256
 `2e8f2c0d0b88776eb2b09c5ad1a6937b5e4aff88c2190d3340327eb5b813bd18`.
@@ -91,24 +93,24 @@ All figures below are `observed` from `evt_info --coverage`:
 | Parse or payload failures | 0 |
 | Distinct `(script, event)` pairs | 3,332 |
 | Total records | 15,504 |
-| Records whose opcode has a walker handler | 12,486 |
+| Records whose opcode has a walker handler | 12,572 |
 | Metadata records (opcode 4) | 2,192 |
-| Unsupported records | 826 |
-| Unsupported records with an original handler | 411 |
+| Unsupported records | 740 |
+| Unsupported records with an original handler | 325 |
 | Unsupported records on the original default path | 415 |
-| Dispatched records below the current argument-length guard | 276 |
+| Dispatched records below the current argument-length guard | 282 |
 | Distinct opcode values | 90 |
-| Executable / metadata / unsupported opcode values | 25 / 1 / 64 |
+| Executable / metadata / unsupported opcode values | 26 / 1 / 63 |
 
 The [original dispatch table](../formats/map-events.md#the-complete-opcode-table)
 bounds execution to 1–43, with six default-path cases inside that range.
-Thus 53 of the 64 unsupported values follow the original default path, leaving
-11 missing real handlers. This distinction reuses the recorded executable
+Thus 53 of the 63 unsupported values follow the original default path, leaving
+10 missing real handlers. This distinction reuses the recorded executable
 research; the audit does not newly establish original opcode semantics.
 An explicit runtime policy for those default-path records remains follow-up
 work; the audit preserves them in the raw unsupported count.
 
-Among events containing a missing real handler, 42 also contain a quest-bit
+Among events containing a missing real handler, 41 also contain a quest-bit
 operation, 17 a door opcode, and 4 travel; none contains an NPC mutation.
 These groups overlap. They are syntactic co-occurrences, not proof that the missing
 instruction blocks that feature or executes on the same branch. Feature tags
@@ -123,7 +125,6 @@ Example coordinates are `script / event / sequence` and are `observed`.
 
 | Opcode | Existing reading | Records | Scripts | Events | Example |
 | ---: | --- | ---: | ---: | ---: | --- |
-| 41 | Open panel/dialogue (`inferred`) | 86 | 24 | 61 | `GLOBAL.EVT / 129 / 4` |
 | 8 | Play effect/sound by category (`observed`) | 60 | 20 | 36 | `D17.EVT / 29 / 7` |
 | 34 | Move to coordinates (`inferred`) | 55 | 11 | 22 | `D18.EVT / 56 / 2` |
 | 42 | Conditional check (`inferred`) | 47 | 7 | 47 | `GLOBAL.EVT / 411 / 3` |
@@ -142,11 +143,10 @@ handler research. Trace each selected operation's inputs and state effects
 before implementing it, then add a synthetic walking test and an install-backed
 behavior check. A handler that merely consumes a record is not completion.
 
-1. **Quest and NPC state: 41/42.** Opcode 13's decoration effects and
-   opcode 33's modal suspension are implemented. GLOBAL alone contains 37
-   opcode-41 and 41 opcode-42 records; use `GLOBAL / 426 / 0,2` as a compact
-   paired case. Exact semantics and player-visible consequences of 41/42 remain
-   `unknown` at this audit boundary.
+1. **GLOBAL interactions: 42.** Opcode 41's generated rewards are implemented.
+   GLOBAL contains 41 opcode-42 records; `GLOBAL / 426 / 0,2` pairs a generated
+   item with opcode 42. Trace the latter's caller context and state writes
+   before implementing it; its old conditional-check label is tentative.
 2. **Doors and traversal: 23, 34 and 43, with 10.** Opcode 23 shares 14 records
    with door events and 4 with travel events (`CD2 / 33 / 5,6`). Opcode 34 has
    30 full-size records in `D18`, beginning at event 56. Inspect whether its
@@ -164,21 +164,21 @@ behavior check. A handler that merely consumes a record is not completion.
    Establish which short records are reachable and which are unused before
    setting a reachable-script acceptance gate.
 
-The next implementation slice should investigate **opcode 41**, followed by
-42, using GLOBAL's paired examples to pin their behavior and regressions.
+The next implementation slice should investigate **opcode 42**, using GLOBAL's
+paired examples to pin its behavior and regressions.
 The audit portion of FC-2 is complete; opcode completeness is still open.
 
 ## Short records and limits of the census
 
-All 276 below-guard records are concentrated in these files (`observed`).
-The increase from 263 is the 13 short opcode-13 records now classified as
-below-guard rather than unsupported:
+All 282 below-guard records are concentrated in these files (`observed`).
+Since the original 263, thirteen short opcode-13 and six short opcode-41
+records have moved from unsupported to below-guard:
 
 | Scripts | Short records |
 | --- | ---: |
-| `DBM1.EVT` through `DBM5.EVT` | 40 each (200 total) |
+| `DBM1.EVT` through `DBM5.EVT` | 41 each (205 total) |
 | `DDB1.EVT` | 33 |
-| `OUT.EVT` | 24 |
+| `OUT.EVT` | 25 |
 | `LWSPIRAL.EVT` | 13 |
 | `SPIRAL.EVT` | 4 |
 | `DWJ1.EVT` | 2 |
@@ -197,7 +197,7 @@ work, alongside the [campaign completion contract](campaign-completion.md).
 
 ## Validation
 
-The hermetic suite now contains 82 test executables. Coverage tests exercise
+The hermetic suite now contains 83 test executables. Coverage tests exercise
 all 256 opcode classifications against the actual walker, repeated records and
 scoped events, mixed-case extensions, deterministic output, argument guards,
 bad containers/records/payloads, duplicate names, no-script input, and TSV
@@ -207,3 +207,12 @@ installation without executing events or writing saves. The separate
 full-event pause/resume flows in disposable walker state. The 34-beat arc
 regression now explicitly acknowledges the obelisk message before expecting
 its journal fragment.
+
+`evt_info --generated-items` loads the user-owned item-generation tables and
+checks every opcode-41 request with a fixed seed: 86 records, six short,
+80 generated, ten explicit ID overrides, zero failures. Its additional
+GLOBAL 426 flow verifies reward generation and subsequent variable mutation,
+while explicitly expecting opcode 42 to remain unsupported. This is partial
+flow coverage, not certification of that entire interaction. Synthetic tests
+cover generated metadata, subsequent item checks/takes, modal continuation,
+full packs, save/reload random continuity, and malformed save rejection.

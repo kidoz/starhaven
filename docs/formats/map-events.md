@@ -15,8 +15,8 @@ tags:
 Status: **verified** for the container and record structure. The original
 dispatch table below distinguishes observed handlers from tentative semantic
 readings. Current engine coverage is measured separately in the
-[event-script audit](../explanation/event-script-coverage.md): 25 executable
-cases, one metadata case, and 11 missing original handlers. Each claim is tagged
+[event-script audit](../explanation/event-script-coverage.md): 26 executable
+cases, one metadata case, and 10 missing original handlers. Each claim is tagged
 `observed`, `inferred`, or `unknown`.
 
 ## Scope
@@ -886,6 +886,84 @@ missing sequences, sequence 255, disabled events and stale-map cancellation.
 Original window styling, audio restoration and nested external script calls
 remain outside this slice.
 
+## Opcode 41 generates an item reward
+
+The old inferred “Open panel/dialogue” label is superseded by the handler at
+VA `0x43dffc`–`0x43e071`. It generates an item, optionally replaces its ID,
+hands the complete instance to the party, and advances to the next sequence.
+These semantics are `observed` in the same MM6 executable fingerprint used
+above; no original-game runtime session was performed.
+
+### Layout and generation order
+
+Offsets below are relative to the argument payload, after the five framing
+bytes. The minimum payload is six bytes; trailing bytes are ignored.
+
+| Offset | Type | Meaning | Status |
+| --- | --- | --- | --- |
+| 0 | u8 | Treasure level, passed to the generator | observed |
+| 1 | u8 | Item-generation selector | observed |
+| 2 | u32 little-endian | Optional item ID override; zero keeps the generated ID | observed |
+
+The handler clears a 28-byte item instance and calls `0x448790` with the
+level and selector. This is the [existing item generator](items.md#generator-callers):
+levels 1–6, selector 0 for unrestricted generation, selectors 1–19 for
+equipment categories, and aliases 20–43. Only after this call does a nonzero
+override replace the item ID. Standard bonus, strength, special bonus, charges
+and flags remain as generated. In particular, a fixed reward must still consume
+the generator's random draws and artifact-state changes. `observed`
+
+The receipt routine at `0x487750` first calls `0x41fe70` to dispose of the
+previous held item, then copies the complete new item to party offset
+`+0x5bac` (VA `0x90e81c`) and updates the cursor. The previous item is tried
+in the selected character's pack, then the party packs, with a world-drop
+fallback if none accepts it. The new reward itself remains held on the cursor.
+This delivery order is `observed`; the exact full-pack drop trajectory and
+pixel-level cursor presentation remain outside this investigation.
+
+### Shipped records and reproduction
+
+```bash
+export STARHAVEN_GAME_DIR=/path/to/MM6
+./buildDir/evt_info --generated-items
+```
+
+On the audited installation, the metadata-only probe finds 86 records across
+24 scripts and 61 events. Six short records occur in `DBM1.EVT` through
+`DBM5.EVT` and `OUT.EVT`. All 80 complete records generate an item resolving
+against `ITEMS.TXT`; ten apply explicit ID overrides. There are zero failures.
+These counts and table joins are `observed`; the fixed-seed probe does not
+establish reachability or reproduce original random timing.
+
+An additional disposable walk of `GLOBAL.EVT / 426` generates one reward
+and applies its subsequent variable operation. The flow deliberately expects
+opcode 42 at sequence 2 to remain unsupported. It therefore verifies the new
+handler's integration without claiming that the whole interaction is complete.
+
+### Engine integration and limits
+
+`ScriptItemGenerator` supplies synchronous table-backed generation to the
+walker. Later checks and takes in the same event see the generated item.
+Missing generation data or invalid level, selector or override ID produces a
+sequence-addressed diagnostic and leaves generator state unchanged. Short
+records remain visible in the coverage report and are skipped by the walker.
+
+StarHaven automatically places complete reward instances into the first pack
+with space. Generated and ordinary grants/takes are applied in script order,
+so a later take removes the expected instance even when their item IDs match.
+Full packs retain rewards in a visible waiting list; opening space
+allows automatic delivery. Waiting items remain available to event item checks
+and takes. Version-4 saves preserve the waiting instances, generator seed and
+artifact-found flags, with versions 1–3 still readable. This is an explicit
+engine UI adaptation of the original cursor-item workflow, not a claim of
+original inventory interaction fidelity.
+
+The script generator has its own persistent random and artifact state. The
+original process-wide ordering shared with loot, chests and other callers is
+not reproduced by this slice. Synthetic tests cover override metadata and
+random consumption, invalid input, item-check/take ordering, modal resumption,
+full-pack retention, save continuity and malformed-save rejection.
+
 ## The complete opcode table
 
 The dispatch hub at `0x43c948` reads the opcode at step offset +4, subtracts 1,
@@ -943,7 +1021,7 @@ from the executable, every opcode 1..43 now has a reading:
 | 38 | no-op (default) | `0x43e1e2` | observed |
 | 39 | SetTopic | `0x43cb9d` | observed |
 | 40 | MoveNpc | `0x43cd61` | observed |
-| 41 | Open panel/dialogue | `0x43dffc` | inferred |
+| 41 | Generate item reward | `0x43dffc` | observed |
 | 42 | Conditional check | `0x43cb48` | inferred |
 | 43 | Read variable by type (sub-switch `[esi+5]` 0..5) | `0x43c94f` | inferred |
 

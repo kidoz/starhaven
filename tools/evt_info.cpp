@@ -40,6 +40,7 @@ void print_usage(const char* argv0) {
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
               << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
               << "           --strict also fails on unsupported or short-argument records\n"
+              << "  --generated-items  verify opcode 41 generation against item tables\n"
               << "  --messages  verify opcode 33 suspension and preceding text joins\n"
               << "  --decorations  verify opcode 13 layouts and joins against loaded maps\n"
               << "\n"
@@ -61,6 +62,92 @@ bool is_script(const std::string& name) {
     return tail[0] == '.' && std::tolower(static_cast<unsigned char>(tail[1])) == 'e' &&
            std::tolower(static_cast<unsigned char>(tail[2])) == 'v' &&
            std::tolower(static_cast<unsigned char>(tail[3])) == 't';
+}
+
+// Generate each opcode-41 reward in isolation, using user-owned tables and a
+// fixed seed. The output contains numeric compatibility metadata only.
+int do_generated_items(const starhaven::lod::LodArchive& icons,
+                       const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    data::ItemStatsTable items;
+    data::RandomItemTable random_items;
+    data::StandardBonusTable standard;
+    data::SpecialBonusTable special;
+    if (!game::audit_script_coverage(icons).complete() ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None ||
+        data::load_random_items(data_dir, random_items) != data::GameDataError::None ||
+        data::load_standard_bonuses(data_dir, standard) != data::GameDataError::None ||
+        data::load_special_bonuses(data_dir, special) != data::GameDataError::None) {
+        std::cerr << "error: incomplete script or item-generation input\n";
+        return 1;
+    }
+    std::size_t records = 0;
+    std::size_t short_records = 0;
+    std::size_t generated = 0;
+    std::size_t overrides = 0;
+    std::size_t failures = 0;
+    std::cout << "script\tevent\tsequence\tstatus\tlevel\ttype\toverride\titem"
+                 "\tstandard\tstrength\tspecial\tcharges\tidentified\n";
+    for (const auto& entry : icons.entries()) {
+        if (!is_script(entry.name)) {
+            continue;
+        }
+        std::span<const std::byte> raw;
+        world::MapScript script;
+        if (icons.payload(entry.name, raw) != lod::LodArchive::PayloadError::None ||
+            world::MapScript::parse(raw, script) != world::MapScriptError::None) {
+            ++failures;
+            continue;
+        }
+        if (game::script_scope(entry.name) == "global.evt") {
+            game::ScriptItemState rewards;
+            game::ScriptItemGenerator generator{random_items, items, standard, special, rewards};
+            game::WalkState state;
+            const auto out =
+                game::walk_event(script, 426, state, -1, entry.name, nullptr, &generator);
+            const bool ok = out.ran && out.failed_items.empty() &&
+                            out.generated_items.size() == 1 && state.items.size() == 1 &&
+                            state.variables[24] == 3 && out.unsupported.size() == 1 &&
+                            out.unsupported.front().first == 2 &&
+                            out.unsupported.front().second == 42;
+            failures += ok ? 0 : 1;
+            std::cout << "FLOW\t" << entry.name << "\t426\t" << (ok ? "pass" : "fail")
+                      << "\trewards\t" << out.generated_items.size() << "\tremaining_opcode\t42\n";
+        }
+        for (const auto& step : script.steps()) {
+            if (step.opcode != world::kOpcodeGenerateItem) {
+                continue;
+            }
+            ++records;
+            std::cout << entry.name << '\t' << step.event_id << '\t'
+                      << static_cast<int>(step.sequence) << '\t';
+            const auto request = world::parse_script_item(step);
+            if (!request) {
+                ++short_records;
+                std::cout << "short\t-\t-\t-\t-\t-\t-\t-\t-\t-\n";
+                continue;
+            }
+            game::ScriptItemState state;
+            game::ScriptItemGenerator generator{random_items, items, standard, special, state};
+            const auto item = generator.generate(*request);
+            std::cout << (item ? "generated" : "failed") << '\t' << static_cast<int>(request->level)
+                      << '\t' << static_cast<int>(request->type) << '\t' << request->item_id;
+            if (!item || item->item_id <= 0 ||
+                items.at(static_cast<std::size_t>(item->item_id)) == nullptr) {
+                ++failures;
+                std::cout << "\t-\t-\t-\t-\t-\t-\n";
+                continue;
+            }
+            ++generated;
+            overrides += request->item_id != 0 ? 1 : 0;
+            std::cout << '\t' << item->item_id << '\t' << item->standard_bonus << '\t'
+                      << item->standard_bonus_strength << '\t' << item->special_bonus << '\t'
+                      << item->charges << '\t' << item->identified << '\n';
+        }
+    }
+    std::cout << "SUMMARY\trecords\t" << records << "\tshort\t" << short_records << "\tgenerated\t"
+              << generated << "\toverrides\t" << overrides << "\tfailures\t" << failures << '\n';
+    return records > 0 && failures == 0 ? 0 : 1;
 }
 
 // Metadata-only joins and direct suspension probes. The preceding text is a
@@ -2405,6 +2492,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--generated-items") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_generated_items(icons, *install / "data");
+    }
     if (stem == "--messages") {
         if (argc != 2) {
             print_usage(argv[0]);

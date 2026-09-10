@@ -170,12 +170,15 @@ The audit reduces the old sections to these bounded unknowns:
   shared scripts, and the authoring provenance of orphaned topic, face, and
   global events. These do not change the decoded opcode layouts.
 - [Event-script coverage](explanation/event-script-coverage.md): the census now
-  identifies 11 missing original handlers (411 records), separately from 415
+  identifies 10 missing original handlers (325 records), separately from 415
   original-default records. Opcode 13 is now observed and implemented as a
   placed-decoration descriptor/visibility update, with 97 valid records checked
   against loaded maps. Opcode 33 is observed and implemented as modal text with
   script suspension and resumption; all 88 records and three complete event
-  flows pass. Prioritize GLOBAL's 41, then 42. Original message-window styling,
+  flows pass. Opcode 41 generates rewards, with 80 complete records verified
+  and six short records retained in the census. Prioritize GLOBAL's 42 next.
+  Original cursor-item delivery, shared random ordering across subsystems,
+  message-window styling,
   cross-invocation stale text and external nested calls remain unverified.
   Exact effects behind inferred handler names and campaign reachability remain
   unproven. Four-byte Ask records in `LWSPIRAL` and `SPIRAL` need a reachability
