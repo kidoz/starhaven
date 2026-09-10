@@ -33,6 +33,21 @@ bool unwrap(std::span<const std::byte> entry, std::vector<std::uint8_t>& out) {
 
 }  // namespace
 
+std::optional<ObjectSpawnRequest> parse_object_spawn(const ScriptStep& step) {
+    if (step.opcode != kOpcodeSpawnObjects || step.arguments.size() < 22)
+        return std::nullopt;
+    io::ByteReader reader(std::as_bytes(std::span(step.arguments)));
+    ObjectSpawnRequest request;
+    request.object_id = reader.read_u32_le();
+    request.x = reader.read_i32_le();
+    request.y = reader.read_i32_le();
+    request.z = reader.read_i32_le();
+    request.speed = reader.read_i32_le();
+    request.count = reader.read_u8();
+    request.scatter = reader.read_u8() != 0;
+    return request;
+}
+
 std::optional<ScriptItemRequest> parse_script_item(const ScriptStep& step) {
     if (step.opcode != kOpcodeGenerateItem || step.arguments.size() < 6) {
         return std::nullopt;

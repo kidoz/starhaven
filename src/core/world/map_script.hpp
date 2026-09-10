@@ -85,6 +85,20 @@ struct FaceChange {
 };
 [[nodiscard]] std::optional<FaceChange> parse_face_bits(const ScriptStep& step);
 
+// Spawn sprite objects, not party travel: [object u32][x,y,z,speed i32]
+// [count u8][scatter u8]. Decoded for the audit; runtime dispatch is still open.
+inline constexpr std::uint8_t kOpcodeSpawnObjects = 34;
+struct ObjectSpawnRequest {
+    std::uint32_t object_id = 0;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+    std::int32_t z = 0;
+    std::int32_t speed = 0;
+    std::uint8_t count = 0;
+    bool scatter = false;
+};
+[[nodiscard]] std::optional<ObjectSpawnRequest> parse_object_spawn(const ScriptStep& step);
+
 // Generate a reward, then optionally replace only its item id.
 inline constexpr std::uint8_t kOpcodeGenerateItem = 41;
 struct ScriptItemRequest {

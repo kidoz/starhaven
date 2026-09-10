@@ -513,3 +513,10 @@ test('script_faces',
     dependencies: [starhaven_dep, catch2_main],
   ),
 )
+
+# Opcode 34 decoding and independent descriptor/item ID spaces.
+test('script_objects',
+  executable('test_script_objects', 'test_script_objects.cpp',
+    dependencies: [starhaven_dep, catch2_main],
+  ),
+)
