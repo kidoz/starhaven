@@ -44,6 +44,17 @@ std::optional<ScriptItemRequest> parse_script_item(const ScriptStep& step) {
     return ScriptItemRequest{level, type, item};
 }
 
+std::optional<FaceChange> parse_face_bits(const ScriptStep& step) {
+    if (step.opcode != kOpcodeSetFaceBits || step.arguments.size() < 9)
+        return std::nullopt;
+    io::ByteReader reader(std::as_bytes(std::span(step.arguments)));
+    FaceChange change;
+    change.index = reader.read_u32_le();
+    change.mask = reader.read_u32_le();
+    change.set = reader.read_u8() != 0;
+    return change;
+}
+
 std::optional<std::uint32_t> parse_decoration_event(const ScriptStep& step) {
     if (step.opcode != kOpcodeSetDecorationEvent || step.arguments.size() < 4) {
         return std::nullopt;

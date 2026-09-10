@@ -26,6 +26,8 @@ ScriptOpcodeCoverage script_opcode_coverage(std::uint8_t opcode) {
         return {"Chest", Handled, 1};
     case kOpcodeHarm:
         return {"Harm", Handled, 6};
+    case kOpcodeSetFaceBits:
+        return {"SetFaceBits", Handled, 9};
     case kOpcodeRetexture:
         return {"Retexture", Handled, 5};
     case kOpcodeSetDecoration:

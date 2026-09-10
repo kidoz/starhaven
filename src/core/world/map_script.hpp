@@ -75,6 +75,16 @@ inline constexpr std::uint8_t kOpcodeHeader = 4;
 // thrown lever is drawn thrown. Reproduce with `evt_info --textures`.
 inline constexpr std::uint8_t kOpcodeRetexture = 11;
 
+// Change an indoor face's attribute bits: [index i32][mask u32][set u8].
+inline constexpr std::uint8_t kOpcodeSetFaceBits = 23;
+struct FaceChange {
+    std::uint32_t index = 0;
+    std::uint32_t mask = 0;
+    bool set = false;
+    std::string texture;  // nonempty for opcode 11, otherwise opcode 23
+};
+[[nodiscard]] std::optional<FaceChange> parse_face_bits(const ScriptStep& step);
+
 // Generate a reward, then optionally replace only its item id.
 inline constexpr std::uint8_t kOpcodeGenerateItem = 41;
 struct ScriptItemRequest {

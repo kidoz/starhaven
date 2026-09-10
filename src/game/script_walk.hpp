@@ -109,6 +109,7 @@ struct WalkOutcome {
 
     // Faces to re-texture: a thrown switch is drawn thrown.
     std::vector<std::pair<std::uint32_t, std::string>> retextures;
+    std::vector<world::FaceChange> faces;  // attribute changes and repaints, in execution order
     std::vector<world::DecorationChange> decorations;
 
     // Doors to move: the id opcode 15 throws, and its state byte — 0 shuts,
@@ -175,10 +176,10 @@ struct WalkOutcome {
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
                building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
-               !decorations.empty() || !failed_decorations.empty() || !generated_items.empty() ||
-               !failed_items.empty() || !doors.empty() || !summons.empty() || !launches.empty() ||
-               ask.has_value() || message.has_value() || !harms.empty() || gold_found != 0 ||
-               healed_hp != 0 || healed_sp != 0 ||
+               !faces.empty() || !decorations.empty() || !failed_decorations.empty() ||
+               !generated_items.empty() || !failed_items.empty() || !doors.empty() ||
+               !summons.empty() || !launches.empty() || ask.has_value() || message.has_value() ||
+               !harms.empty() || gold_found != 0 || healed_hp != 0 || healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
@@ -497,6 +498,10 @@ walk_event(const world::MapScript& script, std::uint16_t id, WalkState& state, i
                 out.doors.emplace_back(a[0], a[1]);
             }
             break;
+        case world::kOpcodeSetFaceBits:
+            if (auto change = world::parse_face_bits(step))
+                out.faces.push_back(std::move(*change));
+            break;
         case world::kOpcodeRetexture: {
             if (a.size() < 5) {
                 break;
@@ -510,6 +515,7 @@ walk_event(const world::MapScript& script, std::uint16_t id, WalkState& state, i
                 texture += static_cast<char>(a[i]);
             }
             if (!texture.empty()) {
+                out.faces.push_back({face, 0, false, texture});
                 out.retextures.emplace_back(face, std::move(texture));
             }
             break;

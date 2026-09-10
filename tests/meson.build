@@ -506,3 +506,10 @@ test('decoration_events',
     dependencies: [starhaven_dep, catch2_main],
   ),
 )
+
+# Indoor face masks, collision, animation selection and persistence.
+test('script_faces',
+  executable('test_script_faces', 'test_script_faces.cpp',
+    dependencies: [starhaven_dep, catch2_main],
+  ),
+)

@@ -205,7 +205,7 @@ inline constexpr float kUseRange = 512.0f;
             continue;
         }
         const auto& face = session.blv.faces[extra.face_index];
-        if (face.vertex_ids.empty()) {
+        if (face.invisible() || face.ethereal() || face.vertex_ids.empty()) {
             continue;
         }
         // The face's own centre is enough: a door is small and the party has
