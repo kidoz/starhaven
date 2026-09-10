@@ -33,6 +33,17 @@ bool unwrap(std::span<const std::byte> entry, std::vector<std::uint8_t>& out) {
 
 }  // namespace
 
+std::optional<ScriptItemRequest> parse_script_item(const ScriptStep& step) {
+    if (step.opcode != kOpcodeGenerateItem || step.arguments.size() < 6) {
+        return std::nullopt;
+    }
+    io::ByteReader reader(std::as_bytes(std::span(step.arguments)));
+    const auto level = reader.read_u8();
+    const auto type = reader.read_u8();
+    const auto item = reader.read_u32_le();
+    return ScriptItemRequest{level, type, item};
+}
+
 std::optional<DecorationChange> parse_decoration_change(const ScriptStep& step) {
     if (step.opcode != kOpcodeSetDecoration || step.arguments.size() < 6) {
         return std::nullopt;

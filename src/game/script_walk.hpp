@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "core/world/map_script.hpp"
+#include "game/script_items.hpp"
 
 namespace starhaven::game {
 
@@ -96,10 +97,13 @@ struct WalkOutcome {
     // dialogue rather than running through it. At most one of each per event.
     int title = -1;
     int name = -1;
-    std::vector<int> given;      // item ids that entered the packs
-    std::vector<int> taken;      // item ids that left them
-    std::uint32_t building = 0;  // a counter to open, or 0
-    int chest = -1;              // a chest to open, or -1
+    std::vector<data::GeneratedItem> generated_items;
+    std::vector<ScriptItemChange> item_changes;  // grants and takes in execution order
+    std::vector<std::uint8_t> failed_items;      // generation service/data errors, by sequence
+    std::vector<int> given;                      // item ids that entered the packs
+    std::vector<int> taken;                      // item ids that left them
+    std::uint32_t building = 0;                  // a counter to open, or 0
+    int chest = -1;                              // a chest to open, or -1
     std::optional<world::MapTravel> travel;
 
     // Faces to re-texture: a thrown switch is drawn thrown.
@@ -170,9 +174,10 @@ struct WalkOutcome {
     [[nodiscard]] bool acted() const noexcept {
         return !said.empty() || title >= 0 || name >= 0 || !given.empty() || !taken.empty() ||
                building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
-               !decorations.empty() || !doors.empty() || !summons.empty() || !launches.empty() ||
-               ask.has_value() || message.has_value() || !harms.empty() || gold_found != 0 ||
-               healed_hp != 0 || healed_sp != 0 ||
+               !decorations.empty() || !generated_items.empty() || !failed_items.empty() ||
+               !doors.empty() || !summons.empty() || !launches.empty() || ask.has_value() ||
+               message.has_value() || !harms.empty() || gold_found != 0 || healed_hp != 0 ||
+               healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
@@ -194,7 +199,8 @@ struct WalkOutcome {
 [[nodiscard]] inline WalkOutcome walk_event(const world::MapScript& script, std::uint16_t id,
                                             WalkState& state, int resume_at = -1,
                                             std::string_view script_name = {},
-                                            WalkPresentation* presentation = nullptr) {
+                                            WalkPresentation* presentation = nullptr,
+                                            ScriptItemGenerator* item_generator = nullptr) {
     WalkOutcome out;
     WalkPresentation transient;
     auto& text = presentation != nullptr ? *presentation : transient;
@@ -301,10 +307,13 @@ struct WalkOutcome {
                         it != state.items.end()) {
                         state.items.erase(it);
                         out.taken.push_back(value);
+                        out.item_changes.push_back({data::GeneratedItem{.item_id = value}, true});
                     }
                 } else {
                     state.items.push_back(value);
                     out.given.push_back(value);
+                    out.item_changes.push_back(
+                        {data::GeneratedItem{.item_id = value, .identified = true}, false});
                 }
                 break;
             case world::kVarGold:
@@ -504,6 +513,19 @@ struct WalkOutcome {
             }
             break;
         }
+        case world::kOpcodeGenerateItem:
+            if (const auto request = world::parse_script_item(step)) {
+                const auto item =
+                    item_generator != nullptr ? item_generator->generate(*request) : std::nullopt;
+                if (!item) {
+                    out.failed_items.push_back(step.sequence);
+                } else if (item->item_id > 0) {
+                    state.items.push_back(item->item_id);
+                    out.generated_items.push_back(*item);
+                    out.item_changes.push_back({*item, false});
+                }
+            }
+            break;
         case world::kOpcodeSetDecoration:
             if (auto change = world::parse_decoration_change(step)) {
                 out.decorations.push_back(std::move(*change));

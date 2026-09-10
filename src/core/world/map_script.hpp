@@ -75,6 +75,15 @@ inline constexpr std::uint8_t kOpcodeHeader = 4;
 // thrown lever is drawn thrown. Reproduce with `evt_info --textures`.
 inline constexpr std::uint8_t kOpcodeRetexture = 11;
 
+// Generate a reward, then optionally replace only its item id.
+inline constexpr std::uint8_t kOpcodeGenerateItem = 41;
+struct ScriptItemRequest {
+    std::uint8_t level = 0;
+    std::uint8_t type = 0;
+    std::uint32_t item_id = 0;
+};
+[[nodiscard]] std::optional<ScriptItemRequest> parse_script_item(const ScriptStep& step);
+
 // Set a placed decoration's descriptor and visibility. See map-events.md.
 inline constexpr std::uint8_t kOpcodeSetDecoration = 13;
 

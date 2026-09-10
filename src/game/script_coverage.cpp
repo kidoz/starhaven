@@ -62,6 +62,8 @@ ScriptOpcodeCoverage script_opcode_coverage(std::uint8_t opcode) {
         return {"Goto", Handled, 1};
     case kOpcodeSetTopic:
         return {"SetTopic", Handled, 9};
+    case kOpcodeGenerateItem:
+        return {"GenerateItem", Handled, 6};
     case kOpcodeMoveNpc:
         return {"MoveNpc", Handled, 8};
     default:

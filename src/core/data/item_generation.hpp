@@ -267,6 +267,8 @@ struct GeneratedItem {
     int special_bonus = 0;
     int charges = 0;
     bool identified = false;
+
+    friend bool operator==(const GeneratedItem&, const GeneratedItem&) = default;
 };
 
 enum class ItemGenerationError : std::uint8_t {

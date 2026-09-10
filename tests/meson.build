@@ -493,3 +493,9 @@ test('script_message',
     dependencies : [starhaven_dep, catch2_main]),
   workdir : meson.current_build_dir(),
 )
+
+test('script_items',
+  executable('test_script_items', 'test_script_items.cpp',
+    dependencies : [starhaven_dep, catch2_main]),
+  workdir : meson.current_build_dir(),
+)
