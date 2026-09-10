@@ -2911,6 +2911,9 @@ int main(int argc, char** argv) {
     // The event walker's memory: quest bits and event variables, which are
     // the party's rather than any map's, so they survive travelling.
     game::WalkState script_state;
+    game::ScriptItemState script_item_state;
+    game::ScriptItemGenerator script_item_generator{random_items, item_stats, standard_bonuses,
+                                                    special_bonuses, script_item_state};
     if (seed_start) {
         script_state.bits.insert(81);
         (void)packs[0].add(505, 2, 2);  // The Letter, at its scroll art's size
@@ -3510,35 +3513,6 @@ int main(int argc, char** argv) {
         return true;
     };
 
-    // A walked event's gives and takes, shared by using a face and talking
-    // to a quest giver. Giving returns the item's name for the message line,
-    // or nothing when no pack had room.
-    const auto give_item = [&](int id) -> std::string {
-        const auto* row = item_stats.at(static_cast<std::size_t>(id));
-        if (row == nullptr) {
-            return {};
-        }
-        const render::Texture& icon = cache.icon(row->picture);
-        const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
-        const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
-        for (auto& pack : packs) {
-            if (pack.add(id, w, h)) {
-                return data::cp1252_to_utf8(row->name);
-            }
-        }
-        return {};
-    };
-    const auto take_item = [&](int id) {
-        for (auto& pack : packs) {
-            for (const auto& carried : pack.items()) {
-                if (carried.item_id == id) {
-                    pack.remove(carried.x, carried.y);
-                    return;
-                }
-            }
-        }
-    };
-
     // Lift what a cure spell names from whoever suffers it first. Dead,
     // Stone and Eradicated stay a temple's business, the cures' own prose
     // sending them there. Returns the message, or nothing when nobody
@@ -3941,6 +3915,10 @@ int main(int argc, char** argv) {
 
     const auto report_script_gaps = [](const game::WalkOutcome& outcome, std::string_view script,
                                        int event_id) {
+        for (const auto sequence : outcome.failed_items) {
+            std::cerr << "warning: item generation failed in " << script << " event " << event_id
+                      << " step " << static_cast<int>(sequence) << '\n';
+        }
         for (const auto& [sequence, opcode] : outcome.unsupported) {
             std::cerr << "warning: unsupported script opcode " << static_cast<int>(opcode) << " in "
                       << script << " event " << event_id << " step " << static_cast<int>(sequence)
@@ -4153,6 +4131,7 @@ int main(int argc, char** argv) {
             beacons.push_back({beacon.map, {beacon.x, beacon.y, beacon.z}, beacon.until});
         }
         note_town();
+        script_item_state = pending_load.script_items;
         script_state.bits = pending_load.bits;
         script_state.resolved_quests = pending_load.resolved_quests;
         script_state.disabled_events = pending_load.disabled_events;
@@ -5005,6 +4984,7 @@ int main(int argc, char** argv) {
                     state.beacons.push_back(
                         {beacon.map, beacon.at.x, beacon.at.y, beacon.at.z, beacon.until});
                 }
+                state.script_items = script_item_state;
                 state.bits = script_state.bits;
                 state.resolved_quests = script_state.resolved_quests;
                 state.disabled_events = script_state.disabled_events;
@@ -7228,10 +7208,14 @@ int main(int argc, char** argv) {
                     script_state.items.push_back(carried.item_id);
                 }
             }
+            for (const auto& item : script_item_state.pending) {
+                script_state.items.push_back(item.item_id);
+            }
             const bool local = !request.global;
             const game::WalkOutcome outcome = game::walk_event(
                 local ? session.script : global_script, request.event, script_state,
-                request.sequence, local ? session.file_name : "GLOBAL.EVT", &presentation);
+                request.sequence, local ? session.file_name : "GLOBAL.EVT", &presentation,
+                &script_item_generator);
             report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", request.event);
             apply_decorations(outcome);
             walk_from = -1;
@@ -7279,14 +7263,10 @@ int main(int argc, char** argv) {
                 pending_round = false;
             }
 
-            // What it handed over, and what it asked for.
-            for (const int id : outcome.given) {
-                if (const std::string name = give_item(id); !name.empty()) {
-                    said_text += (said_text.empty() ? "You receive " : "  You receive ") + name;
-                }
-            }
-            for (const int id : outcome.taken) {
-                take_item(id);
+            game::apply_script_items(outcome.item_changes, packs, script_item_state, item_stats);
+            if (!outcome.failed_items.empty()) {
+                said_text += (said_text.empty() ? "" : "  ") +
+                             std::string("An item reward could not be created.");
             }
 
             // A thrown switch is drawn thrown: the event names a face and
@@ -7773,6 +7753,32 @@ int main(int argc, char** argv) {
             }
         }
         if (!message_paused && !script_message.active()) {
+            for (auto it = script_item_state.pending.begin();
+                 it != script_item_state.pending.end();) {
+                const auto* row = item_stats.at(static_cast<std::size_t>(it->item_id));
+                if (row == nullptr) {
+                    ++it;
+                    continue;
+                }
+                const auto& icon = cache.icon(row->picture);
+                const int width = std::max(1, game::cells_across(icon.width()));
+                const int height = std::max(1, game::cells_across(icon.height()));
+                if (game::deliver_script_item(*it, width, height, packs)) {
+                    std::string name =
+                        row->unidentified_name.empty() ? row->name : row->unidentified_name;
+                    if (it->identified) {
+                        name = game::enchanted_name(
+                            row->name,
+                            standard_bonuses.at(static_cast<std::size_t>(it->standard_bonus)),
+                            special_bonuses.at(static_cast<std::size_t>(it->special_bonus)));
+                    }
+                    pick_up_message = "You receive " + data::cp1252_to_utf8(name);
+                    pick_up_shown = SDL_GetTicks();
+                    it = script_item_state.pending.erase(it);
+                } else {
+                    ++it;
+                }
+            }
             if (const auto taken =
                     game::take_nearby(session, item_stats, cache, camera.position, packs);
                 !taken.empty()) {
@@ -8463,6 +8469,13 @@ int main(int argc, char** argv) {
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }
 
+        if (!script_item_state.pending.empty() && startup.world_active()) {
+            const int notice_y = shown_pack >= 0 ? 24 + font.height() + 1 : kHeight - 34;
+            game::draw_text(scene.framebuffer(), font, 12, notice_y,
+                            "Rewards waiting for pack space: " +
+                                std::to_string(script_item_state.pending.size()),
+                            render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
+        }
         game::draw_script_message(scene.framebuffer(), font, script_message);
 
         SDL_UpdateTexture(screen, nullptr, scene.framebuffer().color().data(), kWidth * 4);
