@@ -61,6 +61,7 @@
 #include "game/rest.hpp"
 #include "game/save.hpp"
 #include "game/save_repository.hpp"
+#include "game/script_message_view.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/skills.hpp"
@@ -2325,6 +2326,8 @@ int main(int argc, char** argv) {
     int ask_event = -1;           // the event whose question awaits an answer
     game::WalkOutcome::Ask ask_pending;
     std::string ask_typed;
+    game::ScriptMessage script_message;
+    std::optional<game::ScriptContinuation> queued_script;
     bool show_boxes = false;
     bool fly = false;
     bool music_wanted = true;
@@ -3997,6 +4000,8 @@ int main(int argc, char** argv) {
         talking_to = -1;
         shop_stock.clear();
         shop_said.clear();
+        script_message.clear();
+        queued_script.reset();
         opened_chests.clear();
         mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
         battle.reset(session, monster_stats,
@@ -4530,6 +4535,23 @@ int main(int argc, char** argv) {
                 ambient.stop_room();
                 (void)startup.dispatch(game::StartupAction::Quit);
                 running = false;
+            } else if (script_message.active()) {
+                // A modal owns the entire input batch, including Escape and saves.
+                if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+                    const auto key = event.key.key;
+                    if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_ESCAPE) {
+                        script_message.dismiss();
+                    } else if (key == SDLK_UP || key == SDLK_PAGEUP) {
+                        script_message.scroll = std::max(0, script_message.scroll - 1);
+                    } else if (key == SDLK_DOWN || key == SDLK_PAGEDOWN) {
+                        ++script_message.scroll;
+                    }
+                } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                           event.button.button == SDL_BUTTON_LEFT) {
+                    script_message.dismiss();
+                }
+            } else if (queued_script) {
+                // Dispatch the selected NPC event before accepting another action.
             } else if (startup.media_active() && (event.type == SDL_EVENT_KEY_DOWN ||
                                                   event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
                 // Keyboard and mouse use the same one-reel skip operation.
@@ -5548,40 +5570,14 @@ int main(int argc, char** argv) {
                             game::topic_id(person, dialogue, static_cast<std::size_t>(chosen));
                         talk_answer.clear();
                         if (id > 0 && global_script.defines(static_cast<std::uint16_t>(id))) {
-                            script_state.gold = gold;
-                            script_state.food = party_food;
-                            script_state.items.clear();
-                            for (const auto& pack : packs) {
-                                for (const auto& carried : pack.items()) {
-                                    script_state.items.push_back(carried.item_id);
-                                }
-                            }
-                            const game::WalkOutcome outcome =
-                                game::walk_event(global_script, static_cast<std::uint16_t>(id),
-                                                 script_state, -1, "GLOBAL.EVT");
-                            report_script_gaps(outcome, "GLOBAL.EVT", id);
-                            apply_decorations(outcome);
-                            gold = script_state.gold;
-                            if (const std::string rewards = reward_note(outcome);
-                                !rewards.empty()) {
-                                talk_answer += (talk_answer.empty() ? "" : "  ") + rewards;
-                            }
-                            for (const int index : outcome.said) {
-                                if (const auto* entry = dialogue.at(index); entry != nullptr) {
-                                    talk_answer += (talk_answer.empty() ? "" : "  ") +
-                                                   data::cp1252_to_utf8(entry->text);
-                                }
-                            }
-                            for (const int given : outcome.given) {
-                                if (const std::string name = give_item(given); !name.empty()) {
-                                    talk_answer +=
-                                        (talk_answer.empty() ? "You receive " : "  You receive ") +
-                                        name;
-                                }
-                            }
-                            for (const int taken : outcome.taken) {
-                                take_item(taken);
-                            }
+                            queued_script = game::ScriptContinuation{
+                                session.file_name,
+                                static_cast<std::uint16_t>(id),
+                                -1,
+                                true,
+                                true,
+                                {},
+                            };
                         }
                         if (talk_answer.empty()) {
                             talk_answer = game::topic_answer(person, dialogue,
@@ -6676,7 +6672,8 @@ int main(int argc, char** argv) {
         in.right = startup.world_active() && keys[SDL_SCANCODE_D];
         in.down = startup.world_active() && keys[SDL_SCANCODE_Q];
         in.up = startup.world_active() && keys[SDL_SCANCODE_E];
-        in.dt = startup.world_active() ? in.dt : 0.0f;
+        const bool message_paused = script_message.active() || queued_script.has_value();
+        in.dt = startup.world_active() && !message_paused ? in.dt : 0.0f;
         // AlwaysRun from the install's own ini: shift walks instead.
         const bool shifted = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
         const bool running_now = ini_always_run ? !shifted : shifted;
@@ -6684,8 +6681,8 @@ int main(int argc, char** argv) {
 
         // Footfalls: the ground's own Walk/Run sound at a walking cadence
         // while the party moves in the world. The cadence is the engine's.
-        if (startup.world_active() && open_shop < 0 && shown_member < 0 && shown_pack < 0 &&
-            book_member < 0 && !rest_screen && mouse_look &&
+        if (startup.world_active() && !message_paused && open_shop < 0 && shown_member < 0 &&
+            shown_pack < 0 && book_member < 0 && !rest_screen && mouse_look &&
             (in.forward || in.back || in.left || in.right)) {
             step_timer -= in.dt > 0.0f ? in.dt : 0.0f;
             if (step_timer <= 0.0f) {
@@ -6706,7 +6703,7 @@ int main(int argc, char** argv) {
                           [&](float x, float z) { return session.terrain_height_at(x, z); });
 
         // And monsters block the party, the way the party blocks them.
-        if (startup.world_active() && !fly_now) {
+        if (startup.world_active() && !message_paused && !fly_now) {
             for (std::size_t i = 0; i < session.actors.size(); ++i) {
                 if (!battle.alive(i)) {
                     continue;
@@ -6773,10 +6770,10 @@ int main(int argc, char** argv) {
         }
         // Real time flows every frame; turn-based time flows only when a
         // round is owed, one quantum at a time.
-        const float sim_dt = startup.world_active()
+        const float sim_dt = startup.world_active() && !message_paused
                                  ? (turn_based ? (pending_round ? kRoundSeconds : 0.0f) : in.dt)
                                  : 0.0f;
-        if (turn_based && pending_round) {
+        if (turn_based && pending_round && !message_paused) {
             ++hourglass_turn;
         }
         pending_round = false;
@@ -6923,7 +6920,7 @@ int main(int argc, char** argv) {
             for (const auto& member : party) {
                 anyone = anyone || member.hit_points > 0;
             }
-            if (!anyone) {
+            if (!anyone && !message_paused) {
                 clock.advance_hours(7 * game::kHoursPerDay);
                 reputation -= 10;
                 for (auto& member : party) {
@@ -7027,7 +7024,7 @@ int main(int argc, char** argv) {
         // rolls new groups at them — the day salts the seed, so each refill
         // is its own — and one that ships placed monsters stands them back
         // up.
-        if (clock.day() >= next_refill) {
+        if (!message_paused && clock.day() >= next_refill) {
             if (!session.monster_spawns.empty()) {
                 world::respawn_monsters(monster_stats, cache,
                                         static_cast<std::uint32_t>(session.map_id) * 2654435761U +
@@ -7204,7 +7201,24 @@ int main(int argc, char** argv) {
             smoke_event = -1;
             smoke_event_ran = true;
         }
-        if (want_strike && aimed.found()) {
+        if (auto resumed = script_message.take_resume(session.file_name)) {
+            queued_script = std::move(resumed);
+        }
+        if (queued_script &&
+            game::script_scope(queued_script->map) != game::script_scope(session.file_name)) {
+            queued_script.reset();
+        }
+        if (queued_script || (!script_message.active() && want_strike && aimed.found())) {
+            const auto request = queued_script.value_or(game::ScriptContinuation{
+                session.file_name,
+                aimed.event_id,
+                walk_from,
+                !session.script.defines(aimed.event_id),
+                false,
+                {},
+            });
+            queued_script.reset();
+            auto presentation = request.presentation;
             // The walker's view of the purse and the packs.
             script_state.gold = gold;
             script_state.food = party_food;
@@ -7214,11 +7228,11 @@ int main(int argc, char** argv) {
                     script_state.items.push_back(carried.item_id);
                 }
             }
-            const bool local = session.script.defines(aimed.event_id);
-            const game::WalkOutcome outcome =
-                game::walk_event(local ? session.script : global_script, aimed.event_id,
-                                 script_state, walk_from, local ? session.file_name : "GLOBAL.EVT");
-            report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", aimed.event_id);
+            const bool local = !request.global;
+            const game::WalkOutcome outcome = game::walk_event(
+                local ? session.script : global_script, request.event, script_state,
+                request.sequence, local ? session.file_name : "GLOBAL.EVT", &presentation);
+            report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", request.event);
             apply_decorations(outcome);
             walk_from = -1;
             gold = script_state.gold;
@@ -7243,6 +7257,26 @@ int main(int argc, char** argv) {
                 if (!text.empty()) {
                     said_text += (said_text.empty() ? "" : "  ") + text;
                 }
+            }
+
+            if (outcome.message) {
+                std::string text;
+                const int index = outcome.message->text;
+                if (local && index >= 0 &&
+                    static_cast<std::size_t>(index) < session.script_strings.size()) {
+                    text = data::cp1252_to_utf8(
+                        session.script_strings.at(static_cast<std::size_t>(index)));
+                } else if (!local) {
+                    if (const auto* entry = dialogue.at(index)) {
+                        text = data::cp1252_to_utf8(entry->text);
+                    }
+                }
+                auto continuation = request;
+                continuation.sequence = outcome.message->resume_at;
+                continuation.presentation = presentation;
+                script_message.show(std::move(continuation), std::move(text));
+                want_strike = false;
+                pending_round = false;
             }
 
             // What it handed over, and what it asked for.
@@ -7320,7 +7354,7 @@ int main(int argc, char** argv) {
             }
             // A question stops the walk and waits at the message line.
             if (outcome.ask && local) {
-                ask_event = aimed.event_id;
+                ask_event = request.event;
                 ask_pending = *outcome.ask;
                 ask_typed.clear();
             }
@@ -7498,6 +7532,9 @@ int main(int argc, char** argv) {
 
             if (!rewards.empty()) {
                 said_text += (said_text.empty() ? "" : "  ") + rewards;
+            }
+            if (request.npc_dialogue && !said_text.empty()) {
+                talk_answer = said_text;
             }
             if (!said_text.empty()) {
                 pick_up_message = said_text;
@@ -7735,11 +7772,13 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        if (const auto taken =
-                game::take_nearby(session, item_stats, cache, camera.position, packs);
-            !taken.empty()) {
-            pick_up_message = taken;
-            pick_up_shown = SDL_GetTicks();
+        if (!message_paused && !script_message.active()) {
+            if (const auto taken =
+                    game::take_nearby(session, item_stats, cache, camera.position, packs);
+                !taken.empty()) {
+                pick_up_message = taken;
+                pick_up_shown = SDL_GetTicks();
+            }
         }
         // A new month wipes the kill book; the hall posts a fresh head.
         {
@@ -8423,6 +8462,8 @@ int main(int argc, char** argv) {
             game::draw_text(scene.framebuffer(), font, 12, 12, session.title(),
                             render::Color{255, 236, 170, 255}, render::Color{0, 0, 0, 255});
         }
+
+        game::draw_script_message(scene.framebuffer(), font, script_message);
 
         SDL_UpdateTexture(screen, nullptr, scene.framebuffer().color().data(), kWidth * 4);
         SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);

@@ -62,6 +62,11 @@ Version 3 additionally preserves per-map decoration changes from
 [opcode 13](../formats/map-events.md#opcode-13-changes-a-placed-decoration).
 Version-1 and version-2 saves remain readable, with no decoration overrides.
 
+[Opcode 33](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
+pauses an event for modal text. Save/load shortcuts are held until dismissal;
+the continuation is transient. Rewards and journal changes after the message
+are applied only when the event resumes, then use the existing save fields.
+
 Complete version-1 saves remain readable. They did not record these fields,
 so their histories start empty. Earlier quest resolutions cannot safely be
 reconstructed from active bits: an absent bit could mean either finished or

@@ -92,6 +92,7 @@ starhaven_core_sources = files(
   'src/game/completion.cpp',
   'src/game/script_coverage.cpp',
   'src/game/script_decorations.cpp',
+  'src/game/script_message_view.cpp',
 )
 
 starhaven_core = static_library('starhaven_core',
