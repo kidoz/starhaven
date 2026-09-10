@@ -20,6 +20,7 @@ nav:
   - Explanations:
       - Startup journey: explanation/startup-journey.md
       - Campaign completion: explanation/campaign-completion.md
+      - Event-script coverage: explanation/event-script-coverage.md
   - File formats:
       - LOD archives: formats/lod.md
       - Games.lod: formats/games-lod.md

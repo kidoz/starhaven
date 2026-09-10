@@ -7,6 +7,7 @@
 #include <map>
 #include <span>
 #include <string>
+#include <string_view>
 
 #include "core/data/building_stats.hpp"
 #include "core/data/game_data.hpp"
@@ -15,6 +16,7 @@
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
+#include "game/script_coverage.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/travel.hpp"
@@ -30,9 +32,11 @@
 namespace {
 
 void print_usage(const char* argv0) {
-    std::cerr << "Usage: " << argv0 << " <--scan | <map stem> [event]>\n"
+    std::cerr << "Usage: " << argv0 << " <--scan | --coverage [--strict] | <map stem> [event]>\n"
               << "\n"
               << "Prints a map's .EVT script and .STR strings from icons.lod.\n"
+              << "  --coverage [--strict]  metadata-only TSV dispatch audit of every .EVT;\n"
+              << "           --strict also fails on unsupported or short-argument records\n"
               << "\n"
               << "  --actor-timers  every map's actor block, at the three\n"
               << "           64-bit fields the AI reads and nothing writes\n"
@@ -2116,6 +2120,11 @@ int main(int argc, char** argv) {
         print_usage(argv[0]);
         return 2;
     }
+    if (std::string_view(argv[1]) == "--coverage" && argc == 3 &&
+        std::string_view(argv[2]) != "--strict") {
+        print_usage(argv[0]);
+        return 2;
+    }
     namespace lod = starhaven::lod;
     namespace world = starhaven::world;
 
@@ -2131,6 +2140,15 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--coverage") {
+        const auto coverage = starhaven::game::audit_script_coverage(icons);
+        starhaven::game::write_script_coverage(coverage, std::cout);
+        if (!coverage.complete()) {
+            std::cerr << "error: incomplete script audit; see SCRIPT rows (or no .EVT entries)\n";
+            return 1;
+        }
+        return argc == 3 && coverage.has_gaps() ? 1 : 0;
+    }
     if (stem == "--scan") {
         return do_scan(icons);
     }
