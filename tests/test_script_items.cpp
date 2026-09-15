@@ -286,3 +286,86 @@ TEST_CASE("reward saves reject invalid state transactionally and accept older ve
         REQUIRE(loaded.gold == 999);
     }
 }
+
+TEST_CASE("claimed chest rewards survive full packs and save reload without duplication",
+          "[script-items][chests]") {
+    std::array<Pack, 4> packs;
+    for (auto& pack : packs) {
+        REQUIRE(pack.add(9, kPackWidth, kPackHeight));
+    }
+    const std::vector<GeneratedItem> contents{{2, 1, 3, 5, 27, false}, {1, 0, 0, 0, 0, true}};
+    std::set<int> opened;
+    ScriptItemState rewards;
+    REQUIRE(claim_chest_items(7, contents, opened, rewards));
+    REQUIRE(opened.contains(7));
+    for (const auto& item : rewards.pending) {
+        REQUIRE_FALSE(deliver_script_item(item, 2, 3, packs));
+    }
+    REQUIRE(rewards.pending == contents);
+    REQUIRE_FALSE(claim_chest_items(7, contents, opened, rewards));
+    REQUIRE(rewards.pending == contents);
+
+    SaveState saved;
+    saved.map_file = "Synthetic.blv";
+    saved.script_items = rewards;
+    saved.opened_chests.assign(opened.begin(), opened.end());
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    opened = {loaded.opened_chests.begin(), loaded.opened_chests.end()};
+    REQUIRE_FALSE(claim_chest_items(7, contents, opened, loaded.script_items));
+    REQUIRE(loaded.script_items.pending == contents);
+
+    packs[2].clear();
+    for (const auto& item : loaded.script_items.pending) {
+        REQUIRE(deliver_script_item(item, 2, 3, packs));
+    }
+    REQUIRE(packs[2].items().size() == 2);
+    const auto& received = packs[2].items().front();
+    REQUIRE(received.standard_bonus == contents[0].standard_bonus);
+    REQUIRE(received.standard_strength == contents[0].standard_bonus_strength);
+    REQUIRE(received.special_bonus == contents[0].special_bonus);
+    REQUIRE(received.charges == contents[0].charges);
+    REQUIRE(received.identified == contents[0].identified);
+}
+
+TEST_CASE("a partially delivered chest retains only its undelivered items",
+          "[script-items][chests]") {
+    std::array<Pack, 1> packs;
+    const std::vector<GeneratedItem> contents{{1}, {2}};
+    std::set<int> opened;
+    ScriptItemState rewards;
+    REQUIRE(claim_chest_items(4, contents, opened, rewards));
+    REQUIRE(deliver_script_item(rewards.pending.front(), kPackWidth, kPackHeight, packs));
+    rewards.pending.erase(rewards.pending.begin());
+    REQUIRE_FALSE(deliver_script_item(rewards.pending.front(), 1, 1, packs));
+    REQUIRE_FALSE(claim_chest_items(4, contents, opened, rewards));
+    REQUIRE(rewards.pending == std::vector<GeneratedItem>{contents[1]});
+    REQUIRE(packs[0].items().size() == 1);
+    REQUIRE_FALSE(claim_chest_items(-1, contents, opened, rewards));
+}
+
+TEST_CASE("a quest can consume a waiting chest item without regenerating it after reload",
+          "[script-items][chests]") {
+    const Tables tables;
+    std::array<Pack, 1> packs;
+    REQUIRE(packs[0].add(9, kPackWidth, kPackHeight));
+    const std::vector<GeneratedItem> contents{{2}};
+    std::set<int> opened;
+    ScriptItemState rewards;
+    REQUIRE(claim_chest_items(7, contents, opened, rewards));
+    REQUIRE_FALSE(deliver_script_item(contents[0], 1, 1, packs));
+    const std::array<ScriptItemChange, 1> payment{{{contents[0], true}}};
+    apply_script_items(payment, packs, rewards, tables.items);
+    REQUIRE(rewards.pending.empty());
+    SaveState saved;
+    saved.map_file = "Synthetic.blv";
+    saved.script_items = rewards;
+    saved.opened_chests.assign(opened.begin(), opened.end());
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    opened = {loaded.opened_chests.begin(), loaded.opened_chests.end()};
+    REQUIRE_FALSE(claim_chest_items(7, contents, opened, loaded.script_items));
+    REQUIRE(loaded.script_items.pending.empty());
+    REQUIRE(packs[0].items().size() == 1);
+    REQUIRE(packs[0].items().front().item_id == 9);
+}

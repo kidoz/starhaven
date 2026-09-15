@@ -61,6 +61,16 @@ void apply_script_items(std::span<const ScriptItemChange> changes, std::span<Pac
     }
 }
 
+bool claim_chest_items(int chest, std::span<const data::GeneratedItem> items,
+                       std::set<int>& opened_chests, ScriptItemState& state) {
+    if (chest < 0 || opened_chests.contains(chest)) {
+        return false;
+    }
+    state.pending.insert(state.pending.end(), items.begin(), items.end());
+    opened_chests.insert(chest);
+    return true;
+}
+
 bool deliver_script_item(const data::GeneratedItem& item, int width, int height,
                          std::span<Pack> packs) {
     for (auto& pack : packs) {

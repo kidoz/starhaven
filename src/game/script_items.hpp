@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <optional>
+#include <set>
 #include <span>
 #include <vector>
 
@@ -11,6 +12,7 @@
 
 namespace starhaven::game {
 
+// Persistent rewards from script grants and claimed chests share this queue.
 struct ScriptItemState {
     std::uint32_t random = 0x41A73B29U;
     data::ArtifactGenerationState artifacts;
@@ -49,6 +51,11 @@ struct ScriptItemChange {
 // so a later take consumes the same instance that the walker checked.
 void apply_script_items(std::span<const ScriptItemChange> changes, std::span<Pack> packs,
                         ScriptItemState& state, const data::ItemStatsTable& items);
+
+// Claim once, retaining every generated instance before marking the chest
+// opened. Pack-space retries use the same persistent queue as script grants.
+[[nodiscard]] bool claim_chest_items(int chest, std::span<const data::GeneratedItem> items,
+                                     std::set<int>& opened_chests, ScriptItemState& state);
 
 // Try each pack without changing the item. False retains a full-pack reward
 // in the caller's persistent pending list.

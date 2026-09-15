@@ -3,7 +3,7 @@ title: "Items and item instances"
 summary: "Design-table joins, serialized item layout, and generation behavior for Might and Magic VI items."
 doc_type: reference
 status: partial
-last_updated: 2026-09-10
+last_updated: 2026-09-15
 tags:
   - mm6
   - items
@@ -377,6 +377,23 @@ The shipped chest templates contain 202 nonempty slots:
 
 The chest boundary is exact: a 4-byte field, 140 item instances, and 140
 signed 16-bit grid entries total 4204 bytes. `observed`
+
+## StarHaven chest reward delivery
+
+StarHaven claims a chest's generated item instances once and places them in
+the same persistent pending-reward queue used by script grants. Pack delivery
+retries when space becomes available; full packs do not discard chest contents.
+The opened-chest marker and undelivered instances survive save/load, including
+bonuses, charges, and identification state. Reopening a claimed chest does not
+regenerate or duplicate its rewards.
+
+This is an engine behavior guarantee, not a claim about the original game's
+chest interface. It reuses the existing version-4-and-later reward records;
+no save-format revision is needed. Saves written before this fix cannot recover
+items that the old chest path already discarded. See
+[campaign persistence](../explanation/campaign-completion.md#persistence-and-older-saves).
+`src/game/script_items.cpp` implements claiming and delivery;
+`tests/test_script_items.cpp` covers full packs, partial delivery, and reload.
 
 ## Reproducing the lookups
 

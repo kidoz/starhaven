@@ -7374,7 +7374,6 @@ int main(int argc, char** argv) {
             // acting character's Disarm and the map's lock number
             // (docs/formats/event-tables.md, "The chest flags word").
             if (outcome.chest >= 0 && !opened_chests.contains(outcome.chest)) {
-                opened_chests.insert(outcome.chest);
                 std::string took;
                 const auto chest_index = static_cast<std::size_t>(outcome.chest);
                 const bool trapped = chest_index < session.chest_flags.size() &&
@@ -7441,31 +7440,24 @@ int main(int argc, char** argv) {
                 const auto& slots = chest_index < session.chest_items.size()
                                         ? session.chest_items[chest_index]
                                         : kNoSlots;
-                for (const auto& rolled : game::chest_contents(
-                         slots, static_cast<std::size_t>(session.treasure_level), random_items,
-                         item_stats, standard_bonuses, special_bonuses,
-                         static_cast<std::uint32_t>(outcome.chest + 1) * 40503U)) {
-                    const int id = rolled.item_id;
-                    const auto* row = item_stats.at(static_cast<std::size_t>(id));
-                    if (row == nullptr) {
-                        continue;
-                    }
-                    const render::Texture& icon = cache.icon(row->picture);
-                    const int w = std::max(1, game::cells_across(static_cast<int>(icon.width())));
-                    const int h = std::max(1, game::cells_across(static_cast<int>(icon.height())));
-                    const bool known = arrives_identified(*row);
-                    for (auto& pack : packs) {
-                        if (pack.add(id, w, h, known, rolled.standard_bonus,
-                                     rolled.standard_bonus_strength, rolled.special_bonus,
-                                     rolled.charges)) {
-                            took += (took.empty() || took.back() == ' ' ? "You find " : ", ") +
-                                    data::cp1252_to_utf8(known || row->unidentified_name.empty()
-                                                             ? row->name
-                                                             : row->unidentified_name);
-                            break;
-                        }
-                    }
+                auto rewards = game::chest_contents(
+                    slots, static_cast<std::size_t>(session.treasure_level), random_items,
+                    item_stats, standard_bonuses, special_bonuses,
+                    static_cast<std::uint32_t>(outcome.chest + 1) * 40503U);
+                std::erase_if(rewards, [&](const auto& item) {
+                    return item.item_id <= 0 ||
+                           item_stats.at(static_cast<std::size_t>(item.item_id)) == nullptr;
+                });
+                for (auto& item : rewards) {
+                    const auto& row = *item_stats.at(static_cast<std::size_t>(item.item_id));
+                    item.identified = item.identified || arrives_identified(row);
+                    took += (took.empty() || took.back() == ' ' ? "You find " : ", ") +
+                            data::cp1252_to_utf8(item.identified || row.unidentified_name.empty()
+                                                     ? row.name
+                                                     : row.unidentified_name);
                 }
+                (void)game::claim_chest_items(outcome.chest, rewards, opened_chests,
+                                              script_item_state);
                 said_text = took.empty() ? "The chest is empty" : took;
                 // The chest's own face: its record's first word is the
                 // DCHEST row, and that table's art runs CHEST01..CHEST08.
