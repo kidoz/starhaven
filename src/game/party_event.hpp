@@ -2,6 +2,7 @@
 #define STARHAVEN_GAME_PARTY_EVENT_HPP
 
 #include <array>
+#include <cstdint>
 
 #include "game/party.hpp"
 #include "game/script_message.hpp"
@@ -16,6 +17,12 @@ namespace starhaven::game {
                                            const std::array<Character, 4>& party,
                                            int selected_member,
                                            ScriptItemGenerator* generator = nullptr);
+
+// The walker has already applied base gold and payments. Apply the best
+// hireling's found-gold bonus, publish the live purse, and return the amount
+// to display. Ordinary gold transfers do not receive this bonus.
+[[nodiscard]] std::int64_t settle_script_gold(WalkState& state, const WalkOutcome& outcome,
+                                              int bonus_percent, int& purse);
 
 }  // namespace starhaven::game
 

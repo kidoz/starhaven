@@ -3781,8 +3781,8 @@ int main(int argc, char** argv) {
     // barrel, and this shell does not yet. The typed sevens run Speed before
     // Accuracy — the prose join's own order — where the sheet's runs the
     // other way, hence the index maps.
-    const auto reward_note = [&](const game::WalkOutcome& outcome,
-                                 std::size_t acting_member) -> std::string {
+    const auto reward_note = [&](const game::WalkOutcome& outcome, std::size_t acting_member,
+                                 std::int64_t found_gold) -> std::string {
         static constexpr std::size_t kEventStatOrder[7] = {0, 1, 2, 3, 5, 4, 6};
         static constexpr const char* kStatNames[7] = {
             "Might", "Intellect", "Personality", "Endurance", "Speed", "Accuracy", "Luck"};
@@ -3834,15 +3834,7 @@ int main(int argc, char** argv) {
         }
         if (outcome.gold_found > 0) {
             speak(party[0], 30);  // line 30: the finder's word
-            // The Factor's and Banker's "bonus on all gold found" rides on
-            // exactly what was found, not what was paid.
-            int bonus = 0;
-            for (const auto& h : hirelings) {
-                bonus = std::max(bonus, h.benefit.gold_percent);
-            }
-            const int extra = outcome.gold_found * bonus / 100;
-            script_state.gold += extra;
-            add("+" + std::to_string(outcome.gold_found + extra) + " gold found");
+            add("+" + std::to_string(found_gold) + " gold found");
         }
         if (script_state.experience > 0) {
             // A hired teacher's percent rides on top; the best one speaks
@@ -7176,8 +7168,10 @@ int main(int argc, char** argv) {
                                        script_state, party, shown_member, &script_item_generator);
             report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", request.event);
             apply_decorations(outcome);
-            gold = script_state.gold;
-            const std::string rewards = reward_note(outcome, request.actor->member);
+            const auto found_gold = game::settle_script_gold(
+                script_state, outcome,
+                game::best_hired(hirelings, &game::HireBenefit::gold_percent), gold);
+            const std::string rewards = reward_note(outcome, request.actor->member, found_gold);
 
             // What it said, resolved before any travel drops these strings.
             // The map's own events speak through its `.STR`; the global

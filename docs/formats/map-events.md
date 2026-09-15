@@ -442,6 +442,13 @@ the given value, the word after it names the type. Reproduce with
   percent on exactly these. Fame and reputation were tried first and are
   recorded refuted-in-range: both columns top out short of 3,500.
 
+StarHaven applies the largest hired found-gold bonus once after each event
+segment and publishes the resulting purse before another interaction or save.
+The reward message includes that same bonus. Type-21 payments do not receive
+it; fractional bonus gold rounds down. The bonus saturates at the engine's
+integer purse limit. Choosing the largest benefit remains an `inferred`
+stacking policy, exercised by `tests/test_party_event.cpp`.
+
 Whole events confirm the readings. D01's switches all read: check my
 variable, jump to the end if it is set, set it, throw four doors — two open,
 two shut, mirrored between paired levers. New Sorpigal's fountain, event 150,

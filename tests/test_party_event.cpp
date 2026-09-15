@@ -2,6 +2,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <limits>
+
+#include "game/hire.hpp"
+
 using namespace starhaven;
 using namespace starhaven::game;
 using namespace starhaven::world;
@@ -132,4 +136,55 @@ TEST_CASE("riddle continuations retain their actor and script-written class", "[
         REQUIRE(actor_of(request).member == 1);
         REQUIRE(state.awards == std::set<int>{answer_matches ? 1 : 3});
     }
+}
+
+TEST_CASE("found gold settles the hireling bonus into the live purse once", "[party-event]") {
+    const auto events = script({
+        {1, 0, kOpcodeGive, {kVarGoldFound, 105, 0, 0, 0}},
+        {1, 1, kOpcodeTake, {kVarGold, 20, 0, 0, 0}},
+        {1, 2, kOpcodeEnd, {}},
+        {2, 0, kOpcodeGive, {kVarGold, 50, 0, 0, 0}},
+        {2, 1, kOpcodeEnd, {}},
+    });
+    std::array<Hireling, 2> hired;
+    hired[0].benefit.gold_percent = 5;
+    hired[1].benefit.gold_percent = 10;
+    int purse = 100;
+    WalkState state;
+    state.gold = purse;
+    ScriptContinuation request{"Synthetic.blv", 1, -1, false, false, {}};
+    const auto found = walk_party_event(events, request, state, party(), 0);
+    REQUIRE(settle_script_gold(state, found, best_hired(hired, &HireBenefit::gold_percent),
+                               purse) == 115);
+    REQUIRE(purse == 195);
+    REQUIRE(state.gold == purse);
+
+    // The following event starts from the published purse. It must neither
+    // lose the last bonus nor apply a bonus to an ordinary payment.
+    state.gold = purse;
+    request = ScriptContinuation{"Synthetic.blv", 2, -1, false, false, {}};
+    const auto paid = walk_party_event(events, request, state, party(), 0);
+    REQUIRE(settle_script_gold(state, paid, 10, purse) == 0);
+    REQUIRE(purse == 245);
+    REQUIRE(state.gold == purse);
+}
+
+TEST_CASE("found gold bonus handles absent benefits and purse limits", "[party-event]") {
+    WalkOutcome found;
+    found.gold_found = 100;
+    for (const int percent : {0, -10}) {
+        WalkState state;
+        state.gold = 125;
+        int purse = 25;
+        REQUIRE(settle_script_gold(state, found, percent, purse) == 100);
+        REQUIRE(purse == 125);
+    }
+    WalkState state;
+    state.gold = std::numeric_limits<int>::max() - 3;
+    int purse = 0;
+    found.gold_found = std::numeric_limits<int>::max();
+    REQUIRE(settle_script_gold(state, found, std::numeric_limits<int>::max(), purse) ==
+            std::int64_t{std::numeric_limits<int>::max()} + 3);
+    REQUIRE(purse == std::numeric_limits<int>::max());
+    REQUIRE(state.gold == purse);
 }
