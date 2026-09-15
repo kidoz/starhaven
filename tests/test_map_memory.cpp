@@ -108,3 +108,31 @@ TEST_CASE("extreme remembered dates have a bounded refill comparison", "[map-mem
     World future;
     REQUIRE(future.restore(memory, MapMemoryUse::Revisit, 20) == MapMemoryResult::Restored);
 }
+
+TEST_CASE("legacy map spellings share a snapshot and active state replaces every alias",
+          "[map-memory]") {
+    SaveState saved;
+    saved.map_file = "SYNTHETIC.BLV";
+    saved.remembered = {
+        {"Synthetic.blv", 10, {1}, {12}, {}},
+        {"synthetic.BLV", 2, {3}, {}, {0}},
+        {"Synthetic.odm", 1, {9}, {}, {}},
+    };
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    const auto memories = load_map_memories(loaded.remembered);
+    REQUIRE(memories.size() == 2);
+    const auto& indoors = memories.at(map_memory_key(loaded.map_file));
+    REQUIRE(indoors.remembered_day == 2);
+    REQUIRE(indoors.opened_chests == std::set<int>{3});
+    REQUIRE(indoors.open_doors.empty());
+    REQUIRE(indoors.dead == std::vector<std::size_t>{0});
+    REQUIRE(memories.at(map_memory_key("SYNTHETIC.ODM")).opened_chests == std::set<int>{9});
+    const auto records = save_map_memories(memories, "Synthetic.BlV", {{4}, {12}, {}, 3});
+    REQUIRE(records.size() == 2);
+    REQUIRE(records.back().file == "synthetic.blv");
+    const auto reloaded = load_map_memories(records);
+    REQUIRE(reloaded.at("synthetic.blv").opened_chests == std::set<int>{4});
+    REQUIRE(reloaded.at("synthetic.blv").dead.empty());
+    REQUIRE(reloaded.at("synthetic.odm").opened_chests == std::set<int>{9});
+}

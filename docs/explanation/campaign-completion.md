@@ -103,6 +103,12 @@ replaced. Ordinary map revisits still apply the map's refill interval, and
 remembered door state overrides the map's initially-open defaults. These are
 StarHaven persistence guarantees, covered by `tests/test_map_memory.cpp`.
 
+Map memories use lowercase ASCII filenames, retaining the extension. Travel
+and saves therefore share one snapshot across spellings such as `Out01.Odm`
+and `out01.odm`. When an older save contains duplicate spellings, its last
+stored snapshot wins; saving replaces that map's old memory with its live
+state.
+
 ## Reproduction
 
 With the user's own installation configured:

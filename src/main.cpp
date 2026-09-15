@@ -3929,28 +3929,15 @@ int main(int argc, char** argv) {
     // Leave this map for another, through the same loader the command line
     // uses. What does not survive the trip is exactly what belongs to the old
     // map: its sounds, its shops, its opened chests, its fight.
-    std::map<std::string, game::MapMemory> map_memory;
+    game::MapMemories map_memory;
 
     const auto open_map = [&](const std::string& name, bool remember_departure = true) -> bool {
         // What the map being left will remember: the fallen, the opened
         // and the thrown, kept per file the way the original's state
         // files kept them, and forgotten after its own Refil Days.
         if (remember_departure && !session.file_name.empty()) {
-            game::MapMemory& memory = map_memory[session.file_name];
-            memory.opened_chests = opened_chests;
-            memory.open_doors.clear();
-            for (const auto& door : session.doors) {
-                if (door.open) {
-                    memory.open_doors.push_back(door.id);
-                }
-            }
-            memory.dead.clear();
-            for (std::size_t i = 0; i < session.actors.size(); ++i) {
-                if (!battle.alive(i)) {
-                    memory.dead.push_back(i);
-                }
-            }
-            memory.remembered_day = clock.day();
+            map_memory[game::map_memory_key(session.file_name)] =
+                game::capture_map_memory(session, battle, opened_chests, clock.day());
         }
         world::MapSession next;
         if (world::load_map_session(games_lod, data_dir, name, cache, next) !=
@@ -4010,7 +3997,8 @@ int main(int argc, char** argv) {
         }
         // And what this one remembers, if its Refil Days have not run out
         // (a map that never refills remembers forever).
-        if (const auto it = map_memory.find(session.file_name); it != map_memory.end()) {
+        if (const auto it = map_memory.find(game::map_memory_key(session.file_name));
+            it != map_memory.end()) {
             const auto use = remember_departure ? game::MapMemoryUse::Revisit
                                                 : game::MapMemoryUse::SavedSnapshot;
             if (game::restore_map_memory(it->second, use, clock.day(), session, battle,
@@ -4037,16 +4025,13 @@ int main(int argc, char** argv) {
     // are replaced; if it fails, the current session and its map memories
     // remain available behind the menu the request came from.
     game::SaveState pending_load;
-    std::map<std::string, game::MapMemory> memory_before_load;
+    game::MapMemories memory_before_load;
     game::LoadingPlan load_plan;
 
     // The first phase: what the maps away from the party will remember.
     auto stage_load_memory = [&]() {
         memory_before_load = map_memory;
-        map_memory.clear();
-        for (const auto& map : pending_load.remembered) {
-            map_memory[map.file] = {map.opened_chests, map.open_doors, map.dead, map.day};
-        }
+        map_memory = game::load_map_memories(pending_load.remembered);
     };
 
     // The second phase: the map session itself. Only the memory has been
@@ -4978,30 +4963,9 @@ int main(int argc, char** argv) {
                 state.autonotes = script_state.autonotes;
                 // The maps the party has been away from, plus the one
                 // underfoot: a save should find a cleared dungeon cleared.
-                state.remembered.clear();
-                for (const auto& [file, memory] : map_memory) {
-                    state.remembered.push_back({file, memory.remembered_day, memory.opened_chests,
-                                                memory.open_doors, memory.dead});
-                }
-                {
-                    game::SaveState::RememberedMap here;
-                    here.file = session.file_name;
-                    here.day = clock.day();
-                    here.opened_chests = opened_chests;
-                    for (const auto& door : session.doors) {
-                        if (door.open) {
-                            here.open_doors.push_back(door.id);
-                        }
-                    }
-                    for (std::size_t i = 0; i < session.actors.size(); ++i) {
-                        if (!battle.alive(i)) {
-                            here.dead.push_back(i);
-                        }
-                    }
-                    std::erase_if(state.remembered,
-                                  [&](const auto& m) { return m.file == here.file; });
-                    state.remembered.push_back(std::move(here));
-                }
+                state.remembered = game::save_map_memories(
+                    map_memory, session.file_name,
+                    game::capture_map_memory(session, battle, opened_chests, clock.day()));
                 state.party = party;
                 state.party_buffs = party_buffs;
                 for (std::size_t i = 0; i < packs.size(); ++i) {

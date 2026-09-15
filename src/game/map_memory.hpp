@@ -3,11 +3,15 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/world/map_session.hpp"
+#include "game/save.hpp"
 
 namespace starhaven::game {
 
@@ -19,6 +23,19 @@ struct MapMemory {
     std::vector<std::size_t> dead;
     std::int64_t remembered_day = 0;
 };
+
+using MapMemories = std::map<std::string, MapMemory>;
+
+// Archive map names are ASCII and case-insensitive; keep the extension so
+// indoor and outdoor resources cannot share state accidentally.
+[[nodiscard]] std::string map_memory_key(std::string_view file);
+[[nodiscard]] MapMemory capture_map_memory(const world::MapSession& session, const Battle& battle,
+                                           const std::set<int>& opened_chests, std::int64_t day);
+// Legacy duplicate spellings resolve in stored order: the last snapshot wins.
+[[nodiscard]] MapMemories load_map_memories(std::span<const SaveState::RememberedMap> records);
+[[nodiscard]] std::vector<SaveState::RememberedMap> save_map_memories(const MapMemories& memories,
+                                                                      std::string_view active_file,
+                                                                      const MapMemory& active);
 
 enum class MapMemoryUse : std::uint8_t { Revisit, SavedSnapshot };
 enum class MapMemoryResult : std::uint8_t { Expired, Restored };
