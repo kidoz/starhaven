@@ -6,6 +6,7 @@
 
 #include "game/clock.hpp"
 #include "game/combat.hpp"
+#include "game/party_event.hpp"
 #include "game/save.hpp"
 
 using namespace starhaven;
@@ -135,4 +136,107 @@ TEST_CASE("legacy map spellings share a snapshot and active state replaces every
     REQUIRE(reloaded.at("synthetic.blv").opened_chests == std::set<int>{4});
     REQUIRE(reloaded.at("synthetic.blv").dead.empty());
     REQUIRE(reloaded.at("synthetic.odm").opened_chests == std::set<int>{9});
+}
+
+TEST_CASE("rewards survive travel return and save reload with mixed case map names",
+          "[map-memory][journey]") {
+    World origin;
+    origin.session.file_name = "Synthetic.blv";
+    const std::vector<data::GeneratedItem> contents{{2, 1, 3, 5, 27, false}, {1, 0, 0, 0, 0, true}};
+    ScriptItemState rewards;
+    std::array<Pack, 4> packs;
+    for (std::size_t i = 0; i < 3; ++i) {
+        REQUIRE(packs[i].add(9, kPackWidth, kPackHeight));
+    }
+    REQUIRE(claim_chest_items(7, contents, origin.chests, rewards));
+    REQUIRE(deliver_script_item(rewards.pending.front(), kPackWidth, kPackHeight, packs));
+    rewards.pending.erase(rewards.pending.begin());
+    REQUIRE_FALSE(deliver_script_item(rewards.pending.front(), 1, 1, packs));
+
+    // A real EVT give enters through the same walk/settlement seam as main.
+    std::vector<std::byte> bytes(48, std::byte{0});
+    const std::vector<std::uint8_t> payload{
+        9, 1, 0, 0, world::kOpcodeGive, world::kVarGoldFound, 100, 0, 0, 0,
+        4, 1, 0, 1, world::kOpcodeEnd,
+    };
+    for (const auto byte : payload) {
+        bytes.push_back(static_cast<std::byte>(byte));
+    }
+    world::MapScript events;
+    REQUIRE(world::MapScript::parse(bytes, events) == world::MapScriptError::None);
+    WalkState state;
+    int purse = 25;
+    state.gold = purse;
+    ScriptContinuation request{origin.session.file_name, 1, -1, false, false, {}};
+    const std::array<Character, 4> party{};
+    const auto outcome = walk_party_event(events, request, state, party, 0);
+    REQUIRE(settle_script_gold(state, outcome, 10, purse) == 110);
+    REQUIRE(purse == 135);
+    origin.battle.kill(0);
+    origin.session.doors[0].open = false;
+
+    MapMemories memories;
+    memories[map_memory_key(origin.session.file_name)] =
+        capture_map_memory(origin.session, origin.battle, origin.chests, 2);
+    World destination;
+    destination.session.file_name = "Other.blv";
+    REQUIRE(destination.chests.empty());
+    REQUIRE(destination.battle.alive(0));
+    memories[map_memory_key(destination.session.file_name)] =
+        capture_map_memory(destination.session, destination.battle, destination.chests, 3);
+    World returned;
+    returned.session.file_name = "SYNTHETIC.BLV";
+    REQUIRE(returned.restore(memories.at(map_memory_key(returned.session.file_name)),
+                             MapMemoryUse::Revisit, 4) == MapMemoryResult::Restored);
+    REQUIRE_FALSE(returned.battle.alive(0));
+    REQUIRE_FALSE(returned.session.doors[0].open);
+    REQUIRE_FALSE(claim_chest_items(7, contents, returned.chests, rewards));
+    REQUIRE(rewards.pending == std::vector<data::GeneratedItem>{contents[1]});
+
+    SaveState saved;
+    saved.map_file = returned.session.file_name;
+    saved.minutes = std::int64_t{4} * kMinutesPerDay;
+    saved.gold = purse;
+    saved.script_items = rewards;
+    saved.opened_chests.assign(returned.chests.begin(), returned.chests.end());
+    saved.remembered = save_map_memories(
+        memories, saved.map_file,
+        capture_map_memory(returned.session, returned.battle, returned.chests, 4));
+    for (std::size_t i = 0; i < packs.size(); ++i) {
+        saved.packs[i] = packs[i].items();
+    }
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    REQUIRE(loaded.gold == 135);
+    REQUIRE(loaded.remembered.size() == 2);
+    const auto restored = load_map_memories(loaded.remembered);
+    World reloaded;
+    REQUIRE(reloaded.restore(restored.at(map_memory_key("sYnThEtIc.BlV")),
+                             MapMemoryUse::SavedSnapshot, 50) == MapMemoryResult::Restored);
+    REQUIRE_FALSE(reloaded.battle.alive(0));
+    REQUIRE_FALSE(reloaded.session.doors[0].open);
+    REQUIRE(reloaded.chests == std::set<int>{7});
+    REQUIRE_FALSE(claim_chest_items(7, contents, reloaded.chests, loaded.script_items));
+    REQUIRE(loaded.script_items.pending == std::vector<data::GeneratedItem>{contents[1]});
+    std::array<Pack, 4> restored_packs;
+    for (std::size_t i = 0; i < restored_packs.size(); ++i) {
+        for (const auto& item : loaded.packs[i]) {
+            REQUIRE(restored_packs[i].place(item));
+        }
+    }
+    const auto& carried = restored_packs[3].items().front();
+    REQUIRE(carried.item_id == contents[0].item_id);
+    REQUIRE(carried.standard_bonus == contents[0].standard_bonus);
+    REQUIRE(carried.standard_strength == contents[0].standard_bonus_strength);
+    REQUIRE(carried.special_bonus == contents[0].special_bonus);
+    REQUIRE(carried.charges == contents[0].charges);
+    REQUIRE(carried.identified == contents[0].identified);
+    REQUIRE_FALSE(deliver_script_item(loaded.script_items.pending.front(), 1, 1, restored_packs));
+    restored_packs[0].clear();
+    REQUIRE(deliver_script_item(loaded.script_items.pending.front(), 1, 1, restored_packs));
+    loaded.script_items.pending.clear();
+    REQUIRE_FALSE(claim_chest_items(7, contents, reloaded.chests, loaded.script_items));
+    REQUIRE(loaded.script_items.pending.empty());
+    REQUIRE(restored_packs[0].items().size() == 1);
+    REQUIRE(restored_packs[0].items().front().item_id == contents[1].item_id);
 }

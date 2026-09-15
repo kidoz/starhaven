@@ -107,7 +107,9 @@ Map memories use lowercase ASCII filenames, retaining the extension. Travel
 and saves therefore share one snapshot across spellings such as `Out01.Odm`
 and `out01.odm`. When an older save contains duplicate spellings, its last
 stored snapshot wins; saving replaces that map's old memory with its live
-state.
+state. The synthetic reward/travel/return/save/reload regression also checks
+found gold, packed and waiting chest rewards, doors, and defeated enemies.
+This verifies the engine's state lifecycle, not an uninterrupted MM6 campaign.
 
 ## Reproduction
 
