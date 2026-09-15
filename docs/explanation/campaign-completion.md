@@ -3,11 +3,13 @@ title: Campaign completion
 summary: How StarHaven records quest resolutions and measures its frozen journal manifest across saves.
 doc_type: explanation
 status: partial
-last_updated: 2026-09-10
+last_updated: 2026-09-15
 source_files:
   - src/game/completion.cpp
   - src/game/script_walk.hpp
   - src/game/save.cpp
+  - src/game/map_memory.cpp
+  - tests/test_map_memory.cpp
   - tests/test_completion.cpp
   - tools/completion_census.cpp
 tags:
@@ -94,6 +96,12 @@ The save reader rejects malformed numeric cells, non-finite coordinates,
 missing required world or character records and invalid collection counts.
 Version 2 also requires its final `end` record, detecting interrupted writes.
 Failed reads leave the caller's state unchanged and are shown as corrupt slots.
+
+Saved active-map memory is restored as a snapshot. Loading a save from an
+earlier day does not expire its defeated enemies against the session being
+replaced. Ordinary map revisits still apply the map's refill interval, and
+remembered door state overrides the map's initially-open defaults. These are
+StarHaven persistence guarantees, covered by `tests/test_map_memory.cpp`.
 
 ## Reproduction
 

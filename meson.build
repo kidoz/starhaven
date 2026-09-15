@@ -89,6 +89,7 @@ starhaven_core_sources = files(
   'src/game/save.cpp',
   'src/game/new_game.cpp',
   'src/game/loading_plan.cpp',
+  'src/game/map_memory.cpp',
   'src/game/completion.cpp',
   'src/game/script_coverage.cpp',
   'src/game/script_decorations.cpp',

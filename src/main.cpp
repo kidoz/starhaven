@@ -52,6 +52,7 @@
 #include "game/inventory.hpp"
 #include "game/launches.hpp"
 #include "game/loading_plan.hpp"
+#include "game/map_memory.hpp"
 #include "game/monster_ai.hpp"
 #include "game/music_player.hpp"
 #include "game/new_game.hpp"
@@ -3926,21 +3927,14 @@ int main(int argc, char** argv) {
     // Leave this map for another, through the same loader the command line
     // uses. What does not survive the trip is exactly what belongs to the old
     // map: its sounds, its shops, its opened chests, its fight.
-    // One map's memory between visits in a session.
-    struct MapMemory {
-        std::set<int> opened_chests;
-        std::vector<std::uint32_t> open_doors;
-        std::vector<std::size_t> dead;
-        std::int64_t remembered_day = 0;
-    };
-    std::map<std::string, MapMemory> map_memory;
+    std::map<std::string, game::MapMemory> map_memory;
 
     const auto open_map = [&](const std::string& name, bool remember_departure = true) -> bool {
         // What the map being left will remember: the fallen, the opened
         // and the thrown, kept per file the way the original's state
         // files kept them, and forgotten after its own Refil Days.
         if (remember_departure && !session.file_name.empty()) {
-            MapMemory& memory = map_memory[session.file_name];
+            game::MapMemory& memory = map_memory[session.file_name];
             memory.opened_chests = opened_chests;
             memory.open_doors.clear();
             for (const auto& door : session.doors) {
@@ -4013,36 +4007,14 @@ int main(int argc, char** argv) {
         // And what this one remembers, if its Refil Days have not run out
         // (a map that never refills remembers forever).
         if (const auto it = map_memory.find(session.file_name); it != map_memory.end()) {
-            const bool expired = session.refill_days > 0 &&
-                                 clock.day() >= it->second.remembered_day + session.refill_days;
-            if (expired) {
-                if (remember_departure) {
-                    decoration_changes.erase(game::script_scope(session.file_name));
-                    face_changes.erase(game::script_scope(session.file_name));
-                }
+            const auto use = remember_departure ? game::MapMemoryUse::Revisit
+                                                : game::MapMemoryUse::SavedSnapshot;
+            if (game::restore_map_memory(it->second, use, clock.day(), session, battle,
+                                         opened_chests,
+                                         shown_kind) == game::MapMemoryResult::Expired) {
+                decoration_changes.erase(game::script_scope(session.file_name));
+                face_changes.erase(game::script_scope(session.file_name));
                 map_memory.erase(it);
-            } else {
-                opened_chests = it->second.opened_chests;
-                bool doors_restored = false;
-                for (const std::uint32_t id : it->second.open_doors) {
-                    for (auto& door : session.doors) {
-                        if (door.id == id) {
-                            door.open = true;
-                            door.progress = 1.0f;
-                            move_door(door);
-                            doors_restored = true;
-                        }
-                    }
-                }
-                if (doors_restored) {
-                    world::rebuild_indoor_collision(session);
-                }
-                for (const std::size_t i : it->second.dead) {
-                    battle.kill(i);
-                    if (i < shown_kind.size()) {
-                        shown_kind[i] = world::MonsterAnimation::Death;
-                    }
-                }
             }
         }
         if (remember_departure) {
@@ -4061,7 +4033,7 @@ int main(int argc, char** argv) {
     // are replaced; if it fails, the current session and its map memories
     // remain available behind the menu the request came from.
     game::SaveState pending_load;
-    std::map<std::string, MapMemory> memory_before_load;
+    std::map<std::string, game::MapMemory> memory_before_load;
     game::LoadingPlan load_plan;
 
     // The first phase: what the maps away from the party will remember.

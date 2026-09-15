@@ -520,3 +520,10 @@ test('script_objects',
     dependencies: [starhaven_dep, catch2_main],
   ),
 )
+
+# Restore the same live map memory used by the application adapter.
+test('map_memory',
+  executable('test_map_memory', 'test_map_memory.cpp',
+    dependencies: [starhaven_dep, catch2_main],
+  ),
+)
