@@ -3,10 +3,12 @@ title: "Map event scripts"
 summary: "Container framing, opcode semantics, and runtime joins for Might and Magic VI map scripts."
 doc_type: reference
 status: partial
-last_updated: 2026-09-11
+last_updated: 2026-09-15
 source_files:
   - src/core/world/map_script.cpp
   - src/game/script_walk.hpp
+  - src/game/party_event.cpp
+  - tests/test_party_event.cpp
   - src/game/script_faces.cpp
   - src/game/script_objects.cpp
   - tools/evt_info.cpp
@@ -457,6 +459,21 @@ The engine walks all of it — src/game/script_walk.hpp — so a gated exit
 stays shut until its bit is set, a switch throws once, and a turn-in takes
 the quest item and pays.
 
+### StarHaven acting-character context
+
+The live adapter initializes class checks from the selected character-sheet
+member, or member zero when no sheet is selected. `walk_party_event` in
+`src/game/party_event.cpp` captures that actor and class at interaction entry.
+Class values written by the script remain available through modal-message and
+riddle continuations, even if the displayed member changes. Each fresh
+interaction reads the live character again; a previous event's class variable
+does not determine the next event's branch.
+
+This follows StarHaven's existing acting-member policy. Original selector
+opcodes, per-character awards, and direct application of every class write
+remain separate compatibility work; promotions still use the award-driven
+adapter. Synthetic coverage lives in `tests/test_party_event.cpp`.
+
 ### Opcode 11 repaints a face
 
 Its arguments are a u32 and a NUL-terminated name, and the names decide it:
@@ -662,6 +679,7 @@ The other **62 opcodes are `unknown`.** An early test read opcode 4 as a
 string index over *all* its uses and saw the argument leave the range 522
 times — those were the establishment events, whose headers are `2DEvents.txt`
 rows; split by kind, the reading holds (see "Opcode 4 opens an event").
+
 
 ## A face names an event
 

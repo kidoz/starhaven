@@ -57,6 +57,7 @@
 #include "game/music_player.hpp"
 #include "game/new_game.hpp"
 #include "game/party.hpp"
+#include "game/party_event.hpp"
 #include "game/player.hpp"
 #include "game/promotion.hpp"
 #include "game/rest.hpp"
@@ -2328,9 +2329,9 @@ int main(int argc, char** argv) {
     int window_scale = 2;         // --scale N: the window's integer multiple
     bool fullscreen = false;      // F11 flips it
     bool start_eye = false;       // --eye: Wizard Eye lit at master, for reproducing
-    int walk_from = -1;           // walk the next event from this sequence, not the top
     int ask_event = -1;           // the event whose question awaits an answer
     game::WalkOutcome::Ask ask_pending;
+    std::optional<game::ScriptContinuation> ask_context;
     std::string ask_typed;
     game::ScriptMessage script_message;
     std::optional<game::ScriptContinuation> queued_script;
@@ -3780,7 +3781,8 @@ int main(int argc, char** argv) {
     // barrel, and this shell does not yet. The typed sevens run Speed before
     // Accuracy — the prose join's own order — where the sheet's runs the
     // other way, hence the index maps.
-    const auto reward_note = [&](const game::WalkOutcome& outcome) -> std::string {
+    const auto reward_note = [&](const game::WalkOutcome& outcome,
+                                 std::size_t acting_member) -> std::string {
         static constexpr std::size_t kEventStatOrder[7] = {0, 1, 2, 3, 5, 4, 6};
         static constexpr const char* kStatNames[7] = {
             "Might", "Intellect", "Personality", "Endurance", "Speed", "Accuracy", "Luck"};
@@ -3817,7 +3819,7 @@ int main(int argc, char** argv) {
             if (harm.target >= 0 && harm.target <= 3) {
                 hit_one(party[static_cast<std::size_t>(harm.target)]);
             } else if (harm.target == 4) {
-                hit_one(party[shown_member >= 0 ? static_cast<std::size_t>(shown_member) : 0]);
+                hit_one(party[acting_member]);
             } else if (harm.target == 6) {
                 hit_one(party[misc_random.next() % party.size()]);
             } else {
@@ -3860,7 +3862,7 @@ int main(int argc, char** argv) {
             add("+" + std::to_string(script_state.food - party_food) + " food");
         }
         party_food = script_state.food;
-        auto& who = party[shown_member >= 0 ? static_cast<std::size_t>(shown_member) : 0];
+        auto& who = party[acting_member];
         if (outcome.healed_hp > 0) {
             who.hit_points = std::min(who.max_hit_points, who.hit_points + outcome.healed_hp);
         }
@@ -3971,6 +3973,8 @@ int main(int argc, char** argv) {
         shop_said.clear();
         script_message.clear();
         queued_script.reset();
+        ask_context.reset();
+        ask_event = -1;
         opened_chests.clear();
         mob.reset(session, monster_stats, static_cast<std::uint32_t>(session.actors.size()) + 1u);
         battle.reset(session, monster_stats,
@@ -4713,6 +4717,7 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) {
                 if (ask_event >= 0) {
                     ask_event = -1;  // the question can simply be walked away from
+                    ask_context.reset();
                 } else if (startup.state() == game::StartupState::PartyCreation) {
                     (void)startup.dispatch(game::StartupAction::Back);
                     // Cancelling discards the draft: a fresh one is dealt from
@@ -4798,8 +4803,12 @@ int main(int argc, char** argv) {
                     const bool match =
                         !given.empty() && (given == answer_at(ask_pending.answer_a) ||
                                            given == answer_at(ask_pending.answer_b));
-                    walk_on_start = ask_event;
-                    walk_from = match ? ask_pending.step_on_match : ask_pending.step_on_miss;
+                    if (ask_context) {
+                        ask_context->sequence =
+                            match ? ask_pending.step_on_match : ask_pending.step_on_miss;
+                        queued_script = std::move(ask_context);
+                        ask_context.reset();
+                    }
                     ask_event = -1;
                 } else if (key == SDLK_BACKSPACE && !ask_typed.empty()) {
                     ask_typed.pop_back();
@@ -7179,14 +7188,12 @@ int main(int argc, char** argv) {
             } else {
                 request.map = session.file_name;
                 request.event = aimed.event_id;
-                request.sequence = walk_from;
                 request.global = aimed_decoration ? aimed_decoration->global
                                                   : !session.script.defines(aimed.event_id);
                 if (aimed_decoration && aimed_decoration->global)
                     request.decoration = aimed_decoration->index;
             }
             queued_script.reset();
-            auto presentation = request.presentation;
             // The walker's view of the purse and the packs.
             script_state.gold = gold;
             script_state.food = party_food;
@@ -7200,15 +7207,13 @@ int main(int argc, char** argv) {
                 script_state.items.push_back(item.item_id);
             }
             const bool local = !request.global;
-            const game::WalkOutcome outcome = game::walk_event(
-                local ? session.script : global_script, request.event, script_state,
-                request.sequence, local ? session.file_name : "GLOBAL.EVT", &presentation,
-                &script_item_generator, request.decoration);
+            const game::WalkOutcome outcome =
+                game::walk_party_event(local ? session.script : global_script, request,
+                                       script_state, party, shown_member, &script_item_generator);
             report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", request.event);
             apply_decorations(outcome);
-            walk_from = -1;
             gold = script_state.gold;
-            const std::string rewards = reward_note(outcome);
+            const std::string rewards = reward_note(outcome, request.actor->member);
 
             // What it said, resolved before any travel drops these strings.
             // The map's own events speak through its `.STR`; the global
@@ -7245,7 +7250,6 @@ int main(int argc, char** argv) {
                 }
                 auto continuation = request;
                 continuation.sequence = outcome.message->resume_at;
-                continuation.presentation = presentation;
                 script_message.show(std::move(continuation), std::move(text));
                 want_strike = false;
                 pending_round = false;
@@ -7316,6 +7320,7 @@ int main(int argc, char** argv) {
             if (outcome.ask && local) {
                 ask_event = request.event;
                 ask_pending = *outcome.ask;
+                ask_context = request;
                 ask_typed.clear();
             }
 

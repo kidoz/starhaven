@@ -527,3 +527,10 @@ test('map_memory',
     dependencies: [starhaven_dep, catch2_main],
   ),
 )
+
+# Live party context carried through event entry and continuations.
+test('party_event',
+  executable('test_party_event', 'test_party_event.cpp',
+    dependencies: [starhaven_dep, catch2_main],
+  ),
+)

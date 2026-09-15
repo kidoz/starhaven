@@ -1,6 +1,7 @@
 #ifndef STARHAVEN_GAME_SCRIPT_MESSAGE_HPP
 #define STARHAVEN_GAME_SCRIPT_MESSAGE_HPP
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <utility>
@@ -8,6 +9,11 @@
 #include "game/script_walk.hpp"
 
 namespace starhaven::game {
+
+struct ScriptActorContext {
+    std::size_t member = 0;
+    int class_value = 0;
+};
 
 // An explicit script bank prevents a global continuation from accidentally
 // entering a same-numbered map event. The map also owns global world effects.
@@ -19,6 +25,7 @@ struct ScriptContinuation {
     bool npc_dialogue = false;
     WalkPresentation presentation;
     std::optional<std::uint32_t> decoration = std::nullopt;
+    std::optional<ScriptActorContext> actor = std::nullopt;
 };
 
 class ScriptMessage {
