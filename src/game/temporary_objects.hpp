@@ -1,0 +1,92 @@
+#ifndef STARHAVEN_GAME_TEMPORARY_OBJECTS_HPP
+#define STARHAVEN_GAME_TEMPORARY_OBJECTS_HPP
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <vector>
+
+#include "core/random.hpp"
+#include "core/world/collision.hpp"
+#include "core/world/map_script.hpp"
+#include "core/world/object_table.hpp"
+#include "core/world/sprite_frame_table.hpp"
+
+namespace starhaven::game {
+
+inline constexpr std::size_t kTemporaryObjectCapacity = 1000;
+inline constexpr std::uint32_t kObjectTicksPerSecond = 128;
+
+struct TemporaryObjectDefinition {
+    std::uint16_t id = 0;
+    std::uint16_t descriptor = 0;
+    std::uint16_t frame = 0;
+    std::uint16_t flags = 0;
+    std::uint32_t lifetime = 0;
+    float radius = 0;
+};
+
+struct TemporaryObject {
+    TemporaryObjectDefinition definition;
+    std::optional<TemporaryObjectDefinition> impact_definition;
+    render::Vec3 position;  // renderer axes, base of object, Y up
+    render::Vec3 origin;
+    render::Vec3 previous;
+    render::Vec3 velocity;  // map units per second
+    std::uint32_t age = 0;  // simulation ticks, never wall-clock time
+    bool active = true;
+    bool resting = false;
+};
+
+enum class TemporarySpawnError : std::uint8_t { None, UnsupportedId, MissingDescriptor, BadFrame };
+struct TemporarySpawnResult {
+    TemporarySpawnError error = TemporarySpawnError::None;
+    std::size_t created = 0;
+    std::size_t dropped = 0;  // attempts that found the pool full
+};
+
+struct ObjectDetonation {
+    render::Vec3 position;
+    float radius = 512;
+    // Opcode 34 supplies source zero. These unowned effects do not deliver
+    // party or actor damage through the original area-effect consumers.
+};
+struct TemporaryObjectStep {
+    std::size_t expired = 0;
+    std::size_t bounces = 0;
+    std::size_t terrain_contacts = 0;
+    std::vector<ObjectDetonation> detonations;
+};
+
+// Shared trajectory and geometry response for persistent event loot. The
+// caller owns lifetime and pickup; this only advances one 128 Hz motion tick.
+[[nodiscard]] render::Vec3 object_launch_velocity(std::int32_t speed, std::uint16_t yaw,
+                                                  std::uint16_t pitch);
+void advance_object_motion(TemporaryObject& object, const world::CollisionWorld& collision,
+                           const world::OdmTerrain* terrain = nullptr);
+
+// Bounded lifecycle for event-created IDs 1000/1050/2081/2100/4070/8080 only. Not a
+// general opcode-34 implementation: loot, actor contacts, trails, sound and
+// persistence remain outside this system. Every accepted definition must be
+// temporary. StarHaven uses one-tick integration and swept spheres; it does
+// not reproduce the original sector solver or integer trajectory rounding.
+class TemporaryObjects {
+public:
+    [[nodiscard]] TemporarySpawnResult spawn(const world::ObjectSpawnRequest& request,
+                                             std::span<const world::ObjectDescriptor> objects,
+                                             std::span<const world::SpriteFrame> frames,
+                                             Mm6Random& random, std::size_t occupied = 0);
+    [[nodiscard]] TemporaryObjectStep advance(std::uint32_t ticks,
+                                              const world::CollisionWorld& collision,
+                                              const world::OdmTerrain* terrain = nullptr);
+    [[nodiscard]] std::span<const TemporaryObject> slots() const noexcept { return objects_; }
+    [[nodiscard]] std::size_t active_count() const noexcept;
+    void clear() noexcept { objects_.clear(); }
+
+private:
+    std::vector<TemporaryObject> objects_;
+};
+
+}  // namespace starhaven::game
+#endif  // STARHAVEN_GAME_TEMPORARY_OBJECTS_HPP

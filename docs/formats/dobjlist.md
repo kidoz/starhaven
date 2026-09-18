@@ -3,7 +3,7 @@ title: "Object descriptor table (DOBJLIST.BIN)"
 summary: "Container, record, and flag layout for Might and Magic VI sprite-object descriptors."
 doc_type: reference
 status: verified
-last_updated: 2026-08-01
+last_updated: 2026-09-16
 tags:
   - mm6
   - dobjlist
@@ -54,6 +54,21 @@ for the inflated block exactly. `observed`
 Every nonzero frame index at `+0x28` selects the first frame of a
 `DSFT.BIN` animation group. `observed`
 
+## Lifetime units
+
+The stored lifetime is in **128 Hz simulation ticks**, not the renderer's
+animation units. In the inspected executable, the text descriptor loader
+reads a selected DSFT group's length, shifts it left by three in a 16-bit
+field, and stores that compiled lifetime when enabling the animation-lifetime
+flag (`0x44bc57..0x44bcc3`). Normal startup loads `DOBJLIST.BIN` through a
+copy-only binary loader (`0x44b880..0x44b8ce`); the runtime compares age directly
+with descriptor `+0x2A` (`0x463926..0x463939`). `observed`
+
+For example, ID 1051 stores 48 ticks for a group length of six. Its lifetime is
+0.375 seconds; do not multiply its stored lifetime by eight again. The
+[temporary event-object trace](map-events.md#temporary-object-lifecycle) records
+artifact identity, time conversion and the impact transition that selects it.
+
 ## Flag bits
 
 The flags at `+0x26` are sparse — 112 of 232 records carry 0 — and the union of
@@ -85,7 +100,7 @@ physics routine:
 | `0x01` | invisible: no sprite is drawn | compatibility structure and renderer consumer. `observed` |
 | `0x02` | intangible: the pick/touch box scan skips the object | the scan tests it before reaching for the radius. `observed` |
 | `0x04` | temporary: the object accumulates elapsed time and expires at the descriptor lifetime | the updater's lifetime block runs only under this bit. `observed` |
-| `0x08` | lifetime comes from the selected SFT animation | lifetime setup reads the frame group. `observed` |
+| `0x08` | animation-derived lifetime, already compiled into `+0x2A` in the binary table | text descriptor preparation reads group length and multiplies by eight; binary loading does not recompute it. `observed` |
 | `0x10` | cannot be picked up | pickup consumer rejects the descriptor. `observed` |
 | `0x20` | no gravity: skips the fall-and-land block for level flight | the physics routine branches past landing straight to the collision probe. `observed` |
 | `0x40` | detonates: the impact handler runs on collision or landing, and again at lifetime expiry | tested in both the landing path and the expiry path. `observed` |

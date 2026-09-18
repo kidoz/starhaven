@@ -534,3 +534,10 @@ test('party_event',
     dependencies: [starhaven_dep, catch2_main],
   ),
 )
+
+# Temporary event objects before broad opcode-34 dispatch.
+test('temporary_objects',
+  executable('test_temporary_objects', 'test_temporary_objects.cpp',
+    dependencies: [starhaven_dep, catch2_main],
+  ),
+)
