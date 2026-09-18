@@ -926,3 +926,33 @@ TEST_CASE("an actor carries nine slots that lapse on their own", "[combat]") {
     REQUIRE_FALSE(battle.slot_up(0, 0));
     REQUIRE_FALSE(battle.slot_up(0, game::Combatant::kActorSlots));
 }
+
+TEST_CASE("event object resistance includes level and immunity avoids random draws", "[combat]") {
+    const auto session = with_monster({});
+    const auto table = monsters("100", "0", "1d1");
+    Battle battle;
+    battle.reset(session, table, 1);
+    auto target = table.entries().front();
+    target.level = 30;
+    // Seed 1 produces 41: rejected for level 30 + resistance 0 + 30.
+    Mm6Random random{1};
+    Mm6Random expected{1};
+    (void)expected.next();
+    REQUIRE_FALSE(battle.accept_event_object_8080(0, target, random));
+    REQUIRE(random.state() == expected.state());
+    target.level = 0;
+    random = Mm6Random{1};
+    REQUIRE(battle.accept_event_object_8080(0, target, random));
+    REQUIRE(random.state() == expected.state());
+    target.resistances[static_cast<std::size_t>(data::Resistance::Magic)] = 30;
+    random = Mm6Random{1};
+    REQUIRE_FALSE(battle.accept_event_object_8080(0, target, random));
+    for (const int immune : {data::kResistanceImmune, 200, 255}) {
+        target.resistances[static_cast<std::size_t>(data::Resistance::Magic)] = immune;
+        random = Mm6Random{1};
+        REQUIRE_FALSE(battle.accept_event_object_8080(0, target, random));
+        REQUIRE(random.state() == 1);
+    }
+    REQUIRE_FALSE(battle.accept_event_object_8080(99, target, random));
+    REQUIRE(random.state() == 1);
+}

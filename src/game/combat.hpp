@@ -461,6 +461,26 @@ public:
                                                : world::MonsterAnimation::Stand;
     }
 
+    // Event-created 8080 has zero spell duration: it preserves all active
+    // buffs, but an accepted magic-resistance gate resets state/animation to
+    // stand (0x45d816, 0x44c15e). This battle models that as ending the wince.
+    [[nodiscard]] bool accept_event_object_8080(std::size_t actor,
+                                                const data::MonsterStatsEntry& monster,
+                                                Mm6Random& random) noexcept {
+        if (!alive(actor))
+            return false;
+        const int resistance = monster.resistance(data::Resistance::Magic);
+        if (resistance == data::kResistanceImmune || resistance >= 200)
+            return false;
+        // Original fields are bytes; clamp malformed text rows at this seam.
+        const auto span =
+            static_cast<unsigned>(std::clamp(monster.level, 0, 255) + std::max(resistance, 0) + 30);
+        if (random.next() % span >= 30)
+            return false;
+        combatants_[actor].wince = 0;
+        return true;
+    }
+
     // Put every fallen monster back on its feet at full health, which is what
     // a refill means on a map whose monsters are placed rather than spawned.
     // Maps with spawn points roll new groups instead — see
