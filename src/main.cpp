@@ -64,7 +64,9 @@
 #include "game/save.hpp"
 #include "game/save_repository.hpp"
 #include "game/script_faces.hpp"
+#include "game/script_loot.hpp"
 #include "game/script_message_view.hpp"
+#include "game/script_object_effects.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
 #include "game/skills.hpp"
@@ -364,10 +366,10 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
                      const render::Vec3& eye, const std::vector<std::string>& shown,
                      const std::vector<game::ActiveLaunch>& launches = {}) {
     auto draw = [&](const std::string& animation, const render::Vec3& position, float scale,
-                    game::SpriteView view = {}) {
-        const game::SpriteChoice pick =
-            game::choose_sprite(session.sprite_frames, animation, ticks, view.index);
-        if (pick.entry.empty()) {
+                    game::SpriteView view = {}, std::optional<std::uint32_t> animation_ticks = {}) {
+        const game::SpriteChoice pick = game::choose_sprite(
+            session.sprite_frames, animation, animation_ticks.value_or(ticks), view.index);
+        if (pick.entry.empty() || pick.scale == 0) {
             return;
         }
         const render::Texture& tex = cache.sprite(pick.entry, pick.palette);
@@ -406,7 +408,7 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
     }
     // What a script launched, mid-flight.
     for (const auto& l : launches) {
-        draw(l.animation, l.position, kObjectScale);
+        draw(l.animation, l.position, kObjectScale, {}, l.animation_ticks);
     }
 }
 
@@ -3163,6 +3165,8 @@ int main(int argc, char** argv) {
                                                     world::MonsterAnimation::Stand);
     std::vector<std::string> shown_animation(session.actors.size());
     std::vector<game::ActiveLaunch> launches;  // sprites a script put in the air
+    game::ScriptLootState script_loot;
+    game::ScriptObjectEffects script_object_effects;
 
     // A spell the party fired, mid-flight: the bolt carries its blow to the
     // monster it was aimed at and lands it on arrival, the way the script
@@ -3929,14 +3933,20 @@ int main(int argc, char** argv) {
         // files kept them, and forgotten after its own Refil Days.
         if (remember_departure && !session.file_name.empty()) {
             map_memory[game::map_memory_key(session.file_name)] =
-                game::capture_map_memory(session, battle, opened_chests, clock.day());
+                game::capture_map_memory(session, battle, opened_chests, clock.day(), script_loot);
         }
         world::MapSession next;
         if (world::load_map_session(games_lod, data_dir, name, cache, next) !=
             world::MapSessionError::None) {
             return false;
         }
+        if (const auto memory = map_memory.find(game::map_memory_key(next.file_name));
+            memory != map_memory.end() &&
+            !game::valid_script_loot(memory->second.loot, next, item_stats)) {
+            return false;
+        }
         session = std::move(next);
+        script_loot = {};
         music.stop();
         if (startup.world_active() && screenshot.empty() && music_wanted &&
             session.music_track > 0) {
@@ -3963,6 +3973,7 @@ int main(int argc, char** argv) {
         shown_kind.assign(session.actors.size(), world::MonsterAnimation::Stand);
         shown_animation.assign(session.actors.size(), {});
         launches.clear();
+        script_object_effects.clear();
         spell_shots.clear();
         spell_bursts.clear();
         map_colors_ready = false;
@@ -3994,8 +4005,8 @@ int main(int argc, char** argv) {
             const auto use = remember_departure ? game::MapMemoryUse::Revisit
                                                 : game::MapMemoryUse::SavedSnapshot;
             if (game::restore_map_memory(it->second, use, clock.day(), session, battle,
-                                         opened_chests,
-                                         shown_kind) == game::MapMemoryResult::Expired) {
+                                         opened_chests, shown_kind,
+                                         &script_loot) == game::MapMemoryResult::Expired) {
                 decoration_changes.erase(game::script_scope(session.file_name));
                 face_changes.erase(game::script_scope(session.file_name));
                 map_memory.erase(it);
@@ -4955,9 +4966,10 @@ int main(int argc, char** argv) {
                 state.autonotes = script_state.autonotes;
                 // The maps the party has been away from, plus the one
                 // underfoot: a save should find a cleared dungeon cleared.
-                state.remembered = game::save_map_memories(
-                    map_memory, session.file_name,
-                    game::capture_map_memory(session, battle, opened_chests, clock.day()));
+                state.remembered =
+                    game::save_map_memories(map_memory, session.file_name,
+                                            game::capture_map_memory(session, battle, opened_chests,
+                                                                     clock.day(), script_loot));
                 state.party = party;
                 state.party_buffs = party_buffs;
                 for (std::size_t i = 0; i < packs.size(); ++i) {
@@ -6711,6 +6723,8 @@ int main(int argc, char** argv) {
             party_recovery = std::max(0.0f, party_recovery - sim_dt);
             clock.advance_seconds(sim_dt);
             game::advance_launches(launches, sim_dt);
+            game::advance_script_loot(script_loot, sim_dt, session);
+            (void)script_object_effects.advance(sim_dt, session);
             // Doors travel between their stations at the file's own
             // open and close speeds, read as world units a second;
             // collision follows the geometry while anything slides.
@@ -7167,6 +7181,18 @@ int main(int argc, char** argv) {
                 game::walk_party_event(local ? session.script : global_script, request,
                                        script_state, party, shown_member, &script_item_generator);
             report_script_gaps(outcome, local ? session.file_name : "GLOBAL.EVT", request.event);
+            for (const auto& spawn : outcome.object_spawns) {
+                const auto result =
+                    script_object_effects.spawn(spawn.request, session, item_stats, script_loot);
+                if (result.error != game::LootSpawnError::None || result.dropped != 0) {
+                    std::cerr << "warning: object spawn in "
+                              << (local ? session.file_name : "GLOBAL.EVT") << " event "
+                              << request.event << " step " << static_cast<int>(spawn.sequence)
+                              << " object " << spawn.request.object_id << " error "
+                              << game::loot_spawn_error_name(result.error) << " dropped "
+                              << result.dropped << '\n';
+                }
+            }
             apply_decorations(outcome);
             const auto found_gold = game::settle_script_gold(
                 script_state, outcome,
@@ -7720,6 +7746,15 @@ int main(int argc, char** argv) {
                 pick_up_message = taken;
                 pick_up_shown = SDL_GetTicks();
             }
+            const auto spawned_taken = game::take_script_loot(script_loot, session, item_stats,
+                                                              cache, camera.position, packs);
+            if (!spawned_taken.empty()) {
+                if (const auto* item =
+                        item_stats.at(static_cast<std::size_t>(spawned_taken.back()))) {
+                    pick_up_message = data::cp1252_to_utf8(item->name);
+                    pick_up_shown = SDL_GetTicks();
+                }
+            }
         }
         // A new month wipes the kill book; the hall posts a fresh head.
         {
@@ -7751,6 +7786,20 @@ int main(int argc, char** argv) {
             }
         }
         std::vector<game::ActiveLaunch> in_flight = launches;
+        for (auto& sprite : script_object_effects.sprites(session.sprite_frames)) {
+            in_flight.push_back(std::move(sprite));
+        }
+        for (const auto& loot : script_loot.objects) {
+            const auto* descriptor = session.object_descriptors.at(loot.descriptor);
+            if (descriptor != nullptr &&
+                descriptor->sprite_frame_index < session.sprite_frames.size()) {
+                game::ActiveLaunch sprite;
+                sprite.animation =
+                    session.sprite_frames.frames()[descriptor->sprite_frame_index].group_name;
+                sprite.position = loot.position;
+                in_flight.push_back(std::move(sprite));
+            }
+        }
         for (const auto& shot : spell_shots) {
             in_flight.push_back(shot.flight);
         }
