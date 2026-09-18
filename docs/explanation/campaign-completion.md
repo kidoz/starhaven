@@ -3,7 +3,7 @@ title: Campaign completion
 summary: How StarHaven records quest resolutions and measures its frozen journal manifest across saves.
 doc_type: explanation
 status: partial
-last_updated: 2026-09-15
+last_updated: 2026-09-17
 source_files:
   - src/game/completion.cpp
   - src/game/script_walk.hpp
@@ -79,6 +79,12 @@ The map namespace and placement index keep one used object from changing another
 Version 6 additionally preserves indoor face attributes and textures after
 scripted changes. Collision and per-face texture animation are restored with the
 map; versions 1–5 remain readable without inferring changes absent from the save.
+
+Version 7 additionally preserves persistent opcode-34 loot per remembered map,
+including motion and random state. Picked-up spawned loot stays absent; full
+packs leave it in the saved world. Versions 1–6 load with empty spawned-loot
+state. This does not extend persistence to the original placed-map objects.
+See [persistent event loot](../formats/map-events.md#persistent-event-loot).
 
 [Opcode 33](../formats/map-events.md#opcode-33-displays-a-message-and-suspends-the-event)
 pauses an event for modal text. Save/load shortcuts are held until dismissal;

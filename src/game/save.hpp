@@ -23,10 +23,11 @@
 #include "game/script_decorations.hpp"
 #include "game/script_faces.hpp"
 #include "game/script_items.hpp"
+#include "game/script_loot.hpp"
 
 namespace starhaven::game {
 
-inline constexpr int kSaveVersion = 6;
+inline constexpr int kSaveVersion = 7;
 inline constexpr int kOldestSaveVersion = 1;
 inline constexpr const char* kSaveMagic = "starhaven-save";
 
@@ -104,6 +105,7 @@ struct SaveState {
         std::set<int> opened_chests;
         std::vector<std::uint32_t> open_doors;
         std::vector<std::size_t> dead;
+        ScriptLootState loot;
     };
     std::vector<RememberedMap> remembered;
     std::array<Character, 4> party{};

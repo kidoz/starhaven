@@ -22,6 +22,7 @@ struct MapMemory {
     std::vector<std::uint32_t> open_doors;
     std::vector<std::size_t> dead;
     std::int64_t remembered_day = 0;
+    ScriptLootState loot;
 };
 
 using MapMemories = std::map<std::string, MapMemory>;
@@ -30,7 +31,8 @@ using MapMemories = std::map<std::string, MapMemory>;
 // indoor and outdoor resources cannot share state accidentally.
 [[nodiscard]] std::string map_memory_key(std::string_view file);
 [[nodiscard]] MapMemory capture_map_memory(const world::MapSession& session, const Battle& battle,
-                                           const std::set<int>& opened_chests, std::int64_t day);
+                                           const std::set<int>& opened_chests, std::int64_t day,
+                                           const ScriptLootState& loot = {});
 // Legacy duplicate spellings resolve in stored order: the last snapshot wins.
 [[nodiscard]] MapMemories load_map_memories(std::span<const SaveState::RememberedMap> records);
 [[nodiscard]] std::vector<SaveState::RememberedMap> save_map_memories(const MapMemories& memories,
@@ -42,11 +44,10 @@ enum class MapMemoryResult : std::uint8_t { Expired, Restored };
 
 // A saved active map is a snapshot, even when the previous live session was
 // much later. Only ordinary revisits apply the destination's refill policy.
-[[nodiscard]] MapMemoryResult restore_map_memory(const MapMemory& memory, MapMemoryUse use,
-                                                 std::int64_t arrival_day,
-                                                 world::MapSession& session, Battle& battle,
-                                                 std::set<int>& opened_chests,
-                                                 std::span<world::MonsterAnimation> shown_kind);
+[[nodiscard]] MapMemoryResult
+restore_map_memory(const MapMemory& memory, MapMemoryUse use, std::int64_t arrival_day,
+                   world::MapSession& session, Battle& battle, std::set<int>& opened_chests,
+                   std::span<world::MonsterAnimation> shown_kind, ScriptLootState* loot = nullptr);
 
 }  // namespace starhaven::game
 

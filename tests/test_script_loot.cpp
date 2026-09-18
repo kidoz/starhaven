@@ -209,6 +209,53 @@ TEST_CASE("modal continuation never repeats a previous spawn", "[script-loot]") 
                 .created == 1);
     REQUIRE(loot.objects.size() == 2);
 }
+TEST_CASE("full packs, travel and save reload preserve loot without duplicate pickup",
+          "[script-loot]") {
+    Fixture f;
+    ScriptLootState loot;
+    REQUIRE(spawn_script_loot(request(), f.session, f.items, loot).created == 1);
+    std::array<Pack, 4> packs;
+    for (auto& pack : packs)
+        REQUIRE(pack.add(1, kPackWidth, kPackHeight));
+    const render::Vec3 party{10, 120, 20};
+    REQUIRE(take_script_loot(loot, f.session, f.items, f.cache, party, packs).empty());
+    REQUIRE(loot.objects.size() == 1);
+    advance_script_loot(loot, 0.001, f.session);
+    Battle battle;
+    auto memory = capture_map_memory(f.session, battle, {}, 2, loot);
+    SaveState save;
+    save.map_file = f.session.file_name;
+    save.remembered = save_map_memories({}, save.map_file, memory);
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(save), loaded));
+    auto memories = load_map_memories(loaded.remembered);
+    ScriptLootState restored;
+    std::set<int> chests;
+    REQUIRE(restore_map_memory(memories.at("synthetic.blv"), MapMemoryUse::SavedSnapshot, 100,
+                               f.session, battle, chests, {},
+                               &restored) == MapMemoryResult::Restored);
+    REQUIRE(restored.objects.size() == 1);
+    REQUIRE(restored.tick_remainder == loot.tick_remainder);
+    REQUIRE(restored.random == loot.random);
+    packs.front().clear();
+    REQUIRE(take_script_loot(restored, f.session, f.items, f.cache, {900, 120, 20}, packs).empty());
+    REQUIRE(take_script_loot(restored, f.session, f.items, f.cache, party, packs) ==
+            std::vector<int>{1});
+    REQUIRE(restored.objects.empty());
+    REQUIRE_FALSE(packs.front().items().front().identified);
+    memory = capture_map_memory(f.session, battle, {}, 2, restored);
+    save.remembered = save_map_memories(memories, "SYNTHETIC.BLV", memory);
+    REQUIRE(parse_save(save_text(save), loaded));
+    memories = load_map_memories(loaded.remembered);
+    REQUIRE(restore_map_memory(memories.at("synthetic.blv"), MapMemoryUse::Revisit, 3, f.session,
+                               battle, chests, {}, &restored) == MapMemoryResult::Restored);
+    REQUIRE(take_script_loot(restored, f.session, f.items, f.cache, party, packs).empty());
+    REQUIRE(packs.front().size() == 1);
+    REQUIRE(restore_map_memory(capture_map_memory(f.session, battle, {}, 2, loot),
+                               MapMemoryUse::Revisit, 9, f.session, battle, chests, {},
+                               &restored) == MapMemoryResult::Expired);
+    REQUIRE(restored.objects.empty());
+}
 TEST_CASE("a wall blocks spawned loot pickup", "[script-loot]") {
     Fixture f;
     ScriptLootState loot;
@@ -223,6 +270,74 @@ TEST_CASE("a wall blocks spawned loot pickup", "[script-loot]") {
     std::array<Pack, 4> packs;
     REQUIRE(take_script_loot(loot, f.session, f.items, f.cache, {-10, 120, 20}, packs).empty());
     REQUIRE(loot.objects.size() == 1);
+}
+
+TEST_CASE("save reload resumes fractional motion and the next scatter sequence", "[script-loot]") {
+    const Fixture f;
+    ScriptLootState live;
+    auto spawn = request();
+    spawn.scatter = true;
+    spawn.speed = 500;
+    REQUIRE(spawn_script_loot(spawn, f.session, f.items, live).created == 1);
+    advance_script_loot(live, 0.126, f.session);
+    SaveState saved;
+    saved.map_file = f.session.file_name;
+    SaveState::RememberedMap map;
+    map.file = saved.map_file;
+    map.loot = live;
+    saved.remembered.push_back(map);
+    SaveState loaded;
+    REQUIRE(parse_save(save_text(saved), loaded));
+    auto resumed = loaded.remembered.front().loot;
+    REQUIRE(valid_script_loot(resumed, f.session, f.items));
+    advance_script_loot(live, 0.25, f.session);
+    advance_script_loot(resumed, 0.25, f.session);
+    REQUIRE(spawn_script_loot(spawn, f.session, f.items, live).created == 1);
+    REQUIRE(spawn_script_loot(spawn, f.session, f.items, resumed).created == 1);
+    REQUIRE(live.random == resumed.random);
+    REQUIRE(live.tick_remainder == resumed.tick_remainder);
+    REQUIRE(live.objects.size() == resumed.objects.size());
+    for (std::size_t i = 0; i < live.objects.size(); ++i) {
+        REQUIRE(live.objects[i].position.x == resumed.objects[i].position.x);
+        REQUIRE(live.objects[i].position.y == resumed.objects[i].position.y);
+        REQUIRE(live.objects[i].position.z == resumed.objects[i].position.z);
+        REQUIRE(live.objects[i].velocity.x == resumed.objects[i].velocity.x);
+        REQUIRE(live.objects[i].velocity.y == resumed.objects[i].velocity.y);
+        REQUIRE(live.objects[i].velocity.z == resumed.objects[i].velocity.z);
+    }
+}
+TEST_CASE("loot save validation is atomic and version six stays readable", "[script-loot]") {
+    SaveState saved;
+    saved.map_file = "synthetic.blv";
+    SaveState::RememberedMap map;
+    map.file = saved.map_file;
+    map.loot.objects.push_back({1, 1, {10, 20, 30}, {1, 2, 3}, false});
+    saved.remembered.push_back(map);
+    const auto text = save_text(saved);
+    const auto at = text.find("recall\t");
+    const auto end = text.find('\n', at);
+    REQUIRE(at != std::string::npos);
+    SaveState sentinel;
+    sentinel.gold = 123;
+    for (std::size_t cut = at + 7; cut < end; ++cut) {
+        if (text[cut] != '\t')
+            continue;
+        auto truncated = text;
+        truncated.erase(cut, end - cut);
+        REQUIRE_FALSE(parse_save(truncated, sentinel));
+        REQUIRE(sentinel.gold == 123);
+    }
+    saved.remembered.front().loot.tick_remainder = 1;
+    REQUIRE_FALSE(parse_save(save_text(saved), sentinel));
+    saved.remembered.front().loot.tick_remainder = 0;
+    saved.remembered.front().loot.objects.front().item_id = -1;
+    REQUIRE_FALSE(parse_save(save_text(saved), sentinel));
+    REQUIRE(sentinel.gold == 123);
+    auto old = text;
+    old.replace(old.find('\t') + 1, 1, "6");
+    old.replace(at, end - at, "recall\tsynthetic.blv\t0\t0\t0\t0");
+    REQUIRE(parse_save(old, sentinel));
+    REQUIRE(sentinel.remembered.front().loot.objects.empty());
 }
 
 TEST_CASE("live event effects share capacity and random ordering with persistent loot",

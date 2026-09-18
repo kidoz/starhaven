@@ -17,10 +17,12 @@ std::string map_memory_key(std::string_view file) {
 }
 
 MapMemory capture_map_memory(const world::MapSession& session, const Battle& battle,
-                             const std::set<int>& opened_chests, std::int64_t day) {
+                             const std::set<int>& opened_chests, std::int64_t day,
+                             const ScriptLootState& loot) {
     MapMemory memory;
     memory.opened_chests = opened_chests;
     memory.remembered_day = day;
+    memory.loot = loot;
     for (const auto& door : session.doors) {
         if (door.open) {
             memory.open_doors.push_back(door.id);
@@ -38,10 +40,7 @@ MapMemories load_map_memories(std::span<const SaveState::RememberedMap> records)
     MapMemories memories;
     for (const auto& record : records) {
         memories[map_memory_key(record.file)] = {
-            record.opened_chests,
-            record.open_doors,
-            record.dead,
-            record.day,
+            record.opened_chests, record.open_doors, record.dead, record.day, record.loot,
         };
     }
     return memories;
@@ -55,28 +54,45 @@ std::vector<SaveState::RememberedMap> save_map_memories(const MapMemories& memor
     for (const auto& [file, memory] : memories) {
         const auto key = map_memory_key(file);
         if (key != active_key) {
-            records.push_back(
-                {key, memory.remembered_day, memory.opened_chests, memory.open_doors, memory.dead});
+            records.push_back({
+                key,
+                memory.remembered_day,
+                memory.opened_chests,
+                memory.open_doors,
+                memory.dead,
+                memory.loot,
+            });
         }
     }
-    records.push_back(
-        {active_key, active.remembered_day, active.opened_chests, active.open_doors, active.dead});
+    records.push_back({
+        active_key,
+        active.remembered_day,
+        active.opened_chests,
+        active.open_doors,
+        active.dead,
+        active.loot,
+    });
     return records;
 }
 
 MapMemoryResult restore_map_memory(const MapMemory& memory, MapMemoryUse use,
                                    std::int64_t arrival_day, world::MapSession& session,
                                    Battle& battle, std::set<int>& opened_chests,
-                                   std::span<world::MonsterAnimation> shown_kind) {
+                                   std::span<world::MonsterAnimation> shown_kind,
+                                   ScriptLootState* loot) {
     if (use == MapMemoryUse::Revisit && session.refill_days > 0 &&
         arrival_day >= memory.remembered_day &&
         static_cast<std::uint64_t>(arrival_day) -
                 static_cast<std::uint64_t>(memory.remembered_day) >=
             static_cast<std::uint64_t>(session.refill_days)) {
+        if (loot != nullptr)
+            *loot = {};
         return MapMemoryResult::Expired;
     }
 
     opened_chests = memory.opened_chests;
+    if (loot != nullptr)
+        *loot = memory.loot;
     for (auto& door : session.doors) {
         door.open = std::ranges::find(memory.open_doors, door.id) != memory.open_doors.end();
         door.progress = door.open ? 1.0f : 0.0f;

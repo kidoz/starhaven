@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <iomanip>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -103,6 +104,7 @@ bool valid_record_shape(std::string_view kind, std::string_view line) {
 // names go last on their lines so their own spaces survive.
 std::string save_text(const SaveState& state) {
     std::ostringstream out;
+    out << std::setprecision(std::numeric_limits<double>::max_digits10);
     out << kSaveMagic << "\t" << kSaveVersion << "\n";
     out << "map\t" << state.map_file << "\n";
     out << "camera\t" << state.x << "\t" << state.y << "\t" << state.z << "\t" << state.yaw << "\t"
@@ -204,6 +206,14 @@ std::string save_text(const SaveState& state) {
         out << "\t" << map.dead.size();
         for (const std::size_t actor : map.dead) {
             out << "\t" << actor;
+        }
+        out << '\t' << map.loot.random << '\t' << map.loot.tick_remainder << '\t'
+            << map.loot.objects.size();
+        for (const auto& loot : map.loot.objects) {
+            out << '\t' << loot.descriptor << '\t' << loot.item_id << '\t' << loot.position.x
+                << '\t' << loot.position.y << '\t' << loot.position.z << '\t' << loot.velocity.x
+                << '\t' << loot.velocity.y << '\t' << loot.velocity.z << '\t'
+                << (loot.resting ? 1 : 0);
         }
         out << "\n";
     }
@@ -438,6 +448,33 @@ static bool parse_save_data(std::string_view text, SaveState& out) {
             }
             for (int left = next_count(fields); left > 0; --left) {
                 map.dead.push_back(next_number<std::size_t>(fields));
+            }
+            if (version >= 7) {
+                if (fields.peek() == std::char_traits<char>::eof())
+                    return false;
+                map.loot.random = next_number<std::uint32_t>(fields);
+                map.loot.tick_remainder = next_number<double>(fields);
+                if (map.loot.tick_remainder < 0 || map.loot.tick_remainder >= 1)
+                    return false;
+                const int count = next_count(fields);
+                if (count > 1000)
+                    return false;
+                for (int i = 0; i < count; ++i) {
+                    ScriptLootObject loot;
+                    loot.descriptor = next_number<std::uint16_t>(fields);
+                    loot.item_id = next_int();
+                    loot.position = {next_float(), next_float(), next_float()};
+                    loot.velocity = {next_float(), next_float(), next_float()};
+                    if (fields.peek() == std::char_traits<char>::eof())
+                        return false;
+                    const int resting = next_int();
+                    if (loot.descriptor == 0 || loot.item_id <= 0 || (resting != 0 && resting != 1))
+                        return false;
+                    loot.resting = resting != 0;
+                    map.loot.objects.push_back(loot);
+                }
+                if (fields.peek() != std::char_traits<char>::eof())
+                    return false;
             }
             if (!map.file.empty()) {
                 out.remembered.push_back(std::move(map));
