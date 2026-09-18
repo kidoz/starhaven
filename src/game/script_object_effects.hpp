@@ -7,6 +7,8 @@
 
 namespace starhaven::game {
 
+class Battle;
+
 // Live opcode-34 application seam. Persistent loot owns the shared per-map
 // random sequence. Temporary effects are session-local, like other launches:
 // clear them only after successfully preparing a map (including save load).
@@ -16,11 +18,16 @@ public:
                                         const world::MapSession& session,
                                         const data::ItemStatsTable& items, ScriptLootState& loot);
     [[nodiscard]] TemporaryObjectStep advance(double seconds, const world::MapSession& session);
+    [[nodiscard]] TemporaryObjectStep advance(double seconds, const world::MapSession& session,
+                                              Battle& battle,
+                                              const data::MonsterStatsTable& monsters,
+                                              ScriptLootState& loot);
     [[nodiscard]] std::vector<ActiveLaunch> sprites(const world::SpriteFrameTable& frames) const;
     [[nodiscard]] std::size_t active_count() const noexcept { return temporary_.active_count(); }
     void clear() noexcept;
 
 private:
+    [[nodiscard]] std::uint32_t elapsed_ticks(double seconds);
     TemporaryObjects temporary_;
     double tick_remainder_ = 0;
 };

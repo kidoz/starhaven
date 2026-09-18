@@ -4,6 +4,8 @@
 #include <cmath>
 #include <utility>
 
+#include "game/combat.hpp"
+
 namespace starhaven::game {
 
 LootSpawnResult ScriptObjectEffects::spawn(const world::ObjectSpawnRequest& request,
@@ -30,14 +32,54 @@ LootSpawnResult ScriptObjectEffects::spawn(const world::ObjectSpawnRequest& requ
     return {error, result.created, result.dropped};
 }
 
-TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::MapSession& session) {
+std::uint32_t ScriptObjectEffects::elapsed_ticks(double seconds) {
     if (!std::isfinite(seconds) || seconds <= 0)
-        return {};
+        return 0;
     const double elapsed = tick_remainder_ + std::min(seconds, 1.0) * kObjectTicksPerSecond;
     const auto ticks = static_cast<std::uint32_t>(elapsed);
     tick_remainder_ = elapsed - ticks;
-    return temporary_.advance(ticks, session.collision,
+    return ticks;
+}
+
+TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::MapSession& session) {
+    return temporary_.advance(elapsed_ticks(seconds), session.collision,
                               session.outdoor() ? &session.terrain : nullptr);
+}
+
+TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::MapSession& session,
+                                                 Battle& battle,
+                                                 const data::MonsterStatsTable& monsters,
+                                                 ScriptLootState& loot) {
+    const auto ticks = elapsed_ticks(seconds);
+    if (ticks == 0 || temporary_.active_count() == 0)
+        return {};
+    std::vector<ObjectActor> bodies;
+    for (std::size_t i = 0; i < session.actors.size(); ++i) {
+        const auto& actor = session.actors[i];
+        const auto id = static_cast<std::size_t>(actor.monster_id);
+        if (!battle.alive(i) || actor.monster_id <= 0 || id > monsters.size())
+            continue;
+        const auto* body = session.monsters.at(id - 1);
+        // Same fallback body as aiming; invalid/missing stats are never targets.
+        bodies.push_back({
+            i,
+            actor.position,
+            body != nullptr && body->radius > 0 ? static_cast<float>(body->radius) : 48.0f,
+            body != nullptr && body->height > 0 ? static_cast<float>(body->height) : 160.0f,
+        });
+    }
+    Mm6Random random{loot.random};
+    const ObjectActorContacts contacts{
+        bodies,
+        [&](std::size_t actor) {
+            const auto id = static_cast<std::size_t>(session.actors[actor].monster_id);
+            return battle.accept_event_object_8080(actor, monsters.entries()[id - 1], random);
+        },
+    };
+    auto result = temporary_.advance(ticks, session.collision,
+                                     session.outdoor() ? &session.terrain : nullptr, &contacts);
+    loot.random = random.state();
+    return result;
 }
 
 std::vector<ActiveLaunch>

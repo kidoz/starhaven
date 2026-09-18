@@ -39,12 +39,12 @@ struct Fixture {
         session.file_name = "Synthetic.blv";
         session.kind = world::MapKind::Indoor;
         session.refill_days = 7;
-        Bytes descriptors(4 + 11 * world::kObjectDescriptorSize);
-        put(descriptors, 0, 11);
+        Bytes descriptors(4 + 12 * world::kObjectDescriptorSize);
+        put(descriptors, 0, 12);
         const std::size_t base = 4 + world::kObjectDescriptorSize;
         put(descriptors, base + 32, 1, 2);
         put(descriptors, base + 34, 2, 2);
-        constexpr std::array<std::array<std::uint16_t, 4>, 9> kEffects{
+        constexpr std::array<std::array<std::uint16_t, 4>, 10> kEffects{
             {
                 {1000, 0x194, 0, 768},
                 {1050, 0x174, 0, 768},
@@ -55,6 +55,7 @@ struct Fixture {
                 {4070, 0x54, 0, 256},
                 {4071, 0x3c, 1, 80},
                 {8080, 0x174, 0, 24},
+                {8081, 0x13c, 1, 96},
             },
         };
         for (std::size_t i = 0; i < kEffects.size(); ++i) {
@@ -647,4 +648,62 @@ TEST_CASE("8080 live effects animate until contact or expiry and leave persisten
     effects.clear();
     REQUIRE(effects.active_count() == 0);
     REQUIRE(loot.objects.size() == 1);
+}
+
+TEST_CASE("live 8080 actor contact uses combat state, magic resistance and saved random state",
+          "[script-loot]") {
+    Fixture f;
+    data::TextTable text;
+    REQUIRE(data::TextTable::parse_body("#\tPicture\tName\tLVL\tHP\tMag\tFire\r\n"
+                                        "1\tsynthetic\tSynthetic\t0\t100\t0\t200\r\n",
+                                        text) == data::TextTableError::None);
+    data::MonsterStatsTable monsters;
+    REQUIRE(data::MonsterStatsTable::parse(text, monsters) == data::MonsterStatsError::None);
+    f.session.actors.push_back({"synthetic", "Synthetic", 1, {10, 100, 20}});
+    Battle battle;
+    battle.reset(f.session, monsters, 1);
+    battle.hold_slot(0, 0, 100);
+    battle.afflict(0, MonsterCondition::Paralyze, 100);
+    // A small wound puts the actor into Wince before the state reset.
+    const data::SpellRange wound{1, 1};
+    const data::SpellRange no_scaling;
+    const data::RandomItemTable random_items;
+    const data::StandardBonusTable standard;
+    const data::SpecialBonusTable special;
+    (void)battle.smite(0, wound, no_scaling, 0, "Ener", "Synthetic", f.session, monsters, f.items,
+                       random_items, standard, special);
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Wince);
+    const auto health = battle.health_of(0);
+    bool dead = false;
+    SECTION("accepted magic gate resets animation without healing or curing") {}
+    SECTION("dead actors are not contacted") {
+        battle.kill(0);
+        dead = true;
+    }
+    ScriptLootState loot;
+    ScriptObjectEffects live;
+    auto req = request();
+    req.object_id = 8080;
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    Mm6Random expected{loot.random};
+    if (!dead)
+        (void)expected.next();
+    REQUIRE(live.advance(0, f.session, battle, monsters, loot).actor_contacts == 0);
+    const auto step = live.advance(1.0 / 128, f.session, battle, monsters, loot);
+    REQUIRE(step.actor_contacts == (dead ? 0U : 1U));
+    REQUIRE(step.actor_accepted == (dead ? 0U : 1U));
+    REQUIRE(step.detonations.empty());
+    REQUIRE(loot.random == expected.state());
+    if (!dead) {
+        REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
+        REQUIRE(battle.health_of(0) == health);
+        REQUIRE(battle.slot_up(0, 0));
+        REQUIRE_FALSE(battle.can_move(0));
+        REQUIRE(live.sprites(f.session.sprite_frames).front().animation == "c");
+        REQUIRE(live.advance(95.0 / 128, f.session, battle, monsters, loot).expired == 0);
+        REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot).expired == 1);
+        REQUIRE(loot.random == expected.state());
+    }
+    live.clear();
+    REQUIRE(live.active_count() == 0);
 }
