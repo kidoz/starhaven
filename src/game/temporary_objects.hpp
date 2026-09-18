@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <vector>
@@ -52,10 +53,25 @@ struct ObjectDetonation {
     // Opcode 34 supplies source zero. These unowned effects do not deliver
     // party or actor damage through the original area-effect consumers.
 };
+// Candidate bodies are supplied by the live combat adapter. Expanded cylinders
+// are a StarHaven collision policy, not a recreation of MM6's sector solver.
+struct ObjectActor {
+    std::size_t index = 0;
+    render::Vec3 position;
+    float radius = 0;
+    float height = 0;
+};
+struct ObjectActorContacts {
+    std::span<const ObjectActor> bodies;
+    std::function<bool(std::size_t)> apply;  // resistance gate and immediate state response
+};
 struct TemporaryObjectStep {
     std::size_t expired = 0;
     std::size_t bounces = 0;
     std::size_t terrain_contacts = 0;
+    std::size_t actor_contacts = 0;
+    std::size_t actor_accepted = 0;
+    std::size_t missing_actor_replacements = 0;
     std::vector<ObjectDetonation> detonations;
 };
 
@@ -67,7 +83,7 @@ void advance_object_motion(TemporaryObject& object, const world::CollisionWorld&
                            const world::OdmTerrain* terrain = nullptr);
 
 // Bounded lifecycle for event-created IDs 1000/1050/2081/2100/4070/8080 only. Not a
-// general opcode-34 implementation: loot, actor contacts, trails, sound and
+// general opcode-34 implementation: loot, other actor contacts, trails, sound and
 // persistence remain outside this system. Every accepted definition must be
 // temporary. StarHaven uses one-tick integration and swept spheres; it does
 // not reproduce the original sector solver or integer trajectory rounding.
@@ -79,7 +95,8 @@ public:
                                              Mm6Random& random, std::size_t occupied = 0);
     [[nodiscard]] TemporaryObjectStep advance(std::uint32_t ticks,
                                               const world::CollisionWorld& collision,
-                                              const world::OdmTerrain* terrain = nullptr);
+                                              const world::OdmTerrain* terrain = nullptr,
+                                              const ObjectActorContacts* actors = nullptr);
     [[nodiscard]] std::span<const TemporaryObject> slots() const noexcept { return objects_; }
     [[nodiscard]] std::size_t active_count() const noexcept;
     void clear() noexcept { objects_.clear(); }

@@ -591,3 +591,182 @@ TEST_CASE("8080 resource rejection is atomic and full-pool attempts retain scatt
         (void)expected.next();
     REQUIRE(random.state() == expected.state());
 }
+
+TEST_CASE("8080 actor contacts replace only accepted hits and preserve non-actor removal",
+          "[temporary-objects]") {
+    Resources resources;
+    std::vector definitions(resources.objects.begin(), resources.objects.end());
+    auto replacement = resources.objects[3];
+    replacement.object_id = 8081;
+    replacement.lifetime = 16;
+    definitions.push_back(replacement);
+    bool accepted = true;
+    int calls = 0;
+    std::size_t target = 99;
+    const std::array bodies{
+        ObjectActor{8, {0, 130, 0}, 2, 10},
+        ObjectActor{7, {0, 110, 0}, 2, 10},
+    };
+    const ObjectActorContacts contacts{
+        bodies,
+        [&](std::size_t actor) {
+            ++calls;
+            target = actor;
+            return accepted;
+        },
+    };
+    world::CollisionWorld collision;
+    auto req = request(8080);
+    req.speed = 4096;  // crosses both bodies within a single tick
+    TemporaryObjects live;
+    Mm6Random random{1};
+    bool missing = false;
+    bool blocked = false;
+    SECTION("accepted hit uses first body and expires at replacement lifetime") {}
+    SECTION("resisted hit removes without a replacement") {
+        accepted = false;
+    }
+    SECTION("missing replacement still applies accepted actor response") {
+        definitions.pop_back();
+        missing = true;
+    }
+    SECTION("bad replacement frame follows the missing resource path") {
+        definitions.back().sprite_frame_index = 99;
+        missing = true;
+    }
+    SECTION("geometry before actor blocks the gate") {
+        const std::array ceiling{
+            render::Vec3{-100, 106, -100},
+            render::Vec3{-100, 106, 100},
+            render::Vec3{100, 106, 100},
+            render::Vec3{100, 106, -100},
+        };
+        collision.add_polygon(ceiling, {0, -1, 0});
+        blocked = true;
+    }
+    REQUIRE(live.spawn(req, definitions, resources.frames, random).created == 1);
+    const auto hit = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(hit.detonations.empty());
+    REQUIRE(calls == (blocked ? 0 : 1));
+    REQUIRE(hit.actor_contacts == (blocked ? 0U : 1U));
+    REQUIRE(hit.actor_accepted == (!blocked && accepted ? 1U : 0U));
+    REQUIRE(hit.missing_actor_replacements == (missing ? 1U : 0U));
+    if (!blocked)
+        REQUIRE(target == 7);
+    if (blocked || !accepted || missing) {
+        REQUIRE(hit.expired == 1);
+        REQUIRE(live.active_count() == 0);
+    } else {
+        const auto position = live.slots()[0].position;
+        REQUIRE(position.y == Approx(105));  // center at 108, expanded lower cap
+        REQUIRE(live.slots()[0].definition.id == 8081);
+        REQUIRE(live.slots()[0].age == 0);
+        REQUIRE(live.advance(15, collision, nullptr, &contacts).expired == 0);
+        REQUIRE(live.slots()[0].position.y == position.y);
+        REQUIRE(calls == 1);
+        REQUIRE(live.advance(1, collision, nullptr, &contacts).expired == 1);
+        REQUIRE(live.active_count() == 0);
+    }
+}
+
+TEST_CASE("8080 actor sweep handles misses, overlap and distance guard", "[temporary-objects]") {
+    Resources resources;
+    resources.objects[9].lifetime = 768;
+    auto req = request(8080);
+    req.speed = 32767;
+    ObjectActor body{0, {0, 5200, 0}, 2, 10};
+    int calls = 0;
+    std::uint32_t ticks = 24;
+    std::size_t expected_contacts = 1;
+    SECTION("distant contact removes before any resistance draw") {}
+    SECTION("sideways miss flies through the same vertical interval") {
+        body.position.x = 5;
+        expected_contacts = 0;
+    }
+    SECTION("initial overlap contacts even without movement") {
+        req.speed = 0;
+        body.position.y = 100;
+        ticks = 1;
+    }
+    const ObjectActorContacts contacts{
+        std::span{&body, 1},
+        [&](std::size_t) {
+            ++calls;
+            return false;
+        },
+    };
+    TemporaryObjects live;
+    spawn(live, resources, req);
+    const auto step = live.advance(ticks, {}, nullptr, &contacts);
+    REQUIRE(step.actor_contacts == expected_contacts);
+    REQUIRE(calls == (req.speed == 0 ? 1 : 0));
+    REQUIRE(step.expired == expected_contacts);
+    REQUIRE(step.detonations.empty());
+}
+
+TEST_CASE("actor resistance callbacks retain chronological order across frame batches",
+          "[temporary-objects]") {
+    const Resources resources;
+    const std::array bodies{
+        ObjectActor{0, {0, 110, 0}, 2, 10},
+        ObjectActor{1, {100, 106, 0}, 2, 10},
+    };
+    std::vector<std::size_t> order;
+    const ObjectActorContacts contacts{
+        bodies,
+        [&](std::size_t actor) {
+            order.push_back(actor);
+            return false;
+        },
+    };
+    TemporaryObjects live;
+    auto req = request(8080);
+    spawn(live, resources, req);
+    req.x = 100;
+    spawn(live, resources, req);
+    SECTION("one batch") {
+        (void)live.advance(8, {}, nullptr, &contacts);
+    }
+    SECTION("individual ticks") {
+        for (int tick = 0; tick < 8; ++tick)
+            (void)live.advance(1, {}, nullptr, &contacts);
+    }
+    REQUIRE(order == std::vector<std::size_t>{1, 0});
+    REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("scattered 8080 sweeps actor sides without tunneling", "[temporary-objects]") {
+    const Resources resources;
+    auto req = request(8080);
+    req.scatter = true;
+    req.speed = 16000;
+    TemporaryObjects live;
+    spawn(live, resources, req);
+    const auto& object = live.slots().front();
+    const auto delta = object.velocity * (1.0f / 128);
+    const auto center = object.position + render::Vec3{0, object.definition.radius + 1, 0};
+    ObjectActor body{0, center + delta * 0.5f - render::Vec3{0, 1, 0}, 1, 2};
+    bool hit = true;
+    SECTION("crossing the side within a tick") {}
+    SECTION("outside the swept cylinder") {
+        const render::Vec3 side{-delta.z, 0, delta.x};
+        body.position = body.position + side * (10.0f / render::length(side));
+        hit = false;
+    }
+    SECTION("passing above the body") {
+        body.position.y -= 50;
+        hit = false;
+    }
+    int calls = 0;
+    const ObjectActorContacts contacts{
+        std::span{&body, 1},
+        [&](std::size_t) {
+            ++calls;
+            return false;
+        },
+    };
+    const auto step = live.advance(1, {}, nullptr, &contacts);
+    REQUIRE(step.actor_contacts == (hit ? 1U : 0U));
+    REQUIRE(calls == (hit ? 1 : 0));
+    REQUIRE(live.active_count() == (hit ? 0U : 1U));
+}

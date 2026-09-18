@@ -71,8 +71,7 @@ render::Vec3 launch_velocity(std::int32_t speed, std::uint16_t yaw, std::uint16_
 }
 
 void finish(TemporaryObject& object, TemporaryObjectStep& result) {
-    // ID 8080's non-actor contact/expiry path only removes the object. Its
-    // resisted actor effect and 8081 transition require character integration.
+    // ID 8080's non-actor contact/expiry path only removes the object.
     // The original impact path discards objects 5020 units from their origin.
     if ((object.definition.id == 1050 || object.definition.id == 2100 ||
          object.definition.id == 4070) &&
@@ -90,8 +89,69 @@ void finish(TemporaryObject& object, TemporaryObjectStep& result) {
     }
 }
 
+// Sweep a point against a cylinder expanded by the projectile radius. The
+// flat expanded end caps are deliberately conservative at the body's corners.
+std::optional<float> actor_fraction(render::Vec3 from, render::Vec3 to, float radius,
+                                    const ObjectActor& actor) {
+    if (actor.radius <= 0 || actor.height <= 0)
+        return std::nullopt;
+    const auto delta = to - from;
+    const auto relative = from - actor.position;
+    const float reach = radius + actor.radius;
+    float enter = 0;
+    float leave = 1;
+    const float a = delta.x * delta.x + delta.z * delta.z;
+    const float b = relative.x * delta.x + relative.z * delta.z;
+    const float c = relative.x * relative.x + relative.z * relative.z - reach * reach;
+    if (a == 0) {
+        if (c > 0)
+            return std::nullopt;
+    } else {
+        const float discriminant = b * b - a * c;
+        if (discriminant < 0)
+            return std::nullopt;
+        const float root = std::sqrt(discriminant);
+        enter = std::max(enter, (-b - root) / a);
+        leave = std::min(leave, (-b + root) / a);
+    }
+    const float bottom = -radius;
+    const float top = actor.height + radius;
+    if (delta.y == 0) {
+        if (relative.y < bottom || relative.y > top)
+            return std::nullopt;
+    } else {
+        const float first = (bottom - relative.y) / delta.y;
+        const float second = (top - relative.y) / delta.y;
+        enter = std::max(enter, std::min(first, second));
+        leave = std::min(leave, std::max(first, second));
+    }
+    return enter <= leave ? std::optional{enter} : std::nullopt;
+}
+
+void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
+                   const ObjectActorContacts& actors, std::size_t actor) {
+    ++result.actor_contacts;
+    // The common displacement guard runs before the resistance draw.
+    if (render::length(object.position - object.origin) >= 5020.0f || !actors.apply(actor)) {
+        finish(object, result);
+        return;
+    }
+    ++result.actor_accepted;
+    if (!object.impact_definition) {
+        ++result.missing_actor_replacements;
+        finish(object, result);
+        return;
+    }
+    object.definition = *object.impact_definition;
+    object.impact_definition.reset();
+    object.age = 0;
+    object.velocity = {};
+    object.resting = true;
+}
+
 void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collision,
-                   TemporaryObjectStep& result, const world::OdmTerrain* terrain) {
+                   TemporaryObjectStep& result, const world::OdmTerrain* terrain,
+                   const ObjectActorContacts* actors = nullptr) {
     const render::Vec3 offset{0, object.definition.radius + 1, 0};
     if (object.resting) {
         const auto center = object.position + offset;
@@ -112,6 +172,25 @@ void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collisi
         const auto center = object.position + offset;
         const auto target = center + object.velocity * remaining;
         const auto hit = collision.sweep_sphere(center, target, object.definition.radius, terrain);
+        if (object.definition.id == 8080 && (object.definition.flags & 0x40U) != 0 &&
+            actors != nullptr && actors->apply) {
+            float nearest = hit ? hit->fraction : 2.0f;
+            std::optional<std::size_t> selected;
+            for (const auto& actor : actors->bodies) {
+                if (const auto fraction =
+                        actor_fraction(center, target, object.definition.radius, actor);
+                    fraction && *fraction < nearest) {
+                    nearest = *fraction;
+                    selected = actor.index;
+                }
+            }
+            // Geometry wins equal-time contacts; actor ties retain body order.
+            if (selected) {
+                object.position = center + (target - center) * nearest - offset;
+                contact_actor(object, result, *actors, *selected);
+                return;
+            }
+        }
         if (!hit) {
             object.position = target - offset;
             return;
@@ -196,6 +275,13 @@ TemporarySpawnResult TemporaryObjects::spawn(const world::ObjectSpawnRequest& re
         }
         prototype.impact_definition = impact;
     }
+    if (request.object_id == 8080) {
+        TemporaryObjectDefinition impact;
+        // Non-actor removal is valid without 8081. A missing/bad replacement
+        // removes an accepted actor hit after applying its state response.
+        if (definition_for(8081, objects, frames, impact) == TemporarySpawnError::None)
+            prototype.impact_definition = impact;
+    }
     prototype.position = {
         static_cast<float>(request.x),
         static_cast<float>(request.z),
@@ -230,10 +316,16 @@ TemporarySpawnResult TemporaryObjects::spawn(const world::ObjectSpawnRequest& re
 
 TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
                                               const world::CollisionWorld& collision,
-                                              const world::OdmTerrain* terrain) {
+                                              const world::OdmTerrain* terrain,
+                                              const ObjectActorContacts* actors) {
     TemporaryObjectStep result;
-    for (auto& object : objects_) {
-        for (std::uint32_t tick = 0; tick < ticks && object.active; ++tick) {
+    // Tick order keeps shared resistance draws independent of frame batching.
+    for (std::uint32_t tick = 0; tick < ticks; ++tick) {
+        bool any_active = false;
+        for (auto& object : objects_) {
+            if (!object.active)
+                continue;
+            any_active = true;
             object.previous = object.position;
             ++object.age;
             if (object.age >= object.definition.lifetime) {
@@ -241,10 +333,12 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
                 continue;
             }
             if (object.definition.id != 1051 && object.definition.id != 2101 &&
-                object.definition.id != 4071) {
-                move_one_tick(object, collision, result, terrain);
+                object.definition.id != 4071 && object.definition.id != 8081) {
+                move_one_tick(object, collision, result, terrain, actors);
             }
         }
+        if (!any_active)
+            break;
     }
     return result;
 }
