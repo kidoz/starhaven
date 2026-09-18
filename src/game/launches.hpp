@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,9 @@ struct ActiveLaunch {
     render::Vec3 position;
     render::Vec3 target;
     bool arrived = false;
+    // Event objects use their simulation age, so pausing also freezes art.
+    // Other launch families retain the renderer's shared animation clock.
+    std::optional<std::uint32_t> animation_ticks = std::nullopt;
 };
 
 // Put a walked launch in the air. `party` is where an aimless one flies,

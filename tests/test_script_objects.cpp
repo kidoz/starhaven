@@ -121,8 +121,10 @@ TEST_CASE("object descriptor indices must fit the runtime word", "[script-object
     REQUIRE(std::cmp_equal(unused->descriptor_index, 0));
 }
 
-TEST_CASE("decoding object spawns does not claim runtime dispatch support", "[script-objects]") {
+TEST_CASE("object spawns have guarded dispatch with resource checks at application",
+          "[script-objects]") {
     const auto info = game::script_opcode_coverage(world::kOpcodeSpawnObjects);
     REQUIRE(info.name == "SpawnObjects");
-    REQUIRE(info.dispatch == game::ScriptDispatch::Unsupported);
+    REQUIRE(info.dispatch == game::ScriptDispatch::Handled);
+    REQUIRE(info.minimum_arguments == 22);
 }

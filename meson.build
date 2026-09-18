@@ -96,6 +96,8 @@ starhaven_core_sources = files(
   'src/game/script_decorations.cpp',
   'src/game/script_faces.cpp',
   'src/game/script_objects.cpp',
+  'src/game/script_loot.cpp',
+  'src/game/script_object_effects.cpp',
   'src/game/temporary_objects.cpp',
   'src/game/script_items.cpp',
   'src/game/script_message_view.cpp',

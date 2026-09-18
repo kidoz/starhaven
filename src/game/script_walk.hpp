@@ -128,6 +128,11 @@ struct WalkOutcome {
     // record's; how fast, and that an aimless one flies at the party, are
     // the session's.
     std::vector<world::MapLaunch> launches;
+    struct ObjectSpawn {
+        std::uint8_t sequence = 0;
+        world::ObjectSpawnRequest request;
+    };
+    std::vector<ObjectSpawn> object_spawns;
 
     // A question the event stopped at: string indices for the prompt and
     // the two spellings of the accepted answer, the step a match jumps to,
@@ -178,8 +183,9 @@ struct WalkOutcome {
                building != 0 || chest >= 0 || travel.has_value() || !retextures.empty() ||
                !faces.empty() || !decorations.empty() || !failed_decorations.empty() ||
                !generated_items.empty() || !failed_items.empty() || !doors.empty() ||
-               !summons.empty() || !launches.empty() || ask.has_value() || message.has_value() ||
-               !harms.empty() || gold_found != 0 || healed_hp != 0 || healed_sp != 0 ||
+               !summons.empty() || !launches.empty() || !object_spawns.empty() || ask.has_value() ||
+               message.has_value() || !harms.empty() || gold_found != 0 || healed_hp != 0 ||
+               healed_sp != 0 ||
                std::any_of(stat_gains.begin(), stat_gains.end(), [](int g) { return g != 0; }) ||
                std::any_of(resist_gains.begin(), resist_gains.end(), [](int g) { return g != 0; });
     }
@@ -249,6 +255,11 @@ walk_event(const world::MapScript& script, std::uint16_t id, WalkState& state, i
         switch (step.opcode) {
         case world::kOpcodeEnd:
             return out;
+        case world::kOpcodeSpawnObjects:
+            if (const auto spawn = world::parse_object_spawn(step)) {
+                out.object_spawns.push_back({step.sequence, *spawn});
+            }
+            break;
         case world::kOpcodeCheck: {
             if (a.size() < 6) {
                 break;

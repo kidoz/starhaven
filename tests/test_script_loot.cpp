@@ -1,0 +1,535 @@
+#include "game/script_loot.hpp"
+
+#include <catch2/catch_approx.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <zlib.h>
+
+#include <limits>
+
+#include "game/combat.hpp"
+#include "game/map_memory.hpp"
+#include "game/script_object_effects.hpp"
+#include "game/script_walk.hpp"
+#include "game/temporary_objects.hpp"
+
+using namespace starhaven;
+using namespace starhaven::game;
+using Catch::Approx;
+
+namespace {
+using Bytes = std::vector<std::byte>;
+void put(Bytes& bytes, std::size_t offset, std::uint32_t value, std::size_t width = 4) {
+    for (std::size_t i = 0; i < width; ++i)
+        bytes.at(offset + i) = static_cast<std::byte>((value >> (i * 8)) & 255U);
+}
+Bytes compressed(const Bytes& bytes) {
+    auto size = compressBound(static_cast<uLong>(bytes.size()));
+    Bytes entry(48 + size);
+    REQUIRE(compress(reinterpret_cast<Bytef*>(entry.data() + 48), &size,
+                     reinterpret_cast<const Bytef*>(bytes.data()),
+                     static_cast<uLong>(bytes.size())) == Z_OK);
+    entry.resize(48 + size);
+    return entry;
+}
+struct Fixture {
+    world::MapSession session;
+    data::ItemStatsTable items;
+    assets::AssetCache cache;
+    Fixture() {
+        session.file_name = "Synthetic.blv";
+        session.kind = world::MapKind::Indoor;
+        session.refill_days = 7;
+        Bytes descriptors(4 + 11 * world::kObjectDescriptorSize);
+        put(descriptors, 0, 11);
+        const std::size_t base = 4 + world::kObjectDescriptorSize;
+        put(descriptors, base + 32, 1, 2);
+        put(descriptors, base + 34, 2, 2);
+        constexpr std::array<std::array<std::uint16_t, 4>, 9> kEffects{
+            {
+                {1000, 0x194, 0, 768},
+                {1050, 0x174, 0, 768},
+                {1051, 0x13c, 1, 48},
+                {2081, 0x13c, 1, 48},
+                {2100, 0x154, 0, 768},
+                {2101, 0x13c, 1, 80},
+                {4070, 0x54, 0, 256},
+                {4071, 0x3c, 1, 80},
+                {8080, 0x174, 0, 24},
+            },
+        };
+        for (std::size_t i = 0; i < kEffects.size(); ++i) {
+            const auto offset = 4 + (i + 2) * world::kObjectDescriptorSize;
+            put(descriptors, offset + 32, kEffects[i][0], 2);
+            put(descriptors, offset + 34, 2, 2);
+            put(descriptors, offset + 38, kEffects[i][1], 2);
+            put(descriptors, offset + 40, kEffects[i][2], 2);
+            put(descriptors, offset + 42, kEffects[i][3], 2);
+        }
+        REQUIRE(world::ObjectTable::parse(compressed(descriptors), session.object_descriptors) ==
+                world::ObjectTableError::None);
+        Bytes frames(8 + 2 * world::kSpriteFrameSize + 4);
+        put(frames, 0, 2);
+        put(frames, 4, 2);
+        for (std::size_t i = 0; i < 2; ++i) {
+            const auto offset = 8 + i * world::kSpriteFrameSize;
+            frames[offset] = i == 0 ? std::byte{'a'} : std::byte{'c'};
+            frames[offset + 12] = i == 0 ? std::byte{'b'} : std::byte{'d'};
+            put(frames, offset + 40, 65536);
+            put(frames, offset + 44, 4);
+            put(frames, 8 + 2 * world::kSpriteFrameSize + i * 2, static_cast<std::uint32_t>(i), 2);
+        }
+        REQUIRE(world::SpriteFrameTable::parse(compressed(frames), session.sprite_frames) ==
+                world::SpriteFrameError::None);
+        data::TextTable text;
+        REQUIRE(data::TextTable::parse_body(
+                    "\r\nItem #\tPic File\tName\tValue\tEquip Stat\tSkill "
+                    "Group\tMod1\tMod2\tmaterial\tID/Rep/St\tNot identified name\tSprite "
+                    "Index\tShape\tEquip X\tEquip Y\tNotes\r\n"
+                    "0\t\t\t0\t\t\t0\t0\t0\t0\t\t0\t0\t0\t0\t\r\n"
+                    "1\tmissing-art\tSynthetic "
+                    "loot\t1\tWeapon\tSword\t1d1\t0\t0\t1\tUnknown\t1\t1\t0\t0\t\r\n",
+                    text) == data::TextTableError::None);
+        REQUIRE(data::ItemStatsTable::parse(text, items) == data::ItemStatsError::None);
+        const std::array floor{
+            render::Vec3{-1000, 0, -1000},
+            render::Vec3{1000, 0, -1000},
+            render::Vec3{1000, 0, 1000},
+            render::Vec3{-1000, 0, 1000},
+        };
+        session.collision.add_polygon(floor, {0, 1, 0});
+    }
+};
+world::ObjectSpawnRequest request() {
+    world::ObjectSpawnRequest spawn;
+    spawn.object_id = 1;
+    spawn.x = 10;
+    spawn.y = 20;
+    spawn.z = 100;
+    spawn.count = 1;
+    return spawn;
+}
+world::MapScript script() {
+    Bytes bytes(48, std::byte{0});
+    const auto add = [&](std::uint8_t sequence, std::uint8_t opcode, Bytes args) {
+        bytes.push_back(static_cast<std::byte>(4 + args.size()));
+        bytes.push_back(std::byte{9});
+        bytes.push_back(std::byte{0});
+        bytes.push_back(static_cast<std::byte>(sequence));
+        bytes.push_back(static_cast<std::byte>(opcode));
+        bytes.insert(bytes.end(), args.begin(), args.end());
+    };
+    Bytes spawn(22);
+    put(spawn, 0, 1);
+    put(spawn, 12, 100);
+    spawn[20] = std::byte{1};
+    add(0, world::kOpcodeSpawnObjects, spawn);
+    add(1, world::kOpcodeShowMessage, {});
+    add(2, world::kOpcodeSpawnObjects, spawn);
+    add(3, world::kOpcodeEnd, {});
+    world::MapScript result;
+    REQUIRE(world::MapScript::parse(bytes, result) == world::MapScriptError::None);
+    return result;
+}
+}  // namespace
+
+TEST_CASE("spawned loot moves, rests and persists without temporary expiry", "[script-loot]") {
+    const Fixture f;
+    ScriptLootState state;
+    REQUIRE(spawn_script_loot(request(), f.session, f.items, state).created == 1);
+    REQUIRE(valid_script_loot(state, f.session, f.items));
+    REQUIRE(state.objects.front().position.x == 10);
+    REQUIRE(state.objects.front().position.y == 100);
+    REQUIRE(state.objects.front().position.z == 20);
+    advance_script_loot(state, 0, f.session);
+    REQUIRE(state.objects.front().position.y == 100);
+    for (int i = 0; i < 300; ++i)
+        advance_script_loot(state, 1, f.session);
+    REQUIRE(state.objects.size() == 1);
+    REQUIRE(state.objects.front().resting);
+    REQUIRE(state.objects.front().position.y == Approx(-0.99f).margin(0.02f));
+    REQUIRE(render::length(state.objects.front().velocity) == 0);
+}
+TEST_CASE("spawn requests preserve repeats, capacity, failure atomicity and scatter RNG",
+          "[script-loot]") {
+    Fixture f;
+    ScriptLootState state;
+    auto req = request();
+    req.scatter = true;
+    req.speed = -128;
+    req.count = 2;
+    Mm6Random expected{state.random};
+    for (int i = 0; i < 4; ++i)
+        (void)expected.next();
+    REQUIRE(spawn_script_loot(req, f.session, f.items, state).created == 2);
+    REQUIRE(state.random == expected.state());
+    REQUIRE(state.objects.front().velocity.y < 0);
+    REQUIRE(spawn_script_loot(req, f.session, f.items, state).created == 2);
+    f.session.objects.resize(kTemporaryObjectCapacity);
+    for (auto& object : f.session.objects)
+        object.descriptor_index = 1;
+    expected = Mm6Random{state.random};
+    for (int i = 0; i < 4; ++i)
+        (void)expected.next();
+    const auto full = spawn_script_loot(req, f.session, f.items, state);
+    REQUIRE(full.created == 0);
+    REQUIRE(full.dropped == 2);
+    REQUIRE(state.random == expected.state());
+    req.count = 0;
+    REQUIRE(spawn_script_loot(req, f.session, f.items, state).dropped == 0);
+    REQUIRE(state.random == expected.state());
+    req.object_id = 0x10001;
+    REQUIRE(spawn_script_loot(req, f.session, f.items, state).error ==
+            LootSpawnError::UnsupportedId);
+    req = request();
+    f.session.sprite_frames = {};
+    REQUIRE(spawn_script_loot(req, f.session, f.items, state).error ==
+            LootSpawnError::MissingResource);
+    REQUIRE(state.objects.size() == 4);
+    REQUIRE(state.random == expected.state());
+}
+TEST_CASE("modal continuation never repeats a previous spawn", "[script-loot]") {
+    const Fixture f;
+    ScriptLootState loot;
+    WalkState state;
+    WalkPresentation text;
+    const auto event = script();
+    auto outcome = walk_event(event, 9, state, -1, f.session.file_name, &text);
+    REQUIRE(outcome.unsupported.empty());
+    REQUIRE(outcome.acted());
+    REQUIRE(outcome.object_spawns.size() == 1);
+    if (!outcome.message) {
+        FAIL("spawn must suspend at the modal");
+        return;
+    }
+    REQUIRE(spawn_script_loot(outcome.object_spawns.front().request, f.session, f.items, loot)
+                .created == 1);
+    outcome = walk_event(event, 9, state, outcome.message->resume_at, f.session.file_name, &text);
+    REQUIRE(outcome.object_spawns.size() == 1);
+    REQUIRE(spawn_script_loot(outcome.object_spawns.front().request, f.session, f.items, loot)
+                .created == 1);
+    REQUIRE(loot.objects.size() == 2);
+}
+TEST_CASE("a wall blocks spawned loot pickup", "[script-loot]") {
+    Fixture f;
+    ScriptLootState loot;
+    REQUIRE(spawn_script_loot(request(), f.session, f.items, loot).created == 1);
+    const std::array wall{
+        render::Vec3{0, 0, -100},
+        render::Vec3{0, 300, -100},
+        render::Vec3{0, 300, 100},
+        render::Vec3{0, 0, 100},
+    };
+    f.session.collision.add_polygon(wall, {1, 0, 0});
+    std::array<Pack, 4> packs;
+    REQUIRE(take_script_loot(loot, f.session, f.items, f.cache, {-10, 120, 20}, packs).empty());
+    REQUIRE(loot.objects.size() == 1);
+}
+
+TEST_CASE("live event effects share capacity and random ordering with persistent loot",
+          "[script-loot][script-object-effects]") {
+    Fixture f;
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    // One free slot shared by placed objects, loot and temporary effects.
+    f.session.objects.resize(999);
+    for (auto& object : f.session.objects)
+        object.descriptor_index = 1;
+    auto req = request();
+    req.object_id = 1000;
+    req.scatter = true;
+    Mm6Random expected{loot.random};
+    (void)expected.next();
+    (void)expected.next();
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(loot.random == expected.state());
+    const auto before_failure = loot.random;
+    REQUIRE(effects.spawn(req, {}, f.items, loot).error == LootSpawnError::MissingResource);
+    REQUIRE(loot.random == before_failure);
+    REQUIRE(effects.active_count() == 1);
+    req.object_id = 1;
+    const auto full = effects.spawn(req, f.session, f.items, loot);
+    REQUIRE(full.error == LootSpawnError::None);
+    REQUIRE(full.created == 0);
+    REQUIRE(full.dropped == 1);
+    (void)expected.next();
+    (void)expected.next();
+    REQUIRE(loot.random == expected.state());
+    REQUIRE(loot.objects.empty());
+    effects.clear();
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    req.object_id = 1050;
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).dropped == 1);
+    REQUIRE(effects.active_count() == 0);
+    req.object_id = 65535;
+    const auto before = loot.random;
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).error == LootSpawnError::UnsupportedId);
+    REQUIRE(loot.random == before);
+    REQUIRE(loot.objects.size() == 1);
+}
+
+TEST_CASE("temporary event effects use paused simulation time and reset their impact animation",
+          "[script-object-effects]") {
+    const Fixture f;
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    auto req = request();
+    req.object_id = 1050;
+    req.z = 1;
+    req.speed = -128;
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "a");
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+    (void)effects.advance(0.5 / 128, f.session);
+    (void)effects.advance(0, f.session);
+    (void)effects.advance(-1, f.session);
+    (void)effects.advance(std::numeric_limits<double>::infinity(), f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 1);
+    REQUIRE(effects.advance(0.5 / 128, f.session).detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 0);
+    REQUIRE(effects.advance(1.0 / 128, f.session).detonations.size() == 1);
+    const auto impact = effects.sprites(f.session.sprite_frames);
+    REQUIRE(impact.size() == 1);
+    REQUIRE(impact.front().animation == "c");
+    REQUIRE(impact.front().animation_ticks == 0);
+    REQUIRE(impact.front().position.y == Approx(-1));
+    (void)effects.advance(8.0 / 128, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 1);
+    (void)effects.advance(0, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 1);
+    REQUIRE(effects.advance(40.0 / 128, f.session).expired == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(loot.objects.empty());
+}
+
+TEST_CASE("temporary event application supports continuation and map-boundary clearing",
+          "[script-object-effects]") {
+    const Fixture f;
+    // The same synthetic event with temporary rather than persistent objects.
+    world::MapScript event;
+    // Build from a numeric EVT record to exercise dispatch through the live seam.
+    Bytes bytes(48, std::byte{0});
+    bytes.insert(bytes.end(),
+                 {std::byte{26}, std::byte{1}, std::byte{0}, std::byte{0}, std::byte{34}});
+    Bytes args(22);
+    put(args, 0, 1000);
+    put(args, 12, 100);
+    args[20] = std::byte{1};
+    bytes.insert(bytes.end(), args.begin(), args.end());
+    bytes.insert(bytes.end(),
+                 {std::byte{4}, std::byte{1}, std::byte{0}, std::byte{1}, std::byte{33}});
+    REQUIRE(world::MapScript::parse(bytes, event) == world::MapScriptError::None);
+    WalkState walk;
+    const auto first = walk_event(event, 1, walk);
+    REQUIRE(first.object_spawns.size() == 1);
+    REQUIRE(first.message.has_value());
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    REQUIRE(effects.spawn(first.object_spawns.front().request, f.session, f.items, loot).created ==
+            1);
+    if (first.message) {
+        const auto resumed = walk_event(event, 1, walk, first.message->resume_at);
+        REQUIRE(resumed.object_spawns.empty());
+    }
+    (void)effects.advance(0.5 / 128, {});
+    effects.clear();
+    REQUIRE(effects.active_count() == 0);
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(effects.spawn(first.object_spawns.front().request, f.session, f.items, loot).created ==
+            1);
+    (void)effects.advance(0.5 / 128, {});
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 100);
+    (void)effects.advance(0.5 / 128, {});
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y < 100);
+    // Large deltas are bounded to the same one-second quantum as persistent loot.
+    REQUIRE(effects.advance(1000, {}).expired == 0);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 16);
+}
+
+TEST_CASE("2081 animation and loot coexist with separate expiration and map lifecycles",
+          "[script-object-effects]") {
+    const Fixture f;
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    auto effect = request();
+    effect.object_id = 2081;
+    effect.speed = 1000;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.spawn(request(), f.session, f.items, loot).created == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "c");
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+    (void)effects.advance(0, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 100);
+    (void)effects.advance(8.0 / 128, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == Approx(162.5));
+    REQUIRE(effects.advance(39.0 / 128, f.session).expired == 0);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 5);
+    const auto end = effects.advance(1.0 / 128, f.session);
+    REQUIRE(end.expired == 1);
+    REQUIRE(end.detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(loot.objects.size() == 1);
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+    effects.clear();
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(loot.objects.size() == 1);
+    REQUIRE(valid_script_loot(loot, f.session, f.items));
+}
+
+TEST_CASE("2100 live presentation switches to 2101 and expires on simulation time",
+          "[script-object-effects]") {
+    const Fixture f;
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    auto effect = request();
+    effect.object_id = 2100;
+    effect.z = 10;
+    effect.speed = -30000;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "a");
+    (void)effects.advance(0, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 10);
+    REQUIRE(effects.advance(1.0 / 128, f.session).detonations.size() == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "c");
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+    const auto at = effects.sprites(f.session.sprite_frames).front().position;
+    (void)effects.advance(8.0 / 128, {});
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 1);
+    REQUIRE(render::length(effects.sprites(f.session.sprite_frames).front().position - at) == 0);
+    REQUIRE(effects.advance(72.0 / 128, {}).expired == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(loot.objects.empty());
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    effects.clear();
+    REQUIRE(effects.active_count() == 0);
+}
+
+TEST_CASE("4070 live effects retain flight frames on contact and reset animation at timeout",
+          "[script-object-effects]") {
+    const Fixture f;
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    auto effect = request();
+    effect.object_id = 4070;
+    effect.z = 10;
+    effect.speed = -30000;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.advance(1.0 / 128, f.session).detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "a");
+    (void)effects.advance(0, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+    REQUIRE(effects.advance(1, f.session).detonations.empty());
+    REQUIRE(effects.advance(126.0 / 128, f.session).detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 31);
+    REQUIRE(effects.advance(1.0 / 128, f.session).detonations.size() == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "c");
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+    const auto at = effects.sprites(f.session.sprite_frames).front().position;
+    REQUIRE(effects.advance(79.0 / 128, {}).expired == 0);
+    REQUIRE(render::length(effects.sprites(f.session.sprite_frames).front().position - at) == 0);
+    REQUIRE(effects.advance(1.0 / 128, {}).expired == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(loot.objects.empty());
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    effects.clear();
+    REQUIRE(effects.active_count() == 0);
+}
+
+TEST_CASE("outdoor terrain supports live effects and persistent loot", "[script-object-effects]") {
+    Fixture f;
+    f.session.kind = world::MapKind::Outdoor;
+    f.session.collision = {};
+    f.session.terrain.heightmap.fill(4);  // 128 world units
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    auto effect = request();
+    effect.object_id = 4070;
+    effect.z = 200;
+    effect.speed = -30000;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.advance(0, f.session).terrain_contacts == 0);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 200);
+    const auto contact = effects.advance(1.0 / 128, f.session);
+    REQUIRE(contact.terrain_contacts == 1);
+    REQUIRE(contact.detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == Approx(127.01));
+    REQUIRE(effects.advance(1, f.session).detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == Approx(127.01));
+    REQUIRE(effects.advance(127.0 / 128, f.session).detonations.size() == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "c");
+    REQUIRE(effects.advance(80.0 / 128, f.session).expired == 1);
+
+    effect.object_id = 1050;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.advance(1.0 / 128, f.session).detonations.size() == 1);
+    effects.clear();
+    effect.object_id = 1000;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.advance(1.0 / 128, f.session).terrain_contacts == 1);
+    const auto bounced = effects.sprites(f.session.sprite_frames).front().position.y;
+    (void)effects.advance(1.0 / 128, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y > bounced);
+    effects.clear();
+
+    effect.object_id = 1;
+    REQUIRE(spawn_script_loot(effect, f.session, f.items, loot).created == 1);
+    advance_script_loot(loot, 1.0 / 128, f.session);
+    REQUIRE(loot.objects.front().resting);
+    REQUIRE(loot.objects.front().position.y == Approx(127.01));
+    advance_script_loot(loot, 1, f.session);
+    REQUIRE(loot.objects.front().position.y == Approx(127.01));
+    // Terrain is read from the current session, not cached across map changes.
+    f.session.terrain.heightmap.fill(0);
+    advance_script_loot(loot, 1.0 / 128, f.session);
+    REQUIRE_FALSE(loot.objects.front().resting);
+    REQUIRE(loot.objects.front().position.y < 127.01f);
+
+    // The same height data must not turn into a phantom floor indoors.
+    f.session.kind = world::MapKind::Indoor;
+    effect.object_id = 4070;
+    REQUIRE(effects.spawn(effect, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.advance(1.0 / 128, f.session).terrain_contacts == 0);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y < 0);
+}
+
+TEST_CASE("8080 live effects animate until contact or expiry and leave persistent loot intact",
+          "[script-object-effects]") {
+    Fixture f;
+    ScriptLootState loot;
+    ScriptObjectEffects effects;
+    REQUIRE(effects.spawn(request(), f.session, f.items, loot).created == 1);
+    auto req = request();
+    req.object_id = 8080;
+    req.speed = 128;
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation == "a");
+    (void)effects.advance(0, f.session);
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == 100);
+    REQUIRE(effects.advance(8.0 / 128, f.session).detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().position.y == Approx(108));
+    REQUIRE(effects.sprites(f.session.sprite_frames).front().animation_ticks == 1);
+    REQUIRE(effects.advance(15.0 / 128, f.session).expired == 0);
+    const auto timeout = effects.advance(1.0 / 128, f.session);
+    REQUIRE(timeout.expired == 1);
+    REQUIRE(timeout.detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(loot.objects.size() == 1);
+
+    req.z = 10;
+    req.speed = -30000;
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(effects.advance(1.0 / 128, f.session).expired == 1);
+    f.session.kind = world::MapKind::Outdoor;
+    f.session.collision = {};
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    const auto terrain = effects.advance(1.0 / 128, f.session);
+    REQUIRE(terrain.terrain_contacts == 1);
+    REQUIRE(terrain.expired == 1);
+    REQUIRE(terrain.detonations.empty());
+    REQUIRE(effects.sprites(f.session.sprite_frames).empty());
+    REQUIRE(effects.spawn(req, f.session, f.items, loot).created == 1);
+    effects.clear();
+    REQUIRE(effects.active_count() == 0);
+    REQUIRE(loot.objects.size() == 1);
+}

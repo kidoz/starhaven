@@ -541,3 +541,8 @@ test('temporary_objects',
     dependencies: [starhaven_dep, catch2_main],
   ),
 )
+
+test('script_loot',
+  executable('test_script_loot', 'test_script_loot.cpp',
+    dependencies: [starhaven_dep, catch2_main, zlib_dep]),
+)

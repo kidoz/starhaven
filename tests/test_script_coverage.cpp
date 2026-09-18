@@ -95,8 +95,8 @@ TEST_CASE("audit counts every record while deduplicating scripts and scoped even
     const auto bytes = script_bytes({
         {8, 0, world::kOpcodeHeader, {1}},
         {8, 0, world::kOpcodeDoor, {3, 1}},
-        {8, 1, 34, {1, 2, 3, 4}},
-        {8, 2, 34, {1, 2, 3, 4}},
+        {8, 1, 3, {1, 2, 3, 4}},
+        {8, 2, 3, {1, 2, 3, 4}},
         {9, 0, world::kOpcodeTravel, {}},
         {9, 1, 90, {}},
         {8, 3, world::kOpcodeTake, {world::kVarQuestBit, 1, 0, 0, 0}},
@@ -114,9 +114,9 @@ TEST_CASE("audit counts every record while deduplicating scripts and scoped even
     REQUIRE(coverage.counts.unsupported == 6);
     REQUIRE(coverage.counts.original_handler_gaps == 4);
     REQUIRE(coverage.counts.short_arguments == 2);
-    REQUIRE(coverage.opcodes.at(34).scripts.size() == 2);
-    REQUIRE(coverage.opcodes.at(34).events.size() == 2);
-    REQUIRE(coverage.opcodes.at(34).argument_sizes.at(4) == 4);
+    REQUIRE(coverage.opcodes.at(3).scripts.size() == 2);
+    REQUIRE(coverage.opcodes.at(3).events.size() == 2);
+    REQUIRE(coverage.opcodes.at(3).argument_sizes.at(4) == 4);
     REQUIRE(coverage.locations.size() == 8);
     REQUIRE(coverage.locations.front().record == 2);
     REQUIRE(coverage.locations.front().event_features == "door,quest_bit");
@@ -130,7 +130,7 @@ TEST_CASE("audit counts every record while deduplicating scripts and scoped even
                           second);
     REQUIRE(first.str() == second.str());
     REQUIRE(first.str().find("SUMMARY\t1\t2\t2\t4\t14\t6\t2\t6\t2\t4\n") != std::string::npos);
-    REQUIRE(first.str().find("LOCATION\tA.EvT\t8\t1\t2\t34\t4\tunsupported\tdoor,quest_bit\n") !=
+    REQUIRE(first.str().find("LOCATION\tA.EvT\t8\t1\t2\t3\t4\tunsupported\tdoor,quest_bit\n") !=
             std::string::npos);
 }
 
