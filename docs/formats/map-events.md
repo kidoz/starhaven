@@ -1085,13 +1085,36 @@ a missing ID-8081 resource does not prevent a non-actor launch. These are
 `0x45d7a2..0x45d7ad`, `0x45c760..0x45c769`, with expiry dispatch at
 `0x463939..0x463951`.
 
-Actor contact is a different path: a resistance gate can reject and remove the
-object, or accept it, reset actor state, attempt an actor-buff update, and
-transform it into ID 8081 with age/velocity reset (`0x45d7b3..0x45d8e6`). The
-opcode-34 constructor zeros the three spell parameters consumed by this branch;
-that does **not** prove the actor path is inert. Actor collision and these state
-changes remain unimplemented. The non-actor behavior must not be generalized
-to actor contact or presented as complete ID-8080 compatibility.
+Actor contact takes a separate, implemented path (`observed` at
+`0x45d7b3..0x45d8e6`). The gate at `0x421e90..0x421f17` uses the actor's
+magic resistance and level. Immunity (resistance 200 or above) rejects without
+a random draw; otherwise accept when `rand() % (level + resistance + 30) < 30`.
+A rejected hit removes the object. An accepted hit writes actor state zero and
+selects stand animation (`0x44c140`, table `0x44c390`, branch `0x44c15e`), then
+attempts a buff update. Opcode 34 supplies slot zero, duration zero and skill
+zero. The buff helper at `0x44a970` preserves an existing later expiry, so this
+creates no lasting condition and does not erase an active buff. Acceptance does
+not depend on that helper returning success.
+
+Acceptance changes the object to ID 8081 and clears age and velocity, without
+an area detonation. Installed descriptor 210 uses frame 383, flags `0x13c` and
+lifetime **96 ticks**. Missing or invalid replacement resources remove the
+object after its accepted actor response; they do not prevent launching 8080.
+The common 5,020-unit displacement guard removes before the resistance draw.
+
+StarHaven maps state zero to ending the battle's wince animation, preserving
+health, recovery, hostility and all condition/buff timers. Only living actors
+with valid monster-stat rows are candidates. A swept expanded vertical cylinder
+uses DMONLIST radius/height, with the aiming system's 48/160 fallback when body
+data is missing. Expansion uses flat end caps and is conservative at corners.
+The earliest contact wins; geometry wins equal-time ties, followed by stable
+actor order. These selection rules, malformed-stat clamping and fixed actor
+positions within a simulation call are **StarHaven policies**, not proven
+original sector/actor selection parity. Actor resistance draws use the saved
+per-map object RNG; tick-first processing preserves their order across frame
+batches for fixed actor positions. Ordering against MM6's process-wide RNG
+remains unverified. Other object families' actor paths, party/decoration
+contacts, trails and sound remain open.
 
 The binary descriptor already contains its effective lifetime. The text-table
 builder derives animation lifetime from DSFT group length multiplied by eight;
@@ -1151,7 +1174,7 @@ persistent loot keeps its version-7 save contract. This is an explicit
 the walker and the same live application helper, checks drawable sprite
 resources, and advances against loaded geometry until all effects expire.
 It does not prove natural branch reachability or original-runtime visual parity.
-Actor contacts, terrain-material responses, trails, sound, the remaining IDs
+Other actor contacts, terrain-material responses, trails, sound, the remaining IDs
 and original temporary-object persistence remain unresolved before opcode 34
 can be called complete. See the
 [event-script coverage audit](../explanation/event-script-coverage.md).
@@ -1184,6 +1207,14 @@ replacement or detonation. A second run of the same requests in empty geometry
 checks expiry at the descriptor lifetime. The unsupported timer record at
 sequence 0 and companion monster summons are excluded, as are character
 contacts; this is not natural player-reachability or whole-event acceptance.
+
+`evt_info --object-actor` uses the first seeded OUTD3 event-200 request with
+controlled actor overlap and no map geometry. It loads real monster statistics,
+body dimensions, descriptors and sprite frames, checks accepted/resisted/immune
+cases with deterministic seeds, preserves actor health and an active buff, and
+verifies stationary ID-8081 drawing and expiry across its 96 ticks. It writes
+no saves and does not establish natural event activation, moving-target
+selection, or original-runtime visual parity.
 
 ### Persistent event loot
 

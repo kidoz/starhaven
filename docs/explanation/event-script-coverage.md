@@ -53,7 +53,8 @@ correcting its tentative party-coordinate label. Its
 [persistent loot](../formats/map-events.md#persistent-event-loot) now survives
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
-adapter; actor contacts, terrain-material responses, trails, sound and other
+adapter; ID 8080 also has its resisted actor response and 8081 replacement. Other
+actor contacts, terrain-material responses, trails, sound and other
 original object behavior remain follow-up work.
 
 ## Reproduce
@@ -170,8 +171,8 @@ behavior check. A handler that merely consumes a record is not completion.
    and impacts. IDs 1000/1050 now run in live simulation and rendering, with an
    event-56 branch probe; CD2's ID-2081 effect and ID-1 loot pass a combined
    entry-path probe, including pickup and save/map return.
-   Next resolve actor contacts, trails, sound and the remaining types. Keep the absent descriptor ID 36
-   in ZNWC visible. Opcode 23 already changes passage collision.
+   Next resolve the remaining actor contacts, trails, sound and other types. Keep
+   the absent descriptor ID 36 in ZNWC visible. Opcode 23 already changes passage collision.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
    two-byte uses of opcode 10 are `OUTC1 / 211 / 2` (quest) and
    `OUTD3 / 203 / 0` (travel); low frequency does not make them harmless.
@@ -309,8 +310,11 @@ record, with activation counter 105 seeded. Its three ID-8080 requests now
 animate and remove on geometry contact or expiry without a detonation or
 replacement. The capped/disabled branches are checked; an empty-geometry
 control verifies the full 768-tick lifetime. The companion summons and actor
-contacts are excluded. ID 8080's separate resisted actor response remains open;
-see the [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
+contacts are excluded from that probe. The separate `--object-actor` probe now
+checks accepted, resisted and immune contacts using controlled overlap and
+installed resources, including all 96 ticks of the stationary 8081 animation.
+This does not prove natural activation or original collision selection; see the
+[temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
 
 ### Temporary-object simulation probe
 

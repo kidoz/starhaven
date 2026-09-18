@@ -198,12 +198,14 @@ The audit reduces the old sections to these bounded unknowns:
   verifying changed trajectories. Terrain-material behavior and opcode 3
   prevent full event acceptance. OUTD3 event 200's seeded ID-8080 path now
   checks flight, geometry removal and expiry without detonation or replacement.
-  Its separate resistance/actor-state/8081 path remains unimplemented.
+  Its separate resistance/actor-state/8081 path is covered by controlled
+  installed-resource actor checks; natural timer activation remains unverified.
   Temporary effects clear
   on successful map open/load as an explicit engine policy. Exact original
   collision, presentation and temporary persistence remain unverified. Next
-  resolve actor contacts (including ID 8080), terrain materials, trails and sound;
-  preserve the resource mismatch.
+  resolve the remaining actor contacts, terrain materials, trails and sound,
+  preserving the resource mismatch. Original actor selection and process-wide
+  random ordering remain open.
   Original cursor-item delivery, shared random ordering across subsystems,
   decoration picking/proximity triggers and state reindexing after descriptor changes,
   message-window styling,

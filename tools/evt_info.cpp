@@ -52,6 +52,7 @@ void print_usage(const char* argv0) {
               << "  --face-bits  verify opcode 23 masks and indoor face lifecycles\n"
               << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
               << "  --object-loot  verify CD2 effects, loot pickup, map memory and saves\n"
+              << "  --object-actor    verify controlled 8080 actor contacts and 8081 resources\n"
               << "  --object-removal  verify OUTD3 event 200 non-actor 8080 lifecycle\n"
               << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
@@ -572,6 +573,129 @@ int do_object_expiry(const std::filesystem::path& data_dir) {
 
 // Skip the unsupported timer record, seed the activation counter, and apply
 // only the object requests. Companion summons and actor contacts are excluded.
+int do_object_actor(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "OUTD3.odm", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None ||
+        data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: incomplete object-actor resources\n";
+        return 1;
+    }
+    const auto vulnerable = std::ranges::find_if(monsters.entries(), [](const auto& row) {
+        const int resistance = row.resistance(data::Resistance::Magic);
+        return row.hit_points > 0 && row.level > 0 && resistance >= 0 && resistance < 200;
+    });
+    const auto immune = std::ranges::find_if(monsters.entries(), [](const auto& row) {
+        const int resistance = row.resistance(data::Resistance::Magic);
+        return row.hit_points > 0 && (resistance == data::kResistanceImmune || resistance >= 200);
+    });
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto replacement =
+        std::ranges::find(descriptors, 8081, &world::ObjectDescriptor::object_id);
+    game::WalkState state;
+    state.variables[105] = 1;
+    const auto outcome = game::walk_event(session.script, 200, state, 1, session.file_name);
+    if (outcome.object_spawns.empty() || vulnerable == monsters.entries().end() ||
+        immune == monsters.entries().end() || replacement == descriptors.end() ||
+        replacement->sprite_frame_index >= session.sprite_frames.size()) {
+        std::cerr << "error: missing object-actor joins\n";
+        return 1;
+    }
+    const auto request = outcome.object_spawns.front().request;
+    const auto& group = session.sprite_frames.frames()[replacement->sprite_frame_index].group_name;
+    // Controlled initial overlap isolates contact semantics from map traversal.
+    // Original timer activation, companion summons and sector selection are not tested.
+    session.kind = world::MapKind::Indoor;
+    session.collision = {};
+    session.actors.clear();
+    session.actors.push_back({
+        {},
+        {},
+        0,
+        {
+            static_cast<float>(request.x),
+            static_cast<float>(request.z),
+            static_cast<float>(request.y),
+        },
+    });
+    bool ok = request.object_id == 8080 && request.count == 1;
+    std::size_t drawable = 0;
+    for (int mode = 0; mode < 3; ++mode) {
+        const bool accepted = mode == 0;
+        const auto row = mode == 2 ? immune : vulnerable;
+        session.actors.front().monster_id = static_cast<int>(row - monsters.entries().begin() + 1);
+        game::Battle battle;
+        battle.reset(session, monsters, 1);
+        battle.hold_slot(0, 0, 100);
+        const auto health = battle.health_of(0);
+        std::uint32_t seed = 1;
+        if (mode != 2) {
+            const auto span = static_cast<unsigned>(std::clamp(row->level, 0, 255) +
+                                                    row->resistance(data::Resistance::Magic) + 30);
+            for (; seed < 65536; ++seed) {
+                Mm6Random candidate{seed};
+                if (request.scatter) {
+                    (void)candidate.next();
+                    (void)candidate.next();
+                }
+                if ((candidate.next() % span < 30) == accepted)
+                    break;
+            }
+        }
+        game::ScriptLootState loot;
+        loot.random = seed;
+        game::ScriptObjectEffects live;
+        ok = seed < 65536 && live.spawn(request, session, items, loot).created == 1 && ok;
+        Mm6Random expected{loot.random};
+        if (mode != 2)
+            (void)expected.next();
+        const auto step =
+            live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
+        ok = step.actor_contacts == 1 && step.actor_accepted == (accepted ? 1U : 0U) &&
+             step.expired == (accepted ? 0U : 1U) && step.detonations.empty() &&
+             step.missing_actor_replacements == 0 && loot.random == expected.state() &&
+             battle.health_of(0) == health && battle.slot_up(0, 0) && ok;
+        if (accepted) {
+            render::Vec3 position{};
+            for (std::uint32_t age = 0; age < replacement->lifetime; ++age) {
+                const auto sprites = live.sprites(session.sprite_frames);
+                if (sprites.size() != 1) {
+                    ok = false;
+                    break;
+                }
+                const auto& sprite = sprites.front();
+                if (age == 0)
+                    position = sprite.position;
+                const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                      sprite.animation_ticks.value_or(0));
+                ok = sprite.animation == group && sprite.animation_ticks == age / 8 &&
+                     render::length(sprite.position - position) == 0 && !pick.entry.empty() &&
+                     pick.scale > 0 && !cache.sprite(pick.entry, pick.palette).empty() && ok;
+                ++drawable;
+                const auto frame = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
+                                                monsters, loot);
+                ok = frame.actor_contacts == 0 && frame.detonations.empty() &&
+                     frame.expired == (age + 1 == replacement->lifetime ? 1U : 0U) && ok;
+            }
+        }
+        ok = live.active_count() == 0 && loot.random == expected.state() && ok;
+    }
+    std::cout << "OBJECT_ACTOR " << (ok ? "PASS" : "FAIL")
+              << " object=8080 replacement=8081 cases=accepted,resisted,immune"
+              << " replacement_lifetime=" << replacement->lifetime
+              << " drawable_samples=" << drawable
+              << " controlled_overlap=1 map_geometry=excluded timer_and_summons=excluded\n";
+    return ok ? 0 : 1;
+}
+
 int do_object_removal(const std::filesystem::path& data_dir) {
     using namespace starhaven;
     assets::AssetCache cache;
@@ -3329,6 +3453,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-actor") {
+        if (!install) {
+            std::cerr << "error: game installation not found\n";
+            return 1;
+        }
+        return do_object_actor(*install / "data");
+    }
     if (stem == "--object-removal") {
         if (argc != 2) {
             print_usage(argv[0]);
