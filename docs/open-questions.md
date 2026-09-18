@@ -3,7 +3,7 @@ title: "Open-question register"
 summary: "Authoritative evidence-backed answers and unresolved questions gathered from public StarHaven documentation."
 doc_type: index
 status: verified
-last_updated: 2026-09-11
+last_updated: 2026-09-18
 tags:
   - open-questions
   - research
@@ -170,7 +170,7 @@ The audit reduces the old sections to these bounded unknowns:
   shared scripts, and the authoring provenance of orphaned topic, face, and
   global events. These do not change the decoded opcode layouts.
 - [Event-script coverage](explanation/event-script-coverage.md): the census now
-  identifies 8 missing original handlers (233 records), separately from 415
+  identifies 7 absent original handlers (178 records) plus partial opcode-34 support, separately from 415
   original-default records. Opcode 13 is now observed and implemented as a
   placed-decoration descriptor/visibility update, with 97 valid records checked
   against loaded maps. Opcode 33 is observed and implemented as modal text with
@@ -183,9 +183,27 @@ The audit reduces the old sections to these bounded unknowns:
   Its pass-through and texture-animation effects are implemented; mask `0x10`'s
   alternate draw appearance remains unknown. Opcode 34 is decoded as object
   spawning: 44 complete requests resolve, ten are short, and ZNWC event 65
-  requests missing descriptor ID 36. Runtime remains unsupported. Next trace
-  motion, expiry and impacts for IDs 1000/1050 in D18 event 56, then persistent
-  ID-1 loot in CD2; preserve the resource mismatch in the audit.
+  requests missing descriptor ID 36. Runtime support is partial: the ID-1 loot
+  instructions now create drawable, collectible objects preserved across map
+  return and save/load. IDs 1000/1050/2081/2100/4070/8080 now run in the live simulation and renderer,
+  with a D18 event-56 dispatch/application/resource probe; ID 1050 becomes the
+  non-damaging, 48-tick ID-1051 effect for source zero. CD2 events 35/36 now
+  exercise moving ID 2081 and persistent loot together from entry, including
+  expiration and save/pickup checks. D01 event 47's three ID-2100 requests now
+  pass geometry impact, stationary ID-2101 animation and expiry checks; its
+  distinct actor-contact response remains unimplemented. OUTE3 event 220's
+  seeded ID-4070 requests now pass 45 timed transitions into ID 4071 and removal
+  at tick 336; ordinary geometry contacts preserve ID 4070. Outdoor terrain
+  collision now shares the rendered triangles, with a model-only control
+  verifying changed trajectories. Terrain-material behavior and opcode 3
+  prevent full event acceptance. OUTD3 event 200's seeded ID-8080 path now
+  checks flight, geometry removal and expiry without detonation or replacement.
+  Its separate resistance/actor-state/8081 path remains unimplemented.
+  Temporary effects clear
+  on successful map open/load as an explicit engine policy. Exact original
+  collision, presentation and temporary persistence remain unverified. Next
+  resolve actor contacts (including ID 8080), terrain materials, trails and sound;
+  preserve the resource mismatch.
   Original cursor-item delivery, shared random ordering across subsystems,
   decoration picking/proximity triggers and state reindexing after descriptor changes,
   message-window styling,

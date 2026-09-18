@@ -3,14 +3,19 @@ title: Event-script coverage audit
 summary: Reproducible coverage of every shipped MM6 event script against the current walker, with missing-handler locations and a prioritized backlog.
 doc_type: explanation
 status: partial
-last_updated: 2026-09-11
+last_updated: 2026-09-18
 source_files:
+  - src/game/script_object_effects.cpp
   - tools/evt_info.cpp
   - src/game/script_coverage.cpp
   - src/game/script_walk.hpp
   - tests/test_script_coverage.cpp
+  - src/game/script_loot.cpp
+  - tests/test_script_loot.cpp
   - src/game/script_objects.cpp
   - tests/test_script_objects.cpp
+  - src/game/temporary_objects.cpp
+  - tests/test_temporary_objects.cpp
 tags:
   - events
   - compatibility
@@ -19,11 +24,13 @@ tags:
 ---
 # Event-script coverage audit
 
-The current walker has **28 executable opcode cases and one metadata case**.
-The shipped scripts contain **8 additional opcodes with original executable
-handlers**, used in **233 records across 137 events in 44 scripts**. These are
-the substantive dispatch backlog, not the previously estimated “45 of 90.”
-Counts are `observed`; their gameplay consequences require further validation.
+The current walker has **29 executable opcode cases and one metadata case**.
+**Seven original handlers remain absent**, accounting for **178 records**.
+Opcode 34 has a dispatch case but **partial runtime support**: persistent ID-1
+loot and temporary IDs 1000/1050/2081/2100/4070/8080 have bounded live paths.
+Actor responses and presentation gaps remain; other IDs report explicit errors.
+These counts measure dispatch, not completed behavior; the reduced unsupported count must not be read as full opcode-34
+compatibility.
 
 This is a static census of every `.EVT` in `icons.lod`, including global,
 unused and template-like scripts. It does not prove event reachability, full
@@ -42,8 +49,12 @@ Opcode 23 now [changes indoor face attributes](../formats/map-events.md#opcode-2
 animation respond to the flags. The alternate draw-path effect of mask `0x10`
 remains a rendering gap; storing that bit does not certify its appearance.
 Opcode 34 is now [decoded as object spawning](../formats/map-events.md#opcode-34-spawns-sprite-objects),
-correcting its tentative party-coordinate label. Its runtime remains unsupported;
-resource resolution alone does not change the dispatch counts.
+correcting its tentative party-coordinate label. Its
+[persistent loot](../formats/map-events.md#persistent-event-loot) now survives
+pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
+with indoor/model geometry and outdoor terrain, animate and expire in the live
+adapter; actor contacts, terrain-material responses, trails, sound and other
+original object behavior remain follow-up work.
 
 ## Reproduce
 
@@ -87,10 +98,12 @@ this measure.
 
 ## Measured baseline
 
-Audited 2026-09-10 after implementing opcode 23 on engine base revision `f192476`.
+Audited 2026-09-17 with partial opcode-34 loot support on engine base `f28413c`.
 The original audit at `b6a5cc7` had 609 missing-handler records; opcode 13
 removed 110, opcode 33 removed 88, opcode 41 removed 86 and opcode 42 removed
-47; opcode 23 removed 45, leaving 233. Source: user-owned
+47; opcode 23 removed 45. Adding opcode-34 dispatch moves another 55 records
+out of that static category, leaving 178, despite incomplete object semantics.
+Source: user-owned
 MM6 GOG installation, `data/icons.lod`,
 32,772,165 bytes, SHA-256
 `2e8f2c0d0b88776eb2b09c5ad1a6937b5e4aff88c2190d3340327eb5b813bd18`.
@@ -105,28 +118,27 @@ All figures below are `observed` from `evt_info --coverage`:
 | Parse or payload failures | 0 |
 | Distinct `(script, event)` pairs | 3,332 |
 | Total records | 15,504 |
-| Records whose opcode has a walker handler | 12,664 |
+| Records whose opcode has a walker handler | 12,719 |
 | Metadata records (opcode 4) | 2,192 |
-| Unsupported records | 648 |
-| Unsupported records with an original handler | 233 |
+| Unsupported records | 593 |
+| Unsupported records with an original handler | 178 |
 | Unsupported records on the original default path | 415 |
-| Dispatched records below the current argument-length guard | 301 |
+| Dispatched records below the current argument-length guard | 311 |
 | Distinct opcode values | 90 |
-| Executable / metadata / unsupported opcode values | 28 / 1 / 61 |
+| Executable / metadata / unsupported opcode values | 29 / 1 / 60 |
 
 The [original dispatch table](../formats/map-events.md#the-complete-opcode-table)
 bounds execution to 1–43, with six default-path cases inside that range.
-Thus 53 of the 61 unsupported values follow the original default path, leaving
-8 missing real handlers. This distinction reuses the recorded executable
+Thus 53 of the 60 unsupported values follow the original default path, leaving
+7 absent real handlers, alongside partial opcode 34. This distinction reuses the recorded executable
 research; the audit does not newly establish original opcode semantics.
 An explicit runtime policy for those default-path records remains follow-up
 work; the audit preserves them in the raw unsupported count.
 
-Among events containing a missing real handler, 38 also contain a quest-bit
-operation, 13 a door opcode, and 2 travel; none contains an NPC mutation.
-These groups overlap. They are syntactic co-occurrences, not proof that the missing
-instruction blocks that feature or executes on the same branch. Feature tags
-come from known opcode families, not from dialogue or NPC-table joins.
+Feature co-occurrences in the TSV identify candidate quest, door and travel
+risks. They do not prove the missing instruction executes on the same branch
+or blocks the feature. Opcode-34 resource errors are outside this static
+missing-handler classification and must also be considered during playtesting.
 
 ## Missing handlers, ordered by frequency
 
@@ -138,7 +150,6 @@ Example coordinates are `script / event / sequence` and are `observed`.
 | Opcode | Existing reading | Records | Scripts | Events | Example |
 | ---: | --- | ---: | ---: | ---: | --- |
 | 8 | Play effect/sound by category (`observed`) | 60 | 20 | 36 | `D17.EVT / 29 / 7` |
-| 34 | Spawn sprite objects by object ID (`observed`) | 55 | 11 | 22 | `D18.EVT / 56 / 2` |
 | 22 | Reset dialogue/choice buffer (`inferred`) | 28 | 21 | 22 | `D04.EVT / 52 / 2` |
 | 12 | Set variable with name pointer (`inferred`) | 25 | 13 | 19 | `OUTE3.EVT / 231 / 5` |
 | 3 | Spawn sprite object (`observed`) | 24 | 12 | 18 | `D17.EVT / 29 / 3` |
@@ -156,8 +167,10 @@ behavior check. A handler that merely consumes a record is not completion.
 1. **Object lifecycle and remaining traversal state: 34 and 43, with 10.**
    Opcode 34 creates sprite objects, including persistent loot and temporary
    effects. Its 30 complete D18 records require motion, collision, expiration
-   and impacts; begin with IDs 1000/1050 in event 56. Then verify CD2's ID-1
-   loot through pickup and save/map return. Keep the absent descriptor ID 36
+   and impacts. IDs 1000/1050 now run in live simulation and rendering, with an
+   event-56 branch probe; CD2's ID-2081 effect and ID-1 loot pass a combined
+   entry-path probe, including pickup and save/map return.
+   Next resolve actor contacts, trails, sound and the remaining types. Keep the absent descriptor ID 36
    in ZNWC visible. Opcode 23 already changes passage collision.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
    two-byte uses of opcode 10 are `OUTC1 / 211 / 2` (quest) and
@@ -172,20 +185,21 @@ behavior check. A handler that merely consumes a record is not completion.
    Establish which short records are reachable and which are unused before
    setting a reachable-script acceptance gate.
 
-The opcode-34 operand and resource audit is complete. The next slice should
-trace and implement the **ID-1000/1050 object lifecycle** used by D18 event 56,
-with synthetic motion/expiry/impact tests before connecting walker dispatch.
-The audit portion of FC-2 is complete; opcode completeness is still open.
+The operand audit, live ID-1000/1050/2081/2100/4070/8080 effects and persistent ID-1 loot are
+implemented. Temporary effects clear on successful map open/load; original
+persistence parity and the remaining IDs are still open. FC-2's audit exists;
+opcode completeness remains open.
 
 ## Short records and limits of the census
 
-All 301 below-guard records are concentrated in these files (`observed`).
+All 311 below-guard records are concentrated in these files (`observed`).
 Since the original 263, thirteen short opcode-13, six short opcode-41, six short
-opcode-42 and thirteen short opcode-23 records have moved from unsupported to below-guard:
+opcode-42 and thirteen short opcode-23 and ten short opcode-34 records have moved from
+unsupported to below-guard:
 
 | Scripts | Short records |
 | --- | ---: |
-| `DBM1.EVT` through `DBM5.EVT` | 44 each (220 total) |
+| `DBM1.EVT` through `DBM5.EVT` | 46 each (230 total) |
 | `DDB1.EVT` | 35 |
 | `OUT.EVT` | 27 |
 | `LWSPIRAL.EVT` | 13 |
@@ -206,7 +220,7 @@ work, alongside the [campaign completion contract](campaign-completion.md).
 
 ## Validation
 
-The hermetic suite now contains 86 test executables. Coverage tests exercise
+Coverage tests exercise
 all 256 opcode classifications against the actual walker, repeated records and
 scoped events, mixed-case extensions, deterministic output, argument guards,
 bad containers/records/payloads, duplicate names, no-script input, and TSV
@@ -256,12 +270,72 @@ base `f743726` finds 55 records in 11 scripts and 22 events: ten short,
 Complete requests specify 165 objects, of which five belong to the unresolved
 record. All 44 matched descriptors select sprite group heads, including frame
 zero. The tool returns 1 for the missing descriptor and explicitly labels runtime
-support as unsupported. This expected audit failure is an installation finding,
+support as partial IDs 1/1000/1050/2081/2100/4070/8080. This expected audit failure is an installation finding,
 not a failed hermetic test or evidence of a supported opcode.
 
 Synthetic tests cover all 22 truncation boundaries, signed extremes, zero and
 maximum counts, nonzero scatter flags, trailing bytes, distinct descriptor and
 item ID spaces, first-match semantics, compiled-byte narrowing, missing tables,
-and descriptor indices at and beyond the 16-bit limit. No dispatch guard was
-added, so the ten short opcode-34 records remain in the 648 unsupported records,
-not the 301 dispatched records below an argument-length guard.
+and descriptor indices at and beyond the 16-bit limit. The new 22-byte dispatch
+guard moves ten short opcode-34 records into the 311 below-guard records.
+
+`evt_info --object-loot` passes CD2 events 35/36 from entry with the default
+counter: ID-2081 motion, drawable animation and expiration without impact,
+followed by persistent-loot full-pack handling, memory, save/reload and pickup
+exactly once. Repeat activation and the alternate counter branch are checked.
+No user saves are written. These are installed engine paths, not proof of
+natural player reachability or original-runtime visual parity. Synthetic
+regressions add wall occlusion, modal continuation, refill and malformed saves.
+
+`evt_info --object-impact` passes D01 event 47's object requests: three
+ID-2100 objects follow gravity and loaded geometry, become stationary ID-2101
+animations, then expire. It checks the event's one-time counter and drawable
+replacement frames; all three finish by tick 253 in the inspected installation.
+Actor contacts and the event's companion chest/summon outcomes are outside this
+probe. See the [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle)
+for the actor-contact exception and remaining presentation/persistence gaps.
+
+`evt_info --object-expiry` seeds OUTE3 event 220 at sequence 4: 45 ID-4070
+objects change into ID 4071 at tick 256 and disappear at tick 336, with 3,600
+drawable replacement samples. Geometry contacts preserve ID 4070, as verified
+by synthetic floor/ceiling tests. The probe skips opcode 3 and the preceding
+ID-1050 requests. The terrain-enabled probe records 110 terrain contacts and
+15,075 changed position samples against a model-only control. Character
+collision and terrain-material responses remain gaps; this is object-lifecycle
+evidence, not full event acceptance.
+
+`evt_info --object-removal` exercises OUTD3 event 200 after its unsupported timer
+record, with activation counter 105 seeded. Its three ID-8080 requests now
+animate and remove on geometry contact or expiry without a detonation or
+replacement. The capped/disabled branches are checked; an empty-geometry
+control verifies the full 768-tick lifetime. The companion summons and actor
+contacts are excluded. ID 8080's separate resisted actor response remains open;
+see the [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
+
+### Temporary-object simulation probe
+
+Run `STARHAVEN_GAME_DIR=/path/to/MM6 ./buildDir/evt_info --object-lifecycle`.
+The 2026-09-18 probe seeds D18 event 56's six spawn branches through the
+walker and the same `ScriptObjectEffects` application helper used by the live
+adapter. It simulates against the loaded map's collision polygons and resolves
+the selected animation frames with a fixed explicit seed. ID 1000 selects the
+zero-scale null frame and has no billboard; its missing trail is still a visual
+gap. The probe counts those samples separately and requires drawable 1050/1051
+sprites.
+It creates all 12 requested objects, records eight 1050→1051 transitions and
+16 bounces, and removes all 12 by tick 768. It fails on missing resources,
+rejected requests, pool drops, unfinished objects or absent movement/impact
+coverage. Output is numeric metadata; it does not write saves.
+
+Synthetic tests additionally cover signed/zero speed, frame zero, scatter draw
+consumption under capacity exhaustion, resource failure atomicity, pause,
+expiry and replacement lifetime, floor bounce and rest, deep initial overlap,
+large-step collision, and the far-impact cutoff. The collision helper covers
+faces, edges, vertices, floors, walls and ceilings.
+
+This is a seeded branch/application/resource witness, not an original-runtime
+comparison or natural player-reachability proof. Synthetic regressions also
+cover the shared loot/effect capacity, fractional ticks, paused animation, impact
+animation reset and map-boundary clearing. Original collision arithmetic, actor
+contacts, visual parity, sound, trails and temporary persistence remain open. See the
+[temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).

@@ -3,14 +3,21 @@ title: "Map event scripts"
 summary: "Container framing, opcode semantics, and runtime joins for Might and Magic VI map scripts."
 doc_type: reference
 status: partial
-last_updated: 2026-09-15
+last_updated: 2026-09-18
 source_files:
+  - src/core/world/collision.cpp
+  - tests/test_collision.cpp
+  - src/game/script_object_effects.cpp
+  - src/game/script_loot.cpp
+  - tests/test_script_loot.cpp
   - src/core/world/map_script.cpp
   - src/game/script_walk.hpp
   - src/game/party_event.cpp
   - tests/test_party_event.cpp
   - src/game/script_faces.cpp
   - src/game/script_objects.cpp
+  - src/game/temporary_objects.cpp
+  - tests/test_temporary_objects.cpp
   - tools/evt_info.cpp
 tags:
   - mm6
@@ -23,8 +30,8 @@ tags:
 Status: **verified** for the container and record structure. The original
 dispatch table below distinguishes observed handlers from tentative semantic
 readings. Current engine coverage is measured separately in the
-[event-script audit](../explanation/event-script-coverage.md): 28 executable
-cases, one metadata case, and 8 missing original handlers. Each claim is tagged
+[event-script audit](../explanation/event-script-coverage.md), including its
+distinction between dispatch presence and partial runtime behavior. Each claim is tagged
 `observed`, `inferred`, or `unknown`.
 
 ## Scope
@@ -1000,13 +1007,225 @@ objects. The totals are **165 requested**, not 165 successfully spawned.
 The command returns 1 for this unresolved join. Short records are counted
 separately; missing input or other unresolved descriptor/frame joins also fail.
 
-**Runtime dispatch remains unsupported.** The parser and resource audit are
-implemented and tested, but coverage totals are unchanged. Integration needs
-persistent loot, object motion and collision, descriptor-controlled expiration
-and impacts, and save/map-return behavior. The next bounded experiment is the
-ID-1000/1050 lifecycle used by D18 event 56, followed by CD2's ID-1 loot path.
-See [DOBJLIST flags](dobjlist.md#flag-bits) and the
+### Temporary-object lifecycle
+
+The 2026-09-16 static trace uses the executable hash above. The following
+facts guide the bounded temporary-object simulator (extended for ID 2081 on
+2026-09-18):
+
+| Fact | Status | Evidence (virtual addresses) |
+| --- | --- | --- |
+| Simulation time is 128 ticks per second; motion uses tick delta divided by 128. | observed | Timer `0x420ec0..0x420f49`; millisecond conversion and fixed-point seconds |
+| Gravity subtracts five velocity units per elapsed tick unless descriptor bit `0x20` is set. | observed | Indoor motion `0x4624cc..0x4625cd` |
+| A swept flat-floor contact under bit `0x80` reverses and halves vertical velocity, stopping it below 10. Wall contacts reflect velocity. The already-grounded branch also damps motion. | observed | `0x46293d..0x462a45`; grounded branch `0x4624ff..0x4625b1` |
+| Temporary objects expire at their stored descriptor lifetime; signed age overflow also removes them. Bit `0x40` invokes impact on expiry. | observed | Updater `0x4638d0..0x4639fc` |
+| ID 1050 becomes ID 1051 on impact, resets age and velocity, and queues an area effect with radius 512. Impact at displacement 5,020 or more from the stored origin removes it instead. | observed | `0x45c709..0x45c777`, `0x45d4dd..0x45d608` |
+| Opcode 34 initializes source ownership to zero. The area-effect party and actor consumers do not apply damage for this source. | observed | Constructor `0x42aae0`; consumers `0x431e5e..0x431e99`, `0x431473..0x431490` |
+
+ID 1000 uses descriptor 135, frame **zero**, flags `0x194` and lifetime
+768 ticks. It falls, bounces and expires without detonation. Frame zero is the
+zero-scale `null` group: it produces no billboard in this installation. Its
+particle trail remains unimplemented, so the live ID-1000 effect is currently
+invisible. ID 1050 uses
+descriptor 139, frame 26, flags `0x174` and lifetime 768 ticks; it has no
+gravity. Its stationary replacement, ID 1051, uses descriptor 140, frame 32,
+flags `0x13c` and lifetime **48 ticks**. The replacement expires without
+another detonation. All three have radius and height 16 in the inspected
+installation. These are resource observations, not hard-coded simulator values.
+
+ID 2081, requested before the loot in CD2 events 35/36, uses descriptor 158,
+frame 130, flags `0x13c` and lifetime **48 ticks** (0.375 seconds). Unlike the
+stationary 1051 replacement, it retains its requested launch velocity: the
+installed requests launch vertically at speed 1,000. Flag `0x20` bypasses
+gravity, and the ordinary motion path still runs. It needs no replacement
+resource. Flag `0x40` is absent, so contact and expiry do not invoke an impact
+action; expiry simply removes it. These are `observed` in the same executable:
+age/expiry at VA `0x463907..0x463990`, motion dispatch at
+`0x463992..0x4639ae`, gravity bypass and velocity integration at
+`0x4624cc..0x462741`, and contact gating at `0x4628df..0x4628fd`.
+The engine applies its existing geometry response and animation clock; actor
+contacts, trails, sound and exact original trajectories remain separate gaps.
+
+ID 2100 uses descriptor 159, frame 136, flags `0x154` and lifetime 768 ticks.
+Gravity applies. Geometry contact or expiry changes it into ID 2101, clears
+velocity and age, and queues the same source-zero, radius-512 area effect.
+The replacement uses descriptor 160, frame 142, flags `0x13c` and lifetime
+48 ticks; it remains stationary and expires without another impact. The
+common 5,020-unit displacement cutoff applies. These are `observed` in the
+installed resources and the branch at VA `0x45c927..0x45ca84`; the source-zero
+area consumers are identified in the evidence table above.
+
+Actor contact is an exception: target type 3 returns without this transition
+at `0x45c984..0x45c995`. The indoor caller continues with a separate actor
+response at `0x462b58..0x462c8c`. The current engine simulates **geometry contacts
+and lifetime only**; it does not treat an actor as an exploding wall or claim
+this actor response is implemented. The D01 probe below excludes actor contacts.
+
+ID 4070 uses descriptor 178, frame 246, flags `0x54` and lifetime **256 ticks**.
+It falls under gravity, but its impact action returns to ordinary geometry
+response for target types 6 (face), 5 (decoration) and 0 (none). It therefore
+settles on flat floors without a vertical rebound (`0x80` is absent) and
+reflects from walls; contact does **not** change it into ID 4071. The common
+5,020-unit cutoff still runs before this exception. Lifetime expiry supplies
+target type 2 and does change it into ID 4071, resetting velocity and age and
+queuing the source-zero radius-512 area effect. The stationary replacement
+uses descriptor 179, frame 252, flags `0x3c` and lifetime **80 ticks**. These
+are `observed`: dispatch tables at VA `0x45da5c`/`0x45da70`, geometry exceptions
+and replacement at `0x45cc3f..0x45cd31`, expiry target at
+`0x463939..0x463951`, and installed descriptor rows. Character targets are
+outside these exceptions, but character collision is not implemented here.
+
+ID 8080 uses descriptor 209, frame 377, flags `0x174` and lifetime **768 ticks**.
+It retains launch velocity without gravity. Its impact handler removes it for
+any target type other than actor type 3, including geometry and the type-2
+expiry call. These paths produce **no replacement and no area detonation**.
+The engine therefore validates only its flight descriptor/frame for this slice;
+a missing ID-8081 resource does not prevent a non-actor launch. These are
+`observed` in the installed resource and at VA `0x45cfe0..0x45cfe5`,
+`0x45d7a2..0x45d7ad`, `0x45c760..0x45c769`, with expiry dispatch at
+`0x463939..0x463951`.
+
+Actor contact is a different path: a resistance gate can reject and remove the
+object, or accept it, reset actor state, attempt an actor-buff update, and
+transform it into ID 8081 with age/velocity reset (`0x45d7b3..0x45d8e6`). The
+opcode-34 constructor zeros the three spell parameters consumed by this branch;
+that does **not** prove the actor path is inert. Actor collision and these state
+changes remain unimplemented. The non-actor behavior must not be generalized
+to actor contact or presented as complete ID-8080 compatibility.
+
+The binary descriptor already contains its effective lifetime. The text-table
+builder derives animation lifetime from DSFT group length multiplied by eight;
+the binary loader copies it unchanged. The simulator reads the stored value,
+including for ID 1051; it does not rescale it from the renderer's animation clock.
+See [DOBJLIST lifetime](dobjlist.md#lifetime-units).
+
+`src/game/temporary_objects.cpp` accepts full request IDs 1000, 1050, 2081,
+2100, 4070 and 8080.
+It validates descriptor and frame joins before changing state, uses the request's
+speed, and consumes two explicit RNG draws per scattered attempt even when its
+1,000 slots are full. Inactive slots are reusable. Missing resources and other
+IDs produce explicit errors. IDs 1050, 2100 and 4070 require valid replacement descriptors.
+Zero elapsed ticks pause the simulation. The API exposes object state and
+unowned detonation notifications; it does not invent spell damage.
+
+The engine uses floating-point positions, one-tick integration, and a two-sided
+swept sphere against map polygons, including edges and vertices. It resolves
+initial penetration and permits up to four contacts per tick, discarding any
+remaining movement at that bound. Floor response halves downward speed when
+flag `0x80` is set, otherwise clears it, and damps horizontal motion; walls
+reflect it. These are **StarHaven simulation policies**, not a reproduction of
+original sector, actor, slope or integer collision arithmetic. Exact trigonometric rounding, shared process RNG order,
+trails, sound and original-runtime visual agreement remain unverified.
+
+Outdoor motion also sweeps against the heightmap using the renderer's default
+scale and triangle split. Only cells intersected by the sphere's swept bounds
+are queried. Terrain and model facets compete for the earliest contact, with
+model facets winning ties. A center starting below the landscape is recovered
+vertically to the surface plus its radius. Resting objects check current
+terrain support; no terrain pointer survives a simulation call or map change.
+This path serves both temporary effects and persistent event loot. Indoor
+objects receive no terrain. These are **StarHaven policies**: terrain ends at
+the rendered grid boundary, and water tiles currently behave as solid ground.
+Original water/material responses and precise outdoor collision remain open.
+The player's separate bilinear height sampler is unchanged.
+
+**Runtime support is partial.** The walker emits bounded opcode-34 requests;
+`ScriptObjectEffects` applies persistent ID-1 loot and temporary IDs 1000/1050/2081/2100/4070/8080
+in the live adapter. Other IDs report their script, event, sequence, object ID
+and error instead of creating an inert substitute. Temporary objects move and
+collide with map geometry, and their DSFT sprites join the existing billboard
+renderer. Animation uses object age divided by eight; it pauses with simulation
+and restarts at zero when an object switches to its replacement. Fractional 128 Hz ticks carry across
+frames; one call processes at most one second. Invisible descriptor bit `0x01`
+suppresses drawing. Placed objects, persistent event loot and live temporary
+effects share the 1,000-object limit. Loot and temporary requests consume the
+same saved per-map random sequence, including dropped scattered attempts.
+
+Temporary effects follow the existing launch lifecycle: a successful map open
+or save load clears them and their fractional clock. A failed destination
+preparation leaves them intact. They are not serialized or recreated on return;
+persistent loot keeps its version-7 save contract. This is an explicit
+**StarHaven policy**, not established original-game save parity.
+
+`evt_info --object-lifecycle` seeds the six D18 event-56 spawn branches through
+the walker and the same live application helper, checks drawable sprite
+resources, and advances against loaded geometry until all effects expire.
+It does not prove natural branch reachability or original-runtime visual parity.
+Actor contacts, terrain-material responses, trails, sound, the remaining IDs
+and original temporary-object persistence remain unresolved before opcode 34
+can be called complete. See the
 [event-script coverage audit](../explanation/event-script-coverage.md).
+
+`evt_info --object-impact` walks D01 event 47 from entry and applies its three
+ID-2100 requests through the live helper. It checks the one-time counter,
+three transitions, drawable 2101 frames starting at age zero, and removal after
+the replacement lifetime. The installed geometry run removes all three by tick
+253. The event's chest and monster-summon outcomes are not applied by this
+object probe; it does not establish the whole event's player reachability or
+actor-contact behavior. Synthetic regressions cover geometry and expiry
+transitions, gravity, failed replacement joins, pause, clearing and far impacts.
+
+`evt_info --object-expiry` seeds OUTE3 event 220 at sequence 4, applying the
+three ID-4070 records through the live helper. It checks 45 timed transitions
+at tick 256, animation age reset, drawable 4071 resources and 45 removals at
+tick 336. It skips the preceding unsupported opcode 3 and the three ID-1050
+records, so it is not whole-event or natural-reachability acceptance. With
+terrain enabled, the inspected installation records 110 terrain contacts and
+15,075 position samples different from a model-only control; all 45 objects
+still follow the same transition/expiry clock. **Character contacts remain
+unimplemented.** Synthetic regressions separately verify fast falls, buried
+starts, rendered slopes, model/terrain ordering, indoor isolation, support
+changes, bounce/impact/settling behavior and the far-contact/expiry cutoff.
+
+`evt_info --object-removal` exercises OUTD3 event 200 from sequence 1 with
+activation counter 105 seeded to 1. It checks the disabled/capped branches,
+three live ID-8080 requests, valid flight sprites and removal without any
+replacement or detonation. A second run of the same requests in empty geometry
+checks expiry at the descriptor lifetime. The unsupported timer record at
+sequence 0 and companion monster summons are excluded, as are character
+contacts; this is not natural player-reachability or whole-event acceptance.
+
+### Persistent event loot
+
+`src/game/script_loot.cpp` implements the two ID-1 requests in CD2 events 35
+and 36. The existing descriptor/item joins are used, including descriptor zero
+rejection and DSFT group validation. Descriptor flags must be zero for this
+slice. Failed validation changes neither objects nor random state. Valid
+requests preserve coordinates, signed speed, count, and scatter draw order;
+capacity counts occupied placed objects and event loot against 1,000 slots.
+Repeated activation makes another request, as the script instructs. `observed`
+operand and lookup rules; the explicit resource rejection is engine policy.
+
+Loot uses the shared 128 Hz swept-sphere motion, gravity and floor-rest response
+without temporary expiration. Its sprite is drawn from the resolved DSFT group.
+The existing party-pack policy supplies icon-sized automatic pickup, gated by
+range, height, free space and an unobstructed collision ray. Full packs leave
+the object in place. Newly created item instances have no bonuses or charges
+and are unidentified. Automatic pickup, collision occlusion, separate random
+state seeded at 1 per map, and float trajectories are **StarHaven policies**;
+exact original cursor interaction and shared random ordering remain unverified.
+A simulation call processes at most one second, retaining the fractional tick.
+
+Version-7 saves append random state, fractional ticks and bounded object records
+to each map's `recall` row. Records carry descriptor index, contained item ID,
+position, velocity and resting state; resource names and art are re-resolved.
+The current map and maps left behind share this snapshot. Picking an object up
+removes it from subsequent snapshots; a full pack does not. Ordinary refill
+expires the snapshot, while loading an older saved day restores it unchanged.
+Versions 1–6 load with empty event-loot state. Invalid counts, missing fields,
+non-finite numbers and invalid record values reject the save atomically;
+missing resource joins reject destination preparation before replacing the world.
+Existing placed-map loot remains outside this new persistence slice.
+
+`evt_info --object-loot` now starts CD2 events 35/36 at entry with their default
+counter state. It applies ID 2081 and ID 1 together, checks motion, drawable
+animation frames and expiration without detonation, then checks full packs,
+map memory, save/reload and one-time loot pickup without writing user slots.
+Repeat activation creates both requests again; a seeded counter taking the
+other branch emits neither. Temporary-effect clearing preserves the loot.
+This witnesses these event paths in the engine, not natural player reachability
+or original-runtime visual parity. Synthetic tests additionally cover modal
+continuation, capacity, invalid resources, wall occlusion and refill.
 
 ## Opcode 41 generates an item reward
 

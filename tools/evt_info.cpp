@@ -18,13 +18,19 @@
 #include "core/platform/paths.hpp"
 #include "core/world/map_script.hpp"
 #include "core/world/map_session.hpp"
+#include "game/combat.hpp"
+#include "game/map_memory.hpp"
 #include "game/save.hpp"
 #include "game/script_coverage.hpp"
 #include "game/script_decorations.hpp"
 #include "game/script_faces.hpp"
+#include "game/script_loot.hpp"
+#include "game/script_object_effects.hpp"
 #include "game/script_objects.hpp"
 #include "game/script_walk.hpp"
 #include "game/shop.hpp"
+#include "game/sprites.hpp"
+#include "game/temporary_objects.hpp"
 #include "game/travel.hpp"
 #include <set>
 
@@ -45,6 +51,11 @@ void print_usage(const char* argv0) {
               << "           --strict also fails on unsupported or short-argument records\n"
               << "  --face-bits  verify opcode 23 masks and indoor face lifecycles\n"
               << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
+              << "  --object-loot  verify CD2 effects, loot pickup, map memory and saves\n"
+              << "  --object-removal  verify OUTD3 event 200 non-actor 8080 lifecycle\n"
+              << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
+              << "  --object-impact  verify D01 event 47 object impact and replacement\n"
+              << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
               << "  --generated-items  verify opcode 41 generation against item tables\n"
               << "  --messages  verify opcode 33 suspension and preceding text joins\n"
@@ -152,8 +163,496 @@ int do_object_spawns(const starhaven::lod::LodArchive& icons,
     std::cout << "SUMMARY\trecords\t" << records << "\tscripts\t" << scripts.size() << "\tevents\t"
               << events.size() << "\tshort\t" << short_records << "\tresolved\t" << resolved
               << "\trequested_objects\t" << requested << "\tfailures\t" << failures
-              << "\truntime\tunsupported\n";
+              << "\truntime\tpartial_ids_1_1000_1050_2081_2100_4070_8080\n";
     return records > 0 && failures == 0 ? 0 : 1;
+}
+
+// Walk both CD2 events from entry with their default counter state. Exercise
+// the effect and persistent loot together, without claiming player reachability.
+int do_object_loot(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    data::MonsterStatsTable monsters;
+    data::TextTable monster_text;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "CD2.blv", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None ||
+        data::load_text_table(data_dir, "MONSTERS.TXT", monster_text) !=
+            data::GameDataError::None ||
+        data::MonsterStatsTable::parse(monster_text, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: incomplete object-loot resources\n";
+        return 1;
+    }
+    game::Battle battle;
+    battle.reset(session, monsters, 1);
+    std::size_t records = 0;
+    std::size_t failures = 0;
+    for (const auto& step : session.script.steps()) {
+        const auto request = world::parse_object_spawn(step);
+        if (!request || request->object_id != 1)
+            continue;
+        ++records;
+        game::WalkState state;
+        const auto outcome =
+            game::walk_event(session.script, step.event_id, state, -1, session.file_name);
+        game::ScriptLootState loot;
+        game::ScriptObjectEffects effects;
+        bool ok = outcome.unsupported.empty() && outcome.object_spawns.size() == 2;
+        if (outcome.object_spawns.size() == 2) {
+            ok = outcome.object_spawns.front().request.object_id == 2081 &&
+                 outcome.object_spawns.back().request.object_id == 1 && ok;
+        }
+        for (const auto& spawn : outcome.object_spawns) {
+            const auto made = effects.spawn(spawn.request, session, items, loot);
+            ok = ok && made.error == game::LootSpawnError::None &&
+                 made.created == spawn.request.count && made.dropped == 0;
+        }
+        if (loot.objects.empty()) {
+            ++failures;
+            continue;
+        }
+        const auto initial = effects.sprites(session.sprite_frames);
+        ok = initial.size() == 1 && effects.active_count() == 1 && ok;
+        (void)effects.advance(0, session);
+        bool moved = false;
+        std::size_t drawable = 0;
+        std::size_t expired = 0;
+        for (std::uint32_t tick = 1; tick <= 48; ++tick) {
+            const auto advanced = effects.advance(1.0 / game::kObjectTicksPerSecond, session);
+            game::advance_script_loot(loot, 1.0 / game::kObjectTicksPerSecond, session);
+            expired += advanced.expired;
+            ok = advanced.detonations.empty() && ok;
+            const auto sprites = effects.sprites(session.sprite_frames);
+            ok = sprites.size() == (tick < 48 ? 1U : 0U) && ok;
+            for (const auto& sprite : sprites) {
+                ok = sprite.animation_ticks == tick / 8 && ok;
+                const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                      sprite.animation_ticks.value_or(0));
+                if (!pick.entry.empty() && pick.scale > 0 &&
+                    !cache.sprite(pick.entry, pick.palette).empty())
+                    ++drawable;
+                if (!initial.empty())
+                    moved = moved || render::length(sprite.position - initial.front().position) > 0;
+            }
+        }
+        ok = moved && expired == 1 && drawable == 47 && effects.active_count() == 0 && ok;
+        const auto at = loot.objects.front().position + render::Vec3{0, 32, 0};
+        std::array<game::Pack, 4> packs;
+        for (auto& pack : packs)
+            ok = pack.add(1, game::kPackWidth, game::kPackHeight) && ok;
+        ok = game::take_script_loot(loot, session, items, cache, at, packs).empty() &&
+             loot.objects.size() == request->count && ok;
+        const auto memory = game::capture_map_memory(session, battle, {}, 1, loot);
+        game::SaveState saved;
+        saved.map_file = session.file_name;
+        saved.remembered = game::save_map_memories({}, session.file_name, memory);
+        game::SaveState loaded;
+        ok = game::parse_save(game::save_text(saved), loaded) && ok;
+        auto memories = game::load_map_memories(loaded.remembered);
+        const auto key = game::map_memory_key(session.file_name);
+        if (!memories.contains(key)) {
+            ++failures;
+            continue;
+        }
+        game::ScriptLootState restored;
+        std::set<int> chests;
+        ok = game::restore_map_memory(memories.at(key), game::MapMemoryUse::SavedSnapshot, 100,
+                                      session, battle, chests, {},
+                                      &restored) == game::MapMemoryResult::Restored &&
+             ok;
+        ok = game::valid_script_loot(restored, session, items) && ok;
+        packs.front().clear();
+        ok = game::take_script_loot(restored, session, items, cache, at, packs).size() ==
+                 request->count &&
+             restored.objects.empty() && ok;
+        saved.remembered =
+            game::save_map_memories(memories, session.file_name,
+                                    game::capture_map_memory(session, battle, chests, 1, restored));
+        ok = game::parse_save(game::save_text(saved), loaded) && ok;
+        memories = game::load_map_memories(loaded.remembered);
+        ok = memories.contains(key) && memories.at(key).loot.objects.empty() &&
+             packs.front().size() == request->count && ok;
+        // Re-entry with the same counter repeats both spawns; the counter's
+        // other branch must not accidentally apply the earlier requests.
+        const auto repeated =
+            game::walk_event(session.script, step.event_id, state, -1, session.file_name);
+        ok = repeated.object_spawns.size() == 2 && ok;
+        for (const auto& spawn : repeated.object_spawns) {
+            const auto made = effects.spawn(spawn.request, session, items, restored);
+            ok = made.error == game::LootSpawnError::None && made.created == 1 && ok;
+        }
+        ok = effects.active_count() == 1 && restored.objects.size() == 1 && ok;
+        effects.clear();
+        ok = effects.active_count() == 0 && restored.objects.size() == 1 && ok;
+        state.variables[106] = 1;
+        const auto guarded =
+            game::walk_event(session.script, step.event_id, state, -1, session.file_name);
+        ok = guarded.object_spawns.empty() && ok;
+        failures += ok ? 0 : 1;
+        std::cout << "OBJECT_LOOT " << (ok ? "PASS" : "FAIL") << " event=" << step.event_id
+                  << " entry=0 effect=2081 expired=" << expired << " drawable_samples=" << drawable
+                  << " loot=" << static_cast<int>(request->count) << '\n';
+    }
+    std::cout << "OBJECT_LOOT_SUMMARY records=" << records << " failures=" << failures << '\n';
+    return records == 2 && failures == 0 ? 0 : 1;
+}
+
+// Exercise the same dispatch/application/presentation seam used by the SDL
+// adapter. Seed each spawn branch; this is not a natural-reachability witness.
+int do_object_lifecycle(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D18.blv", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete object-lifecycle resources\n";
+        return 1;
+    }
+    game::ScriptObjectEffects live;
+    game::ScriptLootState loot;
+    std::size_t records = 0;
+    std::size_t requested = 0;
+    std::size_t created = 0;
+    std::size_t failures = 0;
+    for (const auto& step : session.script.steps()) {
+        if (step.event_id != 56 || step.opcode != world::kOpcodeSpawnObjects)
+            continue;
+        ++records;
+        const auto request = world::parse_object_spawn(step);
+        if (!request) {
+            ++failures;
+            continue;
+        }
+        requested += request->count;
+        game::WalkState state;
+        const auto outcome = game::walk_event(session.script, step.event_id, state, step.sequence,
+                                              session.file_name);
+        if (outcome.object_spawns.size() != 1)
+            ++failures;
+        for (const auto& spawn : outcome.object_spawns) {
+            const auto result = live.spawn(spawn.request, session, items, loot);
+            created += result.created;
+            if (result.error != game::LootSpawnError::None || result.dropped != 0)
+                ++failures;
+        }
+    }
+    const auto initial = live.sprites(session.sprite_frames);
+    (void)live.advance(0, session);
+    const auto paused = live.sprites(session.sprite_frames);
+    if (paused.size() != created || paused.size() != initial.size())
+        ++failures;
+    std::size_t removed = 0;
+    std::size_t detonations = 0;
+    std::size_t bounces = 0;
+    std::size_t drawable = 0;
+    std::size_t zero_scale = 0;
+    bool moved = false;
+    std::uint32_t ticks = 0;
+    constexpr std::uint32_t kMaximumTicks = 65536;
+    for (; live.active_count() > 0 && ticks < kMaximumTicks; ++ticks) {
+        const auto result = live.advance(1.0 / game::kObjectTicksPerSecond, session);
+        removed += result.expired;
+        detonations += result.detonations.size();
+        bounces += result.bounces;
+        const auto sprites = live.sprites(session.sprite_frames);
+        for (std::size_t i = 0; i < sprites.size(); ++i) {
+            const auto& sprite = sprites[i];
+            const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                  sprite.animation_ticks.value_or(0));
+            // Installed ID 1000 selects DSFT's zero-scale null frame. It has
+            // no billboard; particle trails remain a separate runtime gap.
+            if (pick.scale == 0)
+                ++zero_scale;
+            else if (pick.entry.empty() || cache.sprite(pick.entry, pick.palette).empty())
+                ++failures;
+            else
+                ++drawable;
+            if (ticks == 0 && i < initial.size())
+                moved = moved || render::length(sprite.position - initial[i].position) > 0;
+        }
+    }
+    live.clear();
+    const bool passed = records == 6 && failures == 0 && requested == created &&
+                        removed == created && live.active_count() == 0 && moved &&
+                        detonations > 0 && bounces > 0 && drawable > 0 && loot.objects.empty();
+    std::cout << "OBJECT_LIFECYCLE " << (passed ? "PASS" : "FAIL") << " records=" << records
+              << " requested=" << requested << " created=" << created << " removed=" << removed
+              << " detonations=" << detonations << " bounces=" << bounces
+              << " active=" << live.active_count() << " ticks=" << ticks << " failures=" << failures
+              << " drawable_samples=" << drawable << " zero_scale_samples=" << zero_scale
+              << " dispatch=seeded_branches\n";
+    return passed ? 0 : 1;
+}
+
+// Walk the D01 event, then apply its object requests. Chest and monster-summon
+// outcomes are outside this object-lifecycle probe; no actor-contact claim.
+int do_object_impact(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D01.blv", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete object-impact resources\n";
+        return 1;
+    }
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto flight = std::ranges::find(descriptors, 2100, &world::ObjectDescriptor::object_id);
+    const auto impact = std::ranges::find(descriptors, 2101, &world::ObjectDescriptor::object_id);
+    if (flight == descriptors.end() || impact == descriptors.end() ||
+        impact->sprite_frame_index >= session.sprite_frames.size()) {
+        std::cerr << "error: missing object-impact definitions\n";
+        return 1;
+    }
+    const auto& impact_group =
+        session.sprite_frames.frames()[impact->sprite_frame_index].group_name;
+    game::WalkState state;
+    const auto outcome = game::walk_event(session.script, 47, state, -1, session.file_name);
+    bool ok = outcome.unsupported.empty() && outcome.object_spawns.size() == 1;
+    game::ScriptObjectEffects live;
+    game::ScriptLootState loot;
+    std::size_t created = 0;
+    for (const auto& spawn : outcome.object_spawns) {
+        const auto result = live.spawn(spawn.request, session, items, loot);
+        created += result.created;
+        ok = spawn.request.object_id == 2100 && result.error == game::LootSpawnError::None &&
+             result.dropped == 0 && ok;
+    }
+    ok = created == 3 && live.active_count() == 3 && ok;
+    // The event sets its one-time counter before requesting the objects.
+    ok = state.variables[124] == 1 &&
+         game::walk_event(session.script, 47, state, -1, session.file_name).object_spawns.empty() &&
+         ok;
+    std::size_t detonations = 0;
+    std::size_t expired = 0;
+    std::size_t visible_impacts = 0;
+    std::uint32_t ticks = 0;
+    bool impact_frame_zero = false;
+    for (; live.active_count() > 0 && ticks < 65536; ++ticks) {
+        const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session);
+        detonations += step.detonations.size();
+        expired += step.expired;
+        for (const auto& detonation : step.detonations)
+            ok = detonation.radius == 512 && ok;
+        for (const auto& sprite : live.sprites(session.sprite_frames)) {
+            const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                  sprite.animation_ticks.value_or(0));
+            ok = !pick.entry.empty() && pick.scale > 0 &&
+                 !cache.sprite(pick.entry, pick.palette).empty() && ok;
+            if (sprite.animation == impact_group) {
+                ++visible_impacts;
+                impact_frame_zero = impact_frame_zero || sprite.animation_ticks == 0;
+            }
+        }
+    }
+    ok = detonations == 3 && expired == 3 && live.active_count() == 0 && visible_impacts > 0 &&
+         impact_frame_zero && loot.objects.empty() && ok;
+    std::cout << "OBJECT_IMPACT " << (ok ? "PASS" : "FAIL")
+              << " event=47 object=2100 replacement=2101 created=" << created
+              << " impacts=" << detonations << " expired=" << expired
+              << " impact_samples=" << visible_impacts << " ticks=" << ticks
+              << " lifetime=" << flight->lifetime << " replacement_lifetime=" << impact->lifetime
+              << " replacement_flags=" << impact->flags
+              << " replacement_frame=" << impact->sprite_frame_index
+              << " descriptor=" << (flight - descriptors.begin())
+              << " replacement_descriptor=" << (impact - descriptors.begin())
+              << " actor_contacts=not_checked\n";
+    return ok ? 0 : 1;
+}
+
+// Seed the three ID-4070 requests after the unimplemented opcode 3 and the
+// preceding ID-1050 launches. This is a timed-effects witness, not the whole
+// event or character-contact acceptance. Compare the terrain path with a
+// model-only control to require an observable installed-data terrain response.
+int do_object_expiry(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "OUTE3.odm", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete object-expiry resources\n";
+        return 1;
+    }
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto flight = std::ranges::find(descriptors, 4070, &world::ObjectDescriptor::object_id);
+    const auto impact = std::ranges::find(descriptors, 4071, &world::ObjectDescriptor::object_id);
+    if (flight == descriptors.end() || impact == descriptors.end() ||
+        impact->sprite_frame_index >= session.sprite_frames.size()) {
+        std::cerr << "error: missing object-expiry definitions\n";
+        return 1;
+    }
+    const auto& impact_group =
+        session.sprite_frames.frames()[impact->sprite_frame_index].group_name;
+    game::WalkState state;
+    const auto outcome = game::walk_event(session.script, 220, state, 4, session.file_name);
+    bool ok = outcome.unsupported.empty() && outcome.object_spawns.size() == 3;
+    game::ScriptObjectEffects live;
+    game::ScriptLootState loot;
+    game::ScriptObjectEffects without_terrain;
+    game::ScriptLootState control_loot;
+    world::MapSession models_only;
+    models_only.kind = world::MapKind::Indoor;
+    models_only.collision = session.collision;
+    std::size_t created = 0;
+    for (const auto& spawn : outcome.object_spawns) {
+        const auto result = live.spawn(spawn.request, session, items, loot);
+        created += result.created;
+        const auto control = without_terrain.spawn(spawn.request, session, items, control_loot);
+        ok = control.created == result.created && control.error == result.error && ok;
+        ok = spawn.request.object_id == 4070 && result.error == game::LootSpawnError::None &&
+             result.dropped == 0 && ok;
+    }
+    ok = created == 45 && live.active_count() == 45 && ok;
+    std::size_t detonations = 0;
+    std::size_t expired = 0;
+    std::size_t visible_impacts = 0;
+    std::size_t contacts = 0;
+    std::size_t terrain_contacts = 0;
+    std::size_t changed_positions = 0;
+    std::uint32_t ticks = 0;
+    for (; live.active_count() > 0 && ticks < 65536; ++ticks) {
+        const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session);
+        detonations += step.detonations.size();
+        expired += step.expired;
+        contacts += step.bounces;
+        terrain_contacts += step.terrain_contacts;
+        (void)without_terrain.advance(1.0 / game::kObjectTicksPerSecond, models_only);
+        const auto sprites = live.sprites(session.sprite_frames);
+        const auto control = without_terrain.sprites(session.sprite_frames);
+        ok = sprites.size() == control.size() && ok;
+        for (std::size_t i = 0; i < std::min(sprites.size(), control.size()); ++i)
+            changed_positions +=
+                render::length(sprites[i].position - control[i].position) > 0.01f ? 1 : 0;
+        if (!step.detonations.empty())
+            ok = ticks + 1 == flight->lifetime && step.detonations.size() == created && ok;
+        if (step.expired != 0)
+            ok = ticks + 1 == flight->lifetime + impact->lifetime && ok;
+        for (const auto& detonation : step.detonations)
+            ok = detonation.radius == 512 && ok;
+        for (const auto& sprite : sprites) {
+            const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                  sprite.animation_ticks.value_or(0));
+            ok = !pick.entry.empty() && pick.scale > 0 &&
+                 !cache.sprite(pick.entry, pick.palette).empty() && ok;
+            if (sprite.animation == impact_group) {
+                ++visible_impacts;
+                ok = ticks + 1 >= flight->lifetime &&
+                     sprite.animation_ticks == (ticks + 1 - flight->lifetime) / 8 && ok;
+            }
+        }
+    }
+    ok = detonations == created && expired == created && live.active_count() == 0 &&
+         visible_impacts == created * impact->lifetime && loot.objects.empty() &&
+         terrain_contacts > 0 && changed_positions > 0 && ok;
+    std::cout << "OBJECT_EXPIRY " << (ok ? "PASS" : "FAIL")
+              << " event=220 entry=4 object=4070 replacement=4071 created=" << created
+              << " transitions=" << detonations << " expired=" << expired
+              << " impact_samples=" << visible_impacts << " ticks=" << ticks
+              << " geometry_responses=" << contacts << " lifetime=" << flight->lifetime
+              << " replacement_lifetime=" << impact->lifetime
+              << " replacement_flags=" << impact->flags
+              << " replacement_frame=" << impact->sprite_frame_index
+              << " descriptor=" << (flight - descriptors.begin())
+              << " replacement_descriptor=" << (impact - descriptors.begin())
+              << " terrain_contacts=" << terrain_contacts
+              << " changed_positions=" << changed_positions << " actor_contacts=not_checked\n";
+    return ok ? 0 : 1;
+}
+
+// Skip the unsupported timer record, seed the activation counter, and apply
+// only the object requests. Companion summons and actor contacts are excluded.
+int do_object_removal(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "OUTD3.odm", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete object-removal resources\n";
+        return 1;
+    }
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto flight = std::ranges::find(descriptors, 8080, &world::ObjectDescriptor::object_id);
+    if (flight == descriptors.end() || flight->sprite_frame_index >= session.sprite_frames.size()) {
+        std::cerr << "error: missing object-removal definition\n";
+        return 1;
+    }
+    const auto& group = session.sprite_frames.frames()[flight->sprite_frame_index].group_name;
+    game::WalkState state;
+    bool ok =
+        game::walk_event(session.script, 200, state, 1, session.file_name).object_spawns.empty();
+    state.variables[105] = 1;
+    const auto outcome = game::walk_event(session.script, 200, state, 1, session.file_name);
+    ok = outcome.unsupported.empty() && outcome.object_spawns.size() == 3 &&
+         state.variables[106] == 1 && ok;
+    state.variables[106] = 8;
+    ok = game::walk_event(session.script, 200, state, 1, session.file_name).object_spawns.empty() &&
+         ok;
+    game::ScriptObjectEffects live;
+    game::ScriptObjectEffects airborne;
+    game::ScriptLootState loot;
+    game::ScriptLootState air_loot;
+    const world::MapSession empty;
+    std::size_t created = 0;
+    for (const auto& spawn : outcome.object_spawns) {
+        const auto result = live.spawn(spawn.request, session, items, loot);
+        const auto control = airborne.spawn(spawn.request, session, items, air_loot);
+        created += result.created;
+        ok = spawn.request.object_id == 8080 && result.error == game::LootSpawnError::None &&
+             result.dropped == 0 && control.created == result.created &&
+             control.error == result.error && ok;
+    }
+    std::size_t expired = 0;
+    std::size_t early_removals = 0;
+    std::size_t air_expired = 0;
+    std::size_t drawable = 0;
+    std::uint32_t ticks = 0;
+    for (; (live.active_count() > 0 || airborne.active_count() > 0) && ticks < 65536; ++ticks) {
+        for (const auto* effects : {&live, &airborne}) {
+            for (const auto& sprite : effects->sprites(session.sprite_frames)) {
+                const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                      sprite.animation_ticks.value_or(0));
+                ok = sprite.animation == group && sprite.animation_ticks == ticks / 8 &&
+                     !pick.entry.empty() && pick.scale > 0 &&
+                     !cache.sprite(pick.entry, pick.palette).empty() && ok;
+                ++drawable;
+            }
+        }
+        const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session);
+        const auto air_step = airborne.advance(1.0 / game::kObjectTicksPerSecond, empty);
+        expired += step.expired;
+        air_expired += air_step.expired;
+        if (ticks + 1 < flight->lifetime)
+            early_removals += step.expired;
+        if (air_step.expired > 0)
+            ok = ticks + 1 == flight->lifetime && ok;
+        ok = step.detonations.empty() && air_step.detonations.empty() && ok;
+    }
+    ok = created == 3 && expired == created && air_expired == created && early_removals > 0 &&
+         live.active_count() == 0 && airborne.active_count() == 0 && drawable > 0 &&
+         loot.objects.empty() && air_loot.objects.empty() && ok;
+    std::cout << "OBJECT_REMOVAL " << (ok ? "PASS" : "FAIL")
+              << " event=200 entry=1 counter105=1 object=8080 created=" << created
+              << " removed=" << expired << " geometry_removals=" << early_removals
+              << " airborne_expired=" << air_expired << " ticks=" << ticks
+              << " drawable_samples=" << drawable
+              << " descriptor=" << (flight - descriptors.begin()) << " flags=" << flight->flags
+              << " lifetime=" << flight->lifetime << " frame=" << flight->sprite_frame_index
+              << " detonations=0 actor_contacts=not_checked summons=not_applied\n";
+    return ok ? 0 : 1;
 }
 
 // Generate each opcode-41 reward in isolation, using user-owned tables and a
@@ -2830,6 +3329,41 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-removal") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_removal(*install / "data");
+    }
+    if (stem == "--object-expiry") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_expiry(*install / "data");
+    }
+    if (stem == "--object-impact") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_impact(*install / "data");
+    }
+    if (stem == "--object-loot") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_loot(*install / "data");
+    }
+    if (stem == "--object-lifecycle") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_lifecycle(*install / "data");
+    }
     if (stem == "--object-spawns") {
         if (argc != 2) {
             print_usage(argv[0]);
