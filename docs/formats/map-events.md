@@ -1048,8 +1048,8 @@ continue until expiry or pool overwrite. Pause freezes them, and successful
 map/load clear discards them. Rendering uses one internal-framebuffer pixel,
 8-bit descriptor RGB and the existing camera/depth convention. Exact original
 cadence, shared RNG ordering, color quantization and doubled-resolution mode
-remain outside this implementation. ID 1050/1051 uses this same particle path
-as described below; other families' trails remain open.
+remain outside this implementation. IDs 1050/1051 and 2081 use this same
+particle path as described below; other families' trails remain open.
 
 ID 1000 actor contact is implemented through the ordinary collision response.
 Flag `0x40` is absent, so it bypasses the impact handler and its 5,020-unit
@@ -1162,8 +1162,22 @@ independent of the actor latch, so an actor and the party may each respond
 within the same tick. Geometry wins ties,
 then actors, then the party. These sweeps, overlap rules and float arithmetic
 are engine policies, not exact original collision/repeated-contact parity.
-Decorative contacts for 2081, trails, sound and exact original trajectories
-remain separate gaps.
+
+ID 2081's ordinary colored trail is implemented. Its descriptor supplies
+**RGB 255, 255, 0** in the inspected installation. The same indoor/outdoor
+particle selectors used above accept its `0x100` flag and absent `0x200/0x400`
+flags (`0x462d07..0x462dbf`, `0x463809..0x4638bd`). No-gravity bypasses the
+grounded early return (`0x4624cc..0x4625d1`, `0x462e94..0x462ec3`), allowing
+emission at zero velocity and after settling. Ordinary contacts resume motion
+through the trail path (`0x462c8c..0x462d1a`); they add no burst. Expiry removes
+2081 before motion or emission (`0x463934..0x463992`). These are `observed`
+branches; the fixed cadence and collision policies remain StarHaven choices.
+
+Points use the shared ring, descriptor color and independent 256–319-tick
+lifetimes described for ID 1000. They survive the 48-tick object, pause with
+simulation, and clear on successful map/load. Emission preserves animation age,
+contact responses and gameplay RNG. Decorative contacts, sound, original
+frame cadence and exact trajectory/visual agreement remain separate gaps.
 
 ID 2100 uses descriptor 159, frame 136, flags `0x154` and lifetime 768 ticks.
 Gravity applies. Geometry contact or expiry changes it into ID 2101, clears
@@ -1565,15 +1579,21 @@ non-finite numbers and invalid record values reject the save atomically;
 missing resource joins reject destination preparation before replacing the world.
 Existing placed-map loot remains outside this new persistence slice.
 
-`evt_info --object-loot` now starts CD2 events 35/36 at entry with their default
+`evt_info --object-loot [PPM]` starts CD2 events 35/36 at entry with their default
 counter state. It applies ID 2081 and ID 1 together, checks motion, drawable
-animation frames and expiration without detonation, then checks full packs,
+animation frames and expiration without detonation. Each effect emits eleven
+descriptor-colored points before its tick-48 deadline; the probe checks visible
+points, unchanged gameplay RNG and particle survival followed by expiry. The
+optional PPM contains only the point scene. It then checks full packs,
 map memory, save/reload and one-time loot pickup without writing user slots.
 Repeat activation creates both requests again; a seeded counter taking the
 other branch emits neither. Temporary-effect clearing preserves the loot.
 This witnesses these event paths in the engine, not natural player reachability
 or original-runtime visual parity. Synthetic tests additionally cover modal
-continuation, capacity, invalid resources, wall occlusion and refill.
+continuation, capacity, invalid resources, wall occlusion and refill. Trail
+regressions add moving/zero-speed/grounded emission, ordinary actor/party contact,
+descriptor flags, custom lifetime, pool overwrite, batching, pause, map clear
+and both indoor/outdoor live adapters.
 
 ## Opcode 41 generates an item reward
 

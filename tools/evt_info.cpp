@@ -53,7 +53,7 @@ void print_usage(const char* argv0) {
               << "           --strict also fails on unsupported or short-argument records\n"
               << "  --face-bits  verify opcode 23 masks and indoor face lifecycles\n"
               << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
-              << "  --object-loot  verify CD2 effects, loot pickup, map memory and saves\n"
+              << "  --object-loot [PPM] verify CD2 trails, loot pickup, map memory and saves\n"
               << "  --object-contacts verify controlled 4070 actor/party impacts\n"
               << "  --object-1050-contacts verify controlled D18 actor/party impacts\n"
               << "  --object-party    verify controlled D01 2100 party impacts\n"
@@ -182,7 +182,7 @@ int do_object_spawns(const starhaven::lod::LodArchive& icons,
 
 // Walk both CD2 events from entry with their default counter state. Exercise
 // the effect and persistent loot together, without claiming player reachability.
-int do_object_loot(const std::filesystem::path& data_dir) {
+int do_object_loot(const std::filesystem::path& data_dir, const std::string& screenshot) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -199,6 +199,11 @@ int do_object_loot(const std::filesystem::path& data_dir) {
         std::cerr << "error: incomplete object-loot resources\n";
         return 1;
     }
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto descriptor =
+        std::ranges::find(descriptors, 2081, &world::ObjectDescriptor::object_id);
+    if (descriptor == descriptors.end() || descriptor->flags != 0x13c || descriptor->lifetime != 48)
+        return 1;
     game::Battle battle;
     battle.reset(session, monsters, 1);
     std::size_t records = 0;
@@ -229,6 +234,13 @@ int do_object_loot(const std::filesystem::path& data_dir) {
         }
         const auto initial = effects.sprites(session.sprite_frames);
         ok = initial.size() == 1 && effects.active_count() == 1 && ok;
+        const auto random = loot.random;
+        render::SceneRenderer scene(640, 480);
+        render::Camera camera;
+        if (!initial.empty())
+            camera.position = initial.front().position + render::Vec3{0, 200, 800};
+        std::size_t emitted = 0;
+        std::size_t visible = 0;
         (void)effects.advance(0, session);
         bool moved = false;
         std::size_t drawable = 0;
@@ -237,6 +249,20 @@ int do_object_loot(const std::filesystem::path& data_dir) {
             const auto advanced = effects.advance(1.0 / game::kObjectTicksPerSecond, session);
             game::advance_script_loot(loot, 1.0 / game::kObjectTicksPerSecond, session);
             expired += advanced.expired;
+            emitted += advanced.trail_emitted;
+            ok = advanced.trail_emitted == (tick < 48 && tick % 4 == 0 ? 1U : 0U) &&
+                 loot.random == random && ok;
+            scene.begin(camera, {0, 0, 0});
+            for (const auto& particle : effects.trail_particles()) {
+                if (particle.remaining == 0)
+                    continue;
+                ok = particle.color.r == descriptor->trail_red &&
+                     particle.color.g == descriptor->trail_green &&
+                     particle.color.b == descriptor->trail_blue && particle.remaining <= 319 && ok;
+                visible += scene.draw_point(particle.position, particle.color) ? 1U : 0U;
+            }
+            if (records == 1 && tick == 32 && !screenshot.empty())
+                ok = render::write_ppm(screenshot, scene.framebuffer()) && ok;
             ok = advanced.detonations.empty() && ok;
             const auto sprites = effects.sprites(session.sprite_frames);
             ok = sprites.size() == (tick < 48 ? 1U : 0U) && ok;
@@ -252,6 +278,19 @@ int do_object_loot(const std::filesystem::path& data_dir) {
             }
         }
         ok = moved && expired == 1 && drawable == 47 && effects.active_count() == 0 && ok;
+        ok = emitted == 11 && visible > 0 &&
+             std::ranges::any_of(effects.trail_particles(),
+                                 [](const auto& particle) { return particle.remaining; }) &&
+             ok;
+        for (std::uint32_t tick = 0; tick < 319; ++tick) {
+            const auto advanced =
+                effects.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
+            ok = advanced.trail_emitted == 0 && advanced.expired == 0 &&
+                 advanced.detonations.empty() && loot.random == random && ok;
+        }
+        ok = std::ranges::none_of(effects.trail_particles(),
+                                  [](const auto& particle) { return particle.remaining; }) &&
+             ok;
         const auto at = loot.objects.front().position + render::Vec3{0, 32, 0};
         std::array<game::Pack, 4> packs;
         for (auto& pack : packs)
@@ -307,6 +346,10 @@ int do_object_loot(const std::filesystem::path& data_dir) {
         failures += ok ? 0 : 1;
         std::cout << "OBJECT_LOOT " << (ok ? "PASS" : "FAIL") << " event=" << step.event_id
                   << " entry=0 effect=2081 expired=" << expired << " drawable_samples=" << drawable
+                  << " trail_emitted=" << emitted << " visible_point_samples=" << visible
+                  << " trail_rgb=" << static_cast<int>(descriptor->trail_red) << ','
+                  << static_cast<int>(descriptor->trail_green) << ','
+                  << static_cast<int>(descriptor->trail_blue)
                   << " loot=" << static_cast<int>(request->count) << '\n';
     }
     std::cout << "OBJECT_LOOT_SUMMARY records=" << records << " failures=" << failures << '\n';
@@ -4155,11 +4198,11 @@ int main(int argc, char** argv) {
         return do_object_impact(*install / "data");
     }
     if (stem == "--object-loot") {
-        if (argc != 2) {
+        if (argc != 2 && argc != 3) {
             print_usage(argv[0]);
             return 2;
         }
-        return do_object_loot(*install / "data");
+        return do_object_loot(*install / "data", argc == 3 ? argv[2] : "");
     }
     if (stem == "--object-lifecycle") {
         if (argc != 2) {

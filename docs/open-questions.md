@@ -206,7 +206,12 @@ The audit reduces the old sections to these bounded unknowns:
   contacts of each type and the full replacement lifetime. Original selection
   and natural branch reachability remain unverified. CD2 events 35/36 now
   exercise moving ID 2081 and persistent loot together from entry, including
-  expiration and save/pickup checks. ID 2081 actor contact now deflects and starts
+  expiration and save/pickup checks. ID 2081 now emits descriptor-colored
+  particles while moving, stationary or grounded without gravity, including
+  after ordinary actor/party contacts. Particle lifetimes are independent of
+  the 48-tick object; pause, clear, flag gating and batching are tested. Both
+  CD2 events pass visible-point and final-expiry checks, with original visual
+  cadence still unverified. ID 2081 actor contact now deflects and starts
   a resource-timed hurt animation, keeping its original 48-tick expiry without
   replacement, damage or the impact-handler displacement cutoff. Controlled
   acceptance covers both CD2 effects. Party contact now applies common slowing

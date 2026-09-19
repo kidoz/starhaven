@@ -54,7 +54,7 @@ correcting its tentative party-coordinate label. Its
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
 adapter. ID 1050 transitions to 1051 on actor or party contact without damage.
-IDs 1000 and 1050/1051 emit colored points; 1050 also bursts on replacement.
+IDs 1000, 1050/1051 and 2081 emit colored points; 1050 also bursts on replacement.
 ID 8080 has its resisted actor response and 8081 replacement, and removes
 immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact. IDs 1000, 2081 and 2100 deflect from actors with a resource-timed hurt
@@ -177,7 +177,7 @@ behavior check. A handler that merely consumes a record is not completion.
    and impacts. IDs 1000/1050 now run in live simulation and rendering, with an
    event-56 branch probe; CD2's ID-2081 effect and ID-1 loot pass a combined
    entry-path probe, including pickup and save/map return.
-   IDs 1000 and 1050/1051 now have colored point trails and the 1050 impact
+   IDs 1000, 1050/1051 and 2081 now have colored point trails and the 1050 impact
    burst. Next resolve other trails,
    decorative contacts, sound and other types. Keep
    the absent descriptor ID 36 in ZNWC visible. Opcode 23 already changes passage collision.
@@ -288,10 +288,12 @@ item ID spaces, first-match semantics, compiled-byte narrowing, missing tables,
 and descriptor indices at and beyond the 16-bit limit. The new 22-byte dispatch
 guard moves ten short opcode-34 records into the 311 below-guard records.
 
-`evt_info --object-loot` passes CD2 events 35/36 from entry with the default
-counter: ID-2081 motion, drawable animation and expiration without impact,
-followed by persistent-loot full-pack handling, memory, save/reload and pickup
-exactly once. Repeat activation and the alternate counter branch are checked.
+`evt_info --object-loot [PPM]` passes CD2 events 35/36 from entry with the default
+counter: ID-2081 motion, drawable animation, colored particle trails and
+expiration without impact. Particles outlive the effect, then expire separately;
+pause, clear and contact paths have synthetic coverage. The probe also checks
+unchanged gameplay RNG. These checks are followed by persistent-loot full-pack
+handling, memory, save/reload and pickup exactly once. Repeat activation and the alternate counter branch are checked.
 No user saves are written. These are installed engine paths, not proof of
 natural player reachability or original-runtime visual parity. Synthetic
 regressions add wall occlusion, modal continuation, refill and malformed saves.
