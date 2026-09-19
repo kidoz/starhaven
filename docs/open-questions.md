@@ -198,7 +198,10 @@ The audit reduces the old sections to these bounded unknowns:
   and independent RNG are engine policies; original presentation parity and
   decorative contacts remain open.
   ID 1050 becomes the non-damaging, 48-tick ID-1051 effect for source zero.
-  Its actor/party contacts now follow that transition, with controlled D18
+  Flight trails, an immediate incoming-color impact burst, and stationary
+  replacement trails are implemented, with all twenty D18 spawn records
+  checked through particle expiry. Original cadence and visual parity remain
+  open. Its actor/party contacts follow that transition, with controlled D18
   acceptance covering eight
   contacts of each type and the full replacement lifetime. Original selection
   and natural branch reachability remain unverified. CD2 events 35/36 now

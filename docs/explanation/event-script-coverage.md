@@ -54,6 +54,7 @@ correcting its tentative party-coordinate label. Its
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
 adapter. ID 1050 transitions to 1051 on actor or party contact without damage.
+IDs 1000 and 1050/1051 emit colored points; 1050 also bursts on replacement.
 ID 8080 has its resisted actor response and 8081 replacement, and removes
 immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact. IDs 1000, 2081 and 2100 deflect from actors with a resource-timed hurt
@@ -176,7 +177,8 @@ behavior check. A handler that merely consumes a record is not completion.
    and impacts. IDs 1000/1050 now run in live simulation and rendering, with an
    event-56 branch probe; CD2's ID-2081 effect and ID-1 loot pass a combined
    entry-path probe, including pickup and save/map return.
-   ID 1000 now has its colored point trail. Next resolve other trails,
+   IDs 1000 and 1050/1051 now have colored point trails and the 1050 impact
+   burst. Next resolve other trails,
    decorative contacts, sound and other types. Keep
    the absent descriptor ID 36 in ZNWC visible. Opcode 23 already changes passage collision.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
@@ -309,6 +311,14 @@ probe separately checks visible descriptor-colored points and their eventual
 expiry for all ten requests. Trails use a bounded pool, fixed visual cadence
 and independent RNG; pause and map clear apply to the surviving particles too.
 Decorative contacts and original-runtime visual parity remain follow-up work.
+
+`evt_info --object-1050-trail [PPM]` checks all twenty D18 ID-1050 requests
+through flight, controlled party impact, the stationary replacement and final
+particle expiry. An impact bursts using the incoming descriptor color; later
+1051 points use the replacement descriptor. Geometry, actor and timed-expiry
+routes, differing colors, flag gating, far removal and cadence-aligned
+transitions also have synthetic coverage. The shared fixed visual cadence and
+independent RNG remain engine policies, without original visual parity claims.
 
 `evt_info --object-2081-reaction` additionally checks both CD2 effect requests
 against controlled actors: deflection with no replacement or damage, unchanged

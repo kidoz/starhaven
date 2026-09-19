@@ -1048,7 +1048,8 @@ continue until expiry or pool overwrite. Pause freezes them, and successful
 map/load clear discards them. Rendering uses one internal-framebuffer pixel,
 8-bit descriptor RGB and the existing camera/depth convention. Exact original
 cadence, shared RNG ordering, color quantization and doubled-resolution mode
-remain outside this implementation. Other families' trails remain open.
+remain outside this implementation. ID 1050/1051 uses this same particle path
+as described below; other families' trails remain open.
 
 ID 1000 actor contact is implemented through the ordinary collision response.
 Flag `0x40` is absent, so it bypasses the impact handler and its 5,020-unit
@@ -1104,6 +1105,29 @@ magic-immune actor nor an absent resistance callback blocks this transition.
 Removed/replaced flight objects do not react to the same contact again, and
 1051's expiry emits no second notification. Existing launch validation rejects
 missing or invalid 1051 resources before mutating state or consuming RNG.
+
+**ID 1050/1051 particle trails are implemented.** During flight, 1050 emits
+ordinary points using its descriptor RGB, including at zero launch speed.
+A successful geometry, actor, party or timed-expiry transition emits an
+immediate **5–10-point burst**, using the incoming **1050** descriptor's color
+and flag `0x100`, before the stationary **1051** begins its own ordinary trail.
+The impact handler retains the incoming descriptor (`0x45c68c..0x45c6a7`) and
+reads its flag/color after replacement (`0x45d5b4..0x45d5de`). These are
+`observed` branches, not an assumption that both descriptors have equal RGB.
+
+The burst emitter (`0x434980..0x434a8e`) compares the emitted count with a fresh
+**5 + rand()%6** threshold before every point and once after the final point;
+it does not draw a single uniformly distributed count. Each particle gets
+vertical offset **0..32**, two horizontal offsets **-16..16**, and its own
+**256..319-tick** lifetime in the shared 100-slot ring. A transition skips
+ordinary emission on that update (`0x4628df..0x4628f7`, `0x463934..0x463951`).
+The no-gravity motion path permits zero velocity, so later 1051 updates emit
+at the unchanged position using **1051's** RGB and ordinary trail flags.
+Its age-zero animation and resource-defined 48-tick lifetime remain intact;
+final expiry emits no additional burst. The 5,020-unit guard removes before
+replacement or burst. Particles already emitted survive either transition
+or final removal. Fixed cadence, independent visual RNG, pause and map-clear
+policies are shared with ID 1000 above; original visual parity is unverified.
 
 ID 2081, requested before the loot in CD2 events 35/36, uses descriptor 158,
 frame 130, flags `0x13c` and lifetime **48 ticks** (0.375 seconds). Unlike the
@@ -1316,7 +1340,7 @@ remaining movement at that bound. Floor response halves downward speed when
 flag `0x80` is set, otherwise clears it, and damps horizontal motion; walls
 reflect it. These are **StarHaven simulation policies**, not a reproduction of
 original sector, actor, slope or integer collision arithmetic. Exact trigonometric rounding, shared process RNG order,
-trails, sound and original-runtime visual agreement remain unverified.
+remaining trails, sound and original-runtime visual agreement remain unverified.
 
 Outdoor motion also sweeps against the heightmap using the renderer's default
 scale and triangle split. Only cells intersected by the sphere's swept bounds
@@ -1410,6 +1434,18 @@ pause, surviving particles after object expiry, indoor/outdoor adapters and
 map clear. Renderer tests check one-pixel output, full color, clipping, world
 occlusion and unchanged depth. This establishes engine output, not original
 runtime visual agreement or natural event reachability.
+
+`evt_info --object-1050-trail [PPM]` walks all twenty D18 ID-1050 spawn
+records, advances flight in a controlled scene, then places the party body
+at the launch site to trigger both replacements. It checks flight points,
+incoming-color bursts, unchanged gameplay RNG, stationary replacement
+animation and ordinary emission, the 48-tick deadline, and eventual particle
+expiry. The optional PPM contains the controlled points. Synthetic tests
+add distinct flight/replacement colors, geometry/actor/party/timed transitions,
+no double emission on a cadence-aligned transition, descriptor flag gating,
+far removal, pool overwrite, batching, pause, clear and indoor/outdoor adapters.
+These checks establish engine behavior, not original visual parity or natural
+party placement and event reachability.
 
 `evt_info --object-2081-reaction` walks CD2 events 35/36 and applies each
 ID-2081 request against a controlled actor at launch. Each produces one

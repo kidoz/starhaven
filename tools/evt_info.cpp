@@ -64,6 +64,7 @@ void print_usage(const char* argv0) {
               << "  --object-2081-reaction verify CD2 actor deflection and effect expiry\n"
               << "  --object-1000-reaction verify D18 actor deflection and ordinary expiry\n"
               << "  --object-1000-party verify D18 party slowing and ordinary expiry\n"
+              << "  --object-1050-trail [PPM] verify D18 flight, burst and replacement trails\n"
               << "  --object-1000-trail [PPM] verify D18 colored points and trail expiry\n"
               << "  --object-2081-party verify CD2 party damping and effect expiry\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
@@ -702,6 +703,113 @@ int do_object_1000_trail(const std::filesystem::path& data_dir, const std::strin
     }
     ok = records == 10 && ok;
     std::cout << "OBJECT_1000_TRAIL_SUMMARY " << (ok ? "PASS" : "FAIL") << " records=" << records
+              << " original_cadence_and_visual_parity=unverified\n";
+    return ok ? 0 : 1;
+}
+
+int do_object_1050_trail(const std::filesystem::path& data_dir, const std::string& screenshot) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D18.blv", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete ID-1050 trail resources\n";
+        return 1;
+    }
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto flight = std::ranges::find(descriptors, 1050, &world::ObjectDescriptor::object_id);
+    const auto impact = std::ranges::find(descriptors, 1051, &world::ObjectDescriptor::object_id);
+    if (flight == descriptors.end() || impact == descriptors.end() ||
+        impact->sprite_frame_index >= session.sprite_frames.size())
+        return 1;
+    const auto& group = session.sprite_frames.frames()[impact->sprite_frame_index].group_name;
+    bool ok = flight->flags == 0x174 && impact->flags == 0x13c && impact->lifetime == 48;
+    std::size_t records = 0;
+    session.collision = {};
+    for (const auto& step : session.script.steps()) {
+        const auto parsed = world::parse_object_spawn(step);
+        if (!parsed || parsed->object_id != 1050)
+            continue;
+        ++records;
+        game::WalkState state;
+        const auto outcome = game::walk_event(session.script, step.event_id, state, step.sequence,
+                                              session.file_name);
+        if (outcome.object_spawns.size() != 1 || !outcome.unsupported.empty())
+            return 1;
+        const auto request = outcome.object_spawns.front().request;
+        const render::Vec3 origin{
+            static_cast<float>(request.x),
+            static_cast<float>(request.z),
+            static_cast<float>(request.y),
+        };
+        game::ScriptLootState loot;
+        game::ScriptObjectEffects live;
+        game::Battle battle;
+        const data::MonsterStatsTable monsters;
+        const auto created = live.spawn(request, session, items, loot);
+        const auto random = loot.random;
+        bool passed = created.created == 2 && created.error == game::LootSpawnError::None;
+        passed = live.advance(8.0 / 128, session).trail_emitted == 4 && passed;
+        const auto first = live.trail_particles().front();
+        const auto hit = live.advance(1.0 / 128, session, battle, monsters, loot,
+                                      origin + render::Vec3{0, game::kEyeHeight, 0});
+        passed = hit.party_contacts == 2 && hit.detonations.size() == 2 &&
+                 hit.trail_emitted >= 10 && hit.trail_emitted <= 20 &&
+                 live.trail_particles().front().remaining == first.remaining - 1 && passed;
+        for (const auto& particle : live.trail_particles()) {
+            if (particle.remaining != 0)
+                passed = particle.color.r == flight->trail_red &&
+                         particle.color.g == flight->trail_green &&
+                         particle.color.b == flight->trail_blue && passed;
+        }
+        const auto initial = live.sprites(session.sprite_frames);
+        passed = initial.size() == 2 && passed;
+        for (const auto& sprite : initial)
+            passed = sprite.animation == group && sprite.animation_ticks == 0 && passed;
+        std::size_t emitted = 4 + hit.trail_emitted;
+        std::size_t visible = 0;
+        render::SceneRenderer scene(640, 480);
+        render::Camera camera;
+        camera.position = origin + render::Vec3{0, 80, 256};
+        for (std::uint32_t age = 1; age <= impact->lifetime + 319U; ++age) {
+            const auto result = live.advance(1.0 / 128, session);
+            emitted += result.trail_emitted;
+            passed = result.detonations.empty() && loot.random == random &&
+                     result.expired == (age == impact->lifetime ? 2U : 0U) && passed;
+            const auto sprites = live.sprites(session.sprite_frames);
+            passed = sprites.size() == (age < impact->lifetime ? 2U : 0U) && passed;
+            for (std::size_t i = 0; i < sprites.size() && i < initial.size(); ++i)
+                passed = sprites[i].animation == group && sprites[i].animation_ticks == age / 8 &&
+                         render::length(sprites[i].position - initial[i].position) == 0 && passed;
+            scene.begin(camera, {0, 0, 0});
+            for (const auto& particle : live.trail_particles()) {
+                if (particle.remaining != 0)
+                    visible += scene.draw_point(particle.position, particle.color) ? 1U : 0U;
+            }
+            if (records == 1 && age == 7 && !screenshot.empty())
+                passed = render::write_ppm(screenshot, scene.framebuffer()) && passed;
+        }
+        passed = emitted == 4 + hit.trail_emitted + 24 && visible > 0 &&
+                 std::ranges::none_of(live.trail_particles(),
+                                      [](const auto& particle) { return particle.remaining; }) &&
+                 passed;
+        std::cout << "OBJECT_1050_TRAIL " << (passed ? "PASS" : "FAIL")
+                  << " event=" << step.event_id << " entry=" << static_cast<int>(step.sequence)
+                  << " burst=" << hit.trail_emitted << " emitted=" << emitted
+                  << " visible_point_samples=" << visible << " controlled_scene=1\n";
+        ok = passed && ok;
+    }
+    ok = records == 20 && ok;
+    std::cout << "OBJECT_1050_TRAIL_SUMMARY " << (ok ? "PASS" : "FAIL") << " records=" << records
+              << " flight_rgb=" << static_cast<int>(flight->trail_red) << ','
+              << static_cast<int>(flight->trail_green) << ','
+              << static_cast<int>(flight->trail_blue)
+              << " impact_rgb=" << static_cast<int>(impact->trail_red) << ','
+              << static_cast<int>(impact->trail_green) << ','
+              << static_cast<int>(impact->trail_blue)
               << " original_cadence_and_visual_parity=unverified\n";
     return ok ? 0 : 1;
 }
@@ -3969,6 +4077,8 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-1050-trail")
+        return do_object_1050_trail(*install / "data", argc == 3 ? argv[2] : "");
     if (stem == "--object-1000-trail")
         return do_object_1000_trail(*install / "data", argc == 3 ? argv[2] : "");
     if (stem == "--object-1050-contacts") {
