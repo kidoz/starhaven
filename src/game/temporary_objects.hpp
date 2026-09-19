@@ -38,6 +38,8 @@ struct TemporaryObject {
     std::uint32_t age = 0;  // simulation ticks, never wall-clock time
     bool active = true;
     bool resting = false;
+    // Engine overlap policy: 2100 reacts once until it leaves this actor's body.
+    std::optional<std::size_t> touching_actor = std::nullopt;
 };
 
 enum class TemporarySpawnError : std::uint8_t { None, UnsupportedId, MissingDescriptor, BadFrame };
@@ -69,7 +71,8 @@ struct ObjectParty {
 struct ObjectContacts {
     std::span<const ObjectActor> bodies;
     std::function<bool(std::size_t)> apply;           // ID 8080 resistance gate and state response
-    std::optional<ObjectParty> party = std::nullopt;  // ID 4070 only
+    std::optional<ObjectParty> party = std::nullopt;  // IDs 2100 and 4070
+    std::function<void(std::size_t)> react_2100 = nullptr;
 };
 struct TemporaryObjectStep {
     std::size_t expired = 0;
@@ -79,6 +82,8 @@ struct TemporaryObjectStep {
     std::size_t party_contacts = 0;
     std::size_t actor_accepted = 0;  // accepted ID 8080 resistance gates
     std::size_t missing_actor_replacements = 0;
+    std::size_t actor_redirects = 0;
+    std::size_t actor_animation_fallbacks = 0;
     std::vector<ObjectDetonation> detonations;
 };
 

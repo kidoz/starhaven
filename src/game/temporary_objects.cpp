@@ -71,6 +71,7 @@ render::Vec3 launch_velocity(std::int32_t speed, std::uint16_t yaw, std::uint16_
 }
 
 void finish(TemporaryObject& object, TemporaryObjectStep& result) {
+    object.touching_actor.reset();
     // ID 8080's non-actor contact/expiry path only removes the object.
     // The original impact path discards objects 5020 units from their origin.
     if ((object.definition.id == 1050 || object.definition.id == 2100 ||
@@ -129,15 +130,40 @@ std::optional<float> body_fraction(render::Vec3 from, render::Vec3 to, float rad
 }
 
 void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
-                   const ObjectContacts& actors, std::size_t actor) {
+                   const ObjectContacts& actors, const ObjectActor& actor) {
     ++result.actor_contacts;
     if (object.definition.id == 4070) {
         // Source-zero event objects transform without resistance or target damage.
         finish(object, result);
         return;
     }
+    if (object.definition.id == 2100) {
+        if (render::length(object.position - object.origin) >= 5020.0f) {
+            finish(object, result);
+            return;
+        }
+        // Redirect away from the actor, preserving horizontal speed before
+        // the original common 58500/65536 damping of all three components.
+        const float speed = std::hypot(object.velocity.x, object.velocity.z);
+        const render::Vec3 outward{
+            object.position.x - actor.position.x,
+            0,
+            object.position.z - actor.position.z,
+        };
+        const float distance = render::length(outward);
+        const auto direction = distance > 0 ? outward * (1.0f / distance) : render::Vec3{1, 0, 0};
+        object.velocity.x = direction.x * speed;
+        object.velocity.z = direction.z * speed;
+        object.velocity = object.velocity * (58500.0f / 65536.0f);
+        object.touching_actor = actor.index;
+        object.resting = false;
+        ++result.actor_redirects;
+        if (actors.react_2100)
+            actors.react_2100(actor.index);
+        return;
+    }
     // The common displacement guard runs before the resistance draw.
-    if (render::length(object.position - object.origin) >= 5020.0f || !actors.apply(actor)) {
+    if (render::length(object.position - object.origin) >= 5020.0f || !actors.apply(actor.index)) {
         finish(object, result);
         return;
     }
@@ -156,24 +182,28 @@ void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
 
 // Geometry wins ties, then actor order, then party. Bodies are fixed for the
 // caller's simulation step; original moving-target/sector parity is not claimed.
-bool contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3 to, float nearest,
-                        TemporaryObjectStep& result, const ObjectContacts* contacts) {
+std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3 to,
+                                        float nearest, TemporaryObjectStep& result,
+                                        const ObjectContacts* contacts) {
     if (contacts == nullptr || (object.definition.flags & 0x40U) == 0 ||
-        (object.definition.id != 4070 && object.definition.id != 8080))
-        return false;
-    std::optional<std::size_t> selected;
+        (object.definition.id != 2100 && object.definition.id != 4070 &&
+         object.definition.id != 8080))
+        return std::nullopt;
+    const ObjectActor* selected = nullptr;
     bool party_hit = false;
-    if (object.definition.id == 4070 || contacts->apply) {
+    if (object.definition.id != 8080 || contacts->apply) {
         for (const auto& actor : contacts->bodies) {
+            if (object.definition.id == 2100 && object.touching_actor == actor.index)
+                continue;
             if (const auto fraction = body_fraction(from, to, object.definition.radius,
                                                     actor.position, actor.radius, actor.height);
                 fraction && *fraction < nearest) {
                 nearest = *fraction;
-                selected = actor.index;
+                selected = &actor;
             }
         }
     }
-    if (object.definition.id == 4070 && contacts->party) {
+    if ((object.definition.id == 2100 || object.definition.id == 4070) && contacts->party) {
         const auto& party = *contacts->party;
         if (const auto fraction = body_fraction(from, to, object.definition.radius, party.position,
                                                 party.radius, party.height);
@@ -182,8 +212,8 @@ bool contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3
             party_hit = true;
         }
     }
-    if (!party_hit && !selected)
-        return false;
+    if (!party_hit && selected == nullptr)
+        return std::nullopt;
     const render::Vec3 offset{0, object.definition.radius + 1, 0};
     object.position = from + (to - from) * nearest - offset;
     if (party_hit) {
@@ -192,13 +222,25 @@ bool contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3
     } else {
         contact_actor(object, result, *contacts, *selected);
     }
-    return true;
+    return nearest;
 }
 
 void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collision,
                    TemporaryObjectStep& result, const world::OdmTerrain* terrain,
                    const ObjectContacts* contacts = nullptr) {
     const render::Vec3 offset{0, object.definition.radius + 1, 0};
+    if (object.touching_actor) {
+        const ObjectActor* body = nullptr;
+        if (contacts != nullptr) {
+            for (const auto& actor : contacts->bodies)
+                if (actor.index == *object.touching_actor)
+                    body = &actor;
+        }
+        const auto center = object.position + offset;
+        if (body == nullptr || !body_fraction(center, center, object.definition.radius,
+                                              body->position, body->radius, body->height))
+            object.touching_actor.reset();
+    }
     if (object.resting) {
         const auto center = object.position + offset;
         if (const auto support = collision.sweep_sphere(center, center - render::Vec3{0, 0.1f, 0},
@@ -220,9 +262,13 @@ void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collisi
         const auto center = object.position + offset;
         const auto target = center + object.velocity * remaining;
         const auto hit = collision.sweep_sphere(center, target, object.definition.radius, terrain);
-        if (contact_characters(object, center, target, hit ? hit->fraction : 2.0f, result,
-                               contacts))
-            return;
+        if (const auto fraction = contact_characters(
+                object, center, target, hit ? hit->fraction : 2.0f, result, contacts)) {
+            if (!object.active || object.definition.id != 2100)
+                return;
+            remaining *= 1 - *fraction;
+            continue;
+        }
         if (!hit) {
             object.position = target - offset;
             return;

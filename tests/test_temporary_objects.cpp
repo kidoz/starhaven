@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <cmath>
 #include <limits>
 
 using namespace starhaven;
@@ -881,4 +882,196 @@ TEST_CASE("far 4070 character contacts remove without detonation or callbacks",
     REQUIRE(step.detonations.empty());
     REQUIRE(step.expired == 1);
     REQUIRE(calls == 0);
+}
+
+TEST_CASE("2100 redirects away from actors without transforming or resetting age",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(2100);
+    req.scatter = true;
+    req.speed = 32767;
+    spawn(live, resources, req);
+    const auto before = live.slots().front();
+    const auto delta = before.velocity * (1.0f / 128);
+    const std::array actors{ObjectActor{0, {delta.x * 0.25f, 0, delta.z * 0.25f}, 4, 1000}};
+    int gates = 0;
+    int reactions = 0;
+    ObjectContacts contacts{
+        actors,
+        [&](std::size_t) {
+            ++gates;
+            return false;
+        },
+    };
+    contacts.react_2100 = [&](std::size_t actor) {
+        REQUIRE(actor == 0);
+        ++reactions;
+    };
+    world::CollisionWorld collision;
+    bool wall = false;
+    SECTION("radial redirection and damping preserve flight") {}
+    SECTION("remaining movement can reach a wall in the same tick") {
+        const std::array vertices{
+            render::Vec3{-20, -1000, -1000},
+            render::Vec3{-20, 1000, -1000},
+            render::Vec3{-20, 1000, 1000},
+            render::Vec3{-20, -1000, 1000},
+        };
+        collision.add_polygon(vertices, {1, 0, 0});
+        wall = true;
+    }
+    const auto step = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(step.actor_contacts == 1);
+    REQUIRE(step.actor_redirects == 1);
+    REQUIRE(step.actor_accepted == 0);
+    REQUIRE(gates == 0);
+    REQUIRE(reactions == 1);
+    const auto& after = live.slots().front();
+    if (wall) {
+        REQUIRE(step.detonations.size() == 1);
+        REQUIRE(after.definition.id == 2101);
+        REQUIRE(after.age == 0);
+    } else {
+        REQUIRE(step.detonations.empty());
+        REQUIRE(after.definition.id == 2100);
+        REQUIRE(after.age == 1);
+        REQUIRE(after.velocity.x < 0);
+        REQUIRE(after.velocity.z < 0);
+        constexpr float kDamping = 58500.0f / 65536.0f;
+        REQUIRE(std::hypot(after.velocity.x, after.velocity.z) ==
+                Approx(std::hypot(before.velocity.x, before.velocity.z) * kDamping));
+        REQUIRE(after.velocity.y == Approx((before.velocity.y - 5) * kDamping));
+        REQUIRE(after.active);
+    }
+}
+
+TEST_CASE("2100 overlapping actors react once until separated", "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    spawn(live, resources, request(2100));
+    std::array actors{ObjectActor{0, {0, 100, 0}, 20, 200}};
+    int reactions = 0;
+    ObjectContacts contacts{actors, {}};
+    contacts.react_2100 = [&](std::size_t) { ++reactions; };
+    REQUIRE(live.advance(1, {}, nullptr, &contacts).actor_redirects == 1);
+    REQUIRE(live.advance(10, {}, nullptr, &contacts).actor_contacts == 0);
+    REQUIRE(reactions == 1);
+    actors.front().position.x = 1000;
+    (void)live.advance(1, {}, nullptr, &contacts);
+    actors.front().position.x = 0;
+    REQUIRE(live.advance(1, {}, nullptr, &contacts).actor_redirects == 1);
+    REQUIRE(reactions == 2);
+    REQUIRE(live.slots().front().age == 13);
+    REQUIRE(live.slots().front().definition.id == 2100);
+    const auto rest = live.advance(1000, floor());
+    REQUIRE(rest.detonations.size() == 1);
+    REQUIRE(rest.expired == 1);
+}
+
+TEST_CASE("distant 2100 character contact removes before reaction or detonation",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(2100);
+    req.speed = 32767;
+    spawn(live, resources, req);
+    const std::array actors{ObjectActor{0, {0, 5500, 0}, 2, 10}};
+    int reactions = 0;
+    ObjectContacts contacts{actors, {}};
+    contacts.react_2100 = [&](std::size_t) { ++reactions; };
+    SECTION("actor") {}
+    SECTION("party") {
+        contacts.bodies = {};
+        contacts.party = ObjectParty{{0, 5500, 0}, 2, 10};
+    }
+    const auto step = live.advance(24, {}, nullptr, &contacts);
+    REQUIRE(step.actor_contacts + step.party_contacts == 1);
+    REQUIRE(step.actor_redirects == 0);
+    REQUIRE(reactions == 0);
+    REQUIRE(step.expired == 1);
+    REQUIRE(step.detonations.empty());
+}
+
+TEST_CASE("2100 party contact replaces once and respects earlier contacts", "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(2100);
+    req.speed = 4096;
+    spawn(live, resources, req);
+    ObjectContacts contacts;
+    contacts.party = ObjectParty{{0, 110, 0}, 2, 10};
+    std::array actors{ObjectActor{0, {0, 130, 0}, 2, 10}};
+    std::size_t reactions = 0;
+    int resistance_calls = 0;
+    contacts.react_2100 = [&](std::size_t) { ++reactions; };
+    contacts.apply = [&](std::size_t) {
+        ++resistance_calls;
+        return true;
+    };
+    std::size_t expected_actors = 0;
+    bool geometry_hit = false;
+    world::CollisionWorld collision;
+    SECTION("party alone") {}
+    SECTION("party precedes an actor") {
+        contacts.bodies = actors;
+    }
+    SECTION("actor deflection precedes party impact in the same tick") {
+        actors.front().position.y = 106;
+        contacts.bodies = actors;
+        expected_actors = 1;
+    }
+    SECTION("actor wins a tie and then the party still triggers replacement") {
+        actors.front().position.y = 110;
+        contacts.bodies = actors;
+        expected_actors = 1;
+    }
+    SECTION("geometry wins a party tie") {
+        const std::array ceiling{
+            render::Vec3{-100, 110, -100},
+            render::Vec3{-100, 110, 100},
+            render::Vec3{100, 110, 100},
+            render::Vec3{100, 110, -100},
+        };
+        collision.add_polygon(ceiling, {0, -1, 0});
+        geometry_hit = true;
+    }
+    REQUIRE(live.advance(0, collision, nullptr, &contacts).party_contacts == 0);
+    const auto hit = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(hit.party_contacts == (geometry_hit ? 0U : 1U));
+    REQUIRE(hit.actor_contacts == expected_actors);
+    REQUIRE(hit.actor_redirects == expected_actors);
+    REQUIRE(reactions == expected_actors);
+    REQUIRE(resistance_calls == 0);
+    REQUIRE(hit.expired == 0);
+    REQUIRE(hit.detonations.size() == 1);
+    REQUIRE(hit.detonations.front().radius == 512);
+    REQUIRE(live.slots().front().definition.id == 2101);
+    REQUIRE(live.slots().front().age == 0);
+    REQUIRE(render::length(live.slots().front().velocity) == 0);
+    REQUIRE_FALSE(live.slots().front().touching_actor);
+    const auto position = live.slots().front().position;
+    const auto rest = live.advance(79, collision, nullptr, &contacts);
+    REQUIRE(rest.party_contacts == 0);
+    REQUIRE(rest.actor_contacts == 0);
+    REQUIRE(rest.detonations.empty());
+    REQUIRE(rest.expired == 0);
+    REQUIRE(render::length(live.slots().front().position - position) == 0);
+    REQUIRE(live.advance(1, collision, nullptr, &contacts).expired == 1);
+    REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("party contacts remain gated by object family and impact flag", "[temporary-objects]") {
+    Resources resources;
+    resources.objects[5].flags &= ~0x40U;
+    ObjectContacts contacts;
+    contacts.party = ObjectParty{{0, 100, 0}, 64, 320};
+    for (const auto id : {1000U, 1050U, 2081U, 8080U, 2100U}) {
+        TemporaryObjects live;
+        spawn(live, resources, request(id));
+        const auto step = live.advance(1, {}, nullptr, &contacts);
+        REQUIRE(step.party_contacts == 0);
+        REQUIRE(step.detonations.empty());
+        REQUIRE(live.slots().front().definition.id == id);
+    }
 }
