@@ -192,7 +192,11 @@ The audit reduces the old sections to these bounded unknowns:
   contacts of each type and the full replacement lifetime. Original selection
   and natural branch reachability remain unverified. CD2 events 35/36 now
   exercise moving ID 2081 and persistent loot together from entry, including
-  expiration and save/pickup checks. D01 event 47's three ID-2100 objects now
+  expiration and save/pickup checks. ID 2081 actor contact now deflects and starts
+  a resource-timed hurt animation, keeping its original 48-tick expiry without
+  replacement, damage or the impact-handler displacement cutoff. Controlled
+  acceptance covers both CD2 effects; party/decorative contacts remain open.
+  D01 event 47's three ID-2100 objects now
   pass geometry impact, stationary ID-2101 animation and expiry checks; its
   distinct actor-contact response now deflects without detonation and starts a
   resource-timed hurt animation. Controlled actor acceptance checks its clock,

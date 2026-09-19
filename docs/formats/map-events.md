@@ -1064,8 +1064,18 @@ action; expiry simply removes it. These are `observed` in the same executable:
 age/expiry at VA `0x463907..0x463990`, motion dispatch at
 `0x463992..0x4639ae`, gravity bypass and velocity integration at
 `0x4624cc..0x462741`, and contact gating at `0x4628df..0x4628fd`.
-The engine applies its existing geometry response and animation clock; actor
-contacts, trails, sound and exact original trajectories remain separate gaps.
+Actor contact is now implemented through the ordinary response, despite the
+absent impact flag: the caller dispatches actor target type 3 at
+`0x4628fd..0x462929` to `0x462b58`. It redirects horizontal velocity away from
+the actor, damps all components by **58500/65536**, and starts the actor's
+resource-timed hurt animation as detailed below for ID 2100. Object ID, age,
+stored lifetime and gravity bypass remain unchanged. There is no replacement,
+detonation, resistance draw or direct damage. The 5,020-unit displacement
+cutoff belongs to the skipped impact handler (`0x45c709..0x45c777`), so it does
+not suppress this response. StarHaven shares the timed wince, overlap latch,
+remaining-movement policy and explicit animation fallback with ID 2100.
+Party and decorative contacts for 2081, trails, sound and exact original
+trajectories remain separate gaps.
 
 ID 2100 uses descriptor 159, frame 136, flags `0x154` and lifetime 768 ticks.
 Gravity applies. Geometry contact or expiry changes it into ID 2101, clears
@@ -1302,6 +1312,18 @@ and removals. Actor health, an active buff and the object RNG remain unchanged.
 Chest/summon outcomes and natural actor placement are excluded. Synthetic tests
 also cover angled deflection, a later wall in the same tick, overlap/re-entry,
 far removal, missing resources, dead actors, pause and reset by ID 8080.
+
+`evt_info --object-2081-reaction` walks CD2 events 35/36 and applies each
+ID-2081 request against a controlled actor at launch. Each produces one
+contact/deflection, a resource-timed 80-tick hurt animation, and removal at the
+object's original 48-tick deadline without replacement or detonation. Effect
+animation continues on its original clock. Actor health, an active buff and
+object RNG remain unchanged. The companion loot is excluded here; the
+`--object-loot` probe covers its combined lifecycle and persistence. Synthetic
+regressions also cover angled deflection, a later wall bounce in the same tick,
+overlap/re-entry, contact beyond 5,020 units, dead actors, missing animation
+data and pause. These controlled checks do not establish natural actor
+placement, original collision arithmetic or full AI-state parity.
 
 `evt_info --object-1050-contacts` seeds each of D18 event 56's four ID-1050
 spawn branches and applies the resulting requests against controlled actor or

@@ -60,6 +60,7 @@ void print_usage(const char* argv0) {
               << "  --object-removal  verify OUTD3 event 200 non-actor 8080 lifecycle\n"
               << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
               << "  --object-reaction verify D01 actor deflection and hurt animation\n"
+              << "  --object-2081-reaction verify CD2 actor deflection and effect expiry\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
@@ -396,9 +397,10 @@ int do_object_lifecycle(const std::filesystem::path& data_dir) {
     return passed ? 0 : 1;
 }
 
-// Verify the D01 objects against a controlled actor and floor. Chest and
-// monster-summon outcomes and natural encounter placement are excluded.
-int do_object_reaction(const std::filesystem::path& data_dir) {
+// Verify D01 or CD2 effects against a controlled actor and floor. Other event
+// outcomes and natural encounter placement are excluded.
+int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id = 2100,
+                       std::uint16_t event = 47) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -406,7 +408,9 @@ int do_object_reaction(const std::filesystem::path& data_dir) {
     data::ItemStatsTable items;
     data::TextTable text;
     data::MonsterStatsTable monsters;
-    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D01.blv", cache, session) !=
+    const auto* const map = id == 2081 ? "CD2.blv" : "D01.blv";
+    const std::size_t count = id == 2081 ? 1 : 3;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, map, cache, session) !=
             world::MapSessionError::None ||
         data::load_item_stats(data_dir, items) != data::GameDataError::None ||
         data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
@@ -432,8 +436,9 @@ int do_object_reaction(const std::filesystem::path& data_dir) {
         }
     }
     game::WalkState state;
-    const auto outcome = game::walk_event(session.script, 47, state, -1, session.file_name);
-    if (!target || outcome.object_spawns.size() != 1 || !outcome.unsupported.empty()) {
+    const auto outcome = game::walk_event(session.script, event, state, -1, session.file_name);
+    if (!target || outcome.object_spawns.size() != (id == 2081 ? 2U : 1U) ||
+        !outcome.unsupported.empty()) {
         std::cerr << "error: missing object-reaction joins\n";
         return 1;
     }
@@ -456,25 +461,25 @@ int do_object_reaction(const std::filesystem::path& data_dir) {
     game::ScriptObjectEffects live;
     game::ScriptObjectEffects control;
     const auto created = live.spawn(request, session, items, loot);
-    bool ok = request.object_id == 2100 && created.created == 3 &&
+    bool ok = request.object_id == id && created.created == count &&
               created.error == game::LootSpawnError::None && created.dropped == 0 &&
-              control.spawn(request, session, items, control_loot).created == 3;
+              control.spawn(request, session, items, control_loot).created == count;
     const auto random = loot.random;
     const auto hit =
         live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
     (void)control.advance(1.0 / game::kObjectTicksPerSecond, session);
     const auto sprites = live.sprites(session.sprite_frames);
     const auto control_sprites = control.sprites(session.sprite_frames);
-    ok = hit.actor_contacts == 3 && hit.actor_redirects == 3 &&
+    ok = hit.actor_contacts == count && hit.actor_redirects == count &&
          hit.actor_animation_fallbacks == 0 && hit.detonations.empty() && hit.expired == 0 &&
-         sprites.size() == 3 && control_sprites.size() == 3 &&
+         sprites.size() == count && control_sprites.size() == count &&
          battle.animation_of(0) == world::MonsterAnimation::Wince &&
          battle.event_reaction_ticks(0) == 0 && ok;
     if (!sprites.empty() && !control_sprites.empty())
         ok = sprites.front().position.y > origin.y &&
              sprites.front().position.y < control_sprites.front().position.y && ok;
-    // Isolate the completed reaction, then let the projectiles hit a controlled
-    // floor. Neither actor placement nor this floor reproduces natural play.
+    // Isolate the reaction, then verify later floor impact (2100) or ordinary
+    // expiry (2081). This controlled placement does not reproduce natural play.
     session.actors.front().position.x += 4096;
     const std::array floor{
         origin + render::Vec3{-1000, -128, -1000},
@@ -504,16 +509,29 @@ int do_object_reaction(const std::filesystem::path& data_dir) {
         detonations += step.detonations.size();
         expired += step.expired;
         ok = step.actor_contacts == 0 && step.actor_redirects == 0 && ok;
+        if (id == 2081) {
+            const auto age = tick + 2;  // one tick already elapsed before this loop
+            const auto effects = live.sprites(session.sprite_frames);
+            ok = effects.size() == (age < 48 ? 1U : 0U) && step.expired == (age == 48 ? 1U : 0U) &&
+                 ok;
+            for (const auto& sprite : effects) {
+                const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                      sprite.animation_ticks.value_or(0));
+                ok = !sprites.empty() && sprite.animation == sprites.front().animation &&
+                     sprite.animation_ticks == age / 8 && !pick.entry.empty() &&
+                     !cache.sprite(pick.entry, pick.palette).empty() && ok;
+            }
+        }
     }
-    ok = live.active_count() == 0 && detonations == 3 && expired == 3 && drawable == hurt_ticks &&
-         battle.animation_of(0) == world::MonsterAnimation::Stand &&
+    ok = live.active_count() == 0 && detonations == (id == 2081 ? 0U : count) && expired == count &&
+         drawable == hurt_ticks && battle.animation_of(0) == world::MonsterAnimation::Stand &&
          battle.health_of(0) == health && battle.slot_up(0, 0) && loot.random == random && ok;
-    std::cout << "OBJECT_REACTION " << (ok ? "PASS" : "FAIL")
-              << " object=2100 actor_contacts=" << hit.actor_contacts
+    std::cout << "OBJECT_REACTION " << (ok ? "PASS" : "FAIL") << " object=" << id
+              << " event=" << event << " actor_contacts=" << hit.actor_contacts
               << " redirects=" << hit.actor_redirects << " hurt_ticks=" << hurt_ticks
               << " drawable_hurt_samples=" << drawable << " later_impacts=" << detonations
               << " expired=" << expired
-              << " controlled_actor_and_floor=1 chest_and_summon=excluded\n";
+              << " controlled_actor_and_floor=1 other_event_outcomes=excluded\n";
     return ok ? 0 : 1;
 }
 
@@ -3821,6 +3839,15 @@ int main(int argc, char** argv) {
             return 2;
         }
         return do_object_expiry(*install / "data");
+    }
+    if (stem == "--object-2081-reaction") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        const auto first = do_object_reaction(*install / "data", 2081, 35);
+        const auto second = do_object_reaction(*install / "data", 2081, 36);
+        return first == 0 && second == 0 ? 0 : 1;
     }
     if (stem == "--object-reaction") {
         if (!install) {
