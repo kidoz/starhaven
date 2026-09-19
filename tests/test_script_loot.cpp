@@ -783,9 +783,9 @@ TEST_CASE("live 1050 and 4070 touch actors and the party without damage or resis
 }
 
 TEST_CASE(
-    "2081 and 2100 live actor reactions use resource duration and a resettable simulation clock",
+    "1000, 2081 and 2100 actor reactions use resource duration and a resettable simulation clock",
     "[script-loot]") {
-    const auto id = GENERATE(2081U, 2100U);
+    const auto id = GENERATE(1000U, 2081U, 2100U);
     CAPTURE(id);
     Fixture f(8);  // 8 animation units = 64 simulation ticks = half a second
     data::TextTable text;

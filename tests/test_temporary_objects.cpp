@@ -931,9 +931,9 @@ TEST_CASE("far 1050 and 4070 character contacts remove without detonation or cal
     REQUIRE(calls == 0);
 }
 
-TEST_CASE("2081 and 2100 redirect away from actors without transforming or resetting age",
+TEST_CASE("1000, 2081 and 2100 redirect away from actors without transforming or resetting age",
           "[temporary-objects]") {
-    const auto id = GENERATE(2081U, 2100U);
+    const auto id = GENERATE(1000U, 2081U, 2100U);
     CAPTURE(id);
     const Resources resources;
     TemporaryObjects live;
@@ -998,8 +998,9 @@ TEST_CASE("2081 and 2100 redirect away from actors without transforming or reset
     }
 }
 
-TEST_CASE("2081 and 2100 overlapping actors react once until separated", "[temporary-objects]") {
-    const auto id = GENERATE(2081U, 2100U);
+TEST_CASE("1000, 2081 and 2100 overlapping actors react once until separated",
+          "[temporary-objects]") {
+    const auto id = GENERATE(1000U, 2081U, 2100U);
     CAPTURE(id);
     const Resources resources;
     TemporaryObjects live;
@@ -1021,6 +1022,73 @@ TEST_CASE("2081 and 2100 overlapping actors react once until separated", "[tempo
     const auto rest = live.advance(1000, floor());
     REQUIRE(rest.detonations.size() == (id == 2100 ? 1U : 0U));
     REQUIRE(rest.expired == 1);
+    if (id == 1000)
+        REQUIRE(rest.bounces > 0);
+}
+
+TEST_CASE("1000 actor contact beyond the impact cutoff preserves gravity and its deadline",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(1000);
+    req.speed = 32767;
+    spawn(live, resources, req);
+    const std::array actors{ObjectActor{0, {0, 5500, 0}, 2, 10}};
+    ObjectContacts contacts{actors, {}};
+    int reactions = 0;
+    contacts.react_to_actor = [&](std::size_t) { ++reactions; };
+    const auto& object = live.slots().front();
+    for (std::uint32_t tick = 1; tick <= 24 && reactions == 0; ++tick) {
+        const auto velocity = object.velocity.y - 5;
+        const auto step = live.advance(1, {}, nullptr, &contacts);
+        REQUIRE(step.expired == 0);
+        REQUIRE(step.detonations.empty());
+        REQUIRE(object.age == tick);
+        if (step.actor_contacts != 0) {
+            REQUIRE(step.actor_redirects == 1);
+            REQUIRE(object.position.y - object.origin.y > 5020);
+            REQUIRE(object.velocity.y == Approx(velocity * 58500 / 65536));
+        }
+    }
+    REQUIRE(reactions == 1);
+    REQUIRE(object.definition.id == 1000);
+    REQUIRE(object.definition.lifetime == 768);
+    const auto velocity = object.velocity.y;
+    REQUIRE(live.advance(1, {}).expired == 0);
+    REQUIRE(object.velocity.y == Approx(velocity - 5));
+    REQUIRE(live.advance(767 - object.age, {}).expired == 0);
+    const auto expiry = live.advance(1, {});
+    REQUIRE(expiry.expired == 1);
+    REQUIRE(expiry.detonations.empty());
+    REQUIRE_FALSE(object.touching_actor);
+    REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("a settled 1000 skips actor searches and expires without replacement",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(1000);
+    req.z = 0;
+    req.speed = 0;
+    spawn(live, resources, req);
+    const auto collision = floor();
+    (void)live.advance(20, collision);
+    const auto& object = live.slots().front();
+    REQUIRE(object.resting);
+    const std::array actors{ObjectActor{0, {0, 0, 0}, 20, 160}};
+    ObjectContacts contacts{actors, {}};
+    contacts.react_to_actor = [](std::size_t) { FAIL("settled object must not react an actor"); };
+    REQUIRE(live.advance(1, collision, nullptr, &contacts).actor_contacts == 0);
+    REQUIRE(object.definition.id == 1000);
+    REQUIRE(object.age == 21);
+    REQUIRE(render::length(object.velocity) == 0);
+    const auto rest = live.advance(746, collision, nullptr, &contacts);
+    REQUIRE(rest.actor_contacts == 0);
+    REQUIRE(rest.expired == 0);
+    const auto expiry = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(expiry.expired == 1);
+    REQUIRE(expiry.detonations.empty());
 }
 
 TEST_CASE("2081 distant character contact preserves its original expiry without an impact action",
