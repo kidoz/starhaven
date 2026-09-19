@@ -193,7 +193,10 @@ The audit reduces the old sections to these bounded unknowns:
   actor acceptance. Their separate party path now slows without turning or
   applying damage, preserving gravity/bouncing and the original deadline.
   Controlled party acceptance includes later re-entry contacts and unchanged
-  RNG. Decorative contacts and the missing particle trail remain open.
+  RNG. ID 1000 now emits descriptor-colored points with bounded lifetime/pool,
+  upward jitter, scene occlusion, pause and map clear. Fixed visual cadence
+  and independent RNG are engine policies; original presentation parity and
+  decorative contacts remain open.
   ID 1050 becomes the non-damaging, 48-tick ID-1051 effect for source zero.
   Its actor/party contacts now follow that transition, with controlled D18
   acceptance covering eight

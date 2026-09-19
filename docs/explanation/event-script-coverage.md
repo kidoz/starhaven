@@ -59,8 +59,8 @@ immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact. IDs 1000, 2081 and 2100 deflect from actors with a resource-timed hurt
 animation; IDs 1000/2081 also slow on party contact while keeping their original
 expiry, and ID 2100 transitions to 2101 on party contact. Decorative contacts,
-exact character-contact/AI parity, terrain material responses, trails, sound
-and other original object behavior remain follow-up work.
+exact character-contact/AI parity, terrain material responses, other families'
+trails, sound and other original object behavior remain follow-up work.
 
 ## Reproduce
 
@@ -176,7 +176,8 @@ behavior check. A handler that merely consumes a record is not completion.
    and impacts. IDs 1000/1050 now run in live simulation and rendering, with an
    event-56 branch probe; CD2's ID-2081 effect and ID-1 loot pass a combined
    entry-path probe, including pickup and save/map return.
-   Next resolve the remaining actor contacts, trails, sound and other types. Keep
+   ID 1000 now has its colored point trail. Next resolve other trails,
+   decorative contacts, sound and other types. Keep
    the absent descriptor ID 36 in ZNWC visible. Opcode 23 already changes passage collision.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
    two-byte uses of opcode 10 are `OUTC1 / 211 / 2` (quest) and
@@ -296,15 +297,18 @@ regressions add wall occlusion, modal continuation, refill and malformed saves.
 `evt_info --object-1000-reaction` seeds all ten D18 ID-1000 requests and checks
 actor deflection, timed hurt animation, unchanged health/buffs/RNG, later
 floor bounces and expiry at the original 768-tick deadline without detonation.
-The effect retains its zero-scale null billboard; its missing particle trail
-remains a visual gap. A settled ID 1000 skips actor and party searches, matching
+The effect retains its zero-scale null billboard and now has a separate colored
+point trail. A settled ID 1000 skips actor and party searches, matching
 the original grounded early return. These are controlled branch/application
 checks, not natural event reachability or original collision parity. The separate
 `--object-1000-party` probe runs the same ten requests against the party body:
 initial and later re-entry contacts slow the effects without actor response,
 damage or replacement. Gravity, bouncing, animation age and tick-768 expiry
-remain intact; post-launch RNG stays unchanged. Decorative contacts and the
-particle trail remain follow-up work.
+remain intact; post-launch RNG stays unchanged. The `--object-1000-trail [PPM]`
+probe separately checks visible descriptor-colored points and their eventual
+expiry for all ten requests. Trails use a bounded pool, fixed visual cadence
+and independent RNG; pause and map clear apply to the surviving particles too.
+Decorative contacts and original-runtime visual parity remain follow-up work.
 
 `evt_info --object-2081-reaction` additionally checks both CD2 effect requests
 against controlled actors: deflection with no replacement or damage, unchanged
@@ -375,9 +379,9 @@ The 2026-09-18 probe seeds D18 event 56's six spawn branches through the
 walker and the same `ScriptObjectEffects` application helper used by the live
 adapter. It simulates against the loaded map's collision polygons and resolves
 the selected animation frames with a fixed explicit seed. ID 1000 selects the
-zero-scale null frame and has no billboard; its missing trail is still a visual
-gap. The probe counts those samples separately and requires drawable 1050/1051
-sprites.
+zero-scale null frame and has no billboard; its separate trail is checked by
+`--object-1000-trail`. The lifecycle probe counts null samples separately and
+requires drawable 1050/1051 sprites.
 It creates all 12 requested objects, records eight 1050→1051 transitions and
 16 bounces, and removes all 12 by tick 768. It fails on missing resources,
 rejected requests, pool drops, unfinished objects or absent movement/impact
@@ -392,6 +396,7 @@ faces, edges, vertices, floors, walls and ceilings.
 This is a seeded branch/application/resource witness, not an original-runtime
 comparison or natural player-reachability proof. Synthetic regressions also
 cover the shared loot/effect capacity, fractional ticks, paused animation, impact
-animation reset and map-boundary clearing. Original collision arithmetic, actor
-contacts, visual parity, sound, trails and temporary persistence remain open. See the
+animation reset and map-boundary clearing. Original collision arithmetic, exact
+character-contact parity, visual parity, sound, other trails and temporary
+persistence remain open. See the
 [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).

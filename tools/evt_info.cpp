@@ -16,6 +16,7 @@
 #include "core/data/npc_stats.hpp"
 #include "core/lod/lod_archive.hpp"
 #include "core/platform/paths.hpp"
+#include "core/render/scene.hpp"
 #include "core/world/map_script.hpp"
 #include "core/world/map_session.hpp"
 #include "game/combat.hpp"
@@ -63,6 +64,7 @@ void print_usage(const char* argv0) {
               << "  --object-2081-reaction verify CD2 actor deflection and effect expiry\n"
               << "  --object-1000-reaction verify D18 actor deflection and ordinary expiry\n"
               << "  --object-1000-party verify D18 party slowing and ordinary expiry\n"
+              << "  --object-1000-trail [PPM] verify D18 colored points and trail expiry\n"
               << "  --object-2081-party verify CD2 party damping and effect expiry\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
@@ -376,7 +378,7 @@ int do_object_lifecycle(const std::filesystem::path& data_dir) {
             const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
                                                   sprite.animation_ticks.value_or(0));
             // Installed ID 1000 selects DSFT's zero-scale null frame. It has
-            // no billboard; particle trails remain a separate runtime gap.
+            // no billboard; its separate particle trail does not change this frame.
             if (pick.scale == 0)
                 ++zero_scale;
             else if (pick.entry.empty() || cache.sprite(pick.entry, pick.palette).empty())
@@ -608,6 +610,99 @@ int do_object_1000_reaction(const std::filesystem::path& data_dir, bool party_ta
     std::cout << (party_target ? "OBJECT_1000_PARTY_SUMMARY " : "OBJECT_1000_REACTION ")
               << (ok ? "PASS" : "FAIL") << " records=" << records
               << " event_entry=spawn_sequences\n";
+    return ok ? 0 : 1;
+}
+
+int do_object_1000_trail(const std::filesystem::path& data_dir, const std::string& screenshot) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D18.blv", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None) {
+        std::cerr << "error: incomplete ID-1000 trail resources\n";
+        return 1;
+    }
+    const auto descriptor = std::ranges::find(session.object_descriptors.entries(), 1000,
+                                              &world::ObjectDescriptor::object_id);
+    if (descriptor == session.object_descriptors.entries().end())
+        return 1;
+    std::size_t records = 0;
+    bool ok =
+        descriptor->flags == 0x194 && descriptor->lifetime == 768 &&
+        (descriptor->trail_red != 0 || descriptor->trail_green != 0 || descriptor->trail_blue != 0);
+    for (const auto& step : session.script.steps()) {
+        const auto parsed = world::parse_object_spawn(step);
+        if (!parsed || parsed->object_id != 1000)
+            continue;
+        ++records;
+        game::WalkState state;
+        const auto outcome = game::walk_event(session.script, step.event_id, state, step.sequence,
+                                              session.file_name);
+        if (outcome.object_spawns.size() != 1 || !outcome.unsupported.empty())
+            return 1;
+        const auto request = outcome.object_spawns.front().request;
+        const render::Vec3 origin{
+            static_cast<float>(request.x),
+            static_cast<float>(request.z),
+            static_cast<float>(request.y),
+        };
+        session.collision = {};
+        const std::array floor{
+            origin + render::Vec3{-10000, -128, -10000},
+            origin + render::Vec3{10000, -128, -10000},
+            origin + render::Vec3{10000, -128, 10000},
+            origin + render::Vec3{-10000, -128, 10000},
+        };
+        session.collision.add_polygon(floor, {0, 1, 0});
+        game::ScriptLootState loot;
+        game::ScriptObjectEffects live;
+        const auto created = live.spawn(request, session, items, loot);
+        const auto random = loot.random;
+        bool passed = created.created == 2 && created.error == game::LootSpawnError::None;
+        std::size_t emitted = 0;
+        std::size_t visible = 0;
+        std::size_t expired = 0;
+        render::SceneRenderer scene(640, 480);
+        render::Camera camera;
+        camera.position = origin + render::Vec3{0, 300, 1600};
+        for (std::uint32_t tick = 1; tick <= 768 + 319; ++tick) {
+            const auto result = live.advance(1.0 / 128, session);
+            emitted += result.trail_emitted;
+            expired += result.expired;
+            passed = result.detonations.empty() && loot.random == random &&
+                     live.active_count() == (tick < 768 ? 2U : 0U) && passed;
+            if (tick >= 768)
+                passed = result.trail_emitted == 0 && passed;
+            scene.begin(camera, {0, 0, 0});
+            for (const auto& particle : live.trail_particles()) {
+                if (particle.remaining == 0)
+                    continue;
+                passed = particle.remaining <= 319 && particle.color.r == descriptor->trail_red &&
+                         particle.color.g == descriptor->trail_green &&
+                         particle.color.b == descriptor->trail_blue && passed;
+                visible += scene.draw_point(particle.position, particle.color) ? 1U : 0U;
+            }
+            if (records == 1 && tick == 128 && !screenshot.empty())
+                passed = render::write_ppm(screenshot, scene.framebuffer()) && passed;
+        }
+        passed = emitted > 0 && visible > 0 && expired == 2 &&
+                 std::ranges::none_of(live.trail_particles(),
+                                      [](const auto& particle) { return particle.remaining; }) &&
+                 passed;
+        std::cout << "OBJECT_1000_TRAIL " << (passed ? "PASS" : "FAIL")
+                  << " event=" << step.event_id << " entry=" << static_cast<int>(step.sequence)
+                  << " emitted=" << emitted << " visible_point_samples=" << visible
+                  << " expired=" << expired << " rgb=" << static_cast<int>(descriptor->trail_red)
+                  << ',' << static_cast<int>(descriptor->trail_green) << ','
+                  << static_cast<int>(descriptor->trail_blue) << " controlled_scene=1\n";
+        ok = passed && ok;
+    }
+    ok = records == 10 && ok;
+    std::cout << "OBJECT_1000_TRAIL_SUMMARY " << (ok ? "PASS" : "FAIL") << " records=" << records
+              << " original_cadence_and_visual_parity=unverified\n";
     return ok ? 0 : 1;
 }
 
@@ -3874,6 +3969,8 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-1000-trail")
+        return do_object_1000_trail(*install / "data", argc == 3 ? argv[2] : "");
     if (stem == "--object-1050-contacts") {
         if (argc != 2) {
             print_usage(argv[0]);

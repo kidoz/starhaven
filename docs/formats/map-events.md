@@ -1025,8 +1025,30 @@ facts guide the bounded temporary-object simulator (extended for ID 2081 on
 ID 1000 uses descriptor 135, frame **zero**, flags `0x194` and lifetime
 768 ticks. It falls, bounces and expires without detonation. Frame zero is the
 zero-scale `null` group: it produces no billboard in this installation. Its
-particle trail remains unimplemented, so the live ID-1000 effect is currently
-invisible.
+separate colored particle trail is implemented; the descriptor supplies RGB
+**128, 128, 255** in the examined installation.
+
+The indoor/outdoor motion paths select the ordinary particle emitter when
+`0x100` is set and neither `0x200` nor `0x400` is set
+(`0x462d07..0x462dbf`, `0x463809..0x4638bd`). The emitter stores current position,
+color and **256 + rand()%64** lifetime ticks in a **100-slot circular pool**
+(`0x4348e0..0x434976`). A particle can survive its source object. Each original
+visual update moves it up by **4..8** units and independently by **-2..2** on
+each horizontal axis, then subtracts elapsed ticks (`0x434dd0..0x434e2f`).
+The renderer projects a full-color point, tests world depth and writes color
+without modifying depth; it does not fade or use a texture
+(`0x46a496..0x46a50e`, `0x46a7ee..0x46a866`). These are `observed` branches.
+
+StarHaven emits and jitters these points at a fixed **32 Hz**, advancing their
+lifetimes at 128 Hz, independently of frame batching. This cadence replaces
+the original frame-coupled behavior and is an engine policy. The visual RNG
+is separate from gameplay RNG and resets on map/load clear. Moving ID 1000
+emits at its base position; settled objects stop emitting. Existing particles
+continue until expiry or pool overwrite. Pause freezes them, and successful
+map/load clear discards them. Rendering uses one internal-framebuffer pixel,
+8-bit descriptor RGB and the existing camera/depth convention. Exact original
+cadence, shared RNG ordering, color quantization and doubled-resolution mode
+remain outside this implementation. Other families' trails remain open.
 
 ID 1000 actor contact is implemented through the ordinary collision response.
 Flag `0x40` is absent, so it bypasses the impact handler and its 5,020-unit
@@ -1054,7 +1076,7 @@ original grounded path zeros velocity and returns before body searches when
 horizontal speed squared falls below 400 (`0x46254c..0x4625b1`). The engine skips body
 searches while its settled object still has floor support, and resumes movement
 if that support disappears. Original near-floor/sector arithmetic, full actor
-state-8 AI, decorative contacts and particle trails remain open.
+state-8 AI, decorative contacts and exact particle presentation remain open.
 
 ID 1050 uses descriptor 139, frame 26, flags `0x174` and lifetime 768 ticks; it has no
 gravity. Its stationary replacement, ID 1051, uses descriptor 140, frame 32,
@@ -1331,8 +1353,8 @@ the walker and the same live application helper, checks drawable sprite
 resources, and advances against loaded geometry until all effects expire.
 It does not prove natural branch reachability or original-runtime visual parity.
 Decorative contacts, exact character-contact/AI parity, terrain-material responses,
-trails, sound, the remaining IDs and original temporary-object persistence remain
-unresolved before opcode 34 can be called complete. See the
+other families' trails, sound, the remaining IDs and original temporary-object
+persistence remain unresolved before opcode 34 can be called complete. See the
 [event-script coverage audit](../explanation/event-script-coverage.md).
 
 `evt_info --object-impact` walks D01 event 47 from entry and applies its three
@@ -1365,7 +1387,7 @@ samples, preserving the installed absence of a billboard. Synthetic tests
 cover angled deflection, same-tick wall contact, overlap/re-entry, gravity
 following a contact beyond 5,020 units, settled-object exclusion, exact expiry,
 dead actors, missing hurt resources and pause. Event-entry timers, natural
-placement, original trajectory rounding and the missing trail are excluded.
+placement, original trajectory rounding and trail presentation are excluded.
 
 `evt_info --object-1000-party` exercises the same ten D18 spawn records with
 the party at each launch point and the actor outside the path. The controlled
@@ -1378,6 +1400,16 @@ ordering and ties, later geometry contact, far contact, overlap/context-loss
 re-entry, settled-body exclusion, pause and slot reuse. Party dimensions,
 contact selection and overlap latching are engine policies; these counts are
 not original-runtime or natural-placement measurements.
+
+`evt_info --object-1000-trail [PPM]` walks all ten D18 ID-1000 spawn records,
+applies them above a controlled floor, and checks descriptor-colored visible
+points, object expiry, final particle expiry and unchanged gameplay RNG. Its
+optional PPM contains only the controlled point scene. Synthetic tests cover
+pool overwrite, lifetime bounds, jitter, frame batching, settled/flag gating,
+pause, surviving particles after object expiry, indoor/outdoor adapters and
+map clear. Renderer tests check one-pixel output, full color, clipping, world
+occlusion and unchanged depth. This establishes engine output, not original
+runtime visual agreement or natural event reachability.
 
 `evt_info --object-2081-reaction` walks CD2 events 35/36 and applies each
 ID-2081 request against a controlled actor at launch. Each produces one
