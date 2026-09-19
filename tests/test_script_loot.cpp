@@ -1060,3 +1060,38 @@ TEST_CASE("live trails pause, outlive object expiry and clear with the map", "[s
     REQUIRE(live.advance(4.0 / 128, f.session).trail_emitted == 1);
     REQUIRE(live.trail_particles().front().remaining == first.remaining);
 }
+
+TEST_CASE("live 1050 impact trails pause and survive replacement expiry", "[script-loot]") {
+    Fixture f;
+    f.session.kind = GENERATE(world::MapKind::Indoor, world::MapKind::Outdoor);
+    f.session.collision = {};
+    ScriptObjectEffects live;
+    ScriptLootState loot;
+    Battle battle;
+    const data::MonsterStatsTable monsters;
+    auto req = request();
+    req.object_id = 1050;
+    req.z = 20000;
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    const auto random = loot.random;
+    REQUIRE(live.advance(4.0 / 128, f.session).trail_emitted == 1);
+    const render::Vec3 eye{10, 20000 + kEyeHeight, 20};
+    const auto hit = live.advance(1.0 / 128, f.session, battle, monsters, loot, eye);
+    REQUIRE(hit.party_contacts == 1);
+    REQUIRE(hit.trail_emitted >= 5);
+    REQUIRE(hit.trail_emitted <= 10);
+    const auto first = live.trail_particles().front();
+    REQUIRE(live.advance(0, f.session, battle, monsters, loot, eye).trail_emitted == 0);
+    REQUIRE(live.trail_particles().front().remaining == first.remaining);
+    REQUIRE(live.advance(48.0 / 128, f.session, battle, monsters, loot, eye).expired == 1);
+    REQUIRE(live.active_count() == 0);
+    REQUIRE(std::ranges::any_of(live.trail_particles(), [](const auto& p) { return p.remaining; }));
+    for (int i = 0; i < 3; ++i)
+        REQUIRE(live.advance(1, f.session, battle, monsters, loot, eye).trail_emitted == 0);
+    REQUIRE(
+        std::ranges::none_of(live.trail_particles(), [](const auto& p) { return p.remaining; }));
+    REQUIRE(loot.random == random);
+    live.clear();
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(live.advance(4.0 / 128, f.session).trail_emitted == 1);
+}

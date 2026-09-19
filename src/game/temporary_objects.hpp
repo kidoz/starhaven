@@ -132,6 +132,8 @@ public:
     void clear() noexcept;
 
 private:
+    void emit_trail_particle(render::Vec3 position, render::Color color);
+    [[nodiscard]] std::size_t emit_trail_burst(render::Vec3 position, render::Color color);
     std::vector<TemporaryObject> objects_;
     std::array<ObjectTrailParticle, kObjectTrailCapacity> particles_{};
     std::size_t next_particle_ = 0;

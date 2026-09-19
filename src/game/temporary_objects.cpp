@@ -416,6 +416,24 @@ TemporarySpawnResult TemporaryObjects::spawn(const world::ObjectSpawnRequest& re
     return result;
 }
 
+void TemporaryObjects::emit_trail_particle(render::Vec3 position, render::Color color) {
+    particles_[next_particle_] = {position, color, 256U + trail_random_.next() % 64U};
+    next_particle_ = (next_particle_ + 1) % particles_.size();
+}
+
+std::size_t TemporaryObjects::emit_trail_burst(render::Vec3 position, render::Color color) {
+    std::size_t emitted = 0;
+    // The original re-samples its 5..10 threshold after each particle too.
+    while (emitted < 5U + trail_random_.next() % 6U) {
+        const auto up = static_cast<float>(trail_random_.next() % 33);
+        const auto z = static_cast<float>(trail_random_.next() % 33 - 16);
+        const auto x = static_cast<float>(trail_random_.next() % 33 - 16);
+        emit_trail_particle(position + render::Vec3{x, up, z}, color);
+        ++emitted;
+    }
+    return emitted;
+}
+
 TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
                                               const world::CollisionWorld& collision,
                                               const world::OdmTerrain* terrain,
@@ -439,24 +457,27 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
             if (!object.active)
                 continue;
             any_active = true;
+            const auto incoming = object.definition;
             object.previous = object.position;
             ++object.age;
             if (object.age >= object.definition.lifetime) {
                 finish(object, result);
-                continue;
-            }
-            if (object.definition.id != 1051 && object.definition.id != 2101 &&
-                object.definition.id != 4071 && object.definition.id != 8081) {
+            } else if (object.definition.id != 1051 && object.definition.id != 2101 &&
+                       object.definition.id != 4071 && object.definition.id != 8081) {
                 move_one_tick(object, collision, result, terrain, contacts);
             }
-            if (trail_tick_ == 0 && object.active && !object.resting &&
-                object.definition.id == 1000 && (object.definition.flags & 0x700U) == 0x100U) {
-                particles_[next_particle_] = {
-                    object.position,
-                    object.definition.trail_color,
-                    256U + trail_random_.next() % 64U,
-                };
-                next_particle_ = (next_particle_ + 1) % particles_.size();
+            if (!object.active)
+                continue;
+            if (incoming.id == 1050 && object.definition.id == 1051) {
+                // Impact uses the incoming descriptor, then returns before ordinary emission.
+                if ((incoming.flags & 0x100U) != 0)
+                    result.trail_emitted += emit_trail_burst(object.position, incoming.trail_color);
+                continue;
+            }
+            const auto id = object.definition.id;
+            const bool emits = id == 1051 || (!object.resting && (id == 1000 || id == 1050));
+            if (trail_tick_ == 0 && emits && (object.definition.flags & 0x700U) == 0x100U) {
+                emit_trail_particle(object.position, object.definition.trail_color);
                 ++result.trail_emitted;
             }
         }
