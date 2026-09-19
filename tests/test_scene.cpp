@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 
 #include "core/render/scene.hpp"
 
@@ -98,4 +99,49 @@ TEST_CASE("a billboard with no texture draws nothing", "[scene]") {
     for (std::size_t i = 0; i < px.size(); i += 4) {
         REQUIRE(px[i] == 0);
     }
+}
+
+TEST_CASE("world points preserve full color and scene depth", "[scene]") {
+    SceneRenderer scene(64, 48);
+    const Camera camera;
+    scene.begin(camera, {0, 0, 0});
+    scene.framebuffer().clear_depth(0.5f);
+    REQUIRE_FALSE(scene.draw_point({0, 0, -10}, {99, 51, 7}));
+    REQUIRE(scene.draw_point({0, 0, -1.5f}, {99, 51, 7}));
+    const auto pixels = scene.framebuffer().color();
+    constexpr std::size_t kCenter = (std::size_t{24} * 64 + 32) * 4;
+    REQUIRE(pixels[kCenter] == 99);
+    REQUIRE(pixels[kCenter + 1] == 51);
+    REQUIRE(pixels[kCenter + 2] == 7);
+    REQUIRE(pixels[kCenter + 3] == 255);
+    std::size_t colored = 0;
+    for (std::size_t i = 0; i < pixels.size(); i += 4)
+        colored += pixels[i] != 0 ? 1U : 0U;
+    REQUIRE(colored == 1);
+    for (const auto depth : scene.framebuffer().depth())
+        REQUIRE(depth == 0.5f);
+    REQUIRE_FALSE(scene.draw_point({0, 0, -1.5f}, {1, 2, 3, 0}));
+    REQUIRE(pixels[kCenter] == 99);
+}
+
+TEST_CASE("world points clip safely before pixel conversion", "[scene]") {
+    SceneRenderer scene(64, 48);
+    const Camera camera;
+    scene.begin(camera, {0, 0, 0});
+    const std::array points{
+        Vec3{0, 0, 1},
+        Vec3{0, 0, -0.5f},
+        Vec3{0, 0, -40000},
+        Vec3{1000, 0, -10},
+        Vec3{0, -1000, -10},
+        Vec3{std::numeric_limits<float>::infinity(), 0, -10},
+        Vec3{0, std::numeric_limits<float>::quiet_NaN(), -10},
+    };
+    for (const auto point : points)
+        REQUIRE_FALSE(scene.draw_point(point, {255, 255, 255}));
+    for (const auto depth : scene.framebuffer().depth())
+        REQUIRE(depth == 1);
+    const auto pixels = scene.framebuffer().color();
+    for (std::size_t i = 0; i < pixels.size(); i += 4)
+        REQUIRE(pixels[i] == 0);
 }

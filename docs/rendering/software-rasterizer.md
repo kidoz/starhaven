@@ -3,7 +3,7 @@ title: "Software rasterizer"
 summary: "Architecture, depth convention, scene pipeline, and SDL3 presentation path of the StarHaven software renderer."
 doc_type: explanation
 status: verified
-last_updated: 2026-08-01
+last_updated: 2026-09-19
 source_files:
   - src/core/render/math3d.hpp
   - src/core/render/rasterizer.cpp
@@ -59,8 +59,9 @@ For each visible game frame, `src/main.cpp`:
 2. draws the outdoor sky and terrain plus model facets, or the indoor face
    geometry;
 3. draws camera-facing decorations, actors, objects, and launched sprites;
-4. draws depth-tested labels and world overlays, followed by the game-screen
-   frame, party strip, books, dialogs, and other interface layers;
+4. draws temporary-object particle points, depth-tested labels and world
+   overlays, followed by the game-screen frame, party strip, books, dialogs,
+   and other interface layers;
 5. uploads `Framebuffer::color()` with `SDL_UpdateTexture` and presents the
    SDL3 renderer.
 
@@ -84,6 +85,15 @@ testable without proprietary fixtures. The fallback boundary is described in
 [terrain texturing](terrain-coloring.md).
 
 ## Depth-aware overlays
+
+`SceneRenderer::draw_point` draws a full-color world point into one internal
+framebuffer pixel after projection and frustum checks. It tests the scene depth
+without writing depth, so opaque geometry and billboards occlude the point.
+It performs no lighting, texture lookup or fading. Event-created ID 1000 uses
+this path for its colored particle trail; its zero-scale billboard is retained.
+Particle simulation follows the
+[temporary-object lifecycle](../formats/map-events.md#temporary-object-lifecycle),
+including its explicit fixed-cadence and independent-RNG policies.
 
 `Framebuffer::depth()` and `depth_at(x, y)` expose the same `[0,1]` NDC
 depth reported by `SceneRenderer::project_point`. Labels and inspection

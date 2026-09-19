@@ -75,6 +75,10 @@ public:
     // when the point is behind the camera.
     [[nodiscard]] bool project_point(Vec3 world, ScreenVertex& out) const;
 
+    // A full-color one-pixel world effect: depth-tested, without depth writes.
+    // Call after opaque geometry/billboards, before HUD composition.
+    [[nodiscard]] bool draw_point(Vec3 world, Color color);
+
     // Whether a sphere could touch the view at all: a conservative test in
     // clip space, for callers that can skip whole faces cheaply. A sphere
     // that fails is provably outside; one that passes may still rasterize

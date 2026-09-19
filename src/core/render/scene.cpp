@@ -1,6 +1,7 @@
 #include "core/render/scene.hpp"
 
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <string>
 
@@ -40,6 +41,28 @@ bool SceneRenderer::project(const Mat4& transform, Vec3 point, float r, float g,
 
 bool SceneRenderer::project_point(Vec3 world, ScreenVertex& out) const {
     return project(view_projection_, world, 1.0f, 1.0f, 1.0f, {0.0f, 0.0f}, out);
+}
+
+bool SceneRenderer::draw_point(Vec3 world, Color color) {
+    ScreenVertex point;
+    if (color.a == 0 || !project_point(world, point) || !std::isfinite(point.x) ||
+        !std::isfinite(point.y) || !std::isfinite(point.z) || point.z < 0 || point.z >= 1 ||
+        point.x < 0 || point.x >= static_cast<float>(width_) || point.y < 0 ||
+        point.y >= static_cast<float>(height_))
+        return false;
+    const auto x = static_cast<int>(point.x);
+    const auto y = static_cast<int>(point.y);
+    if (point.z >= framebuffer_.depth_at(x, y))
+        return false;
+    const auto offset = (static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) +
+                         static_cast<std::size_t>(x)) *
+                        4;
+    const auto pixels = framebuffer_.color();
+    pixels[offset] = color.r;
+    pixels[offset + 1] = color.g;
+    pixels[offset + 2] = color.b;
+    pixels[offset + 3] = 255;
+    return true;
 }
 
 bool SceneRenderer::might_see(Vec3 center, float radius) const {
