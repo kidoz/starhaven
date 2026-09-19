@@ -72,6 +72,7 @@ render::Vec3 launch_velocity(std::int32_t speed, std::uint16_t yaw, std::uint16_
 
 void finish(TemporaryObject& object, TemporaryObjectStep& result) {
     object.touching_actor.reset();
+    object.touching_party = false;
     // ID 8080's non-actor contact/expiry path only removes the object.
     // The original impact path discards objects 5020 units from their origin.
     if ((object.definition.id == 1050 || object.definition.id == 2100 ||
@@ -187,11 +188,11 @@ void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
 std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3 to,
                                         float nearest, TemporaryObjectStep& result,
                                         const ObjectContacts* contacts) {
-    const bool ordinary_actor = object.definition.id == 2081;
+    const bool ordinary_contacts = object.definition.id == 2081;
     const bool impact_contacts = (object.definition.flags & 0x40U) != 0 &&
                                  (object.definition.id == 1050 || object.definition.id == 2100 ||
                                   object.definition.id == 4070 || object.definition.id == 8080);
-    if (contacts == nullptr || (!ordinary_actor && !impact_contacts))
+    if (contacts == nullptr || (!ordinary_contacts && !impact_contacts))
         return std::nullopt;
     const ObjectActor* selected = nullptr;
     bool party_hit = false;
@@ -207,7 +208,7 @@ std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 fr
             }
         }
     }
-    if (impact_contacts && contacts->party) {
+    if (contacts->party && !object.touching_party) {
         const auto& party = *contacts->party;
         if (const auto fraction = body_fraction(from, to, object.definition.radius, party.position,
                                                 party.radius, party.height);
@@ -222,7 +223,14 @@ std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 fr
     object.position = from + (to - from) * nearest - offset;
     if (party_hit) {
         ++result.party_contacts;
-        finish(object, result);
+        if (ordinary_contacts) {
+            // Party target type 4 reaches common damping without actor redirection
+            // or the impact handler's replacement, damage or displacement cutoff.
+            object.velocity = object.velocity * (58500.0f / 65536.0f);
+            object.touching_party = true;
+        } else {
+            finish(object, result);
+        }
     } else {
         contact_actor(object, result, *contacts, *selected);
     }
@@ -244,6 +252,13 @@ void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collisi
         if (body == nullptr || !body_fraction(center, center, object.definition.radius,
                                               body->position, body->radius, body->height))
             object.touching_actor.reset();
+    }
+    if (object.touching_party) {
+        const auto center = object.position + offset;
+        if (contacts == nullptr || !contacts->party ||
+            !body_fraction(center, center, object.definition.radius, contacts->party->position,
+                           contacts->party->radius, contacts->party->height))
+            object.touching_party = false;
     }
     if (object.resting) {
         const auto center = object.position + offset;
