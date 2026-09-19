@@ -53,8 +53,10 @@ TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::Ma
                                                  ScriptLootState& loot,
                                                  std::optional<render::Vec3> party_eye) {
     const auto ticks = elapsed_ticks(seconds);
-    if (ticks == 0 || temporary_.active_count() == 0)
+    if (ticks == 0)
         return {};
+    if (temporary_.active_count() == 0)
+        return temporary_.advance(ticks, session.collision);
     std::vector<ObjectActor> bodies;
     for (std::size_t i = 0; i < session.actors.size(); ++i) {
         const auto& actor = session.actors[i];

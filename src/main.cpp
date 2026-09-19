@@ -7814,6 +7814,10 @@ int main(int argc, char** argv) {
         }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
                         camera.position, shown_animation, in_flight, &battle);
+        for (const auto& particle : script_object_effects.trail_particles()) {
+            if (particle.remaining != 0)
+                (void)scene.draw_point(particle.position, particle.color);
+        }
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }

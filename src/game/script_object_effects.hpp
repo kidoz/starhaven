@@ -24,6 +24,9 @@ public:
                                               ScriptLootState& loot,
                                               std::optional<render::Vec3> party_eye = std::nullopt);
     [[nodiscard]] std::vector<ActiveLaunch> sprites(const world::SpriteFrameTable& frames) const;
+    [[nodiscard]] std::span<const ObjectTrailParticle> trail_particles() const noexcept {
+        return temporary_.trail_particles();
+    }
     [[nodiscard]] std::size_t active_count() const noexcept { return temporary_.active_count(); }
     void clear() noexcept;
 

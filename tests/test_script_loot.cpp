@@ -5,6 +5,7 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <zlib.h>
 
+#include <algorithm>
 #include <limits>
 
 #include "game/combat.hpp"
@@ -1017,4 +1018,45 @@ TEST_CASE("live 8080 party contact removes without replacement or random draws",
     REQUIRE(loot.random == random);
     REQUIRE(live.active_count() == 0);
     live.clear();
+}
+
+TEST_CASE("live trails pause, outlive object expiry and clear with the map", "[script-loot]") {
+    Fixture f;
+    f.session.kind = GENERATE(world::MapKind::Indoor, world::MapKind::Outdoor);
+    f.session.collision = {};
+    ScriptObjectEffects live;
+    ScriptLootState loot;
+    Battle battle;
+    const data::MonsterStatsTable monsters;
+    auto req = request();
+    req.object_id = 1000;
+    req.z = 20000;  // stay above the outdoor fixture's flat terrain through object expiry
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    const auto random = loot.random;
+    REQUIRE(live.advance(0.5 / 128, f.session).trail_emitted == 0);
+    REQUIRE(live.advance(3.5 / 128, f.session).trail_emitted == 1);
+    const auto first = live.trail_particles().front();
+    for (const double pause : {0.0, -1.0, std::numeric_limits<double>::infinity()}) {
+        REQUIRE(live.advance(pause, f.session, battle, monsters, loot).trail_emitted == 0);
+        REQUIRE(live.trail_particles().front().remaining == first.remaining);
+        REQUIRE(render::length(live.trail_particles().front().position - first.position) == 0);
+    }
+    for (int i = 0; i < 6; ++i)
+        (void)live.advance(1, f.session, battle, monsters, loot);
+    REQUIRE(live.active_count() == 0);
+    REQUIRE(std::ranges::any_of(live.trail_particles(), [](const auto& p) { return p.remaining; }));
+    for (int i = 0; i < 3; ++i)
+        REQUIRE(live.advance(1, f.session, battle, monsters, loot).trail_emitted == 0);
+    for (const auto& particle : live.trail_particles())
+        REQUIRE(particle.remaining == 0);
+    REQUIRE(loot.random == random);
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(live.advance(4.0 / 128, f.session).trail_emitted == 1);
+    live.clear();
+    REQUIRE(live.active_count() == 0);
+    for (const auto& particle : live.trail_particles())
+        REQUIRE(particle.remaining == 0);
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    REQUIRE(live.advance(4.0 / 128, f.session).trail_emitted == 1);
+    REQUIRE(live.trail_particles().front().remaining == first.remaining);
 }
