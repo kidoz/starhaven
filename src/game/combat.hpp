@@ -16,6 +16,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -177,8 +178,9 @@ inline constexpr float kWinceSeconds = 0.4f;
 struct Combatant {
     int hit_points = 0;
     int max_hit_points = 0;
-    float recovery = 0.0f;  // seconds until it can strike again
-    float wince = 0.0f;     // seconds left of flinching
+    float recovery = 0.0f;           // seconds until it can strike again
+    float wince = 0.0f;              // seconds left of flinching
+    float event_wince_elapsed = -1;  // nonnegative only for a timed object reaction
     bool alive = true;
 
     // What the party's spells laid on it, in seconds of the fight's clock,
@@ -461,6 +463,23 @@ public:
                                                : world::MonsterAnimation::Stand;
     }
 
+    // The direct 2100 actor response selects hurt animation and resets its
+    // action clock; it does not inflict damage, cure buffs or change recovery.
+    void react_to_event_object_2100(std::size_t actor, float seconds) noexcept {
+        if (!alive(actor) || !std::isfinite(seconds) || seconds <= 0)
+            return;
+        combatants_[actor].wince = seconds;
+        combatants_[actor].event_wince_elapsed = 0;
+    }
+
+    [[nodiscard]] std::optional<std::uint32_t>
+    event_reaction_ticks(std::size_t actor) const noexcept {
+        if (!alive(actor) || combatants_[actor].wince <= 0 ||
+            combatants_[actor].event_wince_elapsed < 0)
+            return std::nullopt;
+        return static_cast<std::uint32_t>(combatants_[actor].event_wince_elapsed * 16);
+    }
+
     // Event-created 8080 has zero spell duration: it preserves all active
     // buffs, but an accepted magic-resistance gate resets state/animation to
     // stand (0x45d816, 0x44c15e). This battle models that as ending the wince.
@@ -478,6 +497,7 @@ public:
         if (random.next() % span >= 30)
             return false;
         combatants_[actor].wince = 0;
+        combatants_[actor].event_wince_elapsed = -1;
         return true;
     }
 
@@ -490,6 +510,7 @@ public:
             c.hit_points = c.max_hit_points;
             c.alive = c.max_hit_points > 0;
             c.wince = 0.0f;
+            c.event_wince_elapsed = -1;
             c.recovery = 0.0f;
         }
     }
@@ -929,7 +950,11 @@ public:
             if (!c.alive) {
                 continue;
             }
+            if (c.event_wince_elapsed >= 0)
+                c.event_wince_elapsed += dt;
             c.wince = c.wince > dt ? c.wince - dt : 0.0f;
+            if (c.wince == 0)
+                c.event_wince_elapsed = -1;
             const auto tick = [dt](float& left) { left = left > dt ? left - dt : 0.0f; };
             tick(c.feared);
             tick(c.slowed);
@@ -1030,6 +1055,7 @@ private:
         Combatant& target = combatants_[actor];
         target.hit_points -= damage;
         target.wince = kWinceSeconds;
+        target.event_wince_elapsed = -1;
         // "If a creature takes damage ... the spell will be broken", and a
         // charmed one "will immediately become hostile again".
         target.feared = 0.0f;

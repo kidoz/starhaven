@@ -956,3 +956,31 @@ TEST_CASE("event object resistance includes level and immunity avoids random dra
     REQUIRE_FALSE(battle.accept_event_object_8080(99, target, random));
     REQUIRE(random.state() == 1);
 }
+
+TEST_CASE("event hurt clocks restart and an accepted 8080 response cancels them", "[combat]") {
+    const auto session = with_monster({});
+    const auto table = monsters("100", "0", "1d1");
+    Battle battle;
+    battle.reset(session, table, 1);
+    battle.react_to_event_object_2100(0, 1);
+    const data::SpellStatsTable spells;
+    std::array<Character, 4> party{};
+    const render::Vec3 distant{10000, 0, 10000};
+    (void)battle.update(0.5f, session, table, spells, party, distant);
+    REQUIRE(battle.event_reaction_ticks(0) == 8);
+    battle.react_to_event_object_2100(0, 0.25f);
+    REQUIRE(battle.event_reaction_ticks(0) == 0);
+    auto target = table.entries().front();
+    target.level = 0;
+    Mm6Random random{1};
+    REQUIRE(battle.accept_event_object_8080(0, target, random));
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
+    REQUIRE_FALSE(battle.event_reaction_ticks(0));
+    battle.react_to_event_object_2100(0, 1);
+    battle.refill();
+    REQUIRE_FALSE(battle.event_reaction_ticks(0));
+    battle.kill(0);
+    battle.react_to_event_object_2100(0, 1);
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Death);
+    REQUIRE_FALSE(battle.event_reaction_ticks(0));
+}
