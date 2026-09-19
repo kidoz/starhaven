@@ -1033,6 +1033,27 @@ flags `0x13c` and lifetime **48 ticks**. The replacement expires without
 another detonation. All three have radius and height 16 in the inspected
 installation. These are resource observations, not hard-coded simulator values.
 
+Actor and party contacts for event-created **ID 1050 are implemented**. Both
+follow the 1051 transition: zero velocity and age, one source-zero radius-512
+area notification, then stationary presentation for the replacement lifetime.
+There is no resistance gate, direct actor-state update or actor/party damage.
+The actor and party source-type exclusions do not apply to event source zero
+(`0x45c6ab..0x45c6e7`). Dispatch at `0x45c909..0x45c917` reaches the replacement
+branch directly; the branch at `0x45d4dd..0x45d608` has no character-target
+exception. It returns zero after presentation, so the caller does not perform
+its ordinary actor response. These are `observed` branch/return facts; the
+source-zero area consumers are identified in the table above.
+
+The common 5,020-unit displacement guard removes before replacement. The live
+adapter uses the same living-actor candidates, optional movement-body party
+cylinder and expanded sweeps as the other supported contact families. Geometry
+wins equal-time contacts, then stable actor order, then the party. These are
+StarHaven policies rather than original sector/trajectory parity. Neither a
+magic-immune actor nor an absent resistance callback blocks this transition.
+Removed/replaced flight objects do not react to the same contact again, and
+1051's expiry emits no second notification. Existing launch validation rejects
+missing or invalid 1051 resources before mutating state or consuming RNG.
+
 ID 2081, requested before the loot in CD2 events 35/36, uses descriptor 158,
 frame 130, flags `0x13c` and lifetime **48 ticks** (0.375 seconds). Unlike the
 stationary 1051 replacement, it retains its requested launch velocity: the
@@ -1281,6 +1302,17 @@ and removals. Actor health, an active buff and the object RNG remain unchanged.
 Chest/summon outcomes and natural actor placement are excluded. Synthetic tests
 also cover angled deflection, a later wall in the same tick, overlap/re-entry,
 far removal, missing resources, dead actors, pause and reset by ID 8080.
+
+`evt_info --object-1050-contacts` seeds each of D18 event 56's four ID-1050
+spawn branches and applies the resulting requests against controlled actor or
+party overlap, with geometry excluded. Eight actor contacts and eight party
+contacts produce 16 stationary 1051 replacements, 768 drawable samples over
+the installed 48-tick lifetime, and 16 removals. Actor health, an active buff
+and post-launch RNG remain unchanged. Synthetic tests additionally cover
+contact ordering/ties, an ignored resistance callback, retained actor hurt
+animation/conditions, distant removal, dead actors and pause. This is not
+natural branch reachability, full-event acceptance or original-runtime visual
+parity; the unsupported timer at event entry is not executed.
 
 `evt_info --object-party` walks D01 event 47 from entry and applies only its
 three objects with controlled party overlap and no map geometry or actors.

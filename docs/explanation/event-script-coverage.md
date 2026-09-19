@@ -53,11 +53,13 @@ correcting its tentative party-coordinate label. Its
 [persistent loot](../formats/map-events.md#persistent-event-loot) now survives
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
-adapter. ID 8080 has its resisted actor response and 8081 replacement, and
-removes immediately on party contact. ID 4070 transitions to 4071 on actor or
+adapter. ID 1050 transitions to 1051 on actor or party contact without damage.
+ID 8080 has its resisted actor response and 8081 replacement, and removes
+immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact, and ID 2100 deflects from actors with a resource-timed hurt
-animation and transitions to 2101 on party contact. Other character contacts, terrain material responses, trails, sound
-and other original object behavior remain follow-up work.
+animation and transitions to 2101 on party contact. Other character contacts,
+terrain material responses, trails, sound and other original object behavior
+remain follow-up work.
 
 ## Reproduce
 
@@ -331,6 +333,13 @@ summons and actor contacts are excluded from that probe. The separate
 installed resources, including all 96 ticks of the stationary 8081 animation.
 This does not prove natural activation or original collision selection; see the
 [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
+
+`evt_info --object-1050-contacts` seeds D18 event 56's four ID-1050 spawn
+branches and checks controlled character contact. Eight actor and eight party
+contacts create stationary 1051 effects, with 768 valid samples over their
+48-tick lifetime before all 16 replacements expire. Health, an active actor
+buff and the object RNG stay unchanged. Geometry, the event-entry timer and
+natural reachability are outside this probe.
 
 ### Temporary-object simulation probe
 

@@ -54,6 +54,7 @@ void print_usage(const char* argv0) {
               << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
               << "  --object-loot  verify CD2 effects, loot pickup, map memory and saves\n"
               << "  --object-contacts verify controlled 4070 actor/party impacts\n"
+              << "  --object-1050-contacts verify controlled D18 actor/party impacts\n"
               << "  --object-party    verify controlled D01 2100 party impacts\n"
               << "  --object-actor    verify controlled 8080 actor contacts and 8081 resources\n"
               << "  --object-removal  verify OUTD3 event 200 non-actor 8080 lifecycle\n"
@@ -696,15 +697,33 @@ int do_object_expiry(const std::filesystem::path& data_dir) {
     return ok ? 0 : 1;
 }
 
-// Apply only object requests with controlled contacts: D01 2100 party impact
-// or OUTE3 4070 actor/party impacts. Natural placement and companion effects
-// are excluded; the OUTE3 case starts after its unsupported earlier record.
+// Apply only object requests with controlled contacts. D18 1050 requests start
+// at each spawn branch, D01 2100 at entry, and OUTE3 4070 after its unsupported
+// earlier record. Natural placement and companion outcomes are excluded.
 int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t object_id = 4070) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
+    const bool split_branches = object_id == 1050;
     const bool party_only = object_id == 2100;
-    const auto* const map = party_only ? "D01.blv" : "OUTE3.odm";
+    const char* map = "OUTE3.odm";
+    std::size_t request_count = 3;
+    std::size_t per_request = 15;
+    const char* label = "OBJECT_CONTACTS ";
+    const char* entry_label = "sequence_4";
+    if (split_branches) {
+        map = "D18.blv";
+        request_count = 4;
+        per_request = 2;
+        label = "OBJECT_1050_CONTACTS ";
+        entry_label = "spawn_sequences";
+    } else if (party_only) {
+        map = "D01.blv";
+        request_count = 1;
+        per_request = 3;
+        label = "OBJECT_PARTY ";
+        entry_label = "start";
+    }
     world::MapSession session;
     data::ItemStatsTable items;
     data::TextTable text;
@@ -722,12 +741,32 @@ int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t obje
     const auto& descriptors = session.object_descriptors.entries();
     const auto replacement =
         std::ranges::find(descriptors, object_id + 1, &world::ObjectDescriptor::object_id);
-    game::WalkState state;
-    const auto outcome = game::walk_event(session.script, party_only ? 47 : 220, state,
-                                          party_only ? -1 : 4, session.file_name);
+    std::vector<world::ObjectSpawnRequest> requests;
+    bool complete = true;
+    const auto collect = [&](int event, int entry) {
+        game::WalkState state;
+        const auto outcome =
+            game::walk_event(session.script, event, state, entry, session.file_name);
+        complete = outcome.unsupported.empty() && !outcome.object_spawns.empty() && complete;
+        for (const auto& spawn : outcome.object_spawns)
+            requests.push_back(spawn.request);
+    };
+    if (split_branches) {
+        for (const auto& step : session.script.steps()) {
+            if (step.event_id != 56 || step.opcode != world::kOpcodeSpawnObjects)
+                continue;
+            const auto request = world::parse_object_spawn(step);
+            if (!request)
+                complete = false;
+            else if (request->object_id == object_id)
+                collect(step.event_id, step.sequence);
+        }
+    } else {
+        collect(party_only ? 47 : 220, party_only ? -1 : 4);
+    }
     if (target == monsters.entries().end() || replacement == descriptors.end() ||
         replacement->sprite_frame_index >= session.sprite_frames.size() ||
-        outcome.object_spawns.size() != (party_only ? 1U : 3U) || !outcome.unsupported.empty()) {
+        requests.size() != request_count || !complete) {
         std::cerr << "error: missing object-contacts joins\n";
         return 1;
     }
@@ -742,8 +781,7 @@ int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t obje
     for (const bool party_target : {false, true}) {
         if (party_only && !party_target)
             continue;
-        for (const auto& spawn : outcome.object_spawns) {
-            const auto& request = spawn.request;
+        for (const auto& request : requests) {
             const render::Vec3 feet{
                 static_cast<float>(request.x),
                 static_cast<float>(request.z),
@@ -765,7 +803,7 @@ int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t obje
             const auto created = live.spawn(request, session, items, loot);
             const auto random = loot.random;
             ok = request.object_id == object_id && created.error == game::LootSpawnError::None &&
-                 created.created == (party_only ? 3U : 15U) && created.dropped == 0 && ok;
+                 created.created == per_request && created.dropped == 0 && ok;
             const auto hit = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
                                           monsters, loot, eye);
             actor_contacts += hit.actor_contacts;
@@ -804,15 +842,15 @@ int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t obje
             ok = live.active_count() == 0 && loot.random == random && ok;
         }
     }
-    ok = actor_contacts == (party_only ? 0U : 45U) && party_contacts == (party_only ? 3U : 45U) &&
-         removed == (party_only ? 3U : 90U) && ok;
-    std::cout << (party_only ? "OBJECT_PARTY " : "OBJECT_CONTACTS ") << (ok ? "PASS" : "FAIL")
-              << " object=" << object_id << " replacement=" << object_id + 1
-              << " actor_contacts=" << actor_contacts << " party_contacts=" << party_contacts
-              << " removed=" << removed << " drawable_samples=" << drawable
-              << " lifetime=" << replacement->lifetime
+    const auto per_target = request_count * per_request;
+    ok = actor_contacts == (party_only ? 0 : per_target) && party_contacts == per_target &&
+         removed == per_target * (party_only ? 1 : 2) && ok;
+    std::cout << label << (ok ? "PASS" : "FAIL") << " object=" << object_id
+              << " replacement=" << object_id + 1 << " actor_contacts=" << actor_contacts
+              << " party_contacts=" << party_contacts << " removed=" << removed
+              << " drawable_samples=" << drawable << " lifetime=" << replacement->lifetime
               << " controlled_overlap=1 map_geometry=excluded companion_effects=excluded"
-              << " event_entry=" << (party_only ? "start" : "sequence_4") << '\n';
+              << " event_entry=" << entry_label << '\n';
     return ok ? 0 : 1;
 }
 
@@ -3742,6 +3780,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-1050-contacts") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_contacts(*install / "data", 1050);
+    }
     if (stem == "--object-party") {
         if (argc != 2) {
             print_usage(argv[0]);
