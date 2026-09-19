@@ -3,7 +3,7 @@ title: "Map event scripts"
 summary: "Container framing, opcode semantics, and runtime joins for Might and Magic VI map scripts."
 doc_type: reference
 status: partial
-last_updated: 2026-09-18
+last_updated: 2026-09-19
 source_files:
   - src/core/world/collision.cpp
   - tests/test_collision.cpp
@@ -1065,15 +1065,36 @@ ID 4070 uses descriptor 178, frame 246, flags `0x54` and lifetime **256 ticks**.
 It falls under gravity, but its impact action returns to ordinary geometry
 response for target types 6 (face), 5 (decoration) and 0 (none). It therefore
 settles on flat floors without a vertical rebound (`0x80` is absent) and
-reflects from walls; contact does **not** change it into ID 4071. The common
+reflects from walls; geometry contact does **not** change it into ID 4071. The common
 5,020-unit cutoff still runs before this exception. Lifetime expiry supplies
 target type 2 and does change it into ID 4071, resetting velocity and age and
 queuing the source-zero radius-512 area effect. The stationary replacement
 uses descriptor 179, frame 252, flags `0x3c` and lifetime **80 ticks**. These
 are `observed`: dispatch tables at VA `0x45da5c`/`0x45da70`, geometry exceptions
 and replacement at `0x45cc3f..0x45cd31`, expiry target at
-`0x463939..0x463951`, and installed descriptor rows. Character targets are
-outside these exceptions, but character collision is not implemented here.
+`0x463939..0x463951`, and installed descriptor rows.
+
+Actor (type 3) and party (type 4) contacts are implemented: both immediately
+follow the same 4071 transition and radius-512 notification as expiry. No
+resistance gate or direct target-state change occurs. Source-zero event effects
+do not damage actors or the party through the area consumers identified above.
+The handler returns zero after presentation (`0x45d974..0x45d9b9`), so the
+indoor caller skips its ordinary actor response (`0x4628df..0x4628f7`).
+Source-zero objects are eligible for both candidate searches in the indoor
+caller (`0x462818..0x462853`); its actor helper excludes states 4, 5 and 11
+(`0x45ee00..0x45ee40`). Exact sector and actor-state equivalence remains open.
+
+StarHaven uses the same expanded-cylinder sweep as 8080, with the earliest
+contact winning. Geometry wins a tie, then actors in stable order, then the
+party. Settled 4070 objects also test body overlap each simulation tick. These
+are engine policies. The live adapter supplies the party body at camera eye
+position minus the existing eye height, using player movement's radius/height
+constants. It does not invent a monster-stat row for the party. Living actors
+with valid stat rows remain the actor candidates; magic immunity does not
+prevent a 4070 contact. Missing party input disables party contacts for isolated
+probes. Actor/party positions remain fixed within one simulation call. The
+5,020-unit cutoff removes before transition, and neither target path consumes
+resistance RNG. Stationary 4071 effects do not contact characters again.
 
 ID 8080 uses descriptor 209, frame 377, flags `0x174` and lifetime **768 ticks**.
 It retains launch velocity without gravity. Its impact handler removes it for
@@ -1195,10 +1216,20 @@ tick 336. It skips the preceding unsupported opcode 3 and the three ID-1050
 records, so it is not whole-event or natural-reachability acceptance. With
 terrain enabled, the inspected installation records 110 terrain contacts and
 15,075 position samples different from a model-only control; all 45 objects
-still follow the same transition/expiry clock. **Character contacts remain
-unimplemented.** Synthetic regressions separately verify fast falls, buried
+still follow the same transition/expiry clock. Character contacts are excluded
+from this timing probe. Synthetic regressions separately verify fast falls, buried
 starts, rendered slopes, model/terrain ordering, indoor isolation, support
 changes, bounce/impact/settling behavior and the far-contact/expiry cutoff.
+
+`evt_info --object-contacts` tests each OUTE3 request twice using controlled
+initial overlap, once with an actor and once with the party body. It observes
+45 actor transitions, 45 party transitions, 90 removals and 7,200 drawable
+stationary replacement samples across the installed 80-tick lifetime. Health,
+active actor buffs and the post-launch object RNG remain unchanged. Map geometry
+and the earlier event records are excluded; this is not natural event activation
+or original-runtime collision/visual parity. Synthetic tests additionally cover
+geometry ties, actor/party ordering, dead-actor exclusion, immunity, settled
+contacts, pause, clearing and the distant-contact cutoff.
 
 `evt_info --object-removal` exercises OUTD3 event 200 from sequence 1 with
 activation counter 105 seeded to 1. It checks the disabled/capped branches,

@@ -20,6 +20,7 @@
 #include "core/world/map_session.hpp"
 #include "game/combat.hpp"
 #include "game/map_memory.hpp"
+#include "game/player.hpp"
 #include "game/save.hpp"
 #include "game/script_coverage.hpp"
 #include "game/script_decorations.hpp"
@@ -52,6 +53,7 @@ void print_usage(const char* argv0) {
               << "  --face-bits  verify opcode 23 masks and indoor face lifecycles\n"
               << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
               << "  --object-loot  verify CD2 effects, loot pickup, map memory and saves\n"
+              << "  --object-contacts verify controlled 4070 actor/party impacts\n"
               << "  --object-actor    verify controlled 8080 actor contacts and 8081 resources\n"
               << "  --object-removal  verify OUTD3 event 200 non-actor 8080 lifecycle\n"
               << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
@@ -573,6 +575,114 @@ int do_object_expiry(const std::filesystem::path& data_dir) {
 
 // Skip the unsupported timer record, seed the activation counter, and apply
 // only the object requests. Companion summons and actor contacts are excluded.
+int do_object_contacts(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "OUTE3.odm", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None ||
+        data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: incomplete object-contacts resources\n";
+        return 1;
+    }
+    const auto target = std::ranges::find_if(monsters.entries(),
+                                             [](const auto& row) { return row.hit_points > 0; });
+    const auto& descriptors = session.object_descriptors.entries();
+    const auto replacement =
+        std::ranges::find(descriptors, 4071, &world::ObjectDescriptor::object_id);
+    game::WalkState state;
+    const auto outcome = game::walk_event(session.script, 220, state, 4, session.file_name);
+    if (target == monsters.entries().end() || replacement == descriptors.end() ||
+        replacement->sprite_frame_index >= session.sprite_frames.size() ||
+        outcome.object_spawns.size() != 3 || !outcome.unsupported.empty()) {
+        std::cerr << "error: missing object-contacts joins\n";
+        return 1;
+    }
+    const auto& group = session.sprite_frames.frames()[replacement->sprite_frame_index].group_name;
+    session.kind = world::MapKind::Indoor;
+    session.collision = {};
+    bool ok = true;
+    std::size_t actor_contacts = 0;
+    std::size_t party_contacts = 0;
+    std::size_t removed = 0;
+    std::size_t drawable = 0;
+    for (const bool party_target : {false, true}) {
+        for (const auto& spawn : outcome.object_spawns) {
+            const auto& request = spawn.request;
+            const render::Vec3 feet{
+                static_cast<float>(request.x),
+                static_cast<float>(request.z),
+                static_cast<float>(request.y),
+            };
+            session.actors.clear();
+            if (!party_target)
+                session.actors.push_back(
+                    {{}, {}, static_cast<int>(target - monsters.entries().begin() + 1), feet});
+            game::Battle battle;
+            battle.reset(session, monsters, 1);
+            battle.hold_slot(0, 0, 100);
+            const auto health = battle.health_of(0);
+            const auto eye = party_target
+                                 ? std::optional{feet + render::Vec3{0, game::kEyeHeight, 0}}
+                                 : std::nullopt;
+            game::ScriptLootState loot;
+            game::ScriptObjectEffects live;
+            const auto created = live.spawn(request, session, items, loot);
+            const auto random = loot.random;
+            ok = request.object_id == 4070 && created.error == game::LootSpawnError::None &&
+                 created.created == 15 && created.dropped == 0 && ok;
+            const auto hit = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
+                                          monsters, loot, eye);
+            actor_contacts += hit.actor_contacts;
+            party_contacts += hit.party_contacts;
+            ok = hit.actor_contacts == (party_target ? 0U : created.created) &&
+                 hit.party_contacts == (party_target ? created.created : 0U) &&
+                 hit.detonations.size() == created.created && hit.actor_accepted == 0 &&
+                 hit.expired == 0 && battle.health_of(0) == health &&
+                 (party_target || battle.slot_up(0, 0)) && ok;
+            for (const auto& detonation : hit.detonations)
+                ok = detonation.radius == 512 && ok;
+            const auto initial = live.sprites(session.sprite_frames);
+            for (std::uint32_t age = 0; age < replacement->lifetime; ++age) {
+                const auto sprites = live.sprites(session.sprite_frames);
+                ok = sprites.size() == created.created && ok;
+                for (std::size_t i = 0; i < sprites.size(); ++i) {
+                    const auto& sprite = sprites[i];
+                    const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
+                                                          sprite.animation_ticks.value_or(0));
+                    ok = i < initial.size() && sprite.animation == group &&
+                         sprite.animation_ticks == age / 8 &&
+                         render::length(sprite.position - initial[i].position) == 0 &&
+                         !pick.entry.empty() && pick.scale > 0 &&
+                         !cache.sprite(pick.entry, pick.palette).empty() && ok;
+                    ++drawable;
+                }
+                const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
+                                               monsters, loot, eye);
+                removed += step.expired;
+                ok = step.actor_contacts == 0 && step.party_contacts == 0 &&
+                     step.detonations.empty() &&
+                     step.expired == (age + 1 == replacement->lifetime ? created.created : 0U) &&
+                     ok;
+            }
+            ok = live.active_count() == 0 && loot.random == random && ok;
+        }
+    }
+    ok = actor_contacts == 45 && party_contacts == 45 && removed == 90 && ok;
+    std::cout << "OBJECT_CONTACTS " << (ok ? "PASS" : "FAIL")
+              << " object=4070 replacement=4071 actor_contacts=" << actor_contacts
+              << " party_contacts=" << party_contacts << " removed=" << removed
+              << " drawable_samples=" << drawable << " lifetime=" << replacement->lifetime
+              << " controlled_overlap=1 map_geometry=excluded earlier_records=excluded\n";
+    return ok ? 0 : 1;
+}
+
 int do_object_actor(const std::filesystem::path& data_dir) {
     using namespace starhaven;
     assets::AssetCache cache;
@@ -3453,6 +3563,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-contacts") {
+        if (!install) {
+            std::cerr << "error: game installation not found\n";
+            return 1;
+        }
+        return do_object_contacts(*install / "data");
+    }
     if (stem == "--object-actor") {
         if (!install) {
             std::cerr << "error: game installation not found\n";

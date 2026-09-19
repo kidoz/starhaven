@@ -3,7 +3,7 @@ title: "Open-question register"
 summary: "Authoritative evidence-backed answers and unresolved questions gathered from public StarHaven documentation."
 doc_type: index
 status: verified
-last_updated: 2026-09-18
+last_updated: 2026-09-19
 tags:
   - open-questions
   - research
@@ -193,7 +193,9 @@ The audit reduces the old sections to these bounded unknowns:
   pass geometry impact, stationary ID-2101 animation and expiry checks; its
   distinct actor-contact response remains unimplemented. OUTE3 event 220's
   seeded ID-4070 requests now pass 45 timed transitions into ID 4071 and removal
-  at tick 336; ordinary geometry contacts preserve ID 4070. Outdoor terrain
+  at tick 336; ordinary geometry contacts preserve ID 4070. Controlled actor and
+  party contact probes now verify immediate 4071 transitions without damage or
+  resistance draws, including its full replacement animation. Outdoor terrain
   collision now shares the rendered triangles, with a model-only control
   verifying changed trajectories. Terrain-material behavior and opcode 3
   prevent full event acceptance. OUTD3 event 200's seeded ID-8080 path now

@@ -3,7 +3,7 @@ title: Event-script coverage audit
 summary: Reproducible coverage of every shipped MM6 event script against the current walker, with missing-handler locations and a prioritized backlog.
 doc_type: explanation
 status: partial
-last_updated: 2026-09-18
+last_updated: 2026-09-19
 source_files:
   - src/game/script_object_effects.cpp
   - tools/evt_info.cpp
@@ -53,8 +53,8 @@ correcting its tentative party-coordinate label. Its
 [persistent loot](../formats/map-events.md#persistent-event-loot) now survives
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
-adapter; ID 8080 also has its resisted actor response and 8081 replacement. Other
-actor contacts, terrain-material responses, trails, sound and other
+adapter; ID 8080 also has its resisted actor response and 8081 replacement,
+and ID 4070 transitions to 4071 on actor or party contact. Other character contacts, terrain-material responses, trails, sound and other
 original object behavior remain follow-up work.
 
 ## Reproduce
@@ -301,9 +301,12 @@ objects change into ID 4071 at tick 256 and disappear at tick 336, with 3,600
 drawable replacement samples. Geometry contacts preserve ID 4070, as verified
 by synthetic floor/ceiling tests. The probe skips opcode 3 and the preceding
 ID-1050 requests. The terrain-enabled probe records 110 terrain contacts and
-15,075 changed position samples against a model-only control. Character
-collision and terrain-material responses remain gaps; this is object-lifecycle
-evidence, not full event acceptance.
+15,075 changed position samples against a model-only control. The separate
+`--object-contacts` probe now verifies controlled actor and party overlap for
+these requests: 45 transitions for each target category, 90 removals and 7,200
+valid replacement sprite samples, without target damage or resistance draws.
+Terrain materials, natural activation and exact original selection remain gaps;
+these probes are bounded object-behavior evidence, not full event acceptance.
 
 `evt_info --object-removal` exercises OUTD3 event 200 after its unsupported timer
 record, with activation counter 105 seeded. Its three ID-8080 requests now
