@@ -89,9 +89,9 @@ testable without proprietary fixtures. The fallback boundary is described in
 `SceneRenderer::draw_point` draws a full-color world point into one internal
 framebuffer pixel after projection and frustum checks. It tests the scene depth
 without writing depth, so opaque geometry and billboards occlude the point.
-It performs no lighting, texture lookup or fading. Event-created IDs 1000 and
-1050/1051 use this path for colored trails and the 1050 impact burst. ID 1000
-retains its zero-scale billboard.
+It performs no lighting, texture lookup or fading. Event-created IDs 1000,
+1050/1051 and 2081 use this path for colored trails and the 1050 impact burst.
+ID 1000 retains its zero-scale billboard.
 Particle simulation follows the
 [temporary-object lifecycle](../formats/map-events.md#temporary-object-lifecycle),
 including its explicit fixed-cadence and independent-RNG policies.

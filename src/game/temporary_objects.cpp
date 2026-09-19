@@ -475,7 +475,10 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
                 continue;
             }
             const auto id = object.definition.id;
-            const bool emits = id == 1051 || (!object.resting && (id == 1000 || id == 1050));
+            // No-gravity 2081 bypasses the original grounded early return.
+            const bool emits = id == 1051 ||
+                               (id == 2081 && (object.definition.flags & kNoGravity) != 0) ||
+                               (!object.resting && (id == 1000 || id == 1050 || id == 2081));
             if (trail_tick_ == 0 && emits && (object.definition.flags & 0x700U) == 0x100U) {
                 emit_trail_particle(object.position, object.definition.trail_color);
                 ++result.trail_emitted;

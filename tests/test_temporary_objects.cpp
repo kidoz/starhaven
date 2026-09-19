@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -1456,10 +1457,11 @@ TEST_CASE("8080 party removal needs no replacement even at distant contacts",
 
 TEST_CASE("flight trails use descriptor color, independent lifetimes and upward jitter",
           "[temporary-objects]") {
-    const auto id = GENERATE(1000U, 1050U);
+    const auto id = GENERATE(1000U, 1050U, 2081U);
     CAPTURE(id);
     Resources resources;
-    auto& descriptor = resources.objects[id == 1000 ? 1 : 2];
+    auto& descriptor =
+        *std::ranges::find(resources.objects, id, &world::ObjectDescriptor::object_id);
     descriptor.trail_red = 23;
     descriptor.trail_green = 101;
     descriptor.trail_blue = 219;
@@ -1516,7 +1518,7 @@ TEST_CASE("trail particles outlive their source and clear resets the visual sequ
 TEST_CASE("trail ring replacement and tick batching are deterministic", "[temporary-objects]") {
     const Resources resources;
     TemporaryObjects live;
-    auto req = request();
+    auto req = request(GENERATE(1000U, 2081U));
     req.scatter = true;
     req.count = 101;
     spawn(live, resources, req);
@@ -1556,7 +1558,7 @@ TEST_CASE("settled objects and unsupported trail families do not emit", "[tempor
         resources.objects[1].flags |= 0x400U;
     }
     SECTION("another family") {
-        req.object_id = 2081;
+        req.object_id = 2100;
     }
     TemporaryObjects live;
     spawn(live, resources, req);
@@ -1703,4 +1705,83 @@ TEST_CASE("far 1050 expiry produces neither a burst nor a replacement trail",
     REQUIRE(end.detonations.empty());
     REQUIRE(end.trail_emitted == 0);
     REQUIRE(live.advance(319, {}).trail_emitted == 0);
+}
+
+TEST_CASE("2081 trails continue through stationary and ordinary contact paths",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(2081);
+    req.speed = GENERATE(0, 128, -128);
+    CAPTURE(req.speed);
+    world::CollisionWorld collision;
+    const std::array actors{ObjectActor{0, {0, 100, 0}, 32, 160}};
+    ObjectContacts contacts;
+    bool actor = false;
+    bool party = false;
+    bool ground = false;
+    SECTION("open space") {}
+    SECTION("actor") {
+        contacts.bodies = actors;
+        actor = true;
+    }
+    SECTION("party") {
+        contacts.party = ObjectParty{{0, 100, 0}, 32, 160};
+        party = true;
+    }
+    SECTION("ground") {
+        req.z = -1;
+        collision = floor();
+        ground = true;
+    }
+    spawn(live, resources, req);
+    const auto first_step = live.advance(4, collision, nullptr, &contacts);
+    REQUIRE(first_step.trail_emitted == 1);
+    REQUIRE(first_step.actor_contacts == (actor ? 1U : 0U));
+    REQUIRE(first_step.party_contacts == (party ? 1U : 0U));
+    REQUIRE(first_step.detonations.empty());
+    if (ground && req.speed <= 0)
+        REQUIRE(live.slots().front().resting);
+    REQUIRE(render::length(live.trail_particles().front().position -
+                           live.slots().front().position) == 0);
+    const auto continued = live.advance(43, collision, nullptr, &contacts);
+    REQUIRE(continued.trail_emitted == 10);
+    REQUIRE(continued.detonations.empty());
+    REQUIRE(live.slots().front().definition.id == 2081);
+    REQUIRE(live.slots().front().age == 47);
+    const auto end = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(end.expired == 1);
+    REQUIRE(end.trail_emitted == 0);
+    REQUIRE(end.detonations.empty());
+    REQUIRE(std::ranges::count_if(live.trail_particles(),
+                                  [](const auto& p) { return p.remaining != 0; }) == 11);
+    REQUIRE(live.advance(319, {}).trail_emitted == 0);
+    REQUIRE(
+        std::ranges::none_of(live.trail_particles(), [](const auto& p) { return p.remaining; }));
+}
+
+TEST_CASE("2081 trail emission respects descriptor flags and resource lifetime",
+          "[temporary-objects]") {
+    Resources resources;
+    resources.objects[4].lifetime = 9;
+    std::size_t expected = 0;
+    SECTION("ordinary") {
+        expected = 2;
+    }
+    SECTION("trail absent") {
+        resources.objects[4].flags &= ~0x100U;
+    }
+    SECTION("fire") {
+        resources.objects[4].flags |= 0x200U;
+    }
+    SECTION("line") {
+        resources.objects[4].flags |= 0x400U;
+    }
+    TemporaryObjects live;
+    spawn(live, resources, request(2081));
+    const auto step = live.advance(9, {});
+    REQUIRE(step.trail_emitted == expected);
+    REQUIRE(step.expired == 1);
+    REQUIRE(step.detonations.empty());
+    REQUIRE(live.active_count() == 0);
 }

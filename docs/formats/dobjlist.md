@@ -119,7 +119,7 @@ Startup at `0x457d84..0x457df9` converts `+0x30..32` RGB to the display-format
 packed color at `+0x2C`; the binary loader itself only copies records.
 Ordinary particle emission (`0x462da4..0x462dbf`, `0x4348e0..0x434976`) consumes
 that packed word. StarHaven reads the source RGB directly for its 8-bit-channel
-framebuffer. Trails for IDs 1000 and 1050/1051, including the 1050 impact
+framebuffer. Trails for IDs 1000, 1050/1051 and 2081, including the 1050 impact
 burst using its incoming descriptor color, are implemented through the
 [temporary-object lifecycle](map-events.md#temporary-object-lifecycle);
 other trail families remain separate work.
