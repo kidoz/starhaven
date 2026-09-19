@@ -40,7 +40,7 @@ struct TemporaryObject {
     bool resting = false;
     // Engine overlap policy: each 1000/2081/2100 reacts once until it leaves this body.
     std::optional<std::size_t> touching_actor = std::nullopt;
-    bool touching_party = false;  // ID 2081 uses the same separation policy
+    bool touching_party = false;  // IDs 1000/2081 use the same separation policy
 };
 
 enum class TemporarySpawnError : std::uint8_t { None, UnsupportedId, MissingDescriptor, BadFrame };

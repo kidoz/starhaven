@@ -1026,7 +1026,7 @@ TEST_CASE("1000, 2081 and 2100 overlapping actors react once until separated",
         REQUIRE(rest.bounces > 0);
 }
 
-TEST_CASE("1000 actor contact beyond the impact cutoff preserves gravity and its deadline",
+TEST_CASE("1000 character contact beyond the impact cutoff preserves gravity and its deadline",
           "[temporary-objects]") {
     const Resources resources;
     TemporaryObjects live;
@@ -1037,20 +1037,31 @@ TEST_CASE("1000 actor contact beyond the impact cutoff preserves gravity and its
     ObjectContacts contacts{actors, {}};
     int reactions = 0;
     contacts.react_to_actor = [&](std::size_t) { ++reactions; };
+    bool party = false;
+    SECTION("actor") {}
+    SECTION("party") {
+        contacts.bodies = {};
+        contacts.party = ObjectParty{{0, 5500, 0}, 2, 10};
+        party = true;
+    }
+    std::size_t hits = 0;
     const auto& object = live.slots().front();
-    for (std::uint32_t tick = 1; tick <= 24 && reactions == 0; ++tick) {
+    for (std::uint32_t tick = 1; tick <= 24 && hits == 0; ++tick) {
         const auto velocity = object.velocity.y - 5;
         const auto step = live.advance(1, {}, nullptr, &contacts);
         REQUIRE(step.expired == 0);
         REQUIRE(step.detonations.empty());
         REQUIRE(object.age == tick);
-        if (step.actor_contacts != 0) {
-            REQUIRE(step.actor_redirects == 1);
+        hits += step.actor_contacts + step.party_contacts;
+        if (hits != 0) {
+            REQUIRE(step.actor_redirects == (party ? 0U : 1U));
+            REQUIRE(step.party_contacts == (party ? 1U : 0U));
             REQUIRE(object.position.y - object.origin.y > 5020);
             REQUIRE(object.velocity.y == Approx(velocity * 58500 / 65536));
         }
     }
-    REQUIRE(reactions == 1);
+    REQUIRE(hits == 1);
+    REQUIRE(reactions == (party ? 0 : 1));
     REQUIRE(object.definition.id == 1000);
     REQUIRE(object.definition.lifetime == 768);
     const auto velocity = object.velocity.y;
@@ -1064,7 +1075,7 @@ TEST_CASE("1000 actor contact beyond the impact cutoff preserves gravity and its
     REQUIRE(live.active_count() == 0);
 }
 
-TEST_CASE("a settled 1000 skips actor searches and expires without replacement",
+TEST_CASE("a settled 1000 skips character searches and expires without replacement",
           "[temporary-objects]") {
     const Resources resources;
     TemporaryObjects live;
@@ -1078,13 +1089,21 @@ TEST_CASE("a settled 1000 skips actor searches and expires without replacement",
     REQUIRE(object.resting);
     const std::array actors{ObjectActor{0, {0, 0, 0}, 20, 160}};
     ObjectContacts contacts{actors, {}};
+    SECTION("actor") {}
+    SECTION("party") {
+        contacts.bodies = {};
+        contacts.party = ObjectParty{{0, 0, 0}, 20, 160};
+    }
     contacts.react_to_actor = [](std::size_t) { FAIL("settled object must not react an actor"); };
-    REQUIRE(live.advance(1, collision, nullptr, &contacts).actor_contacts == 0);
+    const auto touch = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(touch.actor_contacts == 0);
+    REQUIRE(touch.party_contacts == 0);
     REQUIRE(object.definition.id == 1000);
     REQUIRE(object.age == 21);
     REQUIRE(render::length(object.velocity) == 0);
     const auto rest = live.advance(746, collision, nullptr, &contacts);
     REQUIRE(rest.actor_contacts == 0);
+    REQUIRE(rest.party_contacts == 0);
     REQUIRE(rest.expired == 0);
     const auto expiry = live.advance(1, collision, nullptr, &contacts);
     REQUIRE(expiry.expired == 1);
@@ -1222,11 +1241,15 @@ TEST_CASE("2100 party contact replaces once and respects earlier contacts", "[te
     REQUIRE(live.active_count() == 0);
 }
 
-TEST_CASE("2081 party contact damps all velocity without redirecting or restarting the effect",
-          "[temporary-objects]") {
+TEST_CASE(
+    "1000 and 2081 party contact damps all velocity without redirecting or restarting the effect",
+    "[temporary-objects]") {
+    const auto id = GENERATE(1000U, 2081U);
+    CAPTURE(id);
+    const float gravity = id == 1000 ? 5.0f : 0.0f;
     const Resources resources;
     TemporaryObjects live;
-    auto req = request(2081);
+    auto req = request(id);
     req.scatter = true;
     req.speed = 4096;
     SECTION("angled flight") {}
@@ -1249,25 +1272,29 @@ TEST_CASE("2081 party contact damps all velocity without redirecting or restarti
     REQUIRE(hit.detonations.empty());
     REQUIRE(hit.expired == 0);
     const auto& after = live.slots().front();
-    const auto velocity = before.velocity * (58500.0f / 65536.0f);
+    const auto velocity = (before.velocity - render::Vec3{0, gravity, 0}) * (58500.0f / 65536.0f);
     REQUIRE(after.velocity.x == Approx(velocity.x));
     REQUIRE(after.velocity.y == Approx(velocity.y));
     REQUIRE(after.velocity.z == Approx(velocity.z));
     REQUIRE(render::length(after.position - before.position - velocity * (1.0f / 128)) ==
             Approx(0).margin(0.0001f));
-    REQUIRE(after.definition.id == 2081);
+    REQUIRE(after.definition.id == id);
     REQUIRE(after.age == 1);
-    REQUIRE(after.definition.lifetime == 48);
+    REQUIRE(after.definition.lifetime == (id == 1000 ? 768U : 48U));
     REQUIRE(after.touching_party);
     REQUIRE(live.advance(1, {}, nullptr, &contacts).party_contacts == 0);
-    REQUIRE(after.velocity.y == Approx(velocity.y));
+    REQUIRE(after.velocity.y == Approx(velocity.y - gravity));
     REQUIRE(after.age == 2);
 }
 
-TEST_CASE("2081 party overlap rearms after separation or missing context", "[temporary-objects]") {
+TEST_CASE("1000 and 2081 party overlap rearms after separation or missing context",
+          "[temporary-objects]") {
+    const auto id = GENERATE(1000U, 2081U);
+    CAPTURE(id);
+    const float gravity = id == 1000 ? 5.0f : 0.0f;
     const Resources resources;
     TemporaryObjects live;
-    spawn(live, resources, request(2081));
+    spawn(live, resources, request(id));
     ObjectContacts contacts;
     const ObjectParty party{{0, 100, 0}, 64, 320};
     contacts.party = party;
@@ -1288,22 +1315,27 @@ TEST_CASE("2081 party overlap rearms after separation or missing context", "[tem
     REQUIRE(live.advance(1, {}, nullptr, &contacts).party_contacts == 1);
     REQUIRE(live.slots().front().age == 13);
     constexpr float kDamping = 58500.0f / 65536.0f;
-    REQUIRE(live.slots().front().velocity.y == Approx(128 * kDamping * kDamping));
-    REQUIRE(live.advance(34, {}, nullptr, &contacts).expired == 0);
+    REQUIRE(live.slots().front().velocity.y ==
+            Approx(((128 - gravity) * kDamping - 12 * gravity) * kDamping));
+    const std::uint32_t lifetime = id == 1000 ? 768 : 48;
+    REQUIRE(live.advance(lifetime - 14, {}, nullptr, &contacts).expired == 0);
     const auto expiry = live.advance(1, {}, nullptr, &contacts);
     REQUIRE(expiry.expired == 1);
     REQUIRE(expiry.detonations.empty());
     REQUIRE_FALSE(live.slots().front().touching_party);
     // Reusing the inactive slot must permit a fresh contact with the same party.
-    spawn(live, resources, request(2081));
+    spawn(live, resources, request(id));
     REQUIRE(live.advance(1, {}, nullptr, &contacts).party_contacts == 1);
 }
 
-TEST_CASE("2081 actor and party contacts remain distinct within the same tick",
+TEST_CASE("1000 and 2081 actor and party contacts remain distinct within the same tick",
           "[temporary-objects]") {
+    const auto id = GENERATE(1000U, 2081U);
+    CAPTURE(id);
+    const float gravity = id == 1000 ? 5.0f : 0.0f;
     const Resources resources;
     TemporaryObjects live;
-    auto req = request(2081);
+    auto req = request(id);
     req.speed = 4096;
     spawn(live, resources, req);
     std::array actors{ObjectActor{0, {0, 100, 0}, 2, 200}};
@@ -1331,17 +1363,20 @@ TEST_CASE("2081 actor and party contacts remain distinct within the same tick",
     REQUIRE(reactions == 1);
     REQUIRE(hit.detonations.empty());
     constexpr float kDamping = 58500.0f / 65536.0f;
-    REQUIRE(live.slots().front().velocity.y == Approx(4096 * kDamping * kDamping));
+    REQUIRE(live.slots().front().velocity.y == Approx((4096 - gravity) * kDamping * kDamping));
     const auto overlap = live.advance(1, {}, nullptr, &contacts);
     REQUIRE(overlap.actor_contacts == 0);
     REQUIRE(overlap.party_contacts == 0);
 }
 
-TEST_CASE("2081 party contact continues to geometry and respects geometry ties",
+TEST_CASE("1000 and 2081 party contact continues to geometry and respects geometry ties",
           "[temporary-objects]") {
+    const auto id = GENERATE(1000U, 2081U);
+    CAPTURE(id);
+    const float gravity = id == 1000 ? 5.0f : 0.0f;
     const Resources resources;
     TemporaryObjects live;
-    auto req = request(2081);
+    auto req = request(id);
     req.speed = 4096;
     spawn(live, resources, req);
     ObjectContacts contacts;
@@ -1365,9 +1400,10 @@ TEST_CASE("2081 party contact continues to geometry and respects geometry ties",
     REQUIRE(hit.bounces == 1);
     REQUIRE(hit.detonations.empty());
     REQUIRE(hit.expired == 0);
-    REQUIRE(live.slots().front().velocity.y == Approx(-4096 * (tied ? 1.0f : 58500.0f / 65536.0f)));
+    REQUIRE(live.slots().front().velocity.y ==
+            Approx(-(4096 - gravity) * (tied ? 1.0f : 58500.0f / 65536.0f)));
     REQUIRE(live.slots().front().age == 1);
-    REQUIRE(live.slots().front().definition.id == 2081);
+    REQUIRE(live.slots().front().definition.id == id);
 }
 
 TEST_CASE("party contacts remain gated by object family and impact flag", "[temporary-objects]") {
@@ -1377,7 +1413,7 @@ TEST_CASE("party contacts remain gated by object family and impact flag", "[temp
     resources.objects[9].flags &= ~0x40U;
     ObjectContacts contacts;
     contacts.party = ObjectParty{{0, 100, 0}, 64, 320};
-    for (const auto id : {1000U, 1050U, 8080U, 2100U}) {
+    for (const auto id : {1050U, 8080U, 2100U}) {
         TemporaryObjects live;
         spawn(live, resources, request(id));
         const auto step = live.advance(1, {}, nullptr, &contacts);

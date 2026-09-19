@@ -911,15 +911,20 @@ TEST_CASE("live 2100 party contact uses the movement body and resource-timed rep
     REQUIRE(live.active_count() == 0);
 }
 
-TEST_CASE("live 2081 party contact slows flight and preserves the animation deadline",
+TEST_CASE("live 1000 and 2081 party contact slows flight and preserves the animation deadline",
           "[script-loot]") {
-    const Fixture f;
+    const auto id = GENERATE(1000U, 2081U);
+    CAPTURE(id);
+    const std::uint32_t lifetime = id == 1000 ? 768 : 48;
+    const float gravity = id == 1000 ? 5.0f : 0.0f;
+    Fixture f;
+    f.session.collision = {};  // open space for the exact gravity trajectory
     Battle battle;
     const data::MonsterStatsTable monsters;
     ScriptLootState loot;
     ScriptObjectEffects live;
     auto req = request();
-    req.object_id = 2081;
+    req.object_id = id;
     req.speed = 128;
     std::optional<render::Vec3> eye{render::Vec3{10, 100 + kEyeHeight, 20}};
     bool contact = true;
@@ -939,7 +944,7 @@ TEST_CASE("live 2081 party contact slows flight and preserves the animation dead
     REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
     const auto random = loot.random;
     REQUIRE(live.advance(0, f.session, battle, monsters, loot, eye).party_contacts == 0);
-    for (std::uint32_t tick = 1; tick <= 48; ++tick) {
+    for (std::uint32_t tick = 1; tick <= lifetime; ++tick) {
         const auto step = live.advance(1.0 / 128, f.session, battle, monsters, loot, eye);
         REQUIRE(step.party_contacts == (contact && tick == 1 ? 1U : 0U));
         REQUIRE(step.actor_contacts == 0);
@@ -947,15 +952,18 @@ TEST_CASE("live 2081 party contact slows flight and preserves the animation dead
         REQUIRE(step.actor_redirects == 0);
         REQUIRE(step.actor_animation_fallbacks == 0);
         REQUIRE(step.detonations.empty());
-        REQUIRE(step.expired == (tick == 48 ? 1U : 0U));
+        REQUIRE(step.expired == (tick == lifetime ? 1U : 0U));
         REQUIRE(loot.random == random);
         const auto sprites = live.sprites(f.session.sprite_frames);
-        REQUIRE(sprites.size() == (tick < 48 ? 1U : 0U));
+        REQUIRE(sprites.size() == (tick < lifetime ? 1U : 0U));
         if (!sprites.empty()) {
-            REQUIRE(sprites.front().animation == "c");
+            REQUIRE(sprites.front().animation == (id == 1000 ? "a" : "c"));
             REQUIRE(sprites.front().animation_ticks == tick / 8);
-            const float speed = contact ? 58500.0f / 65536.0f : 1.0f;
-            REQUIRE(sprites.front().position.y == Approx(100 + tick * speed).margin(0.001f));
+            const float initial_velocity = (128 - gravity) * (contact ? 58500.0f / 65536.0f : 1.0f);
+            const auto elapsed = static_cast<float>(tick);
+            const float displacement =
+                (elapsed * initial_velocity - gravity * elapsed * (elapsed - 1) / 2) / 128;
+            REQUIRE(sprites.front().position.y == Approx(100 + displacement).margin(0.001f));
         }
     }
     REQUIRE(live.active_count() == 0);
