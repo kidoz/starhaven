@@ -203,7 +203,7 @@ std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 fr
             }
         }
     }
-    if ((object.definition.id == 2100 || object.definition.id == 4070) && contacts->party) {
+    if (contacts->party) {
         const auto& party = *contacts->party;
         if (const auto fraction = body_fraction(from, to, object.definition.radius, party.position,
                                                 party.radius, party.height);

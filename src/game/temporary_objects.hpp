@@ -71,7 +71,7 @@ struct ObjectParty {
 struct ObjectContacts {
     std::span<const ObjectActor> bodies;
     std::function<bool(std::size_t)> apply;           // ID 8080 resistance gate and state response
-    std::optional<ObjectParty> party = std::nullopt;  // IDs 2100 and 4070
+    std::optional<ObjectParty> party = std::nullopt;  // IDs 2100, 4070 and 8080
     std::function<void(std::size_t)> react_2100 = nullptr;
 };
 struct TemporaryObjectStep {

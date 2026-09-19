@@ -898,3 +898,49 @@ TEST_CASE("live 2100 party contact uses the movement body and resource-timed rep
     live.clear();
     REQUIRE(live.active_count() == 0);
 }
+
+TEST_CASE("live 8080 party contact removes without replacement or random draws", "[script-loot]") {
+    const Fixture f;
+    Battle battle;
+    const data::MonsterStatsTable monsters;
+    ScriptLootState loot;
+    ScriptObjectEffects live;
+    auto req = request();
+    req.object_id = 8080;
+    std::optional<render::Vec3> eye{render::Vec3{10, 100 + kEyeHeight, 20}};
+    bool contact = true;
+    SECTION("party feet at launch point") {}
+    SECTION("party outside the path") {
+        eye->x += 1000;
+        contact = false;
+    }
+    SECTION("party above the path") {
+        eye->y += 1000;
+        contact = false;
+    }
+    SECTION("party omitted") {
+        eye.reset();
+        contact = false;
+    }
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    const auto random = loot.random;
+    REQUIRE(live.advance(0, f.session, battle, monsters, loot, eye).expired == 0);
+    const auto hit = live.advance(1.0 / 128, f.session, battle, monsters, loot, eye);
+    REQUIRE(hit.party_contacts == (contact ? 1U : 0U));
+    REQUIRE(hit.expired == (contact ? 1U : 0U));
+    REQUIRE(hit.actor_contacts == 0);
+    REQUIRE(hit.actor_accepted == 0);
+    REQUIRE(hit.actor_redirects == 0);
+    REQUIRE(hit.missing_actor_replacements == 0);
+    REQUIRE(hit.detonations.empty());
+    REQUIRE(loot.random == random);
+    REQUIRE(live.active_count() == (contact ? 0U : 1U));
+    REQUIRE(live.sprites(f.session.sprite_frames).size() == (contact ? 0U : 1U));
+    const auto rest = live.advance(1, f.session, battle, monsters, loot, eye);
+    REQUIRE(rest.party_contacts == 0);
+    REQUIRE(rest.expired == (contact ? 0U : 1U));
+    REQUIRE(rest.detonations.empty());
+    REQUIRE(loot.random == random);
+    REQUIRE(live.active_count() == 0);
+    live.clear();
+}

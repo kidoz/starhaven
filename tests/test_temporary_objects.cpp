@@ -608,7 +608,7 @@ TEST_CASE("8080 actor contacts replace only accepted hits and preserve non-actor
         ObjectActor{8, {0, 130, 0}, 2, 10},
         ObjectActor{7, {0, 110, 0}, 2, 10},
     };
-    const ObjectContacts contacts{
+    ObjectContacts contacts{
         bodies,
         [&](std::size_t actor) {
             ++calls;
@@ -623,6 +623,7 @@ TEST_CASE("8080 actor contacts replace only accepted hits and preserve non-actor
     Mm6Random random{1};
     bool missing = false;
     bool blocked = false;
+    bool party_hit = false;
     SECTION("accepted hit uses first body and expires at replacement lifetime") {}
     SECTION("resisted hit removes without a replacement") {
         accepted = false;
@@ -645,9 +646,38 @@ TEST_CASE("8080 actor contacts replace only accepted hits and preserve non-actor
         collision.add_polygon(ceiling, {0, -1, 0});
         blocked = true;
     }
+    SECTION("earlier party removes before actor resistance") {
+        contacts.party = ObjectParty{{0, 106, 0}, 2, 10};
+        blocked = party_hit = true;
+    }
+    SECTION("earlier actor keeps its accepted replacement despite a later party") {
+        contacts.party = ObjectParty{{0, 130, 0}, 2, 10};
+    }
+    SECTION("actor wins a tie with the party") {
+        contacts.party = ObjectParty{{0, 110, 0}, 2, 10};
+    }
+    SECTION("party contact works without an actor callback") {
+        contacts.apply = {};
+        contacts.party = ObjectParty{{0, 110, 0}, 2, 10};
+        blocked = party_hit = true;
+    }
+    SECTION("geometry wins a party tie") {
+        contacts.bodies = {};
+        contacts.party = ObjectParty{{0, 110, 0}, 2, 10};
+        const std::array ceiling{
+            render::Vec3{-100, 110, -100},
+            render::Vec3{-100, 110, 100},
+            render::Vec3{100, 110, 100},
+            render::Vec3{100, 110, -100},
+        };
+        collision.add_polygon(ceiling, {0, -1, 0});
+        blocked = true;
+    }
     REQUIRE(live.spawn(req, definitions, resources.frames, random).created == 1);
     const auto hit = live.advance(1, collision, nullptr, &contacts);
     REQUIRE(hit.detonations.empty());
+    REQUIRE(hit.party_contacts == (party_hit ? 1U : 0U));
+    REQUIRE(hit.actor_redirects == 0);
     REQUIRE(calls == (blocked ? 0 : 1));
     REQUIRE(hit.actor_contacts == (blocked ? 0U : 1U));
     REQUIRE(hit.actor_accepted == (!blocked && accepted ? 1U : 0U));
@@ -1064,6 +1094,7 @@ TEST_CASE("2100 party contact replaces once and respects earlier contacts", "[te
 TEST_CASE("party contacts remain gated by object family and impact flag", "[temporary-objects]") {
     Resources resources;
     resources.objects[5].flags &= ~0x40U;
+    resources.objects[9].flags &= ~0x40U;
     ObjectContacts contacts;
     contacts.party = ObjectParty{{0, 100, 0}, 64, 320};
     for (const auto id : {1000U, 1050U, 2081U, 8080U, 2100U}) {
@@ -1074,4 +1105,35 @@ TEST_CASE("party contacts remain gated by object family and impact flag", "[temp
         REQUIRE(step.detonations.empty());
         REQUIRE(live.slots().front().definition.id == id);
     }
+}
+
+TEST_CASE("8080 party removal needs no replacement even at distant contacts",
+          "[temporary-objects]") {
+    const Resources resources;  // deliberately no 8081 descriptor
+    TemporaryObjects live;
+    auto req = request(8080);
+    ObjectContacts contacts;
+    contacts.party = ObjectParty{{0, 100, 0}, 2, 10};
+    std::uint32_t ticks = 1;
+    SECTION("initial overlap") {
+        req.speed = 0;
+    }
+    SECTION("distant party") {
+        req.speed = 32767;
+        contacts.party->position.y = 5500;
+        ticks = 23;
+    }
+    spawn(live, resources, req);
+    REQUIRE(live.advance(0, {}, nullptr, &contacts).party_contacts == 0);
+    const auto hit = live.advance(ticks, {}, nullptr, &contacts);
+    REQUIRE(hit.party_contacts == 1);
+    REQUIRE(hit.actor_contacts == 0);
+    REQUIRE(hit.missing_actor_replacements == 0);
+    REQUIRE(hit.detonations.empty());
+    REQUIRE(hit.expired == 1);
+    REQUIRE(live.active_count() == 0);
+    const auto later = live.advance(100, {}, nullptr, &contacts);
+    REQUIRE(later.party_contacts == 0);
+    REQUIRE(later.expired == 0);
+    REQUIRE(later.detonations.empty());
 }
