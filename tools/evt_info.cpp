@@ -61,6 +61,7 @@ void print_usage(const char* argv0) {
               << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
               << "  --object-reaction verify D01 actor deflection and hurt animation\n"
               << "  --object-2081-reaction verify CD2 actor deflection and effect expiry\n"
+              << "  --object-1000-reaction verify D18 actor deflection and ordinary expiry\n"
               << "  --object-2081-party verify CD2 party damping and effect expiry\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
@@ -398,10 +399,10 @@ int do_object_lifecycle(const std::filesystem::path& data_dir) {
     return passed ? 0 : 1;
 }
 
-// Verify D01 or CD2 effects against a controlled actor/party and floor. Other event
+// Verify event effects against a controlled actor/party and floor. Other event
 // outcomes and natural encounter placement are excluded.
 int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id = 2100,
-                       std::uint16_t event = 47, bool party_target = false) {
+                       std::uint16_t event = 47, bool party_target = false, int entry = -1) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -409,8 +410,16 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
     data::ItemStatsTable items;
     data::TextTable text;
     data::MonsterStatsTable monsters;
-    const auto* const map = id == 2081 ? "CD2.blv" : "D01.blv";
-    const std::size_t count = id == 2081 ? 1 : 3;
+    const char* map = "D01.blv";
+    std::size_t count = 3;
+    if (id == 2081) {
+        map = "CD2.blv";
+        count = 1;
+    } else if (id == 1000) {
+        map = "D18.blv";
+        count = 2;
+    }
+    const std::uint32_t lifetime = id == 1000 ? 768 : 48;
     if (world::load_map_session(data_dir / "Games.lod", data_dir, map, cache, session) !=
             world::MapSessionError::None ||
         data::load_item_stats(data_dir, items) != data::GameDataError::None ||
@@ -437,7 +446,7 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
         }
     }
     game::WalkState state;
-    const auto outcome = game::walk_event(session.script, event, state, -1, session.file_name);
+    const auto outcome = game::walk_event(session.script, event, state, entry, session.file_name);
     if (!target || outcome.object_spawns.size() != (id == 2081 ? 2U : 1U) ||
         !outcome.unsupported.empty()) {
         std::cerr << "error: missing object-reaction joins\n";
@@ -489,13 +498,14 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
         ok = sprites.front().position.y > origin.y &&
              sprites.front().position.y < control_sprites.front().position.y && ok;
     // Isolate the reaction, then verify later floor impact (2100) or ordinary
-    // expiry (2081). This controlled placement does not reproduce natural play.
-    session.actors.front().position.x += 4096;
+    // expiry (1000/2081). This controlled placement does not reproduce natural play.
+    session.actors.front().position.x += 100000;
+    const float extent = id == 1000 ? 10000.0f : 1000.0f;
     const std::array floor{
-        origin + render::Vec3{-1000, -128, -1000},
-        origin + render::Vec3{1000, -128, -1000},
-        origin + render::Vec3{1000, -128, 1000},
-        origin + render::Vec3{-1000, -128, 1000},
+        origin + render::Vec3{-extent, -128, -extent},
+        origin + render::Vec3{extent, -128, -extent},
+        origin + render::Vec3{extent, -128, extent},
+        origin + render::Vec3{-extent, -128, extent},
     };
     session.collision.add_polygon(floor, {0, 1, 0});
     const data::SpellStatsTable spells;
@@ -503,6 +513,8 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
     const render::Vec3 distant{1000000, 0, 1000000};
     std::size_t drawable = 0;
     std::size_t detonations = 0;
+    std::size_t bounces = 0;
+    std::size_t zero_scale = 0;
     std::size_t expired = 0;
     for (std::uint32_t tick = 0;
          tick < 4096 && (live.active_count() > 0 || battle.event_reaction_ticks(0)); ++tick) {
@@ -518,34 +530,72 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
                                        loot, party_eye);
         detonations += step.detonations.size();
         expired += step.expired;
+        bounces += step.bounces;
         ok =
             step.actor_contacts == 0 && step.actor_redirects == 0 && step.party_contacts == 0 && ok;
-        if (id == 2081) {
+        if (id == 1000 || id == 2081) {
             const auto age = tick + 2;  // one tick already elapsed before this loop
             const auto effects = live.sprites(session.sprite_frames);
-            ok = effects.size() == (age < 48 ? 1U : 0U) && step.expired == (age == 48 ? 1U : 0U) &&
-                 ok;
+            ok = effects.size() == (age < lifetime ? count : 0U) &&
+                 step.expired == (age == lifetime ? count : 0U) && ok;
             for (const auto& sprite : effects) {
                 const auto pick = game::choose_sprite(session.sprite_frames, sprite.animation,
                                                       sprite.animation_ticks.value_or(0));
                 ok = !sprites.empty() && sprite.animation == sprites.front().animation &&
-                     sprite.animation_ticks == age / 8 && !pick.entry.empty() &&
-                     !cache.sprite(pick.entry, pick.palette).empty() && ok;
+                     sprite.animation_ticks == age / 8 && ok;
+                if (id == 1000) {
+                    // The installed null frame has no billboard; do not fabricate one.
+                    ok = pick.scale == 0 && ok;
+                    ++zero_scale;
+                } else {
+                    ok = !pick.entry.empty() && !cache.sprite(pick.entry, pick.palette).empty() &&
+                         ok;
+                }
             }
         }
     }
-    ok = live.active_count() == 0 && detonations == (id == 2081 ? 0U : count) && expired == count &&
+    ok = live.active_count() == 0 && detonations == (id == 2100 ? count : 0U) && expired == count &&
          drawable == (party_target ? 0U : hurt_ticks) &&
          battle.animation_of(0) == world::MonsterAnimation::Stand &&
          battle.health_of(0) == health && battle.slot_up(0, 0) && loot.random == random && ok;
+    if (id == 1000)
+        ok = bounces > 0 && zero_scale == count * (lifetime - 2) && ok;
     std::cout << (party_target ? "OBJECT_2081_PARTY " : "OBJECT_REACTION ")
               << (ok ? "PASS" : "FAIL") << " object=" << id << " event=" << event
-              << " actor_contacts=" << hit.actor_contacts
+              << " entry=" << entry << " actor_contacts=" << hit.actor_contacts
               << " party_contacts=" << hit.party_contacts << " redirects=" << hit.actor_redirects
               << " hurt_ticks=" << (party_target ? 0U : hurt_ticks)
               << " drawable_hurt_samples=" << drawable << " later_impacts=" << detonations
-              << " expired=" << expired
+              << " expired=" << expired << " bounces=" << bounces
+              << " zero_scale_samples=" << zero_scale
               << " controlled_body_and_floor=1 other_event_outcomes=excluded\n";
+    return ok ? 0 : 1;
+}
+
+// Seed each installed ID-1000 spawn record. Event-entry timers and companion
+// outcomes are excluded; both vertical and scattered requests are retained.
+int do_object_1000_reaction(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D18.blv", cache, session) !=
+        world::MapSessionError::None) {
+        std::cerr << "error: missing ID-1000 event resources\n";
+        return 1;
+    }
+    bool ok = true;
+    std::size_t records = 0;
+    for (const auto& step : session.script.steps()) {
+        const auto request = world::parse_object_spawn(step);
+        if (!request || request->object_id != 1000)
+            continue;
+        ++records;
+        ok = do_object_reaction(data_dir, 1000, step.event_id, false, step.sequence) == 0 && ok;
+    }
+    ok = records == 10 && ok;
+    std::cout << "OBJECT_1000_REACTION " << (ok ? "PASS" : "FAIL") << " records=" << records
+              << " event_entry=spawn_sequences\n";
     return ok ? 0 : 1;
 }
 
@@ -3853,6 +3903,13 @@ int main(int argc, char** argv) {
             return 2;
         }
         return do_object_expiry(*install / "data");
+    }
+    if (stem == "--object-1000-reaction") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_1000_reaction(*install / "data");
     }
     if (stem == "--object-2081-reaction" || stem == "--object-2081-party") {
         if (argc != 2) {

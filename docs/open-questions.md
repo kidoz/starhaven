@@ -186,7 +186,12 @@ The audit reduces the old sections to these bounded unknowns:
   requests missing descriptor ID 36. Runtime support is partial: the ID-1 loot
   instructions now create drawable, collectible objects preserved across map
   return and save/load. IDs 1000/1050/2081/2100/4070/8080 now run in the live simulation and renderer,
-  with a D18 event-56 dispatch/application/resource probe; ID 1050 becomes the
+  with a D18 event-56 dispatch/application/resource probe. ID 1000 now deflects
+  from actors and triggers resource-timed hurt animation, preserving gravity,
+  bouncing and its original expiry without damage or detonation. Fully settled
+  objects skip actor searches. All ten D18 requests pass controlled actor
+  acceptance; party/decorative contacts and the missing particle trail remain
+  open. ID 1050 becomes the
   non-damaging, 48-tick ID-1051 effect for source zero. Its actor/party contacts
   now follow that transition, with controlled D18 acceptance covering eight
   contacts of each type and the full replacement lifetime. Original selection

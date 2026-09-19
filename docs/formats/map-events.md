@@ -1026,8 +1026,26 @@ ID 1000 uses descriptor 135, frame **zero**, flags `0x194` and lifetime
 768 ticks. It falls, bounces and expires without detonation. Frame zero is the
 zero-scale `null` group: it produces no billboard in this installation. Its
 particle trail remains unimplemented, so the live ID-1000 effect is currently
-invisible. ID 1050 uses
-descriptor 139, frame 26, flags `0x174` and lifetime 768 ticks; it has no
+invisible.
+
+ID 1000 actor contact is implemented through the ordinary collision response.
+Flag `0x40` is absent, so it bypasses the impact handler and its 5,020-unit
+cutoff (`0x4628df..0x4628fd`). Actor target type 3 then selects the shared
+horizontal redirection, all-axis **58500/65536** damping and resource-timed
+hurt animation (`0x4628fd..0x462929`, `0x462b58..0x462cbe`). These are `observed`
+branches, shared with ID 2081. There is no damage, resistance roll, replacement
+or detonation. Gravity, bouncing, object ID, age and the original 768-tick
+deadline remain intact. StarHaven uses the same timed wince, animation fallback,
+remaining-movement bound and actor overlap latch described below for ID 2100.
+
+A fully settled ID 1000 does **not** search for actor contacts: the original
+grounded path zeros velocity and returns before body searches when horizontal
+speed squared falls below 400 (`0x46254c..0x4625b1`). The engine skips actor
+searches while its settled object still has floor support, and resumes movement
+if that support disappears. Original near-floor/sector arithmetic, full actor
+state-8 AI, party/decorative contacts and particle trails remain open.
+
+ID 1050 uses descriptor 139, frame 26, flags `0x174` and lifetime 768 ticks; it has no
 gravity. Its stationary replacement, ID 1051, uses descriptor 140, frame 32,
 flags `0x13c` and lifetime **48 ticks**. The replacement expires without
 another detonation. All three have radius and height 16 in the inspected
@@ -1325,6 +1343,18 @@ and removals. Actor health, an active buff and the object RNG remain unchanged.
 Chest/summon outcomes and natural actor placement are excluded. Synthetic tests
 also cover angled deflection, a later wall in the same tick, overlap/re-entry,
 far removal, missing resources, dead actors, pause and reset by ID 8080.
+
+`evt_info --object-1000-reaction` seeds all ten ID-1000 instructions in D18
+events 56–61 and applies their requests against controlled actor overlap.
+Twenty contacts/deflections retain the original ID and 768-tick expiry, bounce
+on a controlled floor and expire without detonation. Each branch checks an
+80-tick resource-defined hurt animation, unchanged actor health and buff, and
+unchanged post-launch RNG. The probe checks 15,320 post-contact zero-scale
+samples, preserving the installed absence of a billboard. Synthetic tests
+cover angled deflection, same-tick wall contact, overlap/re-entry, gravity
+following a contact beyond 5,020 units, settled-object exclusion, exact expiry,
+dead actors, missing hurt resources and pause. Event-entry timers, natural
+placement, original trajectory rounding and the missing trail are excluded.
 
 `evt_info --object-2081-reaction` walks CD2 events 35/36 and applies each
 ID-2081 request against a controlled actor at launch. Each produces one
