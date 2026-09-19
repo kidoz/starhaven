@@ -1074,8 +1074,21 @@ detonation, resistance draw or direct damage. The 5,020-unit displacement
 cutoff belongs to the skipped impact handler (`0x45c709..0x45c777`), so it does
 not suppress this response. StarHaven shares the timed wince, overlap latch,
 remaining-movement policy and explicit animation fallback with ID 2100.
-Party and decorative contacts for 2081, trails, sound and exact original
-trajectories remain separate gaps.
+Party contact is also implemented: the party candidate is target type 4
+(`0x460171`), which bypasses the actor-specific branch and reaches only common
+all-axis damping at `0x462c8c..0x462cbe`. Direction, ID, age, gravity behavior
+and the original expiry deadline are preserved; the party receives no direct
+damage, and no actor animation, replacement, area notification or resistance
+roll occurs. The skipped impact handler's displacement cutoff does not apply.
+These are `observed` branches in the indoor motion caller. StarHaven continues
+remaining movement and latches party overlap, clearing it at a later tick
+after separation or omission of the party context. The party latch is
+independent of the actor latch, so an actor and the party may each respond
+within the same tick. Geometry wins ties,
+then actors, then the party. These sweeps, overlap rules and float arithmetic
+are engine policies, not exact original collision/repeated-contact parity.
+Decorative contacts for 2081, trails, sound and exact original trajectories
+remain separate gaps.
 
 ID 2100 uses descriptor 159, frame 136, flags `0x154` and lifetime 768 ticks.
 Gravity applies. Geometry contact or expiry changes it into ID 2101, clears
@@ -1324,6 +1337,17 @@ regressions also cover angled deflection, a later wall bounce in the same tick,
 overlap/re-entry, contact beyond 5,020 units, dead actors, missing animation
 data and pause. These controlled checks do not establish natural actor
 placement, original collision arithmetic or full AI-state parity.
+
+`evt_info --object-2081-party` applies the same CD2 requests against controlled
+party overlap. Each registers one contact, slows compared with a no-party
+control and retains its effect animation and 48-tick expiry, without actor
+reaction or detonation. Object RNG and the distant actor's health, buff and
+animation remain unchanged. Synthetic tests cover angled and zero-speed
+motion, remaining movement into geometry, contact beyond 5,020 units,
+actor/party ordering, geometry ties, overlap/re-entry, missing party context,
+pause, expiry and slot reuse. The movement-body cylinder comes from the live
+party adapter; original collision dimensions and natural placement remain
+unverified. Companion loot remains covered by `--object-loot`.
 
 `evt_info --object-1050-contacts` seeds each of D18 event 56's four ID-1050
 spawn branches and applies the resulting requests against controlled actor or

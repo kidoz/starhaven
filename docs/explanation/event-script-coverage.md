@@ -57,8 +57,8 @@ adapter. ID 1050 transitions to 1051 on actor or party contact without damage.
 ID 8080 has its resisted actor response and 8081 replacement, and removes
 immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact. IDs 2081 and 2100 deflect from actors with a resource-timed hurt
-animation; ID 2081 keeps its original expiry, and ID 2100 transitions to 2101
-on party contact. Other character contacts,
+animation; ID 2081 also slows on party contact while keeping its original
+expiry, and ID 2100 transitions to 2101 on party contact. Other character contacts,
 terrain material responses, trails, sound and other original object behavior
 remain follow-up work.
 
@@ -298,8 +298,13 @@ against controlled actors: deflection with no replacement or damage, unchanged
 animation age and 48-tick expiry, and an 80-tick resource-defined hurt animation
 that outlives the effect. Health, buffs and object RNG are preserved. This
 shares ID 2100's ordinary actor response but bypasses its impact-handler
-cutoff. Party/decorative contacts and full original AI-state parity remain
-open; see the [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
+cutoff. The `--object-2081-party` probe covers the distinct party response for
+both CD2 requests: slowing without deflection or actor reaction, continued
+animation and the original expiry. It compares against no-party motion and
+preserves object RNG. Party/actor overlap latches and contact ordering are
+engine policies tested with synthetic fixtures. Decorative contacts, original
+collision and full AI-state parity remain open; see the
+[temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
 
 `evt_info --object-impact` passes D01 event 47's object requests: three
 ID-2100 objects follow gravity and loaded geometry, become stationary ID-2101

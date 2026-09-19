@@ -61,6 +61,7 @@ void print_usage(const char* argv0) {
               << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
               << "  --object-reaction verify D01 actor deflection and hurt animation\n"
               << "  --object-2081-reaction verify CD2 actor deflection and effect expiry\n"
+              << "  --object-2081-party verify CD2 party damping and effect expiry\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
@@ -397,10 +398,10 @@ int do_object_lifecycle(const std::filesystem::path& data_dir) {
     return passed ? 0 : 1;
 }
 
-// Verify D01 or CD2 effects against a controlled actor and floor. Other event
+// Verify D01 or CD2 effects against a controlled actor/party and floor. Other event
 // outcomes and natural encounter placement are excluded.
 int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id = 2100,
-                       std::uint16_t event = 47) {
+                       std::uint16_t event = 47, bool party_target = false) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -456,6 +457,10 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
     battle.reset(session, monsters, 1);
     battle.hold_slot(0, 0, 100);
     const auto health = battle.health_of(0);
+    const auto party_eye =
+        party_target ? std::optional{origin + render::Vec3{0, game::kEyeHeight, 0}} : std::nullopt;
+    if (party_target)
+        session.actors.front().position.x += 4096;
     game::ScriptLootState loot;
     game::ScriptLootState control_loot;
     game::ScriptObjectEffects live;
@@ -466,15 +471,20 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
               control.spawn(request, session, items, control_loot).created == count;
     const auto random = loot.random;
     const auto hit =
-        live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
+        live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot, party_eye);
     (void)control.advance(1.0 / game::kObjectTicksPerSecond, session);
     const auto sprites = live.sprites(session.sprite_frames);
     const auto control_sprites = control.sprites(session.sprite_frames);
-    ok = hit.actor_contacts == count && hit.actor_redirects == count &&
-         hit.actor_animation_fallbacks == 0 && hit.detonations.empty() && hit.expired == 0 &&
-         sprites.size() == count && control_sprites.size() == count &&
-         battle.animation_of(0) == world::MonsterAnimation::Wince &&
-         battle.event_reaction_ticks(0) == 0 && ok;
+    const std::size_t expected_actors = party_target ? 0 : count;
+    ok = hit.actor_contacts == expected_actors && hit.actor_redirects == expected_actors &&
+         hit.party_contacts == (party_target ? count : 0) && hit.actor_animation_fallbacks == 0 &&
+         hit.detonations.empty() && hit.expired == 0 && sprites.size() == count &&
+         control_sprites.size() == count &&
+         battle.animation_of(0) ==
+             (party_target ? world::MonsterAnimation::Stand : world::MonsterAnimation::Wince) &&
+         ok;
+    ok = (party_target ? !battle.event_reaction_ticks(0) : battle.event_reaction_ticks(0) == 0) &&
+         ok;
     if (!sprites.empty() && !control_sprites.empty())
         ok = sprites.front().position.y > origin.y &&
              sprites.front().position.y < control_sprites.front().position.y && ok;
@@ -504,11 +514,12 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
         }
         (void)battle.update(1.0f / game::kObjectTicksPerSecond, session, monsters, spells, party,
                             distant);
-        const auto step =
-            live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
+        const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters,
+                                       loot, party_eye);
         detonations += step.detonations.size();
         expired += step.expired;
-        ok = step.actor_contacts == 0 && step.actor_redirects == 0 && ok;
+        ok =
+            step.actor_contacts == 0 && step.actor_redirects == 0 && step.party_contacts == 0 && ok;
         if (id == 2081) {
             const auto age = tick + 2;  // one tick already elapsed before this loop
             const auto effects = live.sprites(session.sprite_frames);
@@ -524,14 +535,17 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
         }
     }
     ok = live.active_count() == 0 && detonations == (id == 2081 ? 0U : count) && expired == count &&
-         drawable == hurt_ticks && battle.animation_of(0) == world::MonsterAnimation::Stand &&
+         drawable == (party_target ? 0U : hurt_ticks) &&
+         battle.animation_of(0) == world::MonsterAnimation::Stand &&
          battle.health_of(0) == health && battle.slot_up(0, 0) && loot.random == random && ok;
-    std::cout << "OBJECT_REACTION " << (ok ? "PASS" : "FAIL") << " object=" << id
-              << " event=" << event << " actor_contacts=" << hit.actor_contacts
-              << " redirects=" << hit.actor_redirects << " hurt_ticks=" << hurt_ticks
+    std::cout << (party_target ? "OBJECT_2081_PARTY " : "OBJECT_REACTION ")
+              << (ok ? "PASS" : "FAIL") << " object=" << id << " event=" << event
+              << " actor_contacts=" << hit.actor_contacts
+              << " party_contacts=" << hit.party_contacts << " redirects=" << hit.actor_redirects
+              << " hurt_ticks=" << (party_target ? 0U : hurt_ticks)
               << " drawable_hurt_samples=" << drawable << " later_impacts=" << detonations
               << " expired=" << expired
-              << " controlled_actor_and_floor=1 other_event_outcomes=excluded\n";
+              << " controlled_body_and_floor=1 other_event_outcomes=excluded\n";
     return ok ? 0 : 1;
 }
 
@@ -3840,13 +3854,14 @@ int main(int argc, char** argv) {
         }
         return do_object_expiry(*install / "data");
     }
-    if (stem == "--object-2081-reaction") {
+    if (stem == "--object-2081-reaction" || stem == "--object-2081-party") {
         if (argc != 2) {
             print_usage(argv[0]);
             return 2;
         }
-        const auto first = do_object_reaction(*install / "data", 2081, 35);
-        const auto second = do_object_reaction(*install / "data", 2081, 36);
+        const bool party_target = stem == "--object-2081-party";
+        const auto first = do_object_reaction(*install / "data", 2081, 35, party_target);
+        const auto second = do_object_reaction(*install / "data", 2081, 36, party_target);
         return first == 0 && second == 0 ? 0 : 1;
     }
     if (stem == "--object-reaction") {
