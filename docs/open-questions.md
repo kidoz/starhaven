@@ -189,9 +189,15 @@ The audit reduces the old sections to these bounded unknowns:
   with a D18 event-56 dispatch/application/resource probe; ID 1050 becomes the
   non-damaging, 48-tick ID-1051 effect for source zero. CD2 events 35/36 now
   exercise moving ID 2081 and persistent loot together from entry, including
-  expiration and save/pickup checks. D01 event 47's three ID-2100 requests now
+  expiration and save/pickup checks. D01 event 47's three ID-2100 objects now
   pass geometry impact, stationary ID-2101 animation and expiry checks; its
-  distinct actor-contact response remains unimplemented. OUTE3 event 220's
+  distinct actor-contact response now deflects without detonation and starts a
+  resource-timed hurt animation. Controlled actor acceptance checks its clock,
+  unchanged health/buffs and later geometry impact; original state-8 AI choices
+  and sector/overlap parity remain open. Party contact now triggers the ordinary
+  2101 transition without source-zero damage; controlled acceptance covers all
+  three objects and their stationary replacement lifetime. Natural party
+  placement and original collision dimensions remain unverified. OUTE3 event 220's
   seeded ID-4070 requests now pass 45 timed transitions into ID 4071 and removal
   at tick 336; ordinary geometry contacts preserve ID 4070. Controlled actor and
   party contact probes now verify immediate 4071 transitions without damage or

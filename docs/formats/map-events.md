@@ -1055,11 +1055,55 @@ common 5,020-unit displacement cutoff applies. These are `observed` in the
 installed resources and the branch at VA `0x45c927..0x45ca84`; the source-zero
 area consumers are identified in the evidence table above.
 
-Actor contact is an exception: target type 3 returns without this transition
-at `0x45c984..0x45c995`. The indoor caller continues with a separate actor
-response at `0x462b58..0x462c8c`. The current engine simulates **geometry contacts
-and lifetime only**; it does not treat an actor as an exploding wall or claim
-this actor response is implemented. The D01 probe below excludes actor contacts.
+Actor contact is an implemented exception: target type 3 returns without
+replacement at `0x45c984..0x45c995`. The indoor caller redirects the object's
+horizontal velocity away from the actor's center, preserving horizontal speed
+before damping (`0x462b58..0x462c2f`). Its common response then multiplies all
+three velocity components by **58500/65536** (`0x462c8c..0x462cbe`). Object ID,
+age and expiry remain unchanged; the common displacement guard still removes
+a distant object before response. No resistance roll, actor damage or area
+notification occurs at this contact.
+
+The actor receives state 8, an action-clock reset and a duration of its hurt
+animation's DSFT group length times eight simulation ticks
+(`0x462c33..0x462c85`). State 8 selects graphic slot 4, the hurt animation
+(table `0x44c390`, entry `0x44c3b0` to `0x44c191`). These are `observed` field
+writes, not a call to the full damage handler. The live battle maps them to a
+resource-timed wince, without modifying health, buffs or attack recovery.
+The actor renderer starts that animation at zero and advances it on simulation
+time, including pause and repeated-response resets. This does not implement
+all original AI decisions involving state 8 or impose a new paralysis effect.
+
+StarHaven continues the unused movement after deflection, retaining its
+four-contact-per-tick bound. An overlap latch suppresses repeat contact with
+the last actor until separation; replacing/clearing the object clears it.
+Floating-point radial heading, a positive-X fallback for coincident centers,
+the overlap policy and fixed actor positions within a call are engine choices,
+not original sector/integer-trajectory parity. A zero horizontal speed remains
+zero. Missing, zero-length or signed-word-overflowing hurt animation data uses
+the battle's existing 0.4-second wince fallback and increments the exposed
+fallback count. Valid durations come from DMONLIST's hurt animation joined to
+DSFT, never from a hard-coded monster duration. Decorative contacts for 2100
+remain unimplemented.
+
+Party contact (target type 4) is implemented and takes the ordinary **2101
+transition**, with zero velocity and age and a radius-512 source-zero area
+notification. It does not take the actor exception, redirect the projectile,
+reset actor animation, or consume resistance RNG. The 5,020-unit displacement
+guard still removes before transition. These are `observed` in
+`0x45c984..0x45ca84`: only target type 3 returns early. The party candidate is
+identified as type 4 at `0x460171`, and source-zero objects reach that search
+at `0x462818..0x462828`. After presentation the handler returns zero, so the
+indoor caller skips ordinary contact response. Source zero does not reach the
+party or actor area-damage paths identified above.
+
+The live adapter reuses the party cylinder described below for 4070. Its
+expanded sweep, fixed positions per call, and geometry/actor/party tie order
+are engine policies. An earlier actor deflection can still reach the party
+within the same tick; this transition also clears the actor-overlap latch.
+Stationary 2101 effects have no character contacts and expire at their resource
+lifetime without another notification. This does not establish original party
+collision dimensions, integer trajectories or sector-selection parity.
 
 ID 4070 uses descriptor 178, frame 246, flags `0x54` and lifetime **256 ticks**.
 It falls under gravity, but its impact action returns to ordinary geometry
@@ -1208,6 +1252,27 @@ the replacement lifetime. The installed geometry run removes all three by tick
 object probe; it does not establish the whole event's player reachability or
 actor-contact behavior. Synthetic regressions cover geometry and expiry
 transitions, gravity, failed replacement joins, pause, clearing and far impacts.
+
+`evt_info --object-reaction` applies D01 event 47's three objects with a
+controlled actor at their launch point. It verifies three contacts and
+redirects without immediate replacement, and damping against a no-actor
+control. The selected installed actor's hurt animation lasts 80 ticks; all 80
+samples resolve and use its reset simulation clock. Moving the actor aside
+and adding a controlled floor then produces three ordinary 2101 transitions
+and removals. Actor health, an active buff and the object RNG remain unchanged.
+Chest/summon outcomes and natural actor placement are excluded. Synthetic tests
+also cover angled deflection, a later wall in the same tick, overlap/re-entry,
+far removal, missing resources, dead actors, pause and reset by ID 8080.
+
+`evt_info --object-party` walks D01 event 47 from entry and applies only its
+three objects with controlled party overlap and no map geometry or actors.
+It checks three immediate 2101 transitions, age-zero stationary presentation,
+144 drawable samples over the installed 48-tick replacement lifetime, three
+removals and unchanged post-launch RNG. Companion chest/summon outcomes and
+natural encounter placement are excluded. Synthetic tests also cover a swept
+party hit, earlier actor deflection, contact ties, distant removal, the impact
+flag, absent/out-of-range party input, pause, clearing and a different resource
+lifetime. No user save is written by this probe.
 
 `evt_info --object-expiry` seeds OUTE3 event 220 at sequence 4, applying the
 three ID-4070 records through the live helper. It checks 45 timed transitions

@@ -54,9 +54,11 @@ void print_usage(const char* argv0) {
               << "  --object-spawns  audit opcode 34 operands and object/frame/item joins\n"
               << "  --object-loot  verify CD2 effects, loot pickup, map memory and saves\n"
               << "  --object-contacts verify controlled 4070 actor/party impacts\n"
+              << "  --object-party    verify controlled D01 2100 party impacts\n"
               << "  --object-actor    verify controlled 8080 actor contacts and 8081 resources\n"
               << "  --object-removal  verify OUTD3 event 200 non-actor 8080 lifecycle\n"
               << "  --object-expiry  verify OUTE3 event 220 timed object replacement\n"
+              << "  --object-reaction verify D01 actor deflection and hurt animation\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
@@ -393,6 +395,127 @@ int do_object_lifecycle(const std::filesystem::path& data_dir) {
     return passed ? 0 : 1;
 }
 
+// Verify the D01 objects against a controlled actor and floor. Chest and
+// monster-summon outcomes and natural encounter placement are excluded.
+int do_object_reaction(const std::filesystem::path& data_dir) {
+    using namespace starhaven;
+    assets::AssetCache cache;
+    cache.open(data_dir);
+    world::MapSession session;
+    data::ItemStatsTable items;
+    data::TextTable text;
+    data::MonsterStatsTable monsters;
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, "D01.blv", cache, session) !=
+            world::MapSessionError::None ||
+        data::load_item_stats(data_dir, items) != data::GameDataError::None ||
+        data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
+        data::MonsterStatsTable::parse(text, monsters) != data::MonsterStatsError::None) {
+        std::cerr << "error: incomplete object-reaction resources\n";
+        return 1;
+    }
+    std::optional<std::size_t> target;
+    std::string hurt_group;
+    std::uint32_t hurt_ticks = 0;
+    for (std::size_t i = 0; i < monsters.size(); ++i) {
+        const auto* body = session.monsters.at(i);
+        if (monsters.entries()[i].hit_points <= 0 || body == nullptr)
+            continue;
+        const auto& name = body->animation(world::MonsterAnimation::Wince);
+        const auto frames = session.sprite_frames.group(name);
+        if (!frames.empty() && frames.front().group_length > 0 &&
+            frames.front().group_length < 4096) {
+            target = i;
+            hurt_group = name;
+            hurt_ticks = static_cast<std::uint32_t>(frames.front().group_length) * 8;
+            break;
+        }
+    }
+    game::WalkState state;
+    const auto outcome = game::walk_event(session.script, 47, state, -1, session.file_name);
+    if (!target || outcome.object_spawns.size() != 1 || !outcome.unsupported.empty()) {
+        std::cerr << "error: missing object-reaction joins\n";
+        return 1;
+    }
+    const auto request = outcome.object_spawns.front().request;
+    const render::Vec3 origin{
+        static_cast<float>(request.x),
+        static_cast<float>(request.z),
+        static_cast<float>(request.y),
+    };
+    session.kind = world::MapKind::Indoor;
+    session.collision = {};
+    session.actors.clear();
+    session.actors.push_back({{}, {}, static_cast<int>(*target + 1), origin});
+    game::Battle battle;
+    battle.reset(session, monsters, 1);
+    battle.hold_slot(0, 0, 100);
+    const auto health = battle.health_of(0);
+    game::ScriptLootState loot;
+    game::ScriptLootState control_loot;
+    game::ScriptObjectEffects live;
+    game::ScriptObjectEffects control;
+    const auto created = live.spawn(request, session, items, loot);
+    bool ok = request.object_id == 2100 && created.created == 3 &&
+              created.error == game::LootSpawnError::None && created.dropped == 0 &&
+              control.spawn(request, session, items, control_loot).created == 3;
+    const auto random = loot.random;
+    const auto hit =
+        live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
+    (void)control.advance(1.0 / game::kObjectTicksPerSecond, session);
+    const auto sprites = live.sprites(session.sprite_frames);
+    const auto control_sprites = control.sprites(session.sprite_frames);
+    ok = hit.actor_contacts == 3 && hit.actor_redirects == 3 &&
+         hit.actor_animation_fallbacks == 0 && hit.detonations.empty() && hit.expired == 0 &&
+         sprites.size() == 3 && control_sprites.size() == 3 &&
+         battle.animation_of(0) == world::MonsterAnimation::Wince &&
+         battle.event_reaction_ticks(0) == 0 && ok;
+    if (!sprites.empty() && !control_sprites.empty())
+        ok = sprites.front().position.y > origin.y &&
+             sprites.front().position.y < control_sprites.front().position.y && ok;
+    // Isolate the completed reaction, then let the projectiles hit a controlled
+    // floor. Neither actor placement nor this floor reproduces natural play.
+    session.actors.front().position.x += 4096;
+    const std::array floor{
+        origin + render::Vec3{-1000, -128, -1000},
+        origin + render::Vec3{1000, -128, -1000},
+        origin + render::Vec3{1000, -128, 1000},
+        origin + render::Vec3{-1000, -128, 1000},
+    };
+    session.collision.add_polygon(floor, {0, 1, 0});
+    const data::SpellStatsTable spells;
+    std::array<game::Character, 4> party{};
+    const render::Vec3 distant{1000000, 0, 1000000};
+    std::size_t drawable = 0;
+    std::size_t detonations = 0;
+    std::size_t expired = 0;
+    for (std::uint32_t tick = 0;
+         tick < 4096 && (live.active_count() > 0 || battle.event_reaction_ticks(0)); ++tick) {
+        if (const auto age = battle.event_reaction_ticks(0)) {
+            const auto pick = game::choose_sprite(session.sprite_frames, hurt_group, *age);
+            ok = tick < hurt_ticks && *age == tick / 8 && !pick.entry.empty() && pick.scale > 0 &&
+                 !cache.sprite(pick.entry, pick.palette).empty() && ok;
+            ++drawable;
+        }
+        (void)battle.update(1.0f / game::kObjectTicksPerSecond, session, monsters, spells, party,
+                            distant);
+        const auto step =
+            live.advance(1.0 / game::kObjectTicksPerSecond, session, battle, monsters, loot);
+        detonations += step.detonations.size();
+        expired += step.expired;
+        ok = step.actor_contacts == 0 && step.actor_redirects == 0 && ok;
+    }
+    ok = live.active_count() == 0 && detonations == 3 && expired == 3 && drawable == hurt_ticks &&
+         battle.animation_of(0) == world::MonsterAnimation::Stand &&
+         battle.health_of(0) == health && battle.slot_up(0, 0) && loot.random == random && ok;
+    std::cout << "OBJECT_REACTION " << (ok ? "PASS" : "FAIL")
+              << " object=2100 actor_contacts=" << hit.actor_contacts
+              << " redirects=" << hit.actor_redirects << " hurt_ticks=" << hurt_ticks
+              << " drawable_hurt_samples=" << drawable << " later_impacts=" << detonations
+              << " expired=" << expired
+              << " controlled_actor_and_floor=1 chest_and_summon=excluded\n";
+    return ok ? 0 : 1;
+}
+
 // Walk the D01 event, then apply its object requests. Chest and monster-summon
 // outcomes are outside this object-lifecycle probe; no actor-contact claim.
 int do_object_impact(const std::filesystem::path& data_dir) {
@@ -573,17 +696,20 @@ int do_object_expiry(const std::filesystem::path& data_dir) {
     return ok ? 0 : 1;
 }
 
-// Skip the unsupported timer record, seed the activation counter, and apply
-// only the object requests. Companion summons and actor contacts are excluded.
-int do_object_contacts(const std::filesystem::path& data_dir) {
+// Apply only object requests with controlled contacts: D01 2100 party impact
+// or OUTE3 4070 actor/party impacts. Natural placement and companion effects
+// are excluded; the OUTE3 case starts after its unsupported earlier record.
+int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t object_id = 4070) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
+    const bool party_only = object_id == 2100;
+    const auto* const map = party_only ? "D01.blv" : "OUTE3.odm";
     world::MapSession session;
     data::ItemStatsTable items;
     data::TextTable text;
     data::MonsterStatsTable monsters;
-    if (world::load_map_session(data_dir / "Games.lod", data_dir, "OUTE3.odm", cache, session) !=
+    if (world::load_map_session(data_dir / "Games.lod", data_dir, map, cache, session) !=
             world::MapSessionError::None ||
         data::load_item_stats(data_dir, items) != data::GameDataError::None ||
         data::load_text_table(data_dir, "MONSTERS.TXT", text) != data::GameDataError::None ||
@@ -595,12 +721,13 @@ int do_object_contacts(const std::filesystem::path& data_dir) {
                                              [](const auto& row) { return row.hit_points > 0; });
     const auto& descriptors = session.object_descriptors.entries();
     const auto replacement =
-        std::ranges::find(descriptors, 4071, &world::ObjectDescriptor::object_id);
+        std::ranges::find(descriptors, object_id + 1, &world::ObjectDescriptor::object_id);
     game::WalkState state;
-    const auto outcome = game::walk_event(session.script, 220, state, 4, session.file_name);
+    const auto outcome = game::walk_event(session.script, party_only ? 47 : 220, state,
+                                          party_only ? -1 : 4, session.file_name);
     if (target == monsters.entries().end() || replacement == descriptors.end() ||
         replacement->sprite_frame_index >= session.sprite_frames.size() ||
-        outcome.object_spawns.size() != 3 || !outcome.unsupported.empty()) {
+        outcome.object_spawns.size() != (party_only ? 1U : 3U) || !outcome.unsupported.empty()) {
         std::cerr << "error: missing object-contacts joins\n";
         return 1;
     }
@@ -613,6 +740,8 @@ int do_object_contacts(const std::filesystem::path& data_dir) {
     std::size_t removed = 0;
     std::size_t drawable = 0;
     for (const bool party_target : {false, true}) {
+        if (party_only && !party_target)
+            continue;
         for (const auto& spawn : outcome.object_spawns) {
             const auto& request = spawn.request;
             const render::Vec3 feet{
@@ -635,8 +764,8 @@ int do_object_contacts(const std::filesystem::path& data_dir) {
             game::ScriptObjectEffects live;
             const auto created = live.spawn(request, session, items, loot);
             const auto random = loot.random;
-            ok = request.object_id == 4070 && created.error == game::LootSpawnError::None &&
-                 created.created == 15 && created.dropped == 0 && ok;
+            ok = request.object_id == object_id && created.error == game::LootSpawnError::None &&
+                 created.created == (party_only ? 3U : 15U) && created.dropped == 0 && ok;
             const auto hit = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
                                           monsters, loot, eye);
             actor_contacts += hit.actor_contacts;
@@ -644,7 +773,8 @@ int do_object_contacts(const std::filesystem::path& data_dir) {
             ok = hit.actor_contacts == (party_target ? 0U : created.created) &&
                  hit.party_contacts == (party_target ? created.created : 0U) &&
                  hit.detonations.size() == created.created && hit.actor_accepted == 0 &&
-                 hit.expired == 0 && battle.health_of(0) == health &&
+                 hit.expired == 0 && hit.actor_redirects == 0 &&
+                 hit.actor_animation_fallbacks == 0 && battle.health_of(0) == health &&
                  (party_target || battle.slot_up(0, 0)) && ok;
             for (const auto& detonation : hit.detonations)
                 ok = detonation.radius == 512 && ok;
@@ -674,12 +804,15 @@ int do_object_contacts(const std::filesystem::path& data_dir) {
             ok = live.active_count() == 0 && loot.random == random && ok;
         }
     }
-    ok = actor_contacts == 45 && party_contacts == 45 && removed == 90 && ok;
-    std::cout << "OBJECT_CONTACTS " << (ok ? "PASS" : "FAIL")
-              << " object=4070 replacement=4071 actor_contacts=" << actor_contacts
-              << " party_contacts=" << party_contacts << " removed=" << removed
-              << " drawable_samples=" << drawable << " lifetime=" << replacement->lifetime
-              << " controlled_overlap=1 map_geometry=excluded earlier_records=excluded\n";
+    ok = actor_contacts == (party_only ? 0U : 45U) && party_contacts == (party_only ? 3U : 45U) &&
+         removed == (party_only ? 3U : 90U) && ok;
+    std::cout << (party_only ? "OBJECT_PARTY " : "OBJECT_CONTACTS ") << (ok ? "PASS" : "FAIL")
+              << " object=" << object_id << " replacement=" << object_id + 1
+              << " actor_contacts=" << actor_contacts << " party_contacts=" << party_contacts
+              << " removed=" << removed << " drawable_samples=" << drawable
+              << " lifetime=" << replacement->lifetime
+              << " controlled_overlap=1 map_geometry=excluded companion_effects=excluded"
+              << " event_entry=" << (party_only ? "start" : "sequence_4") << '\n';
     return ok ? 0 : 1;
 }
 
@@ -3563,6 +3696,13 @@ int main(int argc, char** argv) {
     }
 
     const std::string stem = argv[1];
+    if (stem == "--object-party") {
+        if (argc != 2) {
+            print_usage(argv[0]);
+            return 2;
+        }
+        return do_object_contacts(*install / "data", 2100);
+    }
     if (stem == "--object-contacts") {
         if (!install) {
             std::cerr << "error: game installation not found\n";
@@ -3590,6 +3730,13 @@ int main(int argc, char** argv) {
             return 2;
         }
         return do_object_expiry(*install / "data");
+    }
+    if (stem == "--object-reaction") {
+        if (!install) {
+            std::cerr << "error: game installation not found\n";
+            return 1;
+        }
+        return do_object_reaction(*install / "data");
     }
     if (stem == "--object-impact") {
         if (argc != 2) {

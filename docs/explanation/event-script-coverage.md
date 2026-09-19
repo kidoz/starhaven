@@ -54,8 +54,10 @@ correcting its tentative party-coordinate label. Its
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
 adapter; ID 8080 also has its resisted actor response and 8081 replacement,
-and ID 4070 transitions to 4071 on actor or party contact. Other character contacts, terrain-material responses, trails, sound and other
-original object behavior remain follow-up work.
+ID 4070 transitions to 4071 on actor or party contact, and ID 2100 deflects from
+actors with a resource-timed hurt animation and transitions to 2101 on party
+contact. Other character contacts, terrain material responses, trails, sound
+and other original object behavior remain follow-up work.
 
 ## Reproduce
 
@@ -295,6 +297,15 @@ replacement frames; all three finish by tick 253 in the inspected installation.
 Actor contacts and the event's companion chest/summon outcomes are outside this
 probe. See the [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle)
 for the actor-contact exception and remaining presentation/persistence gaps.
+The separate `--object-reaction` probe verifies that exception with controlled
+actor placement: three contacts/deflections, no immediate replacement, 80 valid
+hurt-animation samples on a reset simulation clock, and later floor impact and
+expiry. It preserves actor health, an active buff and the object RNG. This is
+not natural encounter reachability or full original AI-state parity.
+The `--object-party` probe exercises the distinct party path: three immediate
+2101 transitions and removals, with 144 drawable stationary samples over its
+48-tick resource lifetime. It uses controlled party overlap, excludes map
+geometry and companion outcomes, and preserves the object RNG.
 
 `evt_info --object-expiry` seeds OUTE3 event 220 at sequence 4: 45 ID-4070
 objects change into ID 4071 at tick 256 and disappear at tick 336, with 3,600
