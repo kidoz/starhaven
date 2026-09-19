@@ -207,7 +207,10 @@ The audit reduces the old sections to these bounded unknowns:
   prevent full event acceptance. OUTD3 event 200's seeded ID-8080 path now
   checks flight, geometry removal and expiry without detonation or replacement.
   Its separate resistance/actor-state/8081 path is covered by controlled
-  installed-resource actor checks; natural timer activation remains unverified.
+  installed-resource actor checks. Party contact now removes immediately,
+  without that actor response or RNG draw; all three requests pass controlled
+  overlap and no-party comparisons. Natural timer activation and original
+  collision selection remain unverified.
   Temporary effects clear
   on successful map open/load as an explicit engine policy. Exact original
   collision, presentation and temporary persistence remain unverified. Next

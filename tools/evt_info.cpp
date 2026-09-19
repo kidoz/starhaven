@@ -1011,6 +1011,49 @@ int do_object_removal(const std::filesystem::path& data_dir) {
     ok = created == 3 && expired == created && air_expired == created && early_removals > 0 &&
          live.active_count() == 0 && airborne.active_count() == 0 && drawable > 0 &&
          loot.objects.empty() && air_loot.objects.empty() && ok;
+    // Isolate each request against the party. Retain real descriptors/frames,
+    // but exclude natural placement, terrain and actors from this witness.
+    session.kind = world::MapKind::Indoor;
+    session.collision = {};
+    session.actors.clear();
+    game::Battle battle;
+    const data::MonsterStatsTable monsters;
+    std::size_t party_contacts = 0;
+    std::size_t party_removed = 0;
+    std::size_t controls_alive = 0;
+    for (const auto& spawn : outcome.object_spawns) {
+        game::ScriptObjectEffects touching;
+        game::ScriptObjectEffects control;
+        game::ScriptLootState touching_loot;
+        game::ScriptLootState control_loot;
+        const auto& request = spawn.request;
+        const render::Vec3 eye{
+            static_cast<float>(request.x),
+            static_cast<float>(request.z) + game::kEyeHeight,
+            static_cast<float>(request.y),
+        };
+        ok = touching.spawn(request, session, items, touching_loot).created == 1 &&
+             control.spawn(request, session, items, control_loot).created == 1 && ok;
+        const auto random = touching_loot.random;
+        ok = touching.advance(0, session, battle, monsters, touching_loot, eye).expired == 0 && ok;
+        const auto hit = touching.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
+                                          monsters, touching_loot, eye);
+        const auto miss = control.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
+                                          monsters, control_loot);
+        party_contacts += hit.party_contacts;
+        party_removed += hit.expired;
+        controls_alive += control.active_count();
+        ok = hit.party_contacts == 1 && hit.expired == 1 && hit.actor_contacts == 0 &&
+             hit.actor_accepted == 0 && hit.actor_redirects == 0 &&
+             hit.missing_actor_replacements == 0 && hit.detonations.empty() &&
+             touching.active_count() == 0 && touching.sprites(session.sprite_frames).empty() &&
+             touching_loot.random == random && control_loot.random == random &&
+             miss.party_contacts == 0 && miss.expired == 0 && miss.detonations.empty() &&
+             control.active_count() == 1 && ok;
+        const auto later = touching.advance(1, session, battle, monsters, touching_loot, eye);
+        ok = later.party_contacts == 0 && later.expired == 0 && later.detonations.empty() && ok;
+    }
+    ok = party_contacts == 3 && party_removed == 3 && controls_alive == 3 && ok;
     std::cout << "OBJECT_REMOVAL " << (ok ? "PASS" : "FAIL")
               << " event=200 entry=1 counter105=1 object=8080 created=" << created
               << " removed=" << expired << " geometry_removals=" << early_removals
@@ -1018,7 +1061,10 @@ int do_object_removal(const std::filesystem::path& data_dir) {
               << " drawable_samples=" << drawable
               << " descriptor=" << (flight - descriptors.begin()) << " flags=" << flight->flags
               << " lifetime=" << flight->lifetime << " frame=" << flight->sprite_frame_index
-              << " detonations=0 actor_contacts=not_checked summons=not_applied\n";
+              << " detonations=0 party_contacts=" << party_contacts
+              << " party_removed=" << party_removed << " party_controls_alive=" << controls_alive
+              << " party_overlap=controlled party_geometry=excluded"
+              << " actor_contacts=not_checked summons=not_applied\n";
     return ok ? 0 : 1;
 }
 

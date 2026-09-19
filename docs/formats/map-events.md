@@ -1150,6 +1150,24 @@ a missing ID-8081 resource does not prevent a non-actor launch. These are
 `0x45d7a2..0x45d7ad`, `0x45c760..0x45c769`, with expiry dispatch at
 `0x463939..0x463951`.
 
+Party contact is also implemented: target type 4 follows this immediate removal
+path, without reaching the actor-only resistance gate, animation reset or buff
+helper. It requires no 8081 resource, emits no area notification and consumes
+no resistance RNG. The party candidate is type 4 at `0x460171`; event source
+zero reaches the search at `0x462818..0x462828`. The removal branch returns
+zero, so the indoor caller skips ordinary collision response. These are
+`observed` branch/return facts, not a source-zero approximation of the actor
+response.
+
+StarHaven supplies the same optional movement-body cylinder described for 4070.
+An earlier party hit removes before an actor callback; an earlier actor hit
+retains its distinct resistance and replacement path. Geometry wins equal-time
+contacts, then stable actor order, then the party. Those selection rules,
+fixed bodies per call and party dimensions are engine policies, not recovered
+original sector or moving-target parity. Missing party input disables party
+contacts for isolated probes. Removed objects produce no repeat contact or
+expiry notification on later ticks.
+
 Actor contact takes a separate, implemented path (`observed` at
 `0x45d7b3..0x45d8e6`). The gate at `0x421e90..0x421f17` uses the actor's
 magic resistance and level. Immunity (resistance 200 or above) rejects without
@@ -1178,7 +1196,7 @@ positions within a simulation call are **StarHaven policies**, not proven
 original sector/actor selection parity. Actor resistance draws use the saved
 per-map object RNG; tick-first processing preserves their order across frame
 batches for fixed actor positions. Ordering against MM6's process-wide RNG
-remains unverified. Other object families' actor paths, party/decoration
+remains unverified. Other object families' character paths, decorative
 contacts, trails and sound remain open.
 
 The binary descriptor already contains its effective lifetime. The text-table
@@ -1300,9 +1318,13 @@ contacts, pause, clearing and the distant-contact cutoff.
 activation counter 105 seeded to 1. It checks the disabled/capped branches,
 three live ID-8080 requests, valid flight sprites and removal without any
 replacement or detonation. A second run of the same requests in empty geometry
-checks expiry at the descriptor lifetime. The unsupported timer record at
-sequence 0 and companion monster summons are excluded, as are character
-contacts; this is not natural player-reachability or whole-event acceptance.
+checks expiry at the descriptor lifetime. A separate controlled-party pass
+places the party at each launch origin without actors or geometry: all three
+objects remove on their first tick, with no replacement, detonation or RNG
+change. The same three requests remain active in no-party controls. The
+unsupported timer record at sequence 0, companion monster summons, natural
+party placement and actor contacts are excluded; this is not natural
+player-reachability or whole-event acceptance.
 
 `evt_info --object-actor` uses the first seeded OUTD3 event-200 request with
 controlled actor overlap and no map geometry. It loads real monster statistics,
