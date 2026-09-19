@@ -137,8 +137,10 @@ void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
         finish(object, result);
         return;
     }
-    if (object.definition.id == 2100) {
-        if (render::length(object.position - object.origin) >= 5020.0f) {
+    if (object.definition.id == 2081 || object.definition.id == 2100) {
+        // ID 2081 bypasses the impact handler, including its displacement guard.
+        if (object.definition.id == 2100 &&
+            render::length(object.position - object.origin) >= 5020.0f) {
             finish(object, result);
             return;
         }
@@ -158,8 +160,8 @@ void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
         object.touching_actor = actor.index;
         object.resting = false;
         ++result.actor_redirects;
-        if (actors.react_2100)
-            actors.react_2100(actor.index);
+        if (actors.react_to_actor)
+            actors.react_to_actor(actor.index);
         return;
     }
     // The common displacement guard runs before the resistance draw.
@@ -185,15 +187,17 @@ void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
 std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3 to,
                                         float nearest, TemporaryObjectStep& result,
                                         const ObjectContacts* contacts) {
-    if (contacts == nullptr || (object.definition.flags & 0x40U) == 0 ||
-        (object.definition.id != 1050 && object.definition.id != 2100 &&
-         object.definition.id != 4070 && object.definition.id != 8080))
+    const bool ordinary_actor = object.definition.id == 2081;
+    const bool impact_contacts = (object.definition.flags & 0x40U) != 0 &&
+                                 (object.definition.id == 1050 || object.definition.id == 2100 ||
+                                  object.definition.id == 4070 || object.definition.id == 8080);
+    if (contacts == nullptr || (!ordinary_actor && !impact_contacts))
         return std::nullopt;
     const ObjectActor* selected = nullptr;
     bool party_hit = false;
     if (object.definition.id != 8080 || contacts->apply) {
         for (const auto& actor : contacts->bodies) {
-            if (object.definition.id == 2100 && object.touching_actor == actor.index)
+            if (object.touching_actor == actor.index)
                 continue;
             if (const auto fraction = body_fraction(from, to, object.definition.radius,
                                                     actor.position, actor.radius, actor.height);
@@ -203,7 +207,7 @@ std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 fr
             }
         }
     }
-    if (contacts->party) {
+    if (impact_contacts && contacts->party) {
         const auto& party = *contacts->party;
         if (const auto fraction = body_fraction(from, to, object.definition.radius, party.position,
                                                 party.radius, party.height);
@@ -264,7 +268,7 @@ void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collisi
         const auto hit = collision.sweep_sphere(center, target, object.definition.radius, terrain);
         if (const auto fraction = contact_characters(
                 object, center, target, hit ? hit->fraction : 2.0f, result, contacts)) {
-            if (!object.active || object.definition.id != 2100)
+            if (!object.active || (object.definition.id != 2081 && object.definition.id != 2100))
                 return;
             remaining *= 1 - *fraction;
             continue;

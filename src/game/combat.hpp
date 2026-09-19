@@ -463,9 +463,9 @@ public:
                                                : world::MonsterAnimation::Stand;
     }
 
-    // The direct 2100 actor response selects hurt animation and resets its
+    // The direct 2081/2100 actor response selects hurt animation and resets its
     // action clock; it does not inflict damage, cure buffs or change recovery.
-    void react_to_event_object_2100(std::size_t actor, float seconds) noexcept {
+    void react_to_event_object(std::size_t actor, float seconds) noexcept {
         if (!alive(actor) || !std::isfinite(seconds) || seconds <= 0)
             return;
         combatants_[actor].wince = seconds;

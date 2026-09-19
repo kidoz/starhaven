@@ -727,7 +727,7 @@ TEST_CASE("live 1050 and 4070 touch actors and the party without damage or resis
     battle.reset(f.session, monsters, 1);
     battle.hold_slot(0, 0, 100);
     battle.afflict(0, MonsterCondition::Paralyze, 100);
-    battle.react_to_event_object_2100(0, 1);
+    battle.react_to_event_object(0, 1);
     const auto health = battle.health_of(0);
     bool actor_hit = true;
     bool party_hit = false;
@@ -782,8 +782,11 @@ TEST_CASE("live 1050 and 4070 touch actors and the party without damage or resis
     REQUIRE(live.active_count() == 0);
 }
 
-TEST_CASE("2100 live actor reaction uses resource duration and a resettable simulation clock",
-          "[script-loot]") {
+TEST_CASE(
+    "2081 and 2100 live actor reactions use resource duration and a resettable simulation clock",
+    "[script-loot]") {
+    const auto id = GENERATE(2081U, 2100U);
+    CAPTURE(id);
     Fixture f(8);  // 8 animation units = 64 simulation ticks = half a second
     data::TextTable text;
     REQUIRE(data::TextTable::parse_body("#\tPicture\tName\tLVL\tHP\tMag\r\n"
@@ -818,7 +821,7 @@ TEST_CASE("2100 live actor reaction uses resource duration and a resettable simu
     ScriptLootState loot;
     ScriptObjectEffects live;
     auto req = request();
-    req.object_id = 2100;
+    req.object_id = id;
     req.speed = 128;
     REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
     const auto random = loot.random;

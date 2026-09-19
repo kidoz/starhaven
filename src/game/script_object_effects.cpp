@@ -79,7 +79,7 @@ TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::Ma
         },
     };
     std::size_t animation_fallbacks = 0;
-    contacts.react_2100 = [&](std::size_t actor) {
+    contacts.react_to_actor = [&](std::size_t actor) {
         const auto id = static_cast<std::size_t>(session.actors[actor].monster_id);
         const auto* body = session.monsters.at(id - 1);
         const auto group =
@@ -93,7 +93,7 @@ TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::Ma
             seconds = static_cast<float>(group.front().group_length) / 16.0f;
         else
             ++animation_fallbacks;
-        battle.react_to_event_object_2100(actor, seconds);
+        battle.react_to_event_object(actor, seconds);
     };
     if (party_eye)
         contacts.party =

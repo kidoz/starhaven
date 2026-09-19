@@ -38,7 +38,7 @@ struct TemporaryObject {
     std::uint32_t age = 0;  // simulation ticks, never wall-clock time
     bool active = true;
     bool resting = false;
-    // Engine overlap policy: 2100 reacts once until it leaves this actor's body.
+    // Engine overlap policy: each 2081/2100 reacts once until it leaves this body.
     std::optional<std::size_t> touching_actor = std::nullopt;
 };
 
@@ -72,7 +72,8 @@ struct ObjectContacts {
     std::span<const ObjectActor> bodies;
     std::function<bool(std::size_t)> apply;           // ID 8080 resistance gate and state response
     std::optional<ObjectParty> party = std::nullopt;  // supported impact-enabled families
-    std::function<void(std::size_t)> react_2100 = nullptr;
+    // Ordinary collision response for IDs 2081 and 2100.
+    std::function<void(std::size_t)> react_to_actor = nullptr;
 };
 struct TemporaryObjectStep {
     std::size_t expired = 0;

@@ -931,11 +931,13 @@ TEST_CASE("far 1050 and 4070 character contacts remove without detonation or cal
     REQUIRE(calls == 0);
 }
 
-TEST_CASE("2100 redirects away from actors without transforming or resetting age",
+TEST_CASE("2081 and 2100 redirect away from actors without transforming or resetting age",
           "[temporary-objects]") {
+    const auto id = GENERATE(2081U, 2100U);
+    CAPTURE(id);
     const Resources resources;
     TemporaryObjects live;
-    auto req = request(2100);
+    auto req = request(id);
     req.scatter = true;
     req.speed = 32767;
     spawn(live, resources, req);
@@ -951,7 +953,7 @@ TEST_CASE("2100 redirects away from actors without transforming or resetting age
             return false;
         },
     };
-    contacts.react_2100 = [&](std::size_t actor) {
+    contacts.react_to_actor = [&](std::size_t actor) {
         REQUIRE(actor == 0);
         ++reactions;
     };
@@ -975,32 +977,37 @@ TEST_CASE("2100 redirects away from actors without transforming or resetting age
     REQUIRE(gates == 0);
     REQUIRE(reactions == 1);
     const auto& after = live.slots().front();
-    if (wall) {
+    if (wall && id == 2100) {
         REQUIRE(step.detonations.size() == 1);
         REQUIRE(after.definition.id == 2101);
         REQUIRE(after.age == 0);
     } else {
         REQUIRE(step.detonations.empty());
-        REQUIRE(after.definition.id == 2100);
+        REQUIRE(after.definition.id == id);
         REQUIRE(after.age == 1);
-        REQUIRE(after.velocity.x < 0);
+        REQUIRE((wall ? after.velocity.x > 0 : after.velocity.x < 0));
+        REQUIRE(step.bounces == (wall ? 1U : 0U));
         REQUIRE(after.velocity.z < 0);
         constexpr float kDamping = 58500.0f / 65536.0f;
         REQUIRE(std::hypot(after.velocity.x, after.velocity.z) ==
                 Approx(std::hypot(before.velocity.x, before.velocity.z) * kDamping));
-        REQUIRE(after.velocity.y == Approx((before.velocity.y - 5) * kDamping));
+        const float gravity = id == 2081 ? 0.0f : 5.0f;
+        REQUIRE(after.velocity.y == Approx((before.velocity.y - gravity) * kDamping));
+        REQUIRE(after.definition.lifetime == before.definition.lifetime);
         REQUIRE(after.active);
     }
 }
 
-TEST_CASE("2100 overlapping actors react once until separated", "[temporary-objects]") {
+TEST_CASE("2081 and 2100 overlapping actors react once until separated", "[temporary-objects]") {
+    const auto id = GENERATE(2081U, 2100U);
+    CAPTURE(id);
     const Resources resources;
     TemporaryObjects live;
-    spawn(live, resources, request(2100));
+    spawn(live, resources, request(id));
     std::array actors{ObjectActor{0, {0, 100, 0}, 20, 200}};
     int reactions = 0;
     ObjectContacts contacts{actors, {}};
-    contacts.react_2100 = [&](std::size_t) { ++reactions; };
+    contacts.react_to_actor = [&](std::size_t) { ++reactions; };
     REQUIRE(live.advance(1, {}, nullptr, &contacts).actor_redirects == 1);
     REQUIRE(live.advance(10, {}, nullptr, &contacts).actor_contacts == 0);
     REQUIRE(reactions == 1);
@@ -1010,10 +1017,41 @@ TEST_CASE("2100 overlapping actors react once until separated", "[temporary-obje
     REQUIRE(live.advance(1, {}, nullptr, &contacts).actor_redirects == 1);
     REQUIRE(reactions == 2);
     REQUIRE(live.slots().front().age == 13);
-    REQUIRE(live.slots().front().definition.id == 2100);
+    REQUIRE(live.slots().front().definition.id == id);
     const auto rest = live.advance(1000, floor());
-    REQUIRE(rest.detonations.size() == 1);
+    REQUIRE(rest.detonations.size() == (id == 2100 ? 1U : 0U));
     REQUIRE(rest.expired == 1);
+}
+
+TEST_CASE("2081 distant actor contact preserves its original expiry without an impact action",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(2081);
+    req.speed = 32767;
+    spawn(live, resources, req);
+    const std::array actors{ObjectActor{0, {0, 5500, 0}, 2, 10}};
+    int reactions = 0;
+    ObjectContacts contacts{actors, {}};
+    contacts.react_to_actor = [&](std::size_t) { ++reactions; };
+    REQUIRE(live.advance(0, {}, nullptr, &contacts).actor_contacts == 0);
+    const auto hit = live.advance(24, {}, nullptr, &contacts);
+    REQUIRE(hit.actor_contacts == 1);
+    REQUIRE(hit.actor_redirects == 1);
+    REQUIRE(reactions == 1);
+    REQUIRE(hit.expired == 0);
+    REQUIRE(hit.detonations.empty());
+    const auto& object = live.slots().front();
+    REQUIRE(object.definition.id == 2081);
+    REQUIRE(object.age == 24);
+    REQUIRE(object.position.y > 5500);
+    REQUIRE(object.velocity.y == Approx(32767.0f * 58500 / 65536));
+    REQUIRE(live.advance(23, {}, nullptr, &contacts).expired == 0);
+    const auto expiry = live.advance(1, {}, nullptr, &contacts);
+    REQUIRE(expiry.expired == 1);
+    REQUIRE(expiry.detonations.empty());
+    REQUIRE(live.active_count() == 0);
+    REQUIRE(reactions == 1);
 }
 
 TEST_CASE("distant 2100 character contact removes before reaction or detonation",
@@ -1026,7 +1064,7 @@ TEST_CASE("distant 2100 character contact removes before reaction or detonation"
     const std::array actors{ObjectActor{0, {0, 5500, 0}, 2, 10}};
     int reactions = 0;
     ObjectContacts contacts{actors, {}};
-    contacts.react_2100 = [&](std::size_t) { ++reactions; };
+    contacts.react_to_actor = [&](std::size_t) { ++reactions; };
     SECTION("actor") {}
     SECTION("party") {
         contacts.bodies = {};
@@ -1051,7 +1089,7 @@ TEST_CASE("2100 party contact replaces once and respects earlier contacts", "[te
     std::array actors{ObjectActor{0, {0, 130, 0}, 2, 10}};
     std::size_t reactions = 0;
     int resistance_calls = 0;
-    contacts.react_2100 = [&](std::size_t) { ++reactions; };
+    contacts.react_to_actor = [&](std::size_t) { ++reactions; };
     contacts.apply = [&](std::size_t) {
         ++resistance_calls;
         return true;
