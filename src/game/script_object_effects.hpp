@@ -21,7 +21,8 @@ public:
     [[nodiscard]] TemporaryObjectStep advance(double seconds, const world::MapSession& session,
                                               Battle& battle,
                                               const data::MonsterStatsTable& monsters,
-                                              ScriptLootState& loot);
+                                              ScriptLootState& loot,
+                                              std::optional<render::Vec3> party_eye = std::nullopt);
     [[nodiscard]] std::vector<ActiveLaunch> sprites(const world::SpriteFrameTable& frames) const;
     [[nodiscard]] std::size_t active_count() const noexcept { return temporary_.active_count(); }
     void clear() noexcept;

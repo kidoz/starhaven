@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "game/combat.hpp"
+#include "game/player.hpp"
 
 namespace starhaven::game {
 
@@ -49,7 +50,8 @@ TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::Ma
 TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::MapSession& session,
                                                  Battle& battle,
                                                  const data::MonsterStatsTable& monsters,
-                                                 ScriptLootState& loot) {
+                                                 ScriptLootState& loot,
+                                                 std::optional<render::Vec3> party_eye) {
     const auto ticks = elapsed_ticks(seconds);
     if (ticks == 0 || temporary_.active_count() == 0)
         return {};
@@ -69,13 +71,16 @@ TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::Ma
         });
     }
     Mm6Random random{loot.random};
-    const ObjectActorContacts contacts{
+    ObjectContacts contacts{
         bodies,
         [&](std::size_t actor) {
             const auto id = static_cast<std::size_t>(session.actors[actor].monster_id);
             return battle.accept_event_object_8080(actor, monsters.entries()[id - 1], random);
         },
     };
+    if (party_eye)
+        contacts.party =
+            ObjectParty{*party_eye - render::Vec3{0, kEyeHeight, 0}, kBodyRadius, kBodyHeight};
     auto result = temporary_.advance(ticks, session.collision,
                                      session.outdoor() ? &session.terrain : nullptr, &contacts);
     loot.random = random.state();

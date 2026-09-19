@@ -607,7 +607,7 @@ TEST_CASE("8080 actor contacts replace only accepted hits and preserve non-actor
         ObjectActor{8, {0, 130, 0}, 2, 10},
         ObjectActor{7, {0, 110, 0}, 2, 10},
     };
-    const ObjectActorContacts contacts{
+    const ObjectContacts contacts{
         bodies,
         [&](std::size_t actor) {
             ++calls;
@@ -688,7 +688,7 @@ TEST_CASE("8080 actor sweep handles misses, overlap and distance guard", "[tempo
         body.position.y = 100;
         ticks = 1;
     }
-    const ObjectActorContacts contacts{
+    const ObjectContacts contacts{
         std::span{&body, 1},
         [&](std::size_t) {
             ++calls;
@@ -712,7 +712,7 @@ TEST_CASE("actor resistance callbacks retain chronological order across frame ba
         ObjectActor{1, {100, 106, 0}, 2, 10},
     };
     std::vector<std::size_t> order;
-    const ObjectActorContacts contacts{
+    const ObjectContacts contacts{
         bodies,
         [&](std::size_t actor) {
             order.push_back(actor);
@@ -758,7 +758,7 @@ TEST_CASE("scattered 8080 sweeps actor sides without tunneling", "[temporary-obj
         hit = false;
     }
     int calls = 0;
-    const ObjectActorContacts contacts{
+    const ObjectContacts contacts{
         std::span{&body, 1},
         [&](std::size_t) {
             ++calls;
@@ -769,4 +769,116 @@ TEST_CASE("scattered 8080 sweeps actor sides without tunneling", "[temporary-obj
     REQUIRE(step.actor_contacts == (hit ? 1U : 0U));
     REQUIRE(calls == (hit ? 1 : 0));
     REQUIRE(live.active_count() == (hit ? 0U : 1U));
+}
+
+TEST_CASE("4070 character impact transforms once without a resistance gate",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(4070);
+    req.speed = 4096;
+    spawn(live, resources, req);
+    const std::array actors{ObjectActor{0, {0, 110, 0}, 2, 10}};
+    ObjectContacts contacts{actors, {}};
+    bool party_hit = false;
+    bool geometry_hit = false;
+    world::CollisionWorld collision;
+    SECTION("actor contact needs no resistance callback") {}
+    SECTION("earlier party wins over a later actor") {
+        contacts.party = ObjectParty{{0, 106, 0}, 2, 10};
+        party_hit = true;
+    }
+    SECTION("earlier actor wins over a later party") {
+        contacts.party = ObjectParty{{0, 130, 0}, 2, 10};
+    }
+    SECTION("actor wins an actor-party tie") {
+        contacts.party = ObjectParty{{0, 110, 0}, 2, 10};
+    }
+    SECTION("party alone is contacted") {
+        contacts.bodies = {};
+        contacts.party = ObjectParty{{0, 110, 0}, 2, 10};
+        party_hit = true;
+    }
+    SECTION("geometry wins a simultaneous contact and preserves 4070") {
+        const std::array ceiling{
+            render::Vec3{-100, 110, -100},
+            render::Vec3{-100, 110, 100},
+            render::Vec3{100, 110, 100},
+            render::Vec3{100, 110, -100},
+        };
+        collision.add_polygon(ceiling, {0, -1, 0});
+        geometry_hit = true;
+    }
+    const auto step = live.advance(1, collision, nullptr, &contacts);
+    REQUIRE(step.actor_contacts == (!party_hit && !geometry_hit ? 1U : 0U));
+    REQUIRE(step.party_contacts == (party_hit ? 1U : 0U));
+    REQUIRE(step.actor_accepted == 0);
+    REQUIRE(step.expired == 0);
+    REQUIRE(step.detonations.size() == (geometry_hit ? 0U : 1U));
+    if (geometry_hit) {
+        REQUIRE(live.slots().front().definition.id == 4070);
+    } else {
+        REQUIRE(step.detonations.front().radius == 512);
+        REQUIRE(live.slots().front().definition.id == 4071);
+        REQUIRE(live.slots().front().age == 0);
+        const auto position = live.slots().front().position;
+        const auto flight = live.advance(63, collision, nullptr, &contacts);
+        REQUIRE(flight.detonations.empty());
+        REQUIRE(flight.actor_contacts == 0);
+        REQUIRE(flight.party_contacts == 0);
+        REQUIRE(render::length(live.slots().front().position - position) == 0);
+        REQUIRE(live.advance(1, collision, nullptr, &contacts).expired == 1);
+        REQUIRE(live.active_count() == 0);
+    }
+}
+
+TEST_CASE("settled 4070 remains sensitive to bodies entering its space", "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(4070);
+    req.speed = 0;
+    spawn(live, resources, req);
+    const auto collision = floor();
+    (void)live.advance(100, collision);
+    REQUIRE(live.slots().front().resting);
+    REQUIRE(live.slots().front().definition.id == 4070);
+    ObjectContacts contacts;
+    const std::array actors{ObjectActor{0, {0, 0, 0}, 2, 10}};
+    SECTION("actor enters") {
+        contacts.bodies = actors;
+    }
+    SECTION("party enters") {
+        contacts.party = ObjectParty{{0, 0, 0}, 2, 10};
+    }
+    REQUIRE(live.advance(0, collision, nullptr, &contacts).detonations.empty());
+    REQUIRE(live.advance(1, collision, nullptr, &contacts).detonations.size() == 1);
+    REQUIRE(live.slots().front().definition.id == 4071);
+}
+
+TEST_CASE("far 4070 character contacts remove without detonation or callbacks",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(4070);
+    req.speed = 32767;
+    spawn(live, resources, req);
+    const std::array actors{ObjectActor{0, {0, 5500, 0}, 2, 10}};
+    int calls = 0;
+    ObjectContacts contacts{
+        actors,
+        [&](std::size_t) {
+            ++calls;
+            return true;
+        },
+    };
+    SECTION("actor") {}
+    SECTION("party") {
+        contacts.bodies = {};
+        contacts.party = ObjectParty{{0, 5500, 0}, 2, 10};
+    }
+    const auto step = live.advance(24, {}, nullptr, &contacts);
+    REQUIRE(step.actor_contacts + step.party_contacts == 1);
+    REQUIRE(step.detonations.empty());
+    REQUIRE(step.expired == 1);
+    REQUIRE(calls == 0);
 }

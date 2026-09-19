@@ -6724,8 +6724,8 @@ int main(int argc, char** argv) {
             clock.advance_seconds(sim_dt);
             game::advance_launches(launches, sim_dt);
             game::advance_script_loot(script_loot, sim_dt, session);
-            (void)script_object_effects.advance(sim_dt, session, battle, monster_stats,
-                                                script_loot);
+            (void)script_object_effects.advance(sim_dt, session, battle, monster_stats, script_loot,
+                                                camera.position);
             // Doors travel between their stations at the file's own
             // open and close speeds, read as world units a second;
             // collision follows the geometry while anything slides.

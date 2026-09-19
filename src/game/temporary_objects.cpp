@@ -91,13 +91,13 @@ void finish(TemporaryObject& object, TemporaryObjectStep& result) {
 
 // Sweep a point against a cylinder expanded by the projectile radius. The
 // flat expanded end caps are deliberately conservative at the body's corners.
-std::optional<float> actor_fraction(render::Vec3 from, render::Vec3 to, float radius,
-                                    const ObjectActor& actor) {
-    if (actor.radius <= 0 || actor.height <= 0)
+std::optional<float> body_fraction(render::Vec3 from, render::Vec3 to, float radius,
+                                   render::Vec3 feet, float body_radius, float body_height) {
+    if (body_radius <= 0 || body_height <= 0)
         return std::nullopt;
     const auto delta = to - from;
-    const auto relative = from - actor.position;
-    const float reach = radius + actor.radius;
+    const auto relative = from - feet;
+    const float reach = radius + body_radius;
     float enter = 0;
     float leave = 1;
     const float a = delta.x * delta.x + delta.z * delta.z;
@@ -115,7 +115,7 @@ std::optional<float> actor_fraction(render::Vec3 from, render::Vec3 to, float ra
         leave = std::min(leave, (-b + root) / a);
     }
     const float bottom = -radius;
-    const float top = actor.height + radius;
+    const float top = body_height + radius;
     if (delta.y == 0) {
         if (relative.y < bottom || relative.y > top)
             return std::nullopt;
@@ -129,8 +129,13 @@ std::optional<float> actor_fraction(render::Vec3 from, render::Vec3 to, float ra
 }
 
 void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
-                   const ObjectActorContacts& actors, std::size_t actor) {
+                   const ObjectContacts& actors, std::size_t actor) {
     ++result.actor_contacts;
+    if (object.definition.id == 4070) {
+        // Source-zero event objects transform without resistance or target damage.
+        finish(object, result);
+        return;
+    }
     // The common displacement guard runs before the resistance draw.
     if (render::length(object.position - object.origin) >= 5020.0f || !actors.apply(actor)) {
         finish(object, result);
@@ -149,15 +154,58 @@ void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
     object.resting = true;
 }
 
+// Geometry wins ties, then actor order, then party. Bodies are fixed for the
+// caller's simulation step; original moving-target/sector parity is not claimed.
+bool contact_characters(TemporaryObject& object, render::Vec3 from, render::Vec3 to, float nearest,
+                        TemporaryObjectStep& result, const ObjectContacts* contacts) {
+    if (contacts == nullptr || (object.definition.flags & 0x40U) == 0 ||
+        (object.definition.id != 4070 && object.definition.id != 8080))
+        return false;
+    std::optional<std::size_t> selected;
+    bool party_hit = false;
+    if (object.definition.id == 4070 || contacts->apply) {
+        for (const auto& actor : contacts->bodies) {
+            if (const auto fraction = body_fraction(from, to, object.definition.radius,
+                                                    actor.position, actor.radius, actor.height);
+                fraction && *fraction < nearest) {
+                nearest = *fraction;
+                selected = actor.index;
+            }
+        }
+    }
+    if (object.definition.id == 4070 && contacts->party) {
+        const auto& party = *contacts->party;
+        if (const auto fraction = body_fraction(from, to, object.definition.radius, party.position,
+                                                party.radius, party.height);
+            fraction && *fraction < nearest) {
+            nearest = *fraction;
+            party_hit = true;
+        }
+    }
+    if (!party_hit && !selected)
+        return false;
+    const render::Vec3 offset{0, object.definition.radius + 1, 0};
+    object.position = from + (to - from) * nearest - offset;
+    if (party_hit) {
+        ++result.party_contacts;
+        finish(object, result);
+    } else {
+        contact_actor(object, result, *contacts, *selected);
+    }
+    return true;
+}
+
 void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collision,
                    TemporaryObjectStep& result, const world::OdmTerrain* terrain,
-                   const ObjectActorContacts* actors = nullptr) {
+                   const ObjectContacts* contacts = nullptr) {
     const render::Vec3 offset{0, object.definition.radius + 1, 0};
     if (object.resting) {
         const auto center = object.position + offset;
         if (const auto support = collision.sweep_sphere(center, center - render::Vec3{0, 0.1f, 0},
                                                         object.definition.radius, terrain);
             support && support->normal.y > world::kFloorNormalY) {
+            // A settled 4070 can still be touched by a body entering its space.
+            (void)contact_characters(object, center, center, 2.0f, result, contacts);
             return;
         }
         object.resting = false;
@@ -168,29 +216,13 @@ void move_one_tick(TemporaryObject& object, const world::CollisionWorld& collisi
     float remaining = kStepSeconds;
     // Bound corner/overlap recovery; unconsumed movement is discarded after
     // four contacts in one tick, an explicit engine stability policy.
-    for (int contacts = 0; contacts < 4 && remaining > 0; ++contacts) {
+    for (int contact_count = 0; contact_count < 4 && remaining > 0; ++contact_count) {
         const auto center = object.position + offset;
         const auto target = center + object.velocity * remaining;
         const auto hit = collision.sweep_sphere(center, target, object.definition.radius, terrain);
-        if (object.definition.id == 8080 && (object.definition.flags & 0x40U) != 0 &&
-            actors != nullptr && actors->apply) {
-            float nearest = hit ? hit->fraction : 2.0f;
-            std::optional<std::size_t> selected;
-            for (const auto& actor : actors->bodies) {
-                if (const auto fraction =
-                        actor_fraction(center, target, object.definition.radius, actor);
-                    fraction && *fraction < nearest) {
-                    nearest = *fraction;
-                    selected = actor.index;
-                }
-            }
-            // Geometry wins equal-time contacts; actor ties retain body order.
-            if (selected) {
-                object.position = center + (target - center) * nearest - offset;
-                contact_actor(object, result, *actors, *selected);
-                return;
-            }
-        }
+        if (contact_characters(object, center, target, hit ? hit->fraction : 2.0f, result,
+                               contacts))
+            return;
         if (!hit) {
             object.position = target - offset;
             return;
@@ -317,7 +349,7 @@ TemporarySpawnResult TemporaryObjects::spawn(const world::ObjectSpawnRequest& re
 TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
                                               const world::CollisionWorld& collision,
                                               const world::OdmTerrain* terrain,
-                                              const ObjectActorContacts* actors) {
+                                              const ObjectContacts* contacts) {
     TemporaryObjectStep result;
     // Tick order keeps shared resistance draws independent of frame batching.
     for (std::uint32_t tick = 0; tick < ticks; ++tick) {
@@ -334,7 +366,7 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
             }
             if (object.definition.id != 1051 && object.definition.id != 2101 &&
                 object.definition.id != 4071 && object.definition.id != 8081) {
-                move_one_tick(object, collision, result, terrain, actors);
+                move_one_tick(object, collision, result, terrain, contacts);
             }
         }
         if (!any_active)

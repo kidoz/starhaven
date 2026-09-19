@@ -61,16 +61,23 @@ struct ObjectActor {
     float radius = 0;
     float height = 0;
 };
-struct ObjectActorContacts {
+struct ObjectParty {
+    render::Vec3 position;  // feet, renderer axes
+    float radius = 0;
+    float height = 0;
+};
+struct ObjectContacts {
     std::span<const ObjectActor> bodies;
-    std::function<bool(std::size_t)> apply;  // resistance gate and immediate state response
+    std::function<bool(std::size_t)> apply;           // ID 8080 resistance gate and state response
+    std::optional<ObjectParty> party = std::nullopt;  // ID 4070 only
 };
 struct TemporaryObjectStep {
     std::size_t expired = 0;
     std::size_t bounces = 0;
     std::size_t terrain_contacts = 0;
     std::size_t actor_contacts = 0;
-    std::size_t actor_accepted = 0;
+    std::size_t party_contacts = 0;
+    std::size_t actor_accepted = 0;  // accepted ID 8080 resistance gates
     std::size_t missing_actor_replacements = 0;
     std::vector<ObjectDetonation> detonations;
 };
@@ -96,7 +103,7 @@ public:
     [[nodiscard]] TemporaryObjectStep advance(std::uint32_t ticks,
                                               const world::CollisionWorld& collision,
                                               const world::OdmTerrain* terrain = nullptr,
-                                              const ObjectActorContacts* actors = nullptr);
+                                              const ObjectContacts* contacts = nullptr);
     [[nodiscard]] std::span<const TemporaryObject> slots() const noexcept { return objects_; }
     [[nodiscard]] std::size_t active_count() const noexcept;
     void clear() noexcept { objects_.clear(); }

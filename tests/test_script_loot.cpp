@@ -8,6 +8,7 @@
 
 #include "game/combat.hpp"
 #include "game/map_memory.hpp"
+#include "game/player.hpp"
 #include "game/script_object_effects.hpp"
 #include "game/script_walk.hpp"
 #include "game/temporary_objects.hpp"
@@ -703,6 +704,69 @@ TEST_CASE("live 8080 actor contact uses combat state, magic resistance and saved
         REQUIRE(live.advance(95.0 / 128, f.session, battle, monsters, loot).expired == 0);
         REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot).expired == 1);
         REQUIRE(loot.random == expected.state());
+    }
+    live.clear();
+    REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("live 4070 touches actors and the party without damage or resistance draws",
+          "[script-loot]") {
+    Fixture f;
+    data::TextTable text;
+    REQUIRE(data::TextTable::parse_body("#\tPicture\tName\tLVL\tHP\tMag\r\n"
+                                        "1\tsynthetic\tSynthetic\t100\t100\tImm\r\n",
+                                        text) == data::TextTableError::None);
+    data::MonsterStatsTable monsters;
+    REQUIRE(data::MonsterStatsTable::parse(text, monsters) == data::MonsterStatsError::None);
+    f.session.actors.push_back({"synthetic", "Synthetic", 1, {10, 100, 20}});
+    Battle battle;
+    battle.reset(f.session, monsters, 1);
+    battle.hold_slot(0, 0, 100);
+    battle.afflict(0, MonsterCondition::Paralyze, 100);
+    const auto health = battle.health_of(0);
+    bool actor_hit = true;
+    bool party_hit = false;
+    std::optional<render::Vec3> eye;
+    SECTION("immune living actor still detonates 4070") {}
+    SECTION("dead actor is excluded") {
+        battle.kill(0);
+        actor_hit = false;
+    }
+    SECTION("party body is measured from feet below its eye") {
+        battle.kill(0);
+        actor_hit = false;
+        party_hit = true;
+        eye = render::Vec3{10, 100 + kEyeHeight, 20};
+    }
+    SECTION("party outside the projectile path is excluded") {
+        battle.kill(0);
+        actor_hit = false;
+        eye = render::Vec3{1000, 100 + kEyeHeight, 20};
+    }
+    ScriptLootState loot;
+    ScriptObjectEffects live;
+    auto req = request();
+    req.object_id = 4070;
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    const auto random = loot.random;
+    REQUIRE(live.advance(0, f.session, battle, monsters, loot, eye).detonations.empty());
+    const auto step = live.advance(1.0 / 128, f.session, battle, monsters, loot, eye);
+    REQUIRE(step.actor_contacts == (actor_hit ? 1U : 0U));
+    REQUIRE(step.party_contacts == (party_hit ? 1U : 0U));
+    REQUIRE(step.actor_accepted == 0);
+    REQUIRE(step.detonations.size() == (actor_hit || party_hit ? 1U : 0U));
+    REQUIRE(loot.random == random);
+    if (actor_hit) {
+        REQUIRE(battle.health_of(0) == health);
+        REQUIRE(battle.slot_up(0, 0));
+        REQUIRE_FALSE(battle.can_move(0));
+    }
+    if (actor_hit || party_hit) {
+        REQUIRE(live.sprites(f.session.sprite_frames).front().animation == "c");
+        REQUIRE(live.sprites(f.session.sprite_frames).front().animation_ticks == 0);
+        REQUIRE(live.advance(79.0 / 128, f.session, battle, monsters, loot, eye).expired == 0);
+        REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot, eye).expired == 1);
+        REQUIRE(loot.random == random);
     }
     live.clear();
     REQUIRE(live.active_count() == 0);
