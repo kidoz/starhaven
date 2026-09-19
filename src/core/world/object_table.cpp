@@ -46,7 +46,7 @@ ObjectTableError ObjectTable::parse(std::span<const std::byte> entry, ObjectTabl
         descriptor.flags = r.read_u16_le();
         descriptor.sprite_frame_index = r.read_u16_le();
         descriptor.lifetime = r.read_u16_le();
-        if (!r.skip(2)) {  // unknown field at +0x2c; zero in the shipped table
+        if (!r.skip(2)) {  // runtime packed trail color at +0x2c; zero on disk
             return ObjectTableError::BadCount;
         }
         descriptor.speed = r.read_u16_le();

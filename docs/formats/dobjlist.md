@@ -3,7 +3,7 @@ title: "Object descriptor table (DOBJLIST.BIN)"
 summary: "Container, record, and flag layout for Might and Magic VI sprite-object descriptors."
 doc_type: reference
 status: verified
-last_updated: 2026-09-16
+last_updated: 2026-09-19
 tags:
   - mm6
   - dobjlist
@@ -46,7 +46,7 @@ for the inflated block exactly. `observed`
 | `+0x26` | 2 | u16 | flags | observed | see the flag bits below |
 | `+0x28` | 2 | u16 | DSFT frame index | observed |
 | `+0x2A` | 2 | u16 | lifetime | observed | the expiry compare in the per-frame updater |
-| `+0x2C` | 2 | u16 | — | observed | zero in all 232 records |
+| `+0x2C` | 2 | u16 | runtime packed trail color | observed | zero in all 232 disk records; startup fills it from RGB for the display format |
 | `+0x2E` | 2 | u16 | default speed | observed |
 | `+0x30` | 3 | u8[3] | trail RGB | observed | nonzero on 64 of 232 records |
 | `+0x33` | 1 | u8 | padding | observed |
@@ -105,7 +105,7 @@ physics routine:
 | `0x20` | no gravity: skips the fall-and-land block for level flight | the physics routine branches past landing straight to the collision probe. `observed` |
 | `0x40` | detonates: the impact handler runs on collision or landing, and again at lifetime expiry | tested in both the landing path and the expiry path. `observed` |
 | `0x80` | bounces on landing: vertical speed negated and halved, damped to rest below 10 | the landing path's own arithmetic. `observed` |
-| `0x100` | emits the colored trail at `+0x30` | coincides exactly with a nonzero trail RGB — 64 of 64 records, no exceptions either way. `observed` for the coincidence, `inferred` for the naming |
+| `0x100` | emits a colored trail | indoor/outdoor motion gates the emitter with this bit; packed color derives from `+0x30..32`. `observed` |
 | `0x200` | emits a fire trail | effect consumer. `observed` |
 | `0x400` | emits a line trail | effect consumer. `observed` |
 
@@ -114,6 +114,14 @@ are the loot — persistent, tangible, falling, inert — while `0x74`
 (temporary, floating, detonating) is a projectile and `0x174` the same with
 a trail. The remaining bits distinguish animation lifetime, pickup behavior,
 and particle, fire, or line trails.
+
+Startup at `0x457d84..0x457df9` converts `+0x30..32` RGB to the display-format
+packed color at `+0x2C`; the binary loader itself only copies records.
+Ordinary particle emission (`0x462da4..0x462dbf`, `0x4348e0..0x434976`) consumes
+that packed word. StarHaven reads the source RGB directly for its 8-bit-channel
+framebuffer. ID 1000's trail is implemented through the
+[temporary-object lifecycle](map-events.md#temporary-object-lifecycle);
+other trail families remain separate work.
 
 A map sprite object selects this table by `descriptor_index` and repeats the
 descriptor's object id. This two-field join succeeds for all 129 objects

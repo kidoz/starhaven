@@ -38,6 +38,7 @@ TemporarySpawnError definition_for(std::uint16_t id,
         found->flags,
         std::min(std::uint32_t{found->lifetime}, 32768U),
         static_cast<float>(found->radius),
+        {found->trail_red, found->trail_green, found->trail_blue},
     };
     return TemporarySpawnError::None;
 }
@@ -423,6 +424,17 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
     // Tick order keeps shared resistance draws independent of frame batching.
     for (std::uint32_t tick = 0; tick < ticks; ++tick) {
         bool any_active = false;
+        trail_tick_ = (trail_tick_ + 1) % kObjectTrailStepTicks;
+        for (auto& particle : particles_) {
+            if (particle.remaining == 0)
+                continue;
+            --particle.remaining;
+            if (trail_tick_ == 0 && particle.remaining != 0) {
+                particle.position.y += static_cast<float>(trail_random_.next() % 5 + 4);
+                particle.position.x += static_cast<float>(trail_random_.next() % 5 - 2);
+                particle.position.z += static_cast<float>(trail_random_.next() % 5 - 2);
+            }
+        }
         for (auto& object : objects_) {
             if (!object.active)
                 continue;
@@ -437,11 +449,35 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
                 object.definition.id != 4071 && object.definition.id != 8081) {
                 move_one_tick(object, collision, result, terrain, contacts);
             }
+            if (trail_tick_ == 0 && object.active && !object.resting &&
+                object.definition.id == 1000 && (object.definition.flags & 0x700U) == 0x100U) {
+                particles_[next_particle_] = {
+                    object.position,
+                    object.definition.trail_color,
+                    256U + trail_random_.next() % 64U,
+                };
+                next_particle_ = (next_particle_ + 1) % particles_.size();
+                ++result.trail_emitted;
+            }
         }
-        if (!any_active)
+        if (!any_active && std::ranges::none_of(particles_, [](const auto& particle) {
+                return particle.remaining != 0;
+            })) {
+            // Skip empty time in large offline advances without changing cadence.
+            trail_tick_ =
+                (trail_tick_ + (ticks - tick - 1) % kObjectTrailStepTicks) % kObjectTrailStepTicks;
             break;
+        }
     }
     return result;
+}
+
+void TemporaryObjects::clear() noexcept {
+    objects_.clear();
+    particles_ = {};
+    next_particle_ = 0;
+    trail_tick_ = 0;
+    trail_random_ = Mm6Random{1};
 }
 
 std::size_t TemporaryObjects::active_count() const noexcept {

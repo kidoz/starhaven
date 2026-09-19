@@ -1,6 +1,7 @@
 #ifndef STARHAVEN_GAME_TEMPORARY_OBJECTS_HPP
 #define STARHAVEN_GAME_TEMPORARY_OBJECTS_HPP
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -9,6 +10,7 @@
 #include <vector>
 
 #include "core/random.hpp"
+#include "core/render/color.hpp"
 #include "core/world/collision.hpp"
 #include "core/world/map_script.hpp"
 #include "core/world/object_table.hpp"
@@ -18,6 +20,15 @@ namespace starhaven::game {
 
 inline constexpr std::size_t kTemporaryObjectCapacity = 1000;
 inline constexpr std::uint32_t kObjectTicksPerSecond = 128;
+inline constexpr std::size_t kObjectTrailCapacity = 100;
+// Engine policy: original particle emission/jitter was frame-coupled.
+inline constexpr std::uint32_t kObjectTrailStepTicks = 4;
+
+struct ObjectTrailParticle {
+    render::Vec3 position;
+    render::Color color;
+    std::uint32_t remaining = 0;  // 128 Hz ticks; independent of the emitting object
+};
 
 struct TemporaryObjectDefinition {
     std::uint16_t id = 0;
@@ -26,6 +37,7 @@ struct TemporaryObjectDefinition {
     std::uint16_t flags = 0;
     std::uint32_t lifetime = 0;
     float radius = 0;
+    render::Color trail_color;
 };
 
 struct TemporaryObject {
@@ -86,6 +98,7 @@ struct TemporaryObjectStep {
     std::size_t missing_actor_replacements = 0;
     std::size_t actor_redirects = 0;
     std::size_t actor_animation_fallbacks = 0;
+    std::size_t trail_emitted = 0;
     std::vector<ObjectDetonation> detonations;
 };
 
@@ -97,7 +110,7 @@ void advance_object_motion(TemporaryObject& object, const world::CollisionWorld&
                            const world::OdmTerrain* terrain = nullptr);
 
 // Bounded lifecycle for event-created IDs 1000/1050/2081/2100/4070/8080 only. Not a
-// general opcode-34 implementation: loot, other actor contacts, trails, sound and
+// general opcode-34 implementation: loot, other families' trails, sound and
 // persistence remain outside this system. Every accepted definition must be
 // temporary. StarHaven uses one-tick integration and swept spheres; it does
 // not reproduce the original sector solver or integer trajectory rounding.
@@ -112,11 +125,18 @@ public:
                                               const world::OdmTerrain* terrain = nullptr,
                                               const ObjectContacts* contacts = nullptr);
     [[nodiscard]] std::span<const TemporaryObject> slots() const noexcept { return objects_; }
+    [[nodiscard]] std::span<const ObjectTrailParticle> trail_particles() const noexcept {
+        return particles_;
+    }
     [[nodiscard]] std::size_t active_count() const noexcept;
-    void clear() noexcept { objects_.clear(); }
+    void clear() noexcept;
 
 private:
     std::vector<TemporaryObject> objects_;
+    std::array<ObjectTrailParticle, kObjectTrailCapacity> particles_{};
+    std::size_t next_particle_ = 0;
+    std::uint32_t trail_tick_ = 0;
+    Mm6Random trail_random_{1};  // visual-only sequence; never consumes gameplay RNG
 };
 
 }  // namespace starhaven::game

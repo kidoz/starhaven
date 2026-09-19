@@ -1453,3 +1453,110 @@ TEST_CASE("8080 party removal needs no replacement even at distant contacts",
     REQUIRE(later.expired == 0);
     REQUIRE(later.detonations.empty());
 }
+
+TEST_CASE("1000 trails use descriptor color, independent lifetimes and upward jitter",
+          "[temporary-objects]") {
+    Resources resources;
+    resources.objects[1].trail_red = 23;
+    resources.objects[1].trail_green = 101;
+    resources.objects[1].trail_blue = 219;
+    TemporaryObjects live;
+    spawn(live, resources, request());
+    REQUIRE(live.advance(3, {}).trail_emitted == 0);
+    REQUIRE(live.advance(1, {}).trail_emitted == 1);
+    const auto first = live.trail_particles().front();
+    REQUIRE(first.color.r == 23);
+    REQUIRE(first.color.g == 101);
+    REQUIRE(first.color.b == 219);
+    REQUIRE(first.remaining >= 256);
+    REQUIRE(first.remaining <= 319);
+    REQUIRE(render::length(first.position - live.slots().front().position) == 0);
+    REQUIRE(live.advance(3, {}).trail_emitted == 0);
+    REQUIRE(render::length(live.trail_particles().front().position - first.position) == 0);
+    REQUIRE(live.advance(1, {}).trail_emitted == 1);
+    const auto moved = live.trail_particles().front();
+    REQUIRE(moved.remaining == first.remaining - 4);
+    REQUIRE(moved.position.y - first.position.y >= 4);
+    REQUIRE(moved.position.y - first.position.y <= 8);
+    REQUIRE(std::abs(moved.position.x - first.position.x) <= 2);
+    REQUIRE(std::abs(moved.position.z - first.position.z) <= 2);
+    REQUIRE(moved.color.b == 219);  // no fade
+    REQUIRE(live.slots().front().definition.id == 1000);
+    REQUIRE(live.slots().front().age == 8);
+}
+
+TEST_CASE("trail particles outlive their source and clear resets the visual sequence",
+          "[temporary-objects]") {
+    Resources resources;
+    resources.objects[1].lifetime = 5;
+    TemporaryObjects live;
+    spawn(live, resources, request());
+    REQUIRE(live.advance(4, {}).trail_emitted == 1);
+    const auto first = live.trail_particles().front();
+    const auto end = live.advance(1, {});
+    REQUIRE(end.expired == 1);
+    REQUIRE(end.trail_emitted == 0);
+    REQUIRE(live.active_count() == 0);
+    REQUIRE(live.advance(first.remaining - 2, {}).trail_emitted == 0);
+    REQUIRE(live.trail_particles().front().remaining == 1);
+    REQUIRE(live.advance(1, {}).trail_emitted == 0);
+    REQUIRE(live.trail_particles().front().remaining == 0);
+    live.clear();
+    for (const auto& particle : live.trail_particles())
+        REQUIRE(particle.remaining == 0);
+    spawn(live, resources, request());
+    REQUIRE(live.advance(4, {}).trail_emitted == 1);
+    REQUIRE(live.trail_particles().front().remaining == first.remaining);
+    REQUIRE(render::length(live.trail_particles().front().position - first.position) == 0);
+}
+
+TEST_CASE("trail ring replacement and tick batching are deterministic", "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request();
+    req.scatter = true;
+    req.count = 101;
+    spawn(live, resources, req);
+    REQUIRE(live.advance(4, {}).trail_emitted == 101);
+    REQUIRE(live.trail_particles().size() == 100);
+    REQUIRE(render::length(live.trail_particles()[0].position - live.slots()[100].position) == 0);
+    REQUIRE(render::length(live.trail_particles()[1].position - live.slots()[1].position) == 0);
+    auto batched = live;
+    std::size_t emitted = 0;
+    for (int tick = 0; tick < 128; ++tick)
+        emitted += live.advance(1, {}).trail_emitted;
+    REQUIRE(batched.advance(128, {}).trail_emitted == emitted);
+    for (std::size_t i = 0; i < live.trail_particles().size(); ++i) {
+        const auto& one = live.trail_particles()[i];
+        const auto& batch = batched.trail_particles()[i];
+        REQUIRE(one.remaining == batch.remaining);
+        REQUIRE(render::length(one.position - batch.position) == 0);
+    }
+}
+
+TEST_CASE("settled objects and unsupported trail families do not emit", "[temporary-objects]") {
+    Resources resources;
+    auto req = request();
+    world::CollisionWorld collision;
+    SECTION("settled") {
+        req.z = 0;
+        req.speed = 0;
+        collision = floor();
+    }
+    SECTION("trail flag absent") {
+        resources.objects[1].flags &= ~0x100U;
+    }
+    SECTION("fire trail") {
+        resources.objects[1].flags |= 0x200U;
+    }
+    SECTION("line trail") {
+        resources.objects[1].flags |= 0x400U;
+    }
+    SECTION("another family") {
+        req.object_id = 2081;
+    }
+    TemporaryObjects live;
+    spawn(live, resources, req);
+    (void)live.advance(20, collision);
+    REQUIRE(live.advance(768, collision).trail_emitted == 0);
+}
