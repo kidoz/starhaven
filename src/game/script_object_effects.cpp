@@ -78,12 +78,30 @@ TemporaryObjectStep ScriptObjectEffects::advance(double seconds, const world::Ma
             return battle.accept_event_object_8080(actor, monsters.entries()[id - 1], random);
         },
     };
+    std::size_t animation_fallbacks = 0;
+    contacts.react_2100 = [&](std::size_t actor) {
+        const auto id = static_cast<std::size_t>(session.actors[actor].monster_id);
+        const auto* body = session.monsters.at(id - 1);
+        const auto group =
+            body != nullptr
+                ? session.sprite_frames.group(body->animation(world::MonsterAnimation::Wince))
+                : std::span<const world::SpriteFrame>{};
+        float seconds = kWinceSeconds;
+        // Original action length is group length * 8 in a signed word. Reject
+        // absent/zero/overflowing data and retain the existing engine fallback.
+        if (!group.empty() && group.front().group_length > 0 && group.front().group_length < 4096)
+            seconds = static_cast<float>(group.front().group_length) / 16.0f;
+        else
+            ++animation_fallbacks;
+        battle.react_to_event_object_2100(actor, seconds);
+    };
     if (party_eye)
         contacts.party =
             ObjectParty{*party_eye - render::Vec3{0, kEyeHeight, 0}, kBodyRadius, kBodyHeight};
     auto result = temporary_.advance(ticks, session.collision,
                                      session.outdoor() ? &session.terrain : nullptr, &contacts);
     loot.random = random.state();
+    result.actor_animation_fallbacks = animation_fallbacks;
     return result;
 }
 

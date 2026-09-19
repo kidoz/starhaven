@@ -364,7 +364,8 @@ void draw_indoor(render::SceneRenderer& scene, const world::MapSession& session,
 void draw_billboards(render::SceneRenderer& scene, const world::MapSession& session,
                      assets::AssetCache& cache, std::uint32_t ticks, const game::Mob& mob,
                      const render::Vec3& eye, const std::vector<std::string>& shown,
-                     const std::vector<game::ActiveLaunch>& launches = {}) {
+                     const std::vector<game::ActiveLaunch>& launches = {},
+                     const game::Battle* battle = nullptr) {
     auto draw = [&](const std::string& animation, const render::Vec3& position, float scale,
                     game::SpriteView view = {}, std::optional<std::uint32_t> animation_ticks = {}) {
         const game::SpriteChoice pick = game::choose_sprite(
@@ -392,7 +393,8 @@ void draw_billboards(render::SceneRenderer& scene, const world::MapSession& sess
         const auto& a = session.actors[i];
         const float to_eye = std::atan2(eye.z - a.position.z, eye.x - a.position.x);
         draw(shown[i].empty() ? a.animation : shown[i], a.position, kActorScale,
-             game::sprite_view(mob.facing(i), to_eye));
+             game::sprite_view(mob.facing(i), to_eye),
+             battle != nullptr ? battle->event_reaction_ticks(i) : std::nullopt);
     }
     for (const auto& o : session.objects) {
         const auto* descriptor = session.object_descriptors.at(o.descriptor_index);
@@ -7811,7 +7813,7 @@ int main(int argc, char** argv) {
             in_flight.push_back(std::move(flash));
         }
         draw_billboards(scene, session, cache, game::sprite_ticks(SDL_GetTicks()), mob,
-                        camera.position, shown_animation, in_flight);
+                        camera.position, shown_animation, in_flight, &battle);
         if (show_boxes && session.outdoor()) {
             draw_boxes(scene, session);
         }

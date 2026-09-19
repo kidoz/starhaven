@@ -36,7 +36,7 @@ struct Fixture {
     world::MapSession session;
     data::ItemStatsTable items;
     assets::AssetCache cache;
-    Fixture() {
+    explicit Fixture(std::uint16_t hurt_length = 0) {
         session.file_name = "Synthetic.blv";
         session.kind = world::MapKind::Indoor;
         session.refill_days = 7;
@@ -78,6 +78,7 @@ struct Fixture {
             frames[offset + 12] = i == 0 ? std::byte{'b'} : std::byte{'d'};
             put(frames, offset + 40, 65536);
             put(frames, offset + 44, 4);
+            put(frames, offset + 54, i == 0 ? hurt_length : 0, 2);
             put(frames, 8 + 2 * world::kSpriteFrameSize + i * 2, static_cast<std::uint32_t>(i), 2);
         }
         REQUIRE(world::SpriteFrameTable::parse(compressed(frames), session.sprite_frames) ==
@@ -765,6 +766,132 @@ TEST_CASE("live 4070 touches actors and the party without damage or resistance d
         REQUIRE(live.sprites(f.session.sprite_frames).front().animation == "c");
         REQUIRE(live.sprites(f.session.sprite_frames).front().animation_ticks == 0);
         REQUIRE(live.advance(79.0 / 128, f.session, battle, monsters, loot, eye).expired == 0);
+        REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot, eye).expired == 1);
+        REQUIRE(loot.random == random);
+    }
+    live.clear();
+    REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("2100 live actor reaction uses resource duration and a resettable simulation clock",
+          "[script-loot]") {
+    Fixture f(8);  // 8 animation units = 64 simulation ticks = half a second
+    data::TextTable text;
+    REQUIRE(data::TextTable::parse_body("#\tPicture\tName\tLVL\tHP\tMag\r\n"
+                                        "1\tsynthetic\tSynthetic\t100\t100\tImm\r\n",
+                                        text) == data::TextTableError::None);
+    data::MonsterStatsTable monsters;
+    REQUIRE(data::MonsterStatsTable::parse(text, monsters) == data::MonsterStatsError::None);
+    Bytes body(4 + world::kMonsterRecordSize);
+    put(body, 0, 1);
+    put(body, 4 + world::kMonsterHeightOffset, 64, 2);
+    put(body, 4 + world::kMonsterRadiusOffset, 10, 2);
+    body[4 + world::kMonsterAnimationOffset + 4 * world::kMonsterAnimationNameSize] =
+        std::byte{'a'};
+    REQUIRE(world::MonsterList::parse(compressed(body), f.session.monsters) ==
+            world::MonsterListError::None);
+    f.session.actors.push_back({"synthetic", "Synthetic", 1, {10, 100, 20}});
+    Battle battle;
+    battle.reset(f.session, monsters, 1);
+    battle.hold_slot(0, 0, 100);
+    const auto health = battle.health_of(0);
+    bool fallback = false;
+    bool dead = false;
+    SECTION("resource-defined hurt animation") {}
+    SECTION("missing body uses explicit legacy wince fallback") {
+        f.session.monsters = {};
+        fallback = true;
+    }
+    SECTION("dead actor is not reacted to") {
+        battle.kill(0);
+        dead = true;
+    }
+    ScriptLootState loot;
+    ScriptObjectEffects live;
+    auto req = request();
+    req.object_id = 2100;
+    req.speed = 128;
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    const auto random = loot.random;
+    const auto hit = live.advance(1.0 / 128, f.session, battle, monsters, loot);
+    REQUIRE(hit.actor_redirects == (dead ? 0U : 1U));
+    REQUIRE(hit.actor_animation_fallbacks == (fallback ? 1U : 0U));
+    REQUIRE(hit.detonations.empty());
+    REQUIRE(loot.random == random);
+    if (dead) {
+        REQUIRE_FALSE(battle.event_reaction_ticks(0));
+        return;
+    }
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Wince);
+    REQUIRE(battle.event_reaction_ticks(0) == 0);
+    REQUIRE(battle.health_of(0) == health);
+    REQUIRE(battle.slot_up(0, 0));
+    const data::SpellStatsTable spells;
+    std::array<Character, 4> party{};
+    const render::Vec3 distant{10000, 0, 10000};
+    (void)battle.update(0, f.session, monsters, spells, party, distant);
+    REQUIRE(battle.event_reaction_ticks(0) == 0);
+    (void)battle.update(0.25f, f.session, monsters, spells, party, distant);
+    REQUIRE(battle.event_reaction_ticks(0) == 4);
+    REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot).actor_redirects == 0);
+    REQUIRE(battle.event_reaction_ticks(0) == 4);
+    const float duration = fallback ? kWinceSeconds : 0.5f;
+    (void)battle.update(duration - 0.25f, f.session, monsters, spells, party, distant);
+    REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Stand);
+    REQUIRE_FALSE(battle.event_reaction_ticks(0));
+    REQUIRE(battle.health_of(0) == health);
+    REQUIRE(battle.slot_up(0, 0));
+    REQUIRE(loot.random == random);
+    live.clear();
+    REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("live 2100 party contact uses the movement body and resource-timed replacement",
+          "[script-loot]") {
+    const Fixture f;
+    Battle battle;
+    const data::MonsterStatsTable monsters;
+    ScriptLootState loot;
+    ScriptObjectEffects live;
+    auto req = request();
+    req.object_id = 2100;
+    req.speed = 128;
+    std::optional<render::Vec3> eye{render::Vec3{10, 100 + kEyeHeight, 20}};
+    bool contact = true;
+    SECTION("party at launch point") {}
+    SECTION("party outside the path") {
+        eye->x += 1000;
+        contact = false;
+    }
+    SECTION("party above the path") {
+        eye->y += 1000;
+        contact = false;
+    }
+    SECTION("no party context") {
+        eye.reset();
+        contact = false;
+    }
+    REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
+    const auto random = loot.random;
+    REQUIRE(live.advance(0, f.session, battle, monsters, loot, eye).party_contacts == 0);
+    const auto hit = live.advance(1.0 / 128, f.session, battle, monsters, loot, eye);
+    REQUIRE(hit.party_contacts == (contact ? 1U : 0U));
+    REQUIRE(hit.actor_contacts == 0);
+    REQUIRE(hit.actor_redirects == 0);
+    REQUIRE(hit.actor_accepted == 0);
+    REQUIRE(hit.detonations.size() == (contact ? 1U : 0U));
+    REQUIRE(loot.random == random);
+    const auto sprites = live.sprites(f.session.sprite_frames);
+    REQUIRE(sprites.size() == 1);
+    REQUIRE(sprites.front().animation == (contact ? "c" : "a"));
+    if (contact) {
+        REQUIRE(sprites.front().animation_ticks == 0);
+        const auto rest = live.advance(79.0 / 128, f.session, battle, monsters, loot, eye);
+        REQUIRE(rest.party_contacts == 0);
+        REQUIRE(rest.detonations.empty());
+        REQUIRE(rest.expired == 0);
+        REQUIRE(render::length(live.sprites(f.session.sprite_frames).front().position -
+                               sprites.front().position) == 0);
         REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot, eye).expired == 1);
         REQUIRE(loot.random == random);
     }
