@@ -57,10 +57,10 @@ adapter. ID 1050 transitions to 1051 on actor or party contact without damage.
 ID 8080 has its resisted actor response and 8081 replacement, and removes
 immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact. IDs 1000, 2081 and 2100 deflect from actors with a resource-timed hurt
-animation; ID 2081 also slows on party contact while keeping its original
-expiry, and ID 2100 transitions to 2101 on party contact. Other character contacts,
-terrain material responses, trails, sound and other original object behavior
-remain follow-up work.
+animation; IDs 1000/2081 also slow on party contact while keeping their original
+expiry, and ID 2100 transitions to 2101 on party contact. Decorative contacts,
+exact character-contact/AI parity, terrain material responses, trails, sound
+and other original object behavior remain follow-up work.
 
 ## Reproduce
 
@@ -297,10 +297,14 @@ regressions add wall occlusion, modal continuation, refill and malformed saves.
 actor deflection, timed hurt animation, unchanged health/buffs/RNG, later
 floor bounces and expiry at the original 768-tick deadline without detonation.
 The effect retains its zero-scale null billboard; its missing particle trail
-remains a visual gap. A settled ID 1000 skips actor searches, matching the
-original grounded early return. These are controlled branch/application checks,
-not natural event reachability or original collision parity. Party and
-decorative contacts remain follow-up work.
+remains a visual gap. A settled ID 1000 skips actor and party searches, matching
+the original grounded early return. These are controlled branch/application
+checks, not natural event reachability or original collision parity. The separate
+`--object-1000-party` probe runs the same ten requests against the party body:
+initial and later re-entry contacts slow the effects without actor response,
+damage or replacement. Gravity, bouncing, animation age and tick-768 expiry
+remain intact; post-launch RNG stays unchanged. Decorative contacts and the
+particle trail remain follow-up work.
 
 `evt_info --object-2081-reaction` additionally checks both CD2 effect requests
 against controlled actors: deflection with no replacement or damage, unchanged

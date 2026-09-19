@@ -1038,12 +1038,23 @@ or detonation. Gravity, bouncing, object ID, age and the original 768-tick
 deadline remain intact. StarHaven uses the same timed wince, animation fallback,
 remaining-movement bound and actor overlap latch described below for ID 2100.
 
-A fully settled ID 1000 does **not** search for actor contacts: the original
-grounded path zeros velocity and returns before body searches when horizontal
-speed squared falls below 400 (`0x46254c..0x4625b1`). The engine skips actor
+ID 1000 party contact is also implemented. Party target type 4 (`0x460171`)
+skips actor redirection and reaches only common **58500/65536** damping of
+all velocity components (`0x4628fd..0x46291d`, `0x462c8c..0x462cbe`). These are
+`observed` branches in the indoor caller. The object keeps its heading, ID,
+clock, gravity, bounce response and original 768-tick deadline, without damage,
+actor reaction, resistance RNG, replacement or detonation. The impact-handler
+displacement cutoff is bypassed. StarHaven uses the same party-body sweep and
+independent overlap latch as ID 2081: continued overlap does not slow it again,
+but separation and re-entry permit another contact. Actor/party order and
+same-tick movement use the existing geometry-first bounded solver.
+
+A fully settled ID 1000 does **not** search for actor or party contacts: the
+original grounded path zeros velocity and returns before body searches when
+horizontal speed squared falls below 400 (`0x46254c..0x4625b1`). The engine skips body
 searches while its settled object still has floor support, and resumes movement
 if that support disappears. Original near-floor/sector arithmetic, full actor
-state-8 AI, party/decorative contacts and particle trails remain open.
+state-8 AI, decorative contacts and particle trails remain open.
 
 ID 1050 uses descriptor 139, frame 26, flags `0x174` and lifetime 768 ticks; it has no
 gravity. Its stationary replacement, ID 1051, uses descriptor 140, frame 32,
@@ -1319,9 +1330,9 @@ persistent loot keeps its version-7 save contract. This is an explicit
 the walker and the same live application helper, checks drawable sprite
 resources, and advances against loaded geometry until all effects expire.
 It does not prove natural branch reachability or original-runtime visual parity.
-Other actor contacts, terrain-material responses, trails, sound, the remaining IDs
-and original temporary-object persistence remain unresolved before opcode 34
-can be called complete. See the
+Decorative contacts, exact character-contact/AI parity, terrain-material responses,
+trails, sound, the remaining IDs and original temporary-object persistence remain
+unresolved before opcode 34 can be called complete. See the
 [event-script coverage audit](../explanation/event-script-coverage.md).
 
 `evt_info --object-impact` walks D01 event 47 from entry and applies its three
@@ -1355,6 +1366,18 @@ cover angled deflection, same-tick wall contact, overlap/re-entry, gravity
 following a contact beyond 5,020 units, settled-object exclusion, exact expiry,
 dead actors, missing hurt resources and pause. Event-entry timers, natural
 placement, original trajectory rounding and the missing trail are excluded.
+
+`evt_info --object-1000-party` exercises the same ten D18 spawn records with
+the party at each launch point and the actor outside the path. The controlled
+engine fixture produces 20 initial contacts and 24 later re-entry contacts
+from vertical flight; scattered objects move away. All 20 objects retain their
+animation age and expire at tick 768 after floor bounces, with no actor reaction
+or detonation and unchanged post-launch RNG. The zero-scale null billboard is
+retained. Synthetic coverage adds all-axis slowing with gravity, actor/party
+ordering and ties, later geometry contact, far contact, overlap/context-loss
+re-entry, settled-body exclusion, pause and slot reuse. Party dimensions,
+contact selection and overlap latching are engine policies; these counts are
+not original-runtime or natural-placement measurements.
 
 `evt_info --object-2081-reaction` walks CD2 events 35/36 and applies each
 ID-2081 request against a controlled actor at launch. Each produces one

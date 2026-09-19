@@ -189,11 +189,14 @@ The audit reduces the old sections to these bounded unknowns:
   with a D18 event-56 dispatch/application/resource probe. ID 1000 now deflects
   from actors and triggers resource-timed hurt animation, preserving gravity,
   bouncing and its original expiry without damage or detonation. Fully settled
-  objects skip actor searches. All ten D18 requests pass controlled actor
-  acceptance; party/decorative contacts and the missing particle trail remain
-  open. ID 1050 becomes the
-  non-damaging, 48-tick ID-1051 effect for source zero. Its actor/party contacts
-  now follow that transition, with controlled D18 acceptance covering eight
+  objects skip actor and party searches. All ten D18 requests pass controlled
+  actor acceptance. Their separate party path now slows without turning or
+  applying damage, preserving gravity/bouncing and the original deadline.
+  Controlled party acceptance includes later re-entry contacts and unchanged
+  RNG. Decorative contacts and the missing particle trail remain open.
+  ID 1050 becomes the non-damaging, 48-tick ID-1051 effect for source zero.
+  Its actor/party contacts now follow that transition, with controlled D18
+  acceptance covering eight
   contacts of each type and the full replacement lifetime. Original selection
   and natural branch reachability remain unverified. CD2 events 35/36 now
   exercise moving ID 2081 and persistent loot together from entry, including
@@ -230,9 +233,9 @@ The audit reduces the old sections to these bounded unknowns:
   Temporary effects clear
   on successful map open/load as an explicit engine policy. Exact original
   collision, presentation and temporary persistence remain unverified. Next
-  resolve the remaining actor contacts, terrain materials, trails and sound,
-  preserving the resource mismatch. Original actor selection and process-wide
-  random ordering remain open.
+  resolve decorative contacts, exact character-contact parity, terrain materials,
+  trails and sound, preserving the resource mismatch. Original actor selection
+  and process-wide random ordering remain open.
   Original cursor-item delivery, shared random ordering across subsystems,
   decoration picking/proximity triggers and state reindexing after descriptor changes,
   message-window styling,

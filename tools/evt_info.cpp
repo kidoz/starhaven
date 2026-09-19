@@ -62,6 +62,7 @@ void print_usage(const char* argv0) {
               << "  --object-reaction verify D01 actor deflection and hurt animation\n"
               << "  --object-2081-reaction verify CD2 actor deflection and effect expiry\n"
               << "  --object-1000-reaction verify D18 actor deflection and ordinary expiry\n"
+              << "  --object-1000-party verify D18 party slowing and ordinary expiry\n"
               << "  --object-2081-party verify CD2 party damping and effect expiry\n"
               << "  --object-impact  verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
@@ -513,6 +514,7 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
     const render::Vec3 distant{1000000, 0, 1000000};
     std::size_t drawable = 0;
     std::size_t detonations = 0;
+    std::size_t later_party_contacts = 0;
     std::size_t bounces = 0;
     std::size_t zero_scale = 0;
     std::size_t expired = 0;
@@ -531,8 +533,10 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
         detonations += step.detonations.size();
         expired += step.expired;
         bounces += step.bounces;
-        ok =
-            step.actor_contacts == 0 && step.actor_redirects == 0 && step.party_contacts == 0 && ok;
+        later_party_contacts += step.party_contacts;
+        ok = step.actor_contacts == 0 && step.actor_redirects == 0 && ok;
+        if (id != 1000 || !party_target)
+            ok = step.party_contacts == 0 && ok;
         if (id == 1000 || id == 2081) {
             const auto age = tick + 2;  // one tick already elapsed before this loop
             const auto effects = live.sprites(session.sprite_frames);
@@ -560,10 +564,16 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
          battle.health_of(0) == health && battle.slot_up(0, 0) && loot.random == random && ok;
     if (id == 1000)
         ok = bounces > 0 && zero_scale == count * (lifetime - 2) && ok;
-    std::cout << (party_target ? "OBJECT_2081_PARTY " : "OBJECT_REACTION ")
-              << (ok ? "PASS" : "FAIL") << " object=" << id << " event=" << event
+    if (id == 1000 && party_target && !request.scatter)
+        ok = later_party_contacts >= count && ok;  // vertical flight re-enters the party
+    const char* label = "OBJECT_REACTION ";
+    if (party_target)
+        label = id == 1000 ? "OBJECT_1000_PARTY " : "OBJECT_2081_PARTY ";
+    std::cout << label << (ok ? "PASS" : "FAIL") << " object=" << id << " event=" << event
               << " entry=" << entry << " actor_contacts=" << hit.actor_contacts
-              << " party_contacts=" << hit.party_contacts << " redirects=" << hit.actor_redirects
+              << " party_contacts=" << hit.party_contacts
+              << " later_party_contacts=" << later_party_contacts
+              << " redirects=" << hit.actor_redirects
               << " hurt_ticks=" << (party_target ? 0U : hurt_ticks)
               << " drawable_hurt_samples=" << drawable << " later_impacts=" << detonations
               << " expired=" << expired << " bounces=" << bounces
@@ -574,7 +584,7 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
 
 // Seed each installed ID-1000 spawn record. Event-entry timers and companion
 // outcomes are excluded; both vertical and scattered requests are retained.
-int do_object_1000_reaction(const std::filesystem::path& data_dir) {
+int do_object_1000_reaction(const std::filesystem::path& data_dir, bool party_target = false) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -591,10 +601,12 @@ int do_object_1000_reaction(const std::filesystem::path& data_dir) {
         if (!request || request->object_id != 1000)
             continue;
         ++records;
-        ok = do_object_reaction(data_dir, 1000, step.event_id, false, step.sequence) == 0 && ok;
+        ok = do_object_reaction(data_dir, 1000, step.event_id, party_target, step.sequence) == 0 &&
+             ok;
     }
     ok = records == 10 && ok;
-    std::cout << "OBJECT_1000_REACTION " << (ok ? "PASS" : "FAIL") << " records=" << records
+    std::cout << (party_target ? "OBJECT_1000_PARTY_SUMMARY " : "OBJECT_1000_REACTION ")
+              << (ok ? "PASS" : "FAIL") << " records=" << records
               << " event_entry=spawn_sequences\n";
     return ok ? 0 : 1;
 }
@@ -3904,12 +3916,12 @@ int main(int argc, char** argv) {
         }
         return do_object_expiry(*install / "data");
     }
-    if (stem == "--object-1000-reaction") {
+    if (stem == "--object-1000-reaction" || stem == "--object-1000-party") {
         if (argc != 2) {
             print_usage(argv[0]);
             return 2;
         }
-        return do_object_1000_reaction(*install / "data");
+        return do_object_1000_reaction(*install / "data", stem == "--object-1000-party");
     }
     if (stem == "--object-2081-reaction" || stem == "--object-2081-party") {
         if (argc != 2) {
