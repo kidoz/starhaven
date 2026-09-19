@@ -2,6 +2,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <zlib.h>
 
 #include <limits>
@@ -710,8 +711,10 @@ TEST_CASE("live 8080 actor contact uses combat state, magic resistance and saved
     REQUIRE(live.active_count() == 0);
 }
 
-TEST_CASE("live 4070 touches actors and the party without damage or resistance draws",
+TEST_CASE("live 1050 and 4070 touch actors and the party without damage or resistance draws",
           "[script-loot]") {
+    const auto id = GENERATE(1050U, 4070U);
+    CAPTURE(id);
     Fixture f;
     data::TextTable text;
     REQUIRE(data::TextTable::parse_body("#\tPicture\tName\tLVL\tHP\tMag\r\n"
@@ -724,11 +727,12 @@ TEST_CASE("live 4070 touches actors and the party without damage or resistance d
     battle.reset(f.session, monsters, 1);
     battle.hold_slot(0, 0, 100);
     battle.afflict(0, MonsterCondition::Paralyze, 100);
+    battle.react_to_event_object_2100(0, 1);
     const auto health = battle.health_of(0);
     bool actor_hit = true;
     bool party_hit = false;
     std::optional<render::Vec3> eye;
-    SECTION("immune living actor still detonates 4070") {}
+    SECTION("immune living actor still triggers replacement") {}
     SECTION("dead actor is excluded") {
         battle.kill(0);
         actor_hit = false;
@@ -747,7 +751,7 @@ TEST_CASE("live 4070 touches actors and the party without damage or resistance d
     ScriptLootState loot;
     ScriptObjectEffects live;
     auto req = request();
-    req.object_id = 4070;
+    req.object_id = id;
     REQUIRE(live.spawn(req, f.session, f.items, loot).created == 1);
     const auto random = loot.random;
     REQUIRE(live.advance(0, f.session, battle, monsters, loot, eye).detonations.empty());
@@ -755,17 +759,22 @@ TEST_CASE("live 4070 touches actors and the party without damage or resistance d
     REQUIRE(step.actor_contacts == (actor_hit ? 1U : 0U));
     REQUIRE(step.party_contacts == (party_hit ? 1U : 0U));
     REQUIRE(step.actor_accepted == 0);
+    REQUIRE(step.actor_redirects == 0);
     REQUIRE(step.detonations.size() == (actor_hit || party_hit ? 1U : 0U));
     REQUIRE(loot.random == random);
     if (actor_hit) {
         REQUIRE(battle.health_of(0) == health);
         REQUIRE(battle.slot_up(0, 0));
         REQUIRE_FALSE(battle.can_move(0));
+        REQUIRE(battle.animation_of(0) == world::MonsterAnimation::Wince);
     }
     if (actor_hit || party_hit) {
         REQUIRE(live.sprites(f.session.sprite_frames).front().animation == "c");
         REQUIRE(live.sprites(f.session.sprite_frames).front().animation_ticks == 0);
-        REQUIRE(live.advance(79.0 / 128, f.session, battle, monsters, loot, eye).expired == 0);
+        const double lifetime = id == 1050 ? 48 : 80;
+        REQUIRE(
+            live.advance((lifetime - 1) / 128, f.session, battle, monsters, loot, eye).expired ==
+            0);
         REQUIRE(live.advance(1.0 / 128, f.session, battle, monsters, loot, eye).expired == 1);
         REQUIRE(loot.random == random);
     }

@@ -132,7 +132,7 @@ std::optional<float> body_fraction(render::Vec3 from, render::Vec3 to, float rad
 void contact_actor(TemporaryObject& object, TemporaryObjectStep& result,
                    const ObjectContacts& actors, const ObjectActor& actor) {
     ++result.actor_contacts;
-    if (object.definition.id == 4070) {
+    if (object.definition.id == 1050 || object.definition.id == 4070) {
         // Source-zero event objects transform without resistance or target damage.
         finish(object, result);
         return;
@@ -186,8 +186,8 @@ std::optional<float> contact_characters(TemporaryObject& object, render::Vec3 fr
                                         float nearest, TemporaryObjectStep& result,
                                         const ObjectContacts* contacts) {
     if (contacts == nullptr || (object.definition.flags & 0x40U) == 0 ||
-        (object.definition.id != 2100 && object.definition.id != 4070 &&
-         object.definition.id != 8080))
+        (object.definition.id != 1050 && object.definition.id != 2100 &&
+         object.definition.id != 4070 && object.definition.id != 8080))
         return std::nullopt;
     const ObjectActor* selected = nullptr;
     bool party_hit = false;
