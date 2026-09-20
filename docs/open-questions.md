@@ -220,7 +220,11 @@ The audit reduces the old sections to these bounded unknowns:
   comparisons. Original collision/repeated-contact parity and decorative
   contacts remain open.
   D01 event 47's three ID-2100 objects now
-  pass geometry impact, stationary ID-2101 animation and expiry checks; its
+  pass geometry impact, stationary ID-2101 animation and expiry checks.
+  Flight trails, the incoming-color burst and stationary replacement particles
+  are implemented, with independent expiry and unchanged gameplay RNG. Actor
+  deflection retains the ordinary trail without a burst; party impact bursts
+  on replacement. Exact original visual cadence remains unverified. Its
   distinct actor-contact response now deflects without detonation and starts a
   resource-timed hurt animation. Controlled actor acceptance checks its clock,
   unchanged health/buffs and later geometry impact; original state-8 AI choices

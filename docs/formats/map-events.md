@@ -1048,8 +1048,8 @@ continue until expiry or pool overwrite. Pause freezes them, and successful
 map/load clear discards them. Rendering uses one internal-framebuffer pixel,
 8-bit descriptor RGB and the existing camera/depth convention. Exact original
 cadence, shared RNG ordering, color quantization and doubled-resolution mode
-remain outside this implementation. IDs 1050/1051 and 2081 use this same
-particle path as described below; other families' trails remain open.
+remain outside this implementation. IDs 1050/1051, 2081 and 2100/2101 use this
+same particle path as described below; other families' trails remain open.
 
 ID 1000 actor contact is implemented through the ordinary collision response.
 Flag `0x40` is absent, so it bypasses the impact handler and its 5,020-unit
@@ -1238,6 +1238,25 @@ Stationary 2101 effects have no character contacts and expire at their resource
 lifetime without another notification. This does not establish original party
 collision dimensions, integer trajectories or sector-selection parity.
 
+ID 2100/2101's colored trails and impact burst are implemented. Both
+installed descriptors provide **RGB 255, 255, 0**. Moving 2100 uses the ordinary
+point emitter and retains it after actor deflection. Actor target type 3
+returns before burst presentation (`0x45c984..0x45c995`); it adds no extra
+particle or lifetime reset. A later party or geometry contact in the same tick
+can still trigger the ordinary transition.
+
+Geometry, party and timed transitions gate the common burst on the incoming
+2100 descriptor's `0x100` bit (`0x45ca6d..0x45ca84`) and pass its color to the
+shared emitter (`0x45d5c7..0x45d5de`). This is the same **5–10-point burst**
+specified for 1050 above, including its resampled continuation threshold.
+A transition skips ordinary emission on that update. Later stationary 2101
+updates use the replacement descriptor's color and ordinary-trail flags.
+These are `observed` branches. The original 5,020-unit guard removes before
+presentation; final 2101 expiry adds no burst. Existing particles survive
+transition/removal and retain their independent deadlines. Fixed visual
+cadence, isolated RNG, pause and map-clear policies are shared with the other
+implemented trails; original visual parity remains unverified.
+
 ID 4070 uses descriptor 178, frame 246, flags `0x54` and lifetime **256 ticks**.
 It falls under gravity, but its impact action returns to ordinary geometry
 response for target types 6 (face), 5 (decoration) and 0 (none). It therefore
@@ -1395,18 +1414,25 @@ other families' trails, sound, the remaining IDs and original temporary-object
 persistence remain unresolved before opcode 34 can be called complete. See the
 [event-script coverage audit](../explanation/event-script-coverage.md).
 
-`evt_info --object-impact` walks D01 event 47 from entry and applies its three
+`evt_info --object-impact [PPM]` walks D01 event 47 from entry and applies its three
 ID-2100 requests through the live helper. It checks the one-time counter,
 three transitions, drawable 2101 frames starting at age zero, and removal after
 the replacement lifetime. The installed geometry run removes all three by tick
-253. The event's chest and monster-summon outcomes are not applied by this
+253. It also checks flight particles, the incoming-color impact burst,
+stationary replacement emission, visible points, independent particle expiry
+and unchanged gameplay RNG. An optional PPM contains only the point scene.
+The event's chest and monster-summon outcomes are not applied by this
 object probe; it does not establish the whole event's player reachability or
 actor-contact behavior. Synthetic regressions cover geometry and expiry
 transitions, gravity, failed replacement joins, pause, clearing and far impacts.
+Particle tests use differing flight/replacement colors and replacement lifetimes,
+check actor-only and actor-then-party paths, and cover flag gating, cadence-aligned
+transitions, shared-ring overwrite and batching.
 
 `evt_info --object-reaction` applies D01 event 47's three objects with a
 controlled actor at their launch point. It verifies three contacts and
-redirects without immediate replacement, and damping against a no-actor
+redirects without immediate replacement or burst, continuing ordinary trail
+emission, and damping against a no-actor
 control. The selected installed actor's hurt animation lasts 80 ticks; all 80
 samples resolve and use its reset simulation clock. Moving the actor aside
 and adding a controlled floor then produces three ordinary 2101 transitions

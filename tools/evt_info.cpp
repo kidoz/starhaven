@@ -67,7 +67,7 @@ void print_usage(const char* argv0) {
               << "  --object-1050-trail [PPM] verify D18 flight, burst and replacement trails\n"
               << "  --object-1000-trail [PPM] verify D18 colored points and trail expiry\n"
               << "  --object-2081-party verify CD2 party damping and effect expiry\n"
-              << "  --object-impact  verify D01 event 47 object impact and replacement\n"
+              << "  --object-impact [PPM] verify D01 event 47 object impact and replacement\n"
               << "  --object-lifecycle  walk D18 event 56 spawn branches through live effects\n"
               << "  --decoration-events  verify opcode 42 and default decoration interactions\n"
               << "  --generated-items  verify opcode 41 generation against item tables\n"
@@ -534,8 +534,8 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
     const std::size_t expected_actors = party_target ? 0 : count;
     ok = hit.actor_contacts == expected_actors && hit.actor_redirects == expected_actors &&
          hit.party_contacts == (party_target ? count : 0) && hit.actor_animation_fallbacks == 0 &&
-         hit.detonations.empty() && hit.expired == 0 && sprites.size() == count &&
-         control_sprites.size() == count &&
+         hit.detonations.empty() && hit.trail_emitted == 0 && hit.expired == 0 &&
+         sprites.size() == count && control_sprites.size() == count &&
          battle.animation_of(0) ==
              (party_target ? world::MonsterAnimation::Stand : world::MonsterAnimation::Wince) &&
          ok;
@@ -578,6 +578,8 @@ int do_object_reaction(const std::filesystem::path& data_dir, std::uint16_t id =
                                        loot, party_eye);
         detonations += step.detonations.size();
         expired += step.expired;
+        if (id == 2100 && detonations == 0)
+            ok = step.trail_emitted == ((tick + 2) % 4 == 0 ? count : 0U) && ok;
         bounces += step.bounces;
         later_party_contacts += step.party_contacts;
         ok = step.actor_contacts == 0 && step.actor_redirects == 0 && ok;
@@ -859,7 +861,7 @@ int do_object_1050_trail(const std::filesystem::path& data_dir, const std::strin
 
 // Walk the D01 event, then apply its object requests. Chest and monster-summon
 // outcomes are outside this object-lifecycle probe; no actor-contact claim.
-int do_object_impact(const std::filesystem::path& data_dir) {
+int do_object_impact(const std::filesystem::path& data_dir, const std::string& screenshot) {
     using namespace starhaven;
     assets::AssetCache cache;
     cache.open(data_dir);
@@ -898,6 +900,16 @@ int do_object_impact(const std::filesystem::path& data_dir) {
     ok = state.variables[124] == 1 &&
          game::walk_event(session.script, 47, state, -1, session.file_name).object_spawns.empty() &&
          ok;
+    const auto random = loot.random;
+    render::SceneRenderer scene(640, 480);
+    render::Camera camera;
+    const auto initial = live.sprites(session.sprite_frames);
+    if (!initial.empty())
+        camera.position = initial.front().position + render::Vec3{0, 160, 1200};
+    std::size_t flight_points = 0;
+    std::size_t burst_points = 0;
+    std::size_t replacement_points = 0;
+    std::size_t visible_points = 0;
     std::size_t detonations = 0;
     std::size_t expired = 0;
     std::size_t visible_impacts = 0;
@@ -907,6 +919,30 @@ int do_object_impact(const std::filesystem::path& data_dir) {
         const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session);
         detonations += step.detonations.size();
         expired += step.expired;
+        ok = loot.random == random && ok;
+        if (!step.detonations.empty()) {
+            burst_points += step.trail_emitted;
+            ok = step.detonations.size() == created && step.trail_emitted >= 5 * created &&
+                 step.trail_emitted <= 10 * created && ok;
+        } else if (detonations == 0) {
+            flight_points += step.trail_emitted;
+        } else {
+            replacement_points += step.trail_emitted;
+        }
+        scene.begin(camera, {0, 0, 0});
+        for (const auto& particle : live.trail_particles()) {
+            if (particle.remaining == 0)
+                continue;
+            const auto matches = [&](const auto& descriptor) {
+                return particle.color.r == descriptor.trail_red &&
+                       particle.color.g == descriptor.trail_green &&
+                       particle.color.b == descriptor.trail_blue;
+            };
+            ok = (matches(*flight) || matches(*impact)) && particle.remaining <= 319 && ok;
+            visible_points += scene.draw_point(particle.position, particle.color) ? 1U : 0U;
+        }
+        if (!step.detonations.empty() && !screenshot.empty())
+            ok = render::write_ppm(screenshot, scene.framebuffer()) && ok;
         for (const auto& detonation : step.detonations)
             ok = detonation.radius == 512 && ok;
         for (const auto& sprite : live.sprites(session.sprite_frames)) {
@@ -922,6 +958,19 @@ int do_object_impact(const std::filesystem::path& data_dir) {
     }
     ok = detonations == 3 && expired == 3 && live.active_count() == 0 && visible_impacts > 0 &&
          impact_frame_zero && loot.objects.empty() && ok;
+    ok = flight_points > 0 && burst_points >= 5 * created && burst_points <= 10 * created &&
+         replacement_points >= 11 * created && replacement_points <= 12 * created &&
+         visible_points > 0 &&
+         std::ranges::any_of(live.trail_particles(),
+                             [](const auto& particle) { return particle.remaining; }) &&
+         ok;
+    for (std::uint32_t tick = 0; tick < 319; ++tick) {
+        const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session);
+        ok = step.trail_emitted == 0 && step.expired == 0 && step.detonations.empty() && ok;
+    }
+    ok = std::ranges::none_of(live.trail_particles(),
+                              [](const auto& particle) { return particle.remaining; }) &&
+         ok;
     std::cout << "OBJECT_IMPACT " << (ok ? "PASS" : "FAIL")
               << " event=47 object=2100 replacement=2101 created=" << created
               << " impacts=" << detonations << " expired=" << expired
@@ -931,7 +980,15 @@ int do_object_impact(const std::filesystem::path& data_dir) {
               << " replacement_frame=" << impact->sprite_frame_index
               << " descriptor=" << (flight - descriptors.begin())
               << " replacement_descriptor=" << (impact - descriptors.begin())
-              << " actor_contacts=not_checked\n";
+              << " flight_points=" << flight_points << " burst_points=" << burst_points
+              << " replacement_points=" << replacement_points
+              << " visible_point_samples=" << visible_points
+              << " flight_rgb=" << static_cast<int>(flight->trail_red) << ','
+              << static_cast<int>(flight->trail_green) << ','
+              << static_cast<int>(flight->trail_blue)
+              << " replacement_rgb=" << static_cast<int>(impact->trail_red) << ','
+              << static_cast<int>(impact->trail_green) << ','
+              << static_cast<int>(impact->trail_blue) << " actor_contacts=not_checked\n";
     return ok ? 0 : 1;
 }
 
@@ -1156,6 +1213,9 @@ int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t obje
                  (party_target || battle.slot_up(0, 0)) && ok;
             for (const auto& detonation : hit.detonations)
                 ok = detonation.radius == 512 && ok;
+            if (object_id == 2100)
+                ok = hit.trail_emitted >= 5 * created.created &&
+                     hit.trail_emitted <= 10 * created.created && ok;
             const auto initial = live.sprites(session.sprite_frames);
             for (std::uint32_t age = 0; age < replacement->lifetime; ++age) {
                 const auto sprites = live.sprites(session.sprite_frames);
@@ -1174,6 +1234,10 @@ int do_object_contacts(const std::filesystem::path& data_dir, std::uint16_t obje
                 const auto step = live.advance(1.0 / game::kObjectTicksPerSecond, session, battle,
                                                monsters, loot, eye);
                 removed += step.expired;
+                if (object_id == 2100) {
+                    const bool emits = age + 1U < replacement->lifetime && (age + 2U) % 4 == 0;
+                    ok = step.trail_emitted == (emits ? created.created : 0U) && ok;
+                }
                 ok = step.actor_contacts == 0 && step.party_contacts == 0 &&
                      step.detonations.empty() &&
                      step.expired == (age + 1 == replacement->lifetime ? created.created : 0U) &&
@@ -4191,11 +4255,11 @@ int main(int argc, char** argv) {
         return do_object_reaction(*install / "data");
     }
     if (stem == "--object-impact") {
-        if (argc != 2) {
+        if (argc != 2 && argc != 3) {
             print_usage(argv[0]);
             return 2;
         }
-        return do_object_impact(*install / "data");
+        return do_object_impact(*install / "data", argc == 3 ? argv[2] : "");
     }
     if (stem == "--object-loot") {
         if (argc != 2 && argc != 3) {

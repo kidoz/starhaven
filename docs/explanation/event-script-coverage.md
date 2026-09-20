@@ -54,7 +54,8 @@ correcting its tentative party-coordinate label. Its
 pickup, map memory and save/load. Temporary IDs 1000/1050/2081/2100/4070/8080 now move, collide
 with indoor/model geometry and outdoor terrain, animate and expire in the live
 adapter. ID 1050 transitions to 1051 on actor or party contact without damage.
-IDs 1000, 1050/1051 and 2081 emit colored points; 1050 also bursts on replacement.
+IDs 1000, 1050/1051, 2081 and 2100/2101 emit colored points; 1050 and 2100
+also burst on replacement.
 ID 8080 has its resisted actor response and 8081 replacement, and removes
 immediately on party contact. ID 4070 transitions to 4071 on actor or
 party contact. IDs 1000, 2081 and 2100 deflect from actors with a resource-timed hurt
@@ -177,8 +178,8 @@ behavior check. A handler that merely consumes a record is not completion.
    and impacts. IDs 1000/1050 now run in live simulation and rendering, with an
    event-56 branch probe; CD2's ID-2081 effect and ID-1 loot pass a combined
    entry-path probe, including pickup and save/map return.
-   IDs 1000, 1050/1051 and 2081 now have colored point trails and the 1050 impact
-   burst. Next resolve other trails,
+   IDs 1000, 1050/1051, 2081 and 2100/2101 now have colored point trails,
+   including the 1050/2100 impact bursts. Next resolve other trails,
    decorative contacts, sound and other types. Keep
    the absent descriptor ID 36 in ZNWC visible. Opcode 23 already changes passage collision.
    Opcode 43 has one seven-byte use, `T7 / 1 / 1`, in a door event. The two
@@ -335,21 +336,27 @@ engine policies tested with synthetic fixtures. Decorative contacts, original
 collision and full AI-state parity remain open; see the
 [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle).
 
-`evt_info --object-impact` passes D01 event 47's object requests: three
+`evt_info --object-impact [PPM]` passes D01 event 47's object requests: three
 ID-2100 objects follow gravity and loaded geometry, become stationary ID-2101
 animations, then expire. It checks the event's one-time counter and drawable
 replacement frames; all three finish by tick 253 in the inspected installation.
+Flight points, the incoming-color impact burst, stationary replacement trails
+and final particle expiry are also checked, with unchanged gameplay RNG. The
+optional PPM contains the point scene. Synthetic tests cover distinct colors,
+flags, custom deadlines, far removal, pause, clear and batched updates.
 Actor contacts and the event's companion chest/summon outcomes are outside this
 probe. See the [temporary-object specification](../formats/map-events.md#temporary-object-lifecycle)
 for the actor-contact exception and remaining presentation/persistence gaps.
 The separate `--object-reaction` probe verifies that exception with controlled
-actor placement: three contacts/deflections, no immediate replacement, 80 valid
+actor placement: three contacts/deflections, continued ordinary trails without
+an immediate replacement or burst, 80 valid
 hurt-animation samples on a reset simulation clock, and later floor impact and
 expiry. It preserves actor health, an active buff and the object RNG. This is
 not natural encounter reachability or full original AI-state parity.
 The `--object-party` probe exercises the distinct party path: three immediate
 2101 transitions and removals, with 144 drawable stationary samples over its
-48-tick resource lifetime. It uses controlled party overlap, excludes map
+48-tick resource lifetime. It also verifies the immediate particle burst and
+subsequent stationary emission. It uses controlled party overlap, excludes map
 geometry and companion outcomes, and preserves the object RNG.
 
 `evt_info --object-expiry` seeds OUTE3 event 220 at sequence 4: 45 ID-4070
