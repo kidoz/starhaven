@@ -468,7 +468,8 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
             }
             if (!object.active)
                 continue;
-            if (incoming.id == 1050 && object.definition.id == 1051) {
+            if ((incoming.id == 1050 && object.definition.id == 1051) ||
+                (incoming.id == 2100 && object.definition.id == 2101)) {
                 // Impact uses the incoming descriptor, then returns before ordinary emission.
                 if ((incoming.flags & 0x100U) != 0)
                     result.trail_emitted += emit_trail_burst(object.position, incoming.trail_color);
@@ -476,9 +477,10 @@ TemporaryObjectStep TemporaryObjects::advance(std::uint32_t ticks,
             }
             const auto id = object.definition.id;
             // No-gravity 2081 bypasses the original grounded early return.
-            const bool emits = id == 1051 ||
-                               (id == 2081 && (object.definition.flags & kNoGravity) != 0) ||
-                               (!object.resting && (id == 1000 || id == 1050 || id == 2081));
+            const bool emits =
+                id == 1051 || id == 2101 ||
+                (id == 2081 && (object.definition.flags & kNoGravity) != 0) ||
+                (!object.resting && (id == 1000 || id == 1050 || id == 2081 || id == 2100));
             if (trail_tick_ == 0 && emits && (object.definition.flags & 0x700U) == 0x100U) {
                 emit_trail_particle(object.position, object.definition.trail_color);
                 ++result.trail_emitted;

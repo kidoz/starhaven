@@ -1457,7 +1457,7 @@ TEST_CASE("8080 party removal needs no replacement even at distant contacts",
 
 TEST_CASE("flight trails use descriptor color, independent lifetimes and upward jitter",
           "[temporary-objects]") {
-    const auto id = GENERATE(1000U, 1050U, 2081U);
+    const auto id = GENERATE(1000U, 1050U, 2081U, 2100U);
     CAPTURE(id);
     Resources resources;
     auto& descriptor =
@@ -1558,7 +1558,8 @@ TEST_CASE("settled objects and unsupported trail families do not emit", "[tempor
         resources.objects[1].flags |= 0x400U;
     }
     SECTION("another family") {
-        req.object_id = 2100;
+        req.object_id = 4070;
+        resources.objects[7].flags |= 0x100U;
     }
     TemporaryObjects live;
     spawn(live, resources, req);
@@ -1566,13 +1567,18 @@ TEST_CASE("settled objects and unsupported trail families do not emit", "[tempor
     REQUIRE(live.advance(768, collision).trail_emitted == 0);
 }
 
-TEST_CASE("1050 impact bursts use incoming color before stationary replacement trails",
+TEST_CASE("Impact bursts use incoming color before stationary replacement trails",
           "[temporary-objects]") {
+    const auto id = GENERATE(1050U, 2100U);
+    CAPTURE(id);
     Resources resources;
-    resources.objects[2].trail_red = 17;
-    resources.objects[3].trail_blue = 231;
+    auto& flight = *std::ranges::find(resources.objects, id, &world::ObjectDescriptor::object_id);
+    auto& impact =
+        *std::ranges::find(resources.objects, id + 1, &world::ObjectDescriptor::object_id);
+    flight.trail_red = 17;
+    impact.trail_blue = 231;
     TemporaryObjects live;
-    auto req = request(1050);
+    auto req = request(id);
     req.speed = 0;
     bool expiry = false;
     world::CollisionWorld collision;
@@ -1583,14 +1589,16 @@ TEST_CASE("1050 impact bursts use incoming color before stationary replacement t
         req.speed = -128;
         collision = floor();
     }
-    SECTION("actor") {
+    SECTION("actor, then party for 2100") {
         contacts.bodies = actors;
+        if (id == 2100)
+            contacts.party = ObjectParty{{0, 100, 0}, 2, 10};
     }
     SECTION("party") {
         contacts.party = ObjectParty{{0, 100, 0}, 2, 10};
     }
     SECTION("timed expiry on a periodic emission tick") {
-        resources.objects[2].lifetime = 4;
+        flight.lifetime = 4;
         expiry = true;
     }
     spawn(live, resources, req);
@@ -1598,10 +1606,14 @@ TEST_CASE("1050 impact bursts use incoming color before stationary replacement t
         REQUIRE(live.advance(3, {}).trail_emitted == 0);
     const auto hit = live.advance(1, collision, nullptr, &contacts);
     REQUIRE(hit.detonations.size() == 1);
+    if (!contacts.bodies.empty()) {
+        REQUIRE(hit.actor_contacts == 1);
+        REQUIRE(hit.party_contacts == (id == 2100 ? 1U : 0U));
+    }
     REQUIRE(hit.trail_emitted >= 5);
     REQUIRE(hit.trail_emitted <= 10);
     const auto center = live.slots().front().position;
-    REQUIRE(live.slots().front().definition.id == 1051);
+    REQUIRE(live.slots().front().definition.id == id + 1);
     REQUIRE(live.slots().front().age == 0);
     for (std::size_t i = 0; i < hit.trail_emitted; ++i) {
         const auto& particle = live.trail_particles()[i];
@@ -1621,7 +1633,7 @@ TEST_CASE("1050 impact bursts use incoming color before stationary replacement t
     REQUIRE(stationary.color.r == 0);
     REQUIRE(stationary.color.b == 231);
     REQUIRE(render::length(stationary.position - center) == 0);
-    const auto end = live.advance(expiry ? 44 : 45, {});
+    const auto end = live.advance(impact.lifetime - (expiry ? 4 : 3), {});
     REQUIRE(end.expired == 1);
     REQUIRE(end.detonations.empty());
     REQUIRE(live.active_count() == 0);
@@ -1631,26 +1643,32 @@ TEST_CASE("1050 impact bursts use incoming color before stationary replacement t
         REQUIRE(particle.remaining == 0);
 }
 
-TEST_CASE("1050 burst and 1051 ordinary trail flags are independent", "[temporary-objects]") {
+TEST_CASE("Impact burst and replacement ordinary trail flags are independent",
+          "[temporary-objects]") {
+    const auto id = GENERATE(1050U, 2100U);
+    CAPTURE(id);
     Resources resources;
-    resources.objects[2].lifetime = 1;
-    auto req = request(1050);
+    auto& flight = *std::ranges::find(resources.objects, id, &world::ObjectDescriptor::object_id);
+    auto& impact =
+        *std::ranges::find(resources.objects, id + 1, &world::ObjectDescriptor::object_id);
+    flight.lifetime = 1;
+    auto req = request(id);
     req.speed = 0;
     std::size_t ordinary = 1;
     bool burst = true;
     SECTION("incoming trail absent") {
-        resources.objects[2].flags &= ~0x100U;
+        flight.flags &= ~0x100U;
         burst = false;
     }
     SECTION("incoming specialized trail still permits impact burst") {
-        resources.objects[2].flags |= 0x600U;
+        flight.flags |= 0x600U;
     }
     SECTION("replacement trail absent") {
-        resources.objects[3].flags &= ~0x100U;
+        impact.flags &= ~0x100U;
         ordinary = 0;
     }
     SECTION("replacement specialized trail") {
-        resources.objects[3].flags |= 0x200U;
+        impact.flags |= 0x200U;
         ordinary = 0;
     }
     TemporaryObjects live;
@@ -1663,12 +1681,14 @@ TEST_CASE("1050 burst and 1051 ordinary trail flags are independent", "[temporar
     REQUIRE(live.advance(3, {}).trail_emitted == ordinary);
 }
 
-TEST_CASE("1050 burst batching preserves old particles and wraps the shared ring",
+TEST_CASE("Impact burst batching preserves old particles and wraps the shared ring",
           "[temporary-objects]") {
+    const auto id = GENERATE(1050U, 2100U);
+    CAPTURE(id);
     Resources resources;
-    resources.objects[2].lifetime = 8;
+    std::ranges::find(resources.objects, id, &world::ObjectDescriptor::object_id)->lifetime = 8;
     TemporaryObjects live;
-    auto req = request(1050);
+    auto req = request(id);
     req.speed = 0;
     req.count = GENERATE(1U, 101U);
     spawn(live, resources, req);
@@ -1691,11 +1711,13 @@ TEST_CASE("1050 burst batching preserves old particles and wraps the shared ring
     }
 }
 
-TEST_CASE("far 1050 expiry produces neither a burst nor a replacement trail",
+TEST_CASE("Far impact expiry produces neither a burst nor a replacement trail",
           "[temporary-objects]") {
+    const auto id = GENERATE(1050U, 2100U);
+    CAPTURE(id);
     Resources resources;
-    resources.objects[2].lifetime = 24;
-    auto req = request(1050);
+    std::ranges::find(resources.objects, id, &world::ObjectDescriptor::object_id)->lifetime = 24;
+    auto req = request(id);
     req.speed = 32767;
     TemporaryObjects live;
     spawn(live, resources, req);
@@ -1784,4 +1806,27 @@ TEST_CASE("2081 trail emission respects descriptor flags and resource lifetime",
     REQUIRE(step.expired == 1);
     REQUIRE(step.detonations.empty());
     REQUIRE(live.active_count() == 0);
+}
+
+TEST_CASE("2100 actor contact keeps ordinary emission without an impact burst",
+          "[temporary-objects]") {
+    const Resources resources;
+    TemporaryObjects live;
+    auto req = request(2100);
+    req.speed = 128;
+    spawn(live, resources, req);
+    REQUIRE(live.advance(3, {}).trail_emitted == 0);
+    const std::array actors{ObjectActor{0, {0, 100, 0}, 32, 160}};
+    const ObjectContacts contacts{actors, {}};
+    const auto hit = live.advance(1, {}, nullptr, &contacts);
+    REQUIRE(hit.actor_contacts == 1);
+    REQUIRE(hit.actor_redirects == 1);
+    REQUIRE(hit.detonations.empty());
+    REQUIRE(hit.trail_emitted == 1);
+    REQUIRE(live.slots().front().definition.id == 2100);
+    REQUIRE(live.slots().front().age == 4);
+    REQUIRE(render::length(live.trail_particles().front().position -
+                           live.slots().front().position) == 0);
+    REQUIRE(live.advance(4, {}, nullptr, &contacts).trail_emitted == 1);
+    REQUIRE(live.slots().front().age == 8);
 }
